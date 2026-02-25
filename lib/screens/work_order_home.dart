@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/work_order.dart';
 import '../widgets/work_order_card.dart';
 import 'work_order_details.dart';
+import 'add_work_order.dart';
 
 class WorkOrderHome extends StatefulWidget {
   const WorkOrderHome({super.key});
@@ -26,18 +27,20 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
     ),
   ];
 
-  void addWorkOrder() {
+  void openAddScreen() async {
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const AddWorkOrderScreen(),
+    ),
+  );
+
+  if (result != null && result is WorkOrder) {
     setState(() {
-      workOrders.add(
-        WorkOrder(
-          jobNo: "WO-${1000 + workOrders.length + 1}",
-          client: "New Client",
-          status: "Open",
-          description: "New job description",
-        ),
-      );
+      workOrders.add(result);
     });
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +54,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: addWorkOrder,
+           onPressed: openAddScreen,
           ),
           IconButton(
             icon: const Icon(Icons.search),
