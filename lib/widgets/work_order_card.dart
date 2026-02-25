@@ -3,13 +3,15 @@ import '../models/work_order.dart';
 
 class WorkOrderCard extends StatelessWidget {
   final WorkOrder workOrder;
-  final VoidCallback onTap;
+ final VoidCallback onEdit;
+ final VoidCallback onTap;
 
   const WorkOrderCard({
-    super.key,
-    required this.workOrder,
-    required this.onTap,
-  });
+  super.key,
+  required this.workOrder,
+  required this.onTap,
+  required this.onEdit,
+});
 
   Color getStatusColor(String status) {
     switch (status) {
@@ -37,32 +39,41 @@ class WorkOrderCard extends StatelessWidget {
             colors: [Color(0xFF37474F), Color(0xFF263238)],
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              workOrder.jobNo,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              workOrder.client,
-              style: const TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              workOrder.status,
-              style: TextStyle(
-                color: getStatusColor(workOrder.status),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+       child: Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          workOrder.jobNo,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        IconButton(
+          icon: const Icon(Icons.edit, color: Colors.white),
+          onPressed: onEdit,
+        ),
+      ],
+    ),
+    const SizedBox(height: 10),
+    Text(
+      workOrder.client,
+      style: const TextStyle(color: Colors.white70),
+    ),
+    const SizedBox(height: 10),
+    Text(
+      workOrder.status,
+      style: TextStyle(
+        color: getStatusColor(workOrder.status),
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  ],
+),
       ),
     );
   }

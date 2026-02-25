@@ -67,19 +67,33 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
         itemCount: workOrders.length,
         itemBuilder: (context, index) {
           final workOrder = workOrders[index];
+              return WorkOrderCard(
+                workOrder: workOrder,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          WorkOrderDetails(workOrder: workOrder),
+                    ),
+                  );
+                },
+                onEdit: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          AddWorkOrderScreen(workOrder: workOrder),
+                    ),
+                  );
 
-          return WorkOrderCard(
-            workOrder: workOrder,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      WorkOrderDetails(workOrder: workOrder),
-                ),
+                  if (result != null && result is WorkOrder) {
+                    setState(() {
+                      workOrders[index] = result;
+                    });
+                  }
+                },
               );
-            },
-          );
         },
       ),
     );

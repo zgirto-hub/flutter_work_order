@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import '../models/work_order.dart';
 
 class AddWorkOrderScreen extends StatefulWidget {
-  const AddWorkOrderScreen({super.key});
+  final WorkOrder? workOrder;
+
+  const AddWorkOrderScreen({super.key, this.workOrder});
 
   @override
   State<AddWorkOrderScreen> createState() => _AddWorkOrderScreenState();
 }
+  
 
 class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -17,24 +20,40 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       TextEditingController();
 
   String selectedStatus = "Open";
+@override
+void initState() {
+  super.initState();
 
-  void submit() {
-    if (_formKey.currentState!.validate()) {
-      final newWorkOrder = WorkOrder(
-        jobNo: jobNoController.text,
-        client: clientController.text,
-        status: selectedStatus,
-        description: descriptionController.text,
-      );
-
-      Navigator.pop(context, newWorkOrder);
-    }
+  if (widget.workOrder != null) {
+    jobNoController.text = widget.workOrder!.jobNo;
+    clientController.text = widget.workOrder!.client;
+    descriptionController.text = widget.workOrder!.description;
+    selectedStatus = widget.workOrder!.status;
   }
+}
+void submit() {
+  if (_formKey.currentState!.validate()) {
+    final updatedWorkOrder = WorkOrder(
+      jobNo: jobNoController.text,
+      client: clientController.text,
+      status: selectedStatus,
+      description: descriptionController.text,
+    );
+
+    Navigator.pop(context, updatedWorkOrder);
+  }
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("New Work Order")),
+      appBar: AppBar(
+  title: Text(
+    widget.workOrder == null
+        ? "New Work Order"
+        : "Edit Work Order",
+  ),
+),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -84,7 +103,11 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: submit,
-                child: const Text("Add Work Order"),
+               child: Text(
+                  widget.workOrder == null
+                      ? "Add Work Order"
+                      : "Save Changes",
+                ),
               ),
             ],
           ),
