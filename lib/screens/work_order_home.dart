@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/work_order.dart';
 import '../widgets/work_order_card.dart';
-import 'work_order_details.dart';
+
 import 'add_work_order.dart';
 
 class WorkOrderHome extends StatefulWidget {
@@ -14,20 +14,29 @@ class WorkOrderHome extends StatefulWidget {
 
 class _WorkOrderHomeState extends State<WorkOrderHome> {
   String selectedFilter = "All";
+  int? expandedIndex;
   final List<WorkOrder> workOrders = [
-    const WorkOrder(
-      jobNo: "WO-1001",
-      client: "Kuwait Airport",
-      status: "Open",
-      description: "Runway lighting inspection",
-    ),
-    const WorkOrder(
-      jobNo: "WO-1002",
-      client: "NBK HQ",
-      status: "In Progress",
-      description: "Server room maintenance",
-    ),
-  ];
+  WorkOrder(
+    jobNo: "WO-1001",
+    client: "Kuwait Airport",
+    status: "Open",
+    description: "Runway lighting inspection",
+    location: "Terminal 1",
+    type: "Technical",
+    dateCreated: DateTime.now().toString(),
+    dateModified: DateTime.now().toString(),
+  ),
+  WorkOrder(
+    jobNo: "WO-1002",
+    client: "NBK HQ",
+    status: "In Progress",
+    description: "Server room maintenance",
+    location: "IT Floor",
+    type: "Technical",
+    dateCreated: DateTime.now().toString(),
+    dateModified: DateTime.now().toString(),
+  ),
+];
 
   void openAddScreen() async {
 
@@ -138,19 +147,17 @@ Widget build(BuildContext context) {
         return WorkOrderCard(
           workOrder: workOrder,
 
-          onTap: () {
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (context) {
-                return WorkOrderDetailsModal(
-                    workOrder: workOrder);
-              },
-            );
-          },
-
-          onEdit: () async {
+                    onTap: () {
+                    setState(() {
+                      if (expandedIndex == index) {
+                        expandedIndex = null;     // collapse if tapped again
+                      } else {
+                        expandedIndex = index;    // expand new card
+                      }
+                    });
+                  },
+                  isExpanded: expandedIndex == index,
+                 onEdit: () async {
             final result = await Navigator.push(
               context,
               MaterialPageRoute(

@@ -5,12 +5,15 @@ class WorkOrderCard extends StatelessWidget {
   final WorkOrder workOrder;
  final VoidCallback onEdit;
  final VoidCallback onTap;
+ final bool isExpanded;
 
   const WorkOrderCard({
   super.key,
   required this.workOrder,
+  required this.isExpanded,
   required this.onTap,
   required this.onEdit,
+  
 });
 
   Color getStatusColor(String status) {
@@ -26,56 +29,118 @@ class WorkOrderCard extends StatelessWidget {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: const LinearGradient(
-            colors: [Color.fromARGB(255, 215, 213, 162), Color.fromARGB(235, 177, 167, 105)],
-            //  colors: [Color.fromARGB(255, 215, 213, 162), Color.fromARGB(235, 177, 167, 105)],
+ @override
+Widget build(BuildContext context) {
+  return GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [
+            Color.fromARGB(255, 215, 213, 162),
+            Color.fromARGB(235, 177, 167, 105),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: isExpanded ? 12 : 6,
+            offset: const Offset(0, 4),
           ),
-        ),
-       child: Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          workOrder.jobNo,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+
+          /// 🔹 TOP ROW
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                workOrder.jobNo,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Row(
+                children: [
+                  Icon(
+                    isExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.white),
+                    onPressed: onEdit,
+                  ),
+                ],
+              ),
+            ],
           ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.edit, color: Colors.white),
-          onPressed: onEdit,
-        ),
-      ],
-    ),
-    const SizedBox(height: 10),
-    Text(
-      workOrder.client,
-      style: const TextStyle(color: Colors.white70),
-    ),
-    const SizedBox(height: 10),
-    Text(
-      workOrder.status,
-      style: TextStyle(
-        color: getStatusColor(workOrder.status),
-        fontWeight: FontWeight.bold,
+
+          const SizedBox(height: 10),
+
+          Text(
+            workOrder.client,
+            style: const TextStyle(color: Colors.white70),
+          ),
+
+          const SizedBox(height: 10),
+
+          Text(
+            workOrder.status,
+            style: TextStyle(
+              color: getStatusColor(workOrder.status),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          /// 🔹 EXPANDABLE SECTION
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 300),
+            crossFadeState: isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: const SizedBox(),
+            secondChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Divider(color: Colors.white54, height: 25),
+
+                Text(
+                  "Description: ${workOrder.description}",
+                  style: const TextStyle(color: Colors.white),
+                ),
+
+                const SizedBox(height: 8),
+
+                Text(
+                  "Created: ${workOrder.dateCreated}",
+                  style: const TextStyle(color: Colors.white70),
+                ),
+
+                Text(
+                  "Modified: ${workOrder.dateModified}",
+                  style: const TextStyle(color: Colors.white70),
+                ),
+
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ],
       ),
     ),
-  ],
-),
-      ),
-    );
-  }
+  );
+}
 }
