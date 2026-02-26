@@ -72,7 +72,8 @@ Widget build(BuildContext context) {
     backgroundColor: Colors.grey[200],
     appBar: AppBar(
       title: const Text("Work Orders"),
-      backgroundColor: Colors.white,
+      centerTitle: true,
+      backgroundColor: Color.fromARGB(237, 221, 226, 226),
       foregroundColor: Colors.black,
       elevation: 0,
       actions: [
