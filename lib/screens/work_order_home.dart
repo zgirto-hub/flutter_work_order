@@ -9,9 +9,11 @@ class WorkOrderHome extends StatefulWidget {
 
   @override
   State<WorkOrderHome> createState() => _WorkOrderHomeState();
+
 }
 
 class _WorkOrderHomeState extends State<WorkOrderHome> {
+  String selectedFilter = "All";
   final List<WorkOrder> workOrders = [
     const WorkOrder(
       jobNo: "WO-1001",
@@ -42,42 +44,84 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
   }
 }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[200],
-      appBar: AppBar(
-        title: const Text("Work Orders"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-           onPressed: openAddScreen,
+ @override
+Widget build(BuildContext context) {
+
+  List<WorkOrder> filteredOrders = selectedFilter == "All"
+      ? workOrders
+      : workOrders
+          .where((wo) => wo.status == selectedFilter)
+          .toList();
+
+  return Scaffold(
+    backgroundColor: Colors.grey[200],
+    appBar: AppBar(
+      title: const Text("Work Orders"),
+      backgroundColor: Colors.white,
+      foregroundColor: Colors.black,
+      elevation: 0,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.add),
+          onPressed: openAddScreen,
+        ),
+        IconButton(
+          icon: const Icon(Icons.search),
+          onPressed: () {},
+        ),
+      ],
+    ),
+
+    body: Column(
+      children: [
+
+        const SizedBox(height: 10),
+
+        // ✅ FILTER BUTTONS
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Row(
+              children: [
+                buildFilterButton("All"),
+                buildFilterButton("Open"),
+                buildFilterButton("In Progress"),
+                buildFilterButton("Closed"),
+              ],
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {},
-          ),
-        ],
-      ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: workOrders.length,
-        itemBuilder: (context, index) {
-          final workOrder = workOrders[index];
+        ),
+
+        const SizedBox(height: 10),
+
+        // ✅ LIST
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: filteredOrders.length,
+            itemBuilder: (context, index) {
+
+              final workOrder = filteredOrders[index];
+
               return WorkOrderCard(
                 workOrder: workOrder,
+
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          WorkOrderDetails(workOrder: workOrder),
-                    ),
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) {
+                      return WorkOrderDetailsModal(
+                          workOrder: workOrder);
+                    },
                   );
                 },
+
                 onEdit: () async {
                   final result = await Navigator.push(
                     context,
@@ -89,13 +133,48 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
 
                   if (result != null && result is WorkOrder) {
                     setState(() {
-                      workOrders[index] = result;
+                      final originalIndex =
+                          workOrders.indexOf(workOrder);
+                      workOrders[originalIndex] = result;
                     });
                   }
                 },
               );
-        },
+            },
+          ),
+        ),
+      ],
+    ),
+  );
+}
+Widget buildFilterButton(String status) {
+
+  final isSelected = selectedFilter == status;
+
+  return Expanded(
+    child: GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedFilter = status;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue : Colors.transparent,
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Center(
+          child: Text(
+            status,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.black,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
