@@ -16,11 +16,11 @@ class WorkOrderCard extends StatelessWidget {
   Color getStatusColor(String status) {
     switch (status) {
       case "Open":
-        return Colors.redAccent;
+        return const Color.fromARGB(255, 143, 128, 82);
       case "In Progress":
-        return Colors.orangeAccent;
+        return const Color.fromARGB(255, 110, 94, 231);
       case "Closed":
-        return Colors.greenAccent;
+        return const Color.fromARGB(255, 60, 103, 82);
       default:
         return Colors.white;
     }
@@ -36,7 +36,7 @@ class WorkOrderCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: const LinearGradient(
-            colors: [Color(0xFF37474F), Color(0xFF263238)],
+            colors: [Color.fromARGB(255, 215, 213, 162), Color.fromARGB(235, 177, 167, 105)],
           ),
         ),
        child: Column(
