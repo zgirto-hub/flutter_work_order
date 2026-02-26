@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'screens/work_order_home.dart';
 import 'screens/main_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-//gjhghjgjhgj
-//jkkjhkj
-void main() {
+import 'screens/login_screen.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://rydrqsjofoulwdtwfbgv.supabase.co',
+    anonKey: 'sb_publishable_smzkBX6r1G8TwlmQbhs7lw_bZgmZUC7',
+  );
+
   runApp(const WorkOrderApp());
 }
 
@@ -13,10 +21,20 @@ class WorkOrderApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      //home: WorkOrderHome(),
-      home: const MainScreen(),
+      home: StreamBuilder<AuthState>(
+        stream: Supabase.instance.client.auth.onAuthStateChange,
+        builder: (context, snapshot) {
+          final session = Supabase.instance.client.auth.currentSession;
+
+          if (session == null) {
+            return LoginScreen();
+          } else {
+            return MainScreen();
+          }
+        },
+      ),
     );
   }
 }
