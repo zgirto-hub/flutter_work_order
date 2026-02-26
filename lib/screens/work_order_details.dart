@@ -63,6 +63,7 @@ class WorkOrderDetailsModal extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: ListView(
+                      physics: const BouncingScrollPhysics(),
                 children: [
                   Text(
                     "Client",
