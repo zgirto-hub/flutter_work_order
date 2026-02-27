@@ -38,4 +38,15 @@ class WorkOrderService {
   Future<void> deleteWorkOrder(String id) async {
     await _client.from('work_orders').delete().eq('id', id);
   }
+
+  Stream<List<WorkOrder>> streamWorkOrders() {
+    return _client
+        .from('work_orders')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .map(
+          (data) =>
+              data.map<WorkOrder>((json) => WorkOrder.fromJson(json)).toList(),
+        );
+  }
 }
