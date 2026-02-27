@@ -258,6 +258,20 @@ class WorkOrderCard extends StatelessWidget {
               ),
             ),
 
+// 🔹 DESCRIPTION PREVIEW (only when collapsed)
+            if (!isExpanded) ...[
+              const SizedBox(height: 6),
+              Text(
+                workOrder.description,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF9CA3AF),
+                ),
+              ),
+            ],
+
             const SizedBox(height: 10),
 
             /// 🔹 STATUS BADGE
