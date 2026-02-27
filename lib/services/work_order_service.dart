@@ -17,6 +17,7 @@ class WorkOrderService {
   // ✅ INSERT
   Future<void> addWorkOrder(WorkOrder workOrder) async {
     await _client.from('work_orders').insert({
+      'job_no': workOrder.jobNo, // 🔥 THIS WAS MISSING
       'title': workOrder.client,
       'description': workOrder.description,
       'status': workOrder.status,

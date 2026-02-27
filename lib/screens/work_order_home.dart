@@ -99,63 +99,46 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
 
           // ✅ LIST
           Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (child, animation) {
-                final offsetAnimation = Tween<Offset>(
-                  begin: const Offset(0.05, 0),
-                  end: Offset.zero,
-                ).animate(animation);
+            child: RefreshIndicator(
+              onRefresh: loadWorkOrders,
+              child: filteredOrders.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 150),
+                        Center(child: Text("No Work Orders")),
+                      ],
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      itemCount: filteredOrders.length,
+                      itemBuilder: (context, index) {
+                        final workOrder = filteredOrders[index];
 
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: offsetAnimation,
-                    child: child,
-                  ),
-                );
-              },
-              child: ListView.builder(
-                key: ValueKey(selectedFilter),
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-                padding: const EdgeInsets.all(16),
-                itemCount: filteredOrders.length,
-                itemBuilder: (context, index) {
-                  final workOrder = filteredOrders[index];
+                        return WorkOrderCard(
+                          workOrder: workOrder,
+                          onTap: () {
+                            setState(() {
+                              expandedIndex =
+                                  expandedIndex == index ? null : index;
+                            });
+                          },
+                          isExpanded: expandedIndex == index,
+                          onEdit: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    AddWorkOrderScreen(workOrder: workOrder),
+                              ),
+                            );
 
-                  return WorkOrderCard(
-                    workOrder: workOrder,
-                    onTap: () {
-                      setState(() {
-                        if (expandedIndex == index) {
-                          expandedIndex = null; // collapse if tapped again
-                        } else {
-                          expandedIndex = index; // expand new card
-                        }
-                      });
-                    },
-                    isExpanded: expandedIndex == index,
-                    onEdit: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              AddWorkOrderScreen(workOrder: workOrder),
-                        ),
-                      );
-
-                      if (result != null && result is WorkOrder) {
-                        setState(() {
-                          final originalIndex = workOrders.indexOf(workOrder);
-                          workOrders[originalIndex] = result;
-                        });
-                      }
-                    },
-                  );
-                },
-              ),
+                            await loadWorkOrders(); // refresh after edit
+                          },
+                        );
+                      },
+                    ),
             ),
           ),
         ],

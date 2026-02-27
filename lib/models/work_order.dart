@@ -21,7 +21,7 @@ class WorkOrder {
 
   factory WorkOrder.fromJson(Map<String, dynamic> json) {
     return WorkOrder(
-      jobNo: json['id'] ?? '',
+      jobNo: json['job_no'] ?? '',
       client: json['title'] ?? '',
       status: json['status'] ?? 'Open',
       description: json['description'] ?? '',
