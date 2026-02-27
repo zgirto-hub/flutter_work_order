@@ -106,8 +106,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: clientController,
-                  decoration: const InputDecoration(labelText: "Client"),
-                  validator: (value) => value!.isEmpty ? "Enter Client" : null,
+                  decoration: const InputDecoration(labelText: "Title"),
+                  validator: (value) => value!.isEmpty ? "Enter Title" : null,
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
