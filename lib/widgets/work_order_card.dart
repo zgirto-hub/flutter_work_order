@@ -124,11 +124,6 @@ class WorkOrderCard extends StatelessWidget {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  const Icon(
-                    Icons.people_outline,
-                    size: 16,
-                    color: Color(0xFF6B7280),
-                  ),
                   const SizedBox(width: 4),
                   Container(
                     padding:
@@ -137,13 +132,24 @@ class WorkOrderCard extends StatelessWidget {
                       color: const Color(0xFF4B5563).withOpacity(0.08),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(
-                      "${workOrder.assignedEmployees.length} Assigned",
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF4B5563),
-                        fontWeight: FontWeight.w500,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.people_outline,
+                          size: 14,
+                          color: Color(0xFF4B5563),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          "${workOrder.assignedEmployees.length} Assigned",
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF4B5563),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
