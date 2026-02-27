@@ -3,11 +3,10 @@ class WorkOrder {
   final String client;
   final String status;
   final String description;
-
-  final String location;        // ✅ NEW
-  final String type;            // ✅ NEW
-  final String dateCreated;     // ✅ NEW
-  final String dateModified;    // ✅ NEW
+  final String location;
+  final String type;
+  final String dateCreated;
+  final String dateModified;
 
   const WorkOrder({
     required this.jobNo,
@@ -19,4 +18,27 @@ class WorkOrder {
     required this.dateCreated,
     required this.dateModified,
   });
+
+  factory WorkOrder.fromJson(Map<String, dynamic> json) {
+    return WorkOrder(
+      jobNo: json['id'] ?? '',
+      client: json['title'] ?? '',
+      status: json['status'] ?? 'Open',
+      description: json['description'] ?? '',
+      location: json['location'] ?? '',
+      type: json['type'] ?? '',
+      dateCreated: json['created_at']?.toString() ?? '',
+      dateModified: json['updated_at']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': client,
+      'description': description,
+      'status': status,
+      'location': location,
+      'type': type,
+    };
+  }
 }

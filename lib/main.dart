@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/work_order_home.dart';
+//import 'screens/work_order_home.dart';
 import 'screens/main_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -26,12 +26,12 @@ class WorkOrderApp extends StatelessWidget {
       home: StreamBuilder<AuthState>(
         stream: Supabase.instance.client.auth.onAuthStateChange,
         builder: (context, snapshot) {
-          final session = Supabase.instance.client.auth.currentSession;
+          final session = snapshot.data?.session;
 
           if (session == null) {
-            return LoginScreen();
+            return const LoginScreen();
           } else {
-            return MainScreen();
+            return const MainScreen();
           }
         },
       ),

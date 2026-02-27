@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'work_order_home.dart'; // 👈 import your page
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'work_order_home.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -11,7 +12,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
+  final List<Widget> _pages = const [
     WorkOrderHome(),
     Center(child: Text("Users")),
     Center(child: Text("Work Orders")),
@@ -24,11 +25,25 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  Future<void> _logout() async {
+    await Supabase.instance.client.auth.signOut();
+    // StreamBuilder in main.dart will automatically redirect to LoginScreen
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("Work Order System"),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+          ),
+        ],
+      ),
       body: _pages[_selectedIndex],
-
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
