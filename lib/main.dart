@@ -1,9 +1,10 @@
+import 'screens/main_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/login_screen.dart';
-import 'screens/main_screen.dart';
-import 'theme/theme_controller.dart';
+
+import './theme/theme_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

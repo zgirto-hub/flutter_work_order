@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../theme/theme_controller.dart';
 import 'work_order_home.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final ThemeController themeController;
+
+  const MainScreen({super.key, required this.themeController});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -11,13 +14,6 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-
-  final List<Widget> _pages = const [
-    WorkOrderHome(),
-    Center(child: Text("Users")),
-    Center(child: Text("Work Orders")),
-    Center(child: Text("Settings")),
-  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -27,11 +23,17 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _logout() async {
     await Supabase.instance.client.auth.signOut();
-    // StreamBuilder in main.dart will automatically redirect to LoginScreen
   }
 
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      const WorkOrderHome(),
+      const Center(child: Text("Users")),
+      const Center(child: Text("Work Orders")),
+      SettingsPage(themeController: widget.themeController),
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Work Order System"),
@@ -43,7 +45,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-      body: _pages[_selectedIndex],
+      body: pages[_selectedIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
@@ -69,6 +71,51 @@ class _MainScreenState extends State<MainScreen> {
             label: "Settings",
           ),
         ],
+      ),
+    );
+  }
+}
+
+class SettingsPage extends StatelessWidget {
+  final ThemeController themeController;
+
+  const SettingsPage({super.key, required this.themeController});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Choose App Color",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 16,
+            children: [
+              _colorCircle(Colors.blue),
+              _colorCircle(Colors.green),
+              _colorCircle(Colors.purple),
+              _colorCircle(Colors.orange),
+              _colorCircle(Colors.red),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _colorCircle(Color color) {
+    return GestureDetector(
+      onTap: () {
+        themeController.changeColor(color);
+      },
+      child: CircleAvatar(
+        radius: 22,
+        backgroundColor: color,
       ),
     );
   }

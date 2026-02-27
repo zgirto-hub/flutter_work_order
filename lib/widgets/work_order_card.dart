@@ -47,10 +47,7 @@ class WorkOrderCard extends StatelessWidget {
               Color.fromARGB(235, 177, 167, 105),
             ],*/
 
-            colors: [
-              Color.fromARGB(255, 215, 213, 162),
-              Color.fromARGB(235, 177, 167, 105),
-            ],
+            colors: [Color(0xFFF8F3D4), Color(0xFFE8DFA7)],
           ),
           boxShadow: [
             BoxShadow(
