@@ -289,9 +289,20 @@ class WorkOrderCard extends StatelessWidget {
                 children: [
                   const Divider(height: 24),
                   Text(
-                    "Description: ${workOrder.description}",
+                    "Description",
                     style: const TextStyle(
-                      color: Color(0xFF6B7280),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    workOrder.description,
+                    style: const TextStyle(
+                      fontSize: 16, // 🔥 Bigger text
+                      height: 1.4, // Better spacing
+                      color: Color(0xFF374151), // Slightly darker
                     ),
                   ),
                   const SizedBox(height: 8),
