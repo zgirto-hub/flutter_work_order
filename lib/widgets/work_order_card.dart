@@ -40,6 +40,13 @@ class WorkOrderCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: const LinearGradient(
+            //Gold Color
+            //
+            /*  colors: [
+              Color.fromARGB(255, 215, 213, 162),
+              Color.fromARGB(235, 177, 167, 105),
+            ],*/
+
             colors: [
               Color.fromARGB(255, 215, 213, 162),
               Color.fromARGB(235, 177, 167, 105),
