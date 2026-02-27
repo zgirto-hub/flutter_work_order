@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+/*import 'package:flutter/material.dart';
 import '../models/work_order.dart';
 
 class WorkOrderCard extends StatelessWidget {
@@ -142,6 +142,171 @@ class WorkOrderCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}*/
+
+//new theme
+
+import 'package:flutter/material.dart';
+import '../models/work_order.dart';
+
+class WorkOrderCard extends StatelessWidget {
+  final WorkOrder workOrder;
+  final VoidCallback onEdit;
+  final VoidCallback onTap;
+  final bool isExpanded;
+
+  const WorkOrderCard({
+    super.key,
+    required this.workOrder,
+    required this.isExpanded,
+    required this.onTap,
+    required this.onEdit,
+  });
+
+  Color getStatusColor(BuildContext context, String status) {
+    final primary = Theme.of(context).colorScheme.primary;
+
+    switch (status) {
+      case "Open":
+        return primary;
+      case "In Progress":
+        return Colors.orange;
+      case "Closed":
+        return Colors.green;
+      default:
+        return primary;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: primary.withOpacity(0.08),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: isExpanded ? 14 : 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// 🔹 TOP ROW
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    workOrder.jobNo,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Icon(
+                      isExpanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      color: primary,
+                      onPressed: onEdit,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 6),
+
+            /// 🔹 CLIENT
+            Text(
+              workOrder.client,
+              style: const TextStyle(
+                color: Color(0xFF6B7280),
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            /// 🔹 STATUS BADGE
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color:
+                    getStatusColor(context, workOrder.status).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                workOrder.status,
+                style: TextStyle(
+                  color: getStatusColor(context, workOrder.status),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+
+            /// 🔹 EXPANDABLE SECTION
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 250),
+              crossFadeState: isExpanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              firstChild: const SizedBox(),
+              secondChild: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(height: 24),
+                  Text(
+                    "Description: ${workOrder.description}",
+                    style: const TextStyle(
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Created: ${workOrder.dateCreated}",
+                    style: const TextStyle(
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                  Text(
+                    "Modified: ${workOrder.dateModified}",
+                    style: const TextStyle(
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
                 ],
               ),
             ),

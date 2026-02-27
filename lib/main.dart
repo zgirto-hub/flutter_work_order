@@ -25,27 +25,28 @@ class MyApp extends StatelessWidget {
     return AnimatedBuilder(
       animation: themeController,
       builder: (context, _) {
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            useMaterial3: true,
-
-            // ✅ Modern light background
-            scaffoldBackgroundColor: const Color(0xFFF5F7FA),
-
-            // ✅ Dynamic primary color
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: themeController.primaryColor,
-              brightness: Brightness.light,
-            ),
-
-            // ✅ Clean professional typography
-            textTheme: const TextTheme(
-              bodyLarge: TextStyle(color: Color(0xFF111827)),
-              bodyMedium: TextStyle(color: Color(0xFF6B7280)),
-            ),
+        final themeData = ThemeData(
+          useMaterial3: true,
+          scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: themeController.primaryColor,
+            brightness: Brightness.light,
           ),
-          home: AuthWrapper(themeController: themeController),
+          textTheme: const TextTheme(
+            bodyLarge: TextStyle(color: Color(0xFF111827)),
+            bodyMedium: TextStyle(color: Color(0xFF6B7280)),
+          ),
+        );
+
+        return AnimatedTheme(
+          data: themeData,
+          duration: const Duration(milliseconds: 400), // 🔥 smooth speed
+          curve: Curves.easeInOut,
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: themeData,
+            home: AuthWrapper(themeController: themeController),
+          ),
         );
       },
     );
