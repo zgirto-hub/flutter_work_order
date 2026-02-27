@@ -7,8 +7,10 @@ class WorkOrder {
   final String type;
   final String dateCreated;
   final String dateModified;
+  final String id;
 
   const WorkOrder({
+    required this.id,
     required this.jobNo,
     required this.client,
     required this.status,
@@ -21,6 +23,7 @@ class WorkOrder {
 
   factory WorkOrder.fromJson(Map<String, dynamic> json) {
     return WorkOrder(
+      id: json['id'],
       jobNo: json['job_no'] ?? '',
       client: json['title'] ?? '',
       status: json['status'] ?? 'Open',

@@ -32,7 +32,7 @@ class WorkOrderService {
     await _client
         .from('work_orders')
         .update(workOrder.toJson())
-        .eq('id', workOrder.jobNo);
+        .eq('id', workOrder.id);
   }
 
   // ✅ DELETE

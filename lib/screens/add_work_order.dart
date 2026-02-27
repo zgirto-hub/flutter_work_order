@@ -52,6 +52,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       final now = DateTime.now().toString();
 
       final newWorkOrder = WorkOrder(
+        id: widget.workOrder?.id ?? '',
         jobNo: jobNoController.text,
         client: clientController.text,
         status: selectedStatus,
