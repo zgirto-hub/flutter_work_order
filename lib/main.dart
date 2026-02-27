@@ -1,9 +1,7 @@
 import 'screens/main_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'screens/login_screen.dart';
-
 import './theme/theme_controller.dart';
 
 Future<void> main() async {
@@ -30,10 +28,22 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
+            useMaterial3: true,
+
+            // ✅ Modern light background
+            scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+
+            // ✅ Dynamic primary color
             colorScheme: ColorScheme.fromSeed(
               seedColor: themeController.primaryColor,
+              brightness: Brightness.light,
             ),
-            useMaterial3: true,
+
+            // ✅ Clean professional typography
+            textTheme: const TextTheme(
+              bodyLarge: TextStyle(color: Color(0xFF111827)),
+              bodyMedium: TextStyle(color: Color(0xFF6B7280)),
+            ),
           ),
           home: AuthWrapper(themeController: themeController),
         );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ThemeController extends ChangeNotifier {
-  Color _primaryColor = Colors.blue;
+  Color _primaryColor = const Color(0xFF2563EB);
 
   Color get primaryColor => _primaryColor;
 
