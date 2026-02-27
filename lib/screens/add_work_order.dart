@@ -82,6 +82,13 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         title: Text(
           widget.workOrder == null ? "New Work Order" : "Edit Work Order",
         ),
+        actions: [
+          if (widget.workOrder != null)
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: _confirmDelete,
+            ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -165,5 +172,41 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Work Order"),
+        content: const Text(
+          "Are you sure you want to delete this work order?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              "Delete",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && widget.workOrder != null) {
+      await _service.deleteWorkOrder(widget.workOrder!.id);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Work Order deleted successfully"),
+          ),
+        );
+      }
+    }
   }
 }

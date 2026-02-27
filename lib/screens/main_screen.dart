@@ -36,7 +36,6 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Work Order System"),
         centerTitle: true,
         actions: [
           IconButton(
