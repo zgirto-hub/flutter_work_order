@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/work_order.dart';
+import '../services/work_order_service.dart';
 
 class AddWorkOrderScreen extends StatefulWidget {
   final WorkOrder? workOrder;
@@ -16,6 +17,7 @@ class AddWorkOrderScreen extends StatefulWidget {
 }
 
 class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
+  final WorkOrderService _service = WorkOrderService();
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController jobNoController = TextEditingController();
@@ -45,11 +47,11 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     }
   }
 
-  void submit() {
+  Future<void> submit() async {
     if (_formKey.currentState!.validate()) {
       final now = DateTime.now().toString();
 
-      final updatedWorkOrder = WorkOrder(
+      final newWorkOrder = WorkOrder(
         jobNo: jobNoController.text,
         client: clientController.text,
         status: selectedStatus,
@@ -60,7 +62,15 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         dateModified: now,
       );
 
-      Navigator.pop(context, updatedWorkOrder);
+      if (widget.workOrder == null) {
+        // ADD
+        await _service.addWorkOrder(newWorkOrder);
+      } else {
+        // UPDATE
+        await _service.updateWorkOrder(newWorkOrder);
+      }
+
+      Navigator.pop(context); // no need to return object anymore
     }
   }
 
@@ -86,14 +96,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                   validator: (value) => value!.isEmpty ? "Enter Job No" : null,
                 ),
                 const SizedBox(height: 10),
-
                 TextFormField(
                   controller: clientController,
                   decoration: const InputDecoration(labelText: "Client"),
                   validator: (value) => value!.isEmpty ? "Enter Client" : null,
                 ),
                 const SizedBox(height: 10),
-
                 DropdownButtonFormField<String>(
                   initialValue: selectedStatus,
                   items: const [
@@ -112,7 +120,6 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                   decoration: const InputDecoration(labelText: "Status"),
                 ),
                 const SizedBox(height: 10),
-
                 TextFormField(
                   controller: locationController,
                   decoration: const InputDecoration(labelText: "Location"),
@@ -120,7 +127,6 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                       value!.isEmpty ? "Enter Location" : null,
                 ),
                 const SizedBox(height: 10),
-
                 DropdownButtonFormField<String>(
                   initialValue: selectedType,
                   items: const [
@@ -138,14 +144,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                   decoration: const InputDecoration(labelText: "Type"),
                 ),
                 const SizedBox(height: 10),
-
                 TextFormField(
                   controller: descriptionController,
                   decoration: const InputDecoration(labelText: "Description"),
                   maxLines: 3,
                 ),
                 const SizedBox(height: 20),
-
                 ElevatedButton(
                   onPressed: submit,
                   child: Text(

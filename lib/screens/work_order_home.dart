@@ -35,7 +35,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
     final nextNumber = workOrders.length + 1001;
     final autoJobNo = "WO-$nextNumber";
 
-    final result = await Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => AddWorkOrderScreen(
@@ -44,9 +44,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
       ),
     );
 
-    if (result != null && result is WorkOrder) {
-      await loadWorkOrders(); // ✅ refresh from database
-    }
+    await loadWorkOrders(); // ✅ ALWAYS reload after returning
   }
 
   @override

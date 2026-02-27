@@ -60,12 +60,16 @@ class WorkOrderCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  workOrder.jobNo,
-                  style: const TextStyle(
-                    color: Color(0xFF3E2F1C),
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    workOrder.jobNo,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF3E2F1C),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 Row(
@@ -114,30 +118,25 @@ class WorkOrderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Divider(color: Colors.white54, height: 25),
-
                   Text(
                     "Description: ${workOrder.description}",
                     style: const TextStyle(
                       color: Color.fromARGB(179, 58, 32, 10),
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
                   Text(
                     "Created: ${workOrder.dateCreated}",
                     style: const TextStyle(
                       color: Color.fromARGB(179, 58, 32, 10),
                     ),
                   ),
-
                   Text(
                     "Modified: ${workOrder.dateModified}",
                     style: const TextStyle(
                       color: Color.fromARGB(179, 58, 32, 10),
                     ),
                   ),
-
                   const SizedBox(height: 8),
                 ],
               ),
