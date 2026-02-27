@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/work_order.dart';
 import '../services/work_order_service.dart';
+import '../models/employee.dart';
+import '../services/employee_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AddWorkOrderScreen extends StatefulWidget {
   final WorkOrder? workOrder;
@@ -17,6 +20,10 @@ class AddWorkOrderScreen extends StatefulWidget {
 }
 
 class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
+  final EmployeeService _employeeService = EmployeeService();
+
+  List<Employee> _employees = [];
+  List<String> _selectedEmployeeIds = [];
   final WorkOrderService _service = WorkOrderService();
   final _formKey = GlobalKey<FormState>();
 
@@ -31,11 +38,11 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   @override
   void initState() {
     super.initState();
-
+    _loadEmployees();
     if (widget.workOrder != null) {
       // EDIT MODE
       jobNoController.text = widget.workOrder!.jobNo;
-      clientController.text = widget.workOrder!.client;
+      clientController.text = widget.workOrder!.Title;
       descriptionController.text = widget.workOrder!.description;
       locationController.text = widget.workOrder!.location;
 
@@ -47,6 +54,13 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     }
   }
 
+  Future<void> _loadEmployees() async {
+    final data = await _employeeService.fetchEmployees();
+    setState(() {
+      _employees = data;
+    });
+  }
+
   Future<void> submit() async {
     if (_formKey.currentState!.validate()) {
       final now = DateTime.now().toString();
@@ -54,7 +68,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       final newWorkOrder = WorkOrder(
         id: widget.workOrder?.id ?? '',
         jobNo: jobNoController.text,
-        client: clientController.text,
+        Title: clientController.text,
         status: selectedStatus,
         description: descriptionController.text,
         location: locationController.text,
@@ -64,14 +78,37 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       );
 
       if (widget.workOrder == null) {
-        // ADD
-        await _service.addWorkOrder(newWorkOrder);
+        // 🔥 ADD MODE
+        final workOrderId = await _service.addWorkOrder(newWorkOrder);
+
+        // 🔥 Insert assignments
+        print("Selected employees: $_selectedEmployeeIds");
+        for (var employeeId in _selectedEmployeeIds) {
+          await Supabase.instance.client.from('work_order_assignments').insert({
+            'work_order_id': workOrderId,
+            'employee_id': employeeId,
+          });
+        }
       } else {
-        // UPDATE
+        // UPDATE MODE
         await _service.updateWorkOrder(newWorkOrder);
+
+        // 🔥 Clear old assignments
+        await Supabase.instance.client
+            .from('work_order_assignments')
+            .delete()
+            .eq('work_order_id', widget.workOrder!.id);
+
+        // 🔥 Insert new assignments
+        for (var employeeId in _selectedEmployeeIds) {
+          await Supabase.instance.client.from('work_order_assignments').insert({
+            'work_order_id': widget.workOrder!.id,
+            'employee_id': employeeId,
+          });
+        }
       }
 
-      Navigator.pop(context); // no need to return object anymore
+      Navigator.pop(context);
     }
   }
 
@@ -96,6 +133,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextFormField(
                   controller: jobNoController,
@@ -104,20 +142,20 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                   validator: (value) => value!.isEmpty ? "Enter Job No" : null,
                 ),
                 const SizedBox(height: 10),
+
                 TextFormField(
                   controller: clientController,
                   decoration: const InputDecoration(labelText: "Title"),
                   validator: (value) => value!.isEmpty ? "Enter Title" : null,
                 ),
                 const SizedBox(height: 10),
+
                 DropdownButtonFormField<String>(
                   initialValue: selectedStatus,
                   items: const [
                     DropdownMenuItem(value: "Open", child: Text("Open")),
                     DropdownMenuItem(
-                      value: "In Progress",
-                      child: Text("In Progress"),
-                    ),
+                        value: "In Progress", child: Text("In Progress")),
                     DropdownMenuItem(value: "Closed", child: Text("Closed")),
                   ],
                   onChanged: (value) {
@@ -128,6 +166,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                   decoration: const InputDecoration(labelText: "Status"),
                 ),
                 const SizedBox(height: 10),
+
                 TextFormField(
                   controller: locationController,
                   decoration: const InputDecoration(labelText: "Location"),
@@ -135,13 +174,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                       value!.isEmpty ? "Enter Location" : null,
                 ),
                 const SizedBox(height: 10),
+
                 DropdownButtonFormField<String>(
                   initialValue: selectedType,
                   items: const [
                     DropdownMenuItem(
-                      value: "Technical",
-                      child: Text("Technical"),
-                    ),
+                        value: "Technical", child: Text("Technical")),
                     DropdownMenuItem(value: "Other", child: Text("Other")),
                   ],
                   onChanged: (value) {
@@ -152,12 +190,54 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                   decoration: const InputDecoration(labelText: "Type"),
                 ),
                 const SizedBox(height: 10),
+
                 TextFormField(
                   controller: descriptionController,
                   decoration: const InputDecoration(labelText: "Description"),
                   maxLines: 3,
                 ),
-                const SizedBox(height: 20),
+
+                // 🔥 NEW SECTION STARTS HERE
+                const SizedBox(height: 25),
+
+                const Text(
+                  "Assign Employees",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                _employees.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : Column(
+                        children: _employees.map((employee) {
+                          final isSelected =
+                              _selectedEmployeeIds.contains(employee.id);
+
+                          return CheckboxListTile(
+                            value: isSelected,
+                            title: Text(employee.fullName),
+                            subtitle: Text(employee.shiftType),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            contentPadding: EdgeInsets.zero,
+                            onChanged: (value) {
+                              setState(() {
+                                if (value == true) {
+                                  _selectedEmployeeIds.add(employee.id);
+                                } else {
+                                  _selectedEmployeeIds.remove(employee.id);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+
+                const SizedBox(height: 25),
+
                 ElevatedButton(
                   onPressed: submit,
                   child: Text(

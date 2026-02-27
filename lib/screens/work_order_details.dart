@@ -39,8 +39,7 @@ class WorkOrderDetailsModal extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
-              mainAxisAlignment:
-                  MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   workOrder.jobNo,
@@ -63,7 +62,7 @@ class WorkOrderDetailsModal extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: ListView(
-                      physics: const BouncingScrollPhysics(),
+                physics: const BouncingScrollPhysics(),
                 children: [
                   Text(
                     "Client",
@@ -73,15 +72,13 @@ class WorkOrderDetailsModal extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    workOrder.client,
+                    workOrder.Title,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
                   Text(
                     "Status",
                     style: TextStyle(
@@ -96,9 +93,7 @@ class WorkOrderDetailsModal extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
                   Text(
                     "Description",
                     style: TextStyle(

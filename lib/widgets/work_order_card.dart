@@ -252,7 +252,7 @@ class WorkOrderCard extends StatelessWidget {
 
             /// 🔹 CLIENT
             Text(
-              workOrder.client,
+              workOrder.Title,
               style: const TextStyle(
                 color: Color(0xFF6B7280),
               ),
