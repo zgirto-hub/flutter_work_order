@@ -1,3 +1,5 @@
+import 'employee_assignment.dart';
+
 class WorkOrder {
   final String jobNo;
   final String Title;
@@ -9,6 +11,7 @@ class WorkOrder {
   final String dateModified;
   final String id;
   final String? createdBy;
+  final List<EmployeeAssignment> assignedEmployees;
 
   const WorkOrder({
     required this.id,
@@ -21,6 +24,7 @@ class WorkOrder {
     required this.dateCreated,
     required this.dateModified,
     this.createdBy,
+    this.assignedEmployees = const [],
   });
 
   factory WorkOrder.fromJson(Map<String, dynamic> json) {
@@ -35,6 +39,11 @@ class WorkOrder {
       dateCreated: json['created_at']?.toString() ?? '',
       dateModified: json['updated_at']?.toString() ?? '',
       createdBy: json['created_by'],
+      assignedEmployees: (json['work_order_assignments'] as List<dynamic>?)
+              ?.map((assignment) => EmployeeAssignment.fromJson(assignment))
+              .where((emp) => emp.id.isNotEmpty)
+              .toList() ??
+          [],
     );
   }
 

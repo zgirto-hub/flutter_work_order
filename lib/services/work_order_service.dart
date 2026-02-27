@@ -4,12 +4,17 @@ import '../models/work_order.dart';
 class WorkOrderService {
   final _client = Supabase.instance.client;
 
-  // ✅ FETCH (Map → WorkOrder model)
   Future<List<WorkOrder>> fetchWorkOrders() async {
-    final response = await _client
-        .from('work_orders')
-        .select()
-        .order('created_at', ascending: false);
+    final response = await _client.from('work_orders').select('''
+        *,
+        work_order_assignments (
+          employee_id,
+          employees (
+            id,
+            full_name
+          )
+        )
+      ''').order('created_at', ascending: false);
 
     return response.map<WorkOrder>((json) => WorkOrder.fromJson(json)).toList();
   }

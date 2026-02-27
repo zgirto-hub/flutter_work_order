@@ -56,8 +56,15 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
   Future<void> _loadEmployees() async {
     final data = await _employeeService.fetchEmployees();
+
     setState(() {
       _employees = data;
+
+      // 🔥 If editing, pre-select assigned employees
+      if (widget.workOrder != null) {
+        _selectedEmployeeIds =
+            widget.workOrder!.assignedEmployees.map((emp) => emp.id).toList();
+      }
     });
   }
 
