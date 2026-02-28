@@ -35,7 +35,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
     final nextNumber = workOrders.length + 1001;
     final autoJobNo = "WO-$nextNumber";
 
-    await Navigator.push(
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => AddWorkOrderScreen(
@@ -44,7 +44,25 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
       ),
     );
 
-    await loadWorkOrders(); // ✅ ALWAYS reload after returning
+    if (!mounted) return;
+
+    if (result == "created") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Work Order created successfully"),
+        ),
+      );
+      await loadWorkOrders();
+    }
+
+    if (result == "updated") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Work Order updated successfully"),
+        ),
+      );
+      await loadWorkOrders();
+    }
   }
 
   @override
@@ -145,7 +163,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                             },
                             isExpanded: expandedIndex == index,
                             onEdit: () async {
-                              await Navigator.push(
+                              final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) =>
@@ -153,7 +171,18 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                                 ),
                               );
 
-                              await loadWorkOrders();
+                              if (!mounted) return;
+
+                              if (result == "updated") {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content:
+                                        Text("Work Order updated successfully"),
+                                  ),
+                                );
+
+                                await loadWorkOrders();
+                              }
                             },
                           );
                         },
