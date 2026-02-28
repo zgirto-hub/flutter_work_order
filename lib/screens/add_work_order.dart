@@ -3,7 +3,6 @@ import '../models/work_order.dart';
 import '../services/work_order_service.dart';
 import '../models/employee.dart';
 import '../services/employee_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AddWorkOrderScreen extends StatefulWidget {
   final WorkOrder? workOrder;
@@ -94,46 +93,19 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         dateModified: now,
       );
 
-      final supabase = Supabase.instance.client;
-
       if (widget.workOrder == null) {
         // 🔥 ADD MODE
-        final workOrderId = await _service.addWorkOrder(newWorkOrder);
-
-        if (_selectedEmployeeIds.isNotEmpty) {
-          final assignments = _selectedEmployeeIds.map((employeeId) {
-            return {
-              'work_order_id': workOrderId,
-              'employee_id': employeeId,
-            };
-          }).toList();
-
-          await supabase.from('work_order_assignments').insert(assignments);
-        }
+        final createdOrder = await _service.addWorkOrder(newWorkOrder);
 
         if (!mounted) return;
-        Navigator.pop(context, "created");
+
+        Navigator.pop(context, createdOrder);
       } else {
         // 🔥 UPDATE MODE
         await _service.updateWorkOrder(newWorkOrder);
 
-        await supabase
-            .from('work_order_assignments')
-            .delete()
-            .eq('work_order_id', widget.workOrder!.id);
-
-        if (_selectedEmployeeIds.isNotEmpty) {
-          final assignments = _selectedEmployeeIds.map((employeeId) {
-            return {
-              'work_order_id': widget.workOrder!.id,
-              'employee_id': employeeId,
-            };
-          }).toList();
-
-          await supabase.from('work_order_assignments').insert(assignments);
-        }
-
         if (!mounted) return;
+
         Navigator.pop(context, "updated");
       }
     } catch (e) {
@@ -173,9 +145,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               children: [
                 TextFormField(
                   controller: jobNoController,
-                  enabled: widget.workOrder == null,
-                  decoration: const InputDecoration(labelText: "Job No"),
-                  validator: (value) => value!.isEmpty ? "Enter Job No" : null,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: "Job No",
+                    hintText: "Auto-generated",
+                    filled: true,
+                  ),
                 ),
                 const SizedBox(height: 10),
 
@@ -313,16 +288,13 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         ],
       ),
     );
+
     if (confirm == true && widget.workOrder != null) {
       await _service.deleteWorkOrder(widget.workOrder!.id);
-      if (mounted) {
-        Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Work Order deleted successfully"),
-          ),
-        );
-      }
+
+      if (!mounted) return;
+
+      Navigator.pop(context, "deleted"); // 🔥 VERY IMPORTANT
     }
   }
 

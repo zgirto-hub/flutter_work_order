@@ -1,5 +1,5 @@
 //new theme
-
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../models/work_order.dart';
 
@@ -159,41 +159,45 @@ class WorkOrderCard extends StatelessWidget {
             const SizedBox(height: 8),
 
             /// 🔹 STATUS BADGE
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 350),
-              curve: Curves.easeInOut,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color:
-                    getStatusColor(context, workOrder.status).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: Icon(
-                      workOrder.status == "Closed"
-                          ? Icons.check_circle
-                          : workOrder.status == "In Progress"
-                              ? Icons.autorenew
-                              : Icons.schedule,
-                      key: ValueKey(workOrder.status),
-                      size: 16,
-                      color: getStatusColor(context, workOrder.status),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: getStatusColor(context, workOrder.status)
+                        .withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 300),
-                    style: TextStyle(
-                      color: getStatusColor(context, workOrder.status),
-                      fontWeight: FontWeight.w600,
-                    ),
-                    child: Text(workOrder.status),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        workOrder.status == "Closed"
+                            ? Icons.check_circle
+                            : workOrder.status == "In Progress"
+                                ? Icons.autorenew
+                                : Icons.schedule,
+                        size: 16,
+                        color: getStatusColor(context, workOrder.status),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        workOrder.status,
+                        style: TextStyle(
+                          color: getStatusColor(context, workOrder.status),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
 
