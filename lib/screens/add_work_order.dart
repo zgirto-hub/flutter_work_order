@@ -89,7 +89,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         final workOrderId = await _service.addWorkOrder(newWorkOrder);
 
         // 🔥 Insert assignments
-        print("Selected employees: $_selectedEmployeeIds");
+       
         for (var employeeId in _selectedEmployeeIds) {
           await Supabase.instance.client.from('work_order_assignments').insert({
             'work_order_id': workOrderId,

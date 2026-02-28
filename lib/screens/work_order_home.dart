@@ -54,7 +54,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
         : workOrders.where((wo) => wo.status == selectedFilter).toList();
 
     return Scaffold(
-      backgroundColor: Colors.grey[200],
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text("Work Orders"),
         centerTitle: true,
@@ -81,7 +81,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Row(
@@ -98,83 +98,110 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
           const SizedBox(height: 10),
 
           // ✅ LIST
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: loadWorkOrders,
-              child: filteredOrders.isEmpty
-                  ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
-                        SizedBox(height: 150),
-                        Center(child: Text("No Work Orders")),
-                      ],
-                    )
-                  : ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      itemCount: filteredOrders.length,
-                      itemBuilder: (context, index) {
-                        final workOrder = filteredOrders[index];
-
-                        return WorkOrderCard(
-                          workOrder: workOrder,
-                          onTap: () {
-                            setState(() {
-                              expandedIndex =
-                                  expandedIndex == index ? null : index;
-                            });
-                          },
-                          isExpanded: expandedIndex == index,
-                          onEdit: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    AddWorkOrderScreen(workOrder: workOrder),
-                              ),
-                            );
-
-                            await loadWorkOrders(); // refresh after edit
-                          },
-                        );
-                      },
-                    ),
-            ),
+  // ✅ LIST (SMOOTH ANIMATED VERSION)
+Expanded(
+  child: RefreshIndicator(
+    onRefresh: loadWorkOrders,
+    child: AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      switchInCurve: Curves.easeInOut,
+      switchOutCurve: Curves.easeInOut,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.05, 0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
           ),
+        );
+      },
+      child: filteredOrders.isEmpty
+          ? ListView(
+              key: const ValueKey("empty"),
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: const [
+                SizedBox(height: 150),
+                Center(child: Text("No Work Orders")),
+              ],
+            )
+          : ListView.builder(
+              key: ValueKey(selectedFilter), // 🔥 important
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: filteredOrders.length,
+              itemBuilder: (context, index) {
+                final workOrder = filteredOrders[index];
+
+                return WorkOrderCard(
+                  workOrder: workOrder,
+                  onTap: () {
+                    setState(() {
+                      expandedIndex =
+                          expandedIndex == index ? null : index;
+                    });
+                  },
+                  isExpanded: expandedIndex == index,
+                  onEdit: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            AddWorkOrderScreen(workOrder: workOrder),
+                      ),
+                    );
+
+                    await loadWorkOrders();
+                  },
+                );
+              },
+            ),
+    ),
+  ),
+),
         ],
       ),
     );
   }
 
-  Widget buildFilterButton(String status) {
-    final isSelected = selectedFilter == status;
+ Widget buildFilterButton(String status) {
+  final theme = Theme.of(context);
+  final isSelected = selectedFilter == status;
 
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            selectedFilter = status;
-          });
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutBack,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.blue : Colors.transparent,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: Center(
-            child: Text(
-              status,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
+  return Expanded(
+    child: GestureDetector(
+      onTap: () {
+        setState(() {
+  selectedFilter = status;
+  expandedIndex = null; // prevents animation glitch
+});;
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.colorScheme.primary
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Center(
+          child: Text(
+            status,
+            style: TextStyle(
+              color: isSelected
+                  ? theme.colorScheme.onPrimary
+                  : theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
 }
