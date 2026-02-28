@@ -21,7 +21,7 @@ class WorkOrderCard extends StatelessWidget {
     final primary = Theme.of(context).colorScheme.primary;
 
     switch (status) {
-      case "Open":
+      case "Pending":
         return primary;
       case "In Progress":
         return Colors.orange;
@@ -69,7 +69,7 @@ class WorkOrderCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF111827),
                     ),
@@ -96,10 +96,11 @@ class WorkOrderCard extends StatelessWidget {
 
             const SizedBox(height: 6),
 
-            /// 🔹 CLIENT
+            /// 🔹 Title
             Text(
               workOrder.Title,
               style: const TextStyle(
+                fontSize: 18,
                 color: Color(0xFF6B7280),
               ),
             ),

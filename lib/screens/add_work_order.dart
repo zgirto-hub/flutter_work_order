@@ -32,7 +32,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController locationController = TextEditingController();
 
-  String selectedStatus = "Open";
+  String selectedStatus = "Pending";
   String selectedType = "Technical";
 
   @override
@@ -89,7 +89,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         final workOrderId = await _service.addWorkOrder(newWorkOrder);
 
         // 🔥 Insert assignments
-       
+
         for (var employeeId in _selectedEmployeeIds) {
           await Supabase.instance.client.from('work_order_assignments').insert({
             'work_order_id': workOrderId,
@@ -160,7 +160,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                 DropdownButtonFormField<String>(
                   initialValue: selectedStatus,
                   items: const [
-                    DropdownMenuItem(value: "Open", child: Text("Open")),
+                    DropdownMenuItem(value: "Pending", child: Text("Pending")),
                     DropdownMenuItem(
                         value: "In Progress", child: Text("In Progress")),
                     DropdownMenuItem(value: "Closed", child: Text("Closed")),

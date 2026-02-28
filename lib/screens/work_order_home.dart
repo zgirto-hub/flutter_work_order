@@ -87,7 +87,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
               child: Row(
                 children: [
                   buildFilterButton("All"),
-                  buildFilterButton("Open"),
+                  buildFilterButton("Pending"),
                   buildFilterButton("In Progress"),
                   buildFilterButton("Closed"),
                 ],
@@ -98,110 +98,108 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
           const SizedBox(height: 10),
 
           // ✅ LIST
-  // ✅ LIST (SMOOTH ANIMATED VERSION)
-Expanded(
-  child: RefreshIndicator(
-    onRefresh: loadWorkOrders,
-    child: AnimatedSwitcher(
-      duration: const Duration(milliseconds: 350),
-      switchInCurve: Curves.easeInOut,
-      switchOutCurve: Curves.easeInOut,
-      transitionBuilder: (child, animation) {
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0.05, 0),
-              end: Offset.zero,
-            ).animate(animation),
-            child: child,
-          ),
-        );
-      },
-      child: filteredOrders.isEmpty
-          ? ListView(
-              key: const ValueKey("empty"),
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [
-                SizedBox(height: 150),
-                Center(child: Text("No Work Orders")),
-              ],
-            )
-          : ListView.builder(
-              key: ValueKey(selectedFilter), // 🔥 important
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              itemCount: filteredOrders.length,
-              itemBuilder: (context, index) {
-                final workOrder = filteredOrders[index];
+          // ✅ LIST (SMOOTH ANIMATED VERSION)
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: loadWorkOrders,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 350),
+                switchInCurve: Curves.easeInOut,
+                switchOutCurve: Curves.easeInOut,
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.05, 0),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: filteredOrders.isEmpty
+                    ? ListView(
+                        key: const ValueKey("empty"),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          SizedBox(height: 150),
+                          Center(child: Text("No Work Orders")),
+                        ],
+                      )
+                    : ListView.builder(
+                        key: ValueKey(selectedFilter), // 🔥 important
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(16),
+                        itemCount: filteredOrders.length,
+                        itemBuilder: (context, index) {
+                          final workOrder = filteredOrders[index];
 
-                return WorkOrderCard(
-                  workOrder: workOrder,
-                  onTap: () {
-                    setState(() {
-                      expandedIndex =
-                          expandedIndex == index ? null : index;
-                    });
-                  },
-                  isExpanded: expandedIndex == index,
-                  onEdit: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            AddWorkOrderScreen(workOrder: workOrder),
+                          return WorkOrderCard(
+                            workOrder: workOrder,
+                            onTap: () {
+                              setState(() {
+                                expandedIndex =
+                                    expandedIndex == index ? null : index;
+                              });
+                            },
+                            isExpanded: expandedIndex == index,
+                            onEdit: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      AddWorkOrderScreen(workOrder: workOrder),
+                                ),
+                              );
+
+                              await loadWorkOrders();
+                            },
+                          );
+                        },
                       ),
-                    );
-
-                    await loadWorkOrders();
-                  },
-                );
-              },
+              ),
             ),
-    ),
-  ),
-),
+          ),
         ],
       ),
     );
   }
 
- Widget buildFilterButton(String status) {
-  final theme = Theme.of(context);
-  final isSelected = selectedFilter == status;
+  Widget buildFilterButton(String status) {
+    final theme = Theme.of(context);
+    final isSelected = selectedFilter == status;
 
-  return Expanded(
-    child: GestureDetector(
-      onTap: () {
-        setState(() {
-  selectedFilter = status;
-  expandedIndex = null; // prevents animation glitch
-});;
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? theme.colorScheme.primary
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Center(
-          child: Text(
-            status,
-            style: TextStyle(
-              color: isSelected
-                  ? theme.colorScheme.onPrimary
-                  : theme.colorScheme.onSurface,
-              fontWeight: FontWeight.w600,
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            selectedFilter = status;
+            expandedIndex = null; // prevents animation glitch
+          });
+          ;
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? theme.colorScheme.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Center(
+            child: Text(
+              status,
+              style: TextStyle(
+                color: isSelected
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
-
+    );
+  }
 }
