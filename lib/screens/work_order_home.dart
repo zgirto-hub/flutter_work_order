@@ -12,6 +12,9 @@ class WorkOrderHome extends StatefulWidget {
 }
 
 class _WorkOrderHomeState extends State<WorkOrderHome> {
+  bool _isSearching = false;
+  String _searchQuery = "";
+  final TextEditingController _searchController = TextEditingController();
   String selectedFilter = "All";
   int? expandedIndex;
 
@@ -81,26 +84,61 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredOrders = selectedFilter == "All"
-        ? workOrders
-        : workOrders.where((wo) => wo.status == selectedFilter).toList();
+    List<WorkOrder> filteredOrders = workOrders;
 
+// ✅ Filter by StatusList<WorkOrder> filteredOrders = workOrders;
+
+// ✅ Filter by Status
+    if (selectedFilter != "All") {
+      filteredOrders =
+          filteredOrders.where((wo) => wo.status == selectedFilter).toList();
+    }
+
+// ✅ Filter by Search (Job No + Description)
+    if (_searchQuery.isNotEmpty) {
+      filteredOrders = filteredOrders.where((wo) {
+        final jobNoMatch = wo.jobNo.toLowerCase().contains(_searchQuery);
+
+        final descriptionMatch =
+            wo.description.toLowerCase().contains(_searchQuery);
+
+        return jobNoMatch || descriptionMatch;
+      }).toList();
+    }
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        title: const Text("Work Orders"),
         centerTitle: true,
         backgroundColor: const Color.fromARGB(237, 221, 226, 226),
         foregroundColor: Colors.black,
         elevation: 0,
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: "Search job no or description...",
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.toLowerCase();
+                  });
+                },
+              )
+            : const Text("Work Orders"),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: openAddScreen,
-          ),
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {},
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) {
+                  _searchController.clear();
+                  _searchQuery = "";
+                }
+              });
+            },
           ),
         ],
       ),
