@@ -159,19 +159,41 @@ class WorkOrderCard extends StatelessWidget {
             const SizedBox(height: 8),
 
             /// 🔹 STATUS BADGE
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeInOut,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color:
-                    getStatusColor(context, workOrder.status).withOpacity(0.1),
+                    getStatusColor(context, workOrder.status).withOpacity(0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Text(
-                workOrder.status,
-                style: TextStyle(
-                  color: getStatusColor(context, workOrder.status),
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: Icon(
+                      workOrder.status == "Closed"
+                          ? Icons.check_circle
+                          : workOrder.status == "In Progress"
+                              ? Icons.autorenew
+                              : Icons.schedule,
+                      key: ValueKey(workOrder.status),
+                      size: 16,
+                      color: getStatusColor(context, workOrder.status),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 300),
+                    style: TextStyle(
+                      color: getStatusColor(context, workOrder.status),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    child: Text(workOrder.status),
+                  ),
+                ],
               ),
             ),
 
