@@ -14,9 +14,12 @@ class WorkOrderHome extends StatefulWidget {
 class _WorkOrderHomeState extends State<WorkOrderHome> {
   bool _isSearching = false;
   String _searchQuery = "";
+  String? _selectedEmployeeId;
   final TextEditingController _searchController = TextEditingController();
   String selectedFilter = "All";
   int? expandedIndex;
+
+  DateTime? _selectedDate;
 
   final WorkOrderService _service = WorkOrderService();
   List<WorkOrder> workOrders = [];
@@ -105,6 +108,25 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
         return jobNoMatch || descriptionMatch;
       }).toList();
     }
+    // ✅ Filter by Date
+if (_selectedDate != null) {
+  filteredOrders = filteredOrders.where((wo) {
+    final workOrderDate = DateTime.tryParse(wo.dateCreated);
+
+    if (workOrderDate == null) return false;
+
+    return workOrderDate.year == _selectedDate!.year &&
+        workOrderDate.month == _selectedDate!.month &&
+        workOrderDate.day == _selectedDate!.day;
+  }).toList();
+}
+// ✅ Filter by Employee
+if (_selectedEmployeeId != null) {
+  filteredOrders = filteredOrders.where((wo) {
+    return wo.assignedEmployees
+        .any((emp) => emp.id == _selectedEmployeeId);
+  }).toList();
+}
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
@@ -128,19 +150,103 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
               )
             : const Text("Work Orders"),
         actions: [
-          IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search),
-            onPressed: () {
-              setState(() {
-                _isSearching = !_isSearching;
-                if (!_isSearching) {
-                  _searchController.clear();
-                  _searchQuery = "";
-                }
-              });
-            },
-          ),
-        ],
+
+  // 🔍 SEARCH BUTTON
+  IconButton(
+    icon: Icon(_isSearching ? Icons.close : Icons.search),
+    onPressed: () {
+      setState(() {
+        _isSearching = !_isSearching;
+        if (!_isSearching) {
+          _searchController.clear();
+          _searchQuery = "";
+        }
+      });
+    },
+  ),
+
+  // 📅 DATE FILTER BUTTON
+  IconButton(
+    icon: Icon(
+      _selectedDate == null
+          ? Icons.calendar_today
+          : Icons.close,
+    ),
+    onPressed: () async {
+      if (_selectedDate != null) {
+        setState(() {
+          _selectedDate = null;
+        });
+      } else {
+        final pickedDate = await showDatePicker(
+          context: context,
+          initialDate: DateTime.now(),
+          firstDate: DateTime(2020),
+          lastDate: DateTime(2100),
+        );
+
+        if (pickedDate != null) {
+          setState(() {
+            _selectedDate = pickedDate;
+          });
+        }
+      }
+    },
+  ),
+  
+  
+IconButton(
+  icon: Icon(
+    _selectedEmployeeId == null
+        ? Icons.person
+        : Icons.close,
+  ),
+  onPressed: () async {
+    if (_selectedEmployeeId != null) {
+      setState(() {
+        _selectedEmployeeId = null;
+      });
+      return;
+    }
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) {
+        final employees = workOrders
+            .expand((wo) => wo.assignedEmployees)
+            .toList();
+
+        final uniqueEmployees = {
+          for (var e in employees) e.id: e
+        }.values.toList();
+
+        return ListView(
+          children: uniqueEmployees.map((employee) {
+            return ListTile(
+              title: Text(employee.fullName),
+              onTap: () {
+                Navigator.pop(context, employee.id);
+              },
+            );
+          }).toList(),
+        );
+      },
+    );
+
+    if (selected != null) {
+      setState(() {
+        _selectedEmployeeId = selected;
+      });
+    }
+  },
+),
+  // ➕ ADD BUTTON
+  IconButton(
+    icon: const Icon(Icons.add),
+    onPressed: openAddScreen,
+  ),
+],
+        
       ),
       body: Column(
         children: [
