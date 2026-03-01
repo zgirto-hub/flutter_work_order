@@ -14,4 +14,20 @@ class DocumentService {
         .map((doc) => DocumentModel.fromJson(doc))
         .toList();
   }
+
+  Future<void> insertDocument({
+    required String title,
+    required String documentType,
+    String? parsedText,
+  }) async {
+    await _client.from('documents').insert({
+      'title': title,
+      'document_type': documentType,
+      'file_name': '',
+      'file_extension': '',
+      'mime_type': '',
+      'file_path': '',
+      'parsed_text': parsedText,
+    });
+  }
 }
