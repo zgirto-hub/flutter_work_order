@@ -35,7 +35,7 @@ class DocumentService {
     final response = await _client
         .from('documents')
         .select()
-        .textSearch('search_vector', query);
+        .ilike('parsed_text', '%$query%');
 
     return (response as List)
         .map((doc) => DocumentModel.fromJson(doc))
