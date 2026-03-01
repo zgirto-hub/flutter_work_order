@@ -32,7 +32,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://10.0.2.2:8000/upload'),
+      Uri.parse('http://100.92.159.81:8000/upload'),
     );
 
     request.files.add(

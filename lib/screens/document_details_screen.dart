@@ -15,7 +15,7 @@ class DocumentDetailsScreen extends StatelessWidget {
 
     // Emulator URL
     final fileUrl =
-        fileName != null ? "http://10.0.2.2:8000/files/$fileName" : null;
+        fileName != null ? "http://100.92.159.81:8000/files/$fileName" : null;
 
     return Scaffold(
       appBar: AppBar(
