@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/document.dart';
 import '../services/document_service.dart';
+import 'document_details_screen.dart';
 
 class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({super.key});
@@ -60,10 +61,18 @@ Future<void> _refreshDocuments() async {
       return Card(
         margin: const EdgeInsets.only(bottom: 12),
         child: ListTile(
-          leading: const Icon(Icons.description),
-          title: Text(doc.title),
-          subtitle: Text(doc.documentType),
-        ),
+  leading: const Icon(Icons.description),
+  title: Text(doc.title),
+  subtitle: Text(doc.documentType),
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DocumentDetailsScreen(document: doc),
+      ),
+    );
+  },
+),
       );
     },
   ),
