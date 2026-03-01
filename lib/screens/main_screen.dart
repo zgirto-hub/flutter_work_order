@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/theme_controller.dart';
 import 'work_order_home.dart';
+import 'documents_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -27,13 +28,12 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      const WorkOrderHome(),
-      const Center(child: Text("Users")),
-      const Center(child: Text("Work Orders")),
-      SettingsPage(themeController: widget.themeController),
-    ];
-
+final pages = [
+  const WorkOrderHome(), // Dashboard
+  const Center(child: Text("Work Orders")), // Work Orders
+  const DocumentsScreen(), // Documents
+  SettingsPage(themeController: widget.themeController),
+];
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -49,27 +49,27 @@ class _MainScreenState extends State<MainScreen> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: "Dashboard",
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people),
-            label: "Users",
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.work_outline),
-            selectedIcon: Icon(Icons.work),
-            label: "Work Orders",
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: "Settings",
-          ),
-        ],
+  NavigationDestination(
+    icon: Icon(Icons.dashboard_outlined),
+    selectedIcon: Icon(Icons.dashboard),
+    label: "Dashboard",
+  ),
+  NavigationDestination(
+    icon: Icon(Icons.work_outline),
+    selectedIcon: Icon(Icons.work),
+    label: "Work Orders",
+  ),
+  NavigationDestination(
+    icon: Icon(Icons.description_outlined),
+    selectedIcon: Icon(Icons.description),
+    label: "Documents",
+  ),
+  NavigationDestination(
+    icon: Icon(Icons.settings_outlined),
+    selectedIcon: Icon(Icons.settings),
+    label: "Settings",
+  ),
+],
       ),
     );
   }

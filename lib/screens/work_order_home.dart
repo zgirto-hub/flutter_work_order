@@ -3,7 +3,7 @@ import '../models/work_order.dart';
 import '../widgets/work_order_card.dart';
 import '../services/work_order_service.dart';
 import 'add_work_order.dart';
-
+import '../models/employee_assignment.dart';
 class WorkOrderHome extends StatefulWidget {
   const WorkOrderHome({super.key});
 
@@ -29,6 +29,85 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
     super.initState();
     loadWorkOrders();
   }
+  Widget buildActiveFiltersRow() {
+  final List<Widget> chips = [];
+
+  if (_searchQuery.isNotEmpty) {
+    chips.add(
+      FilterChip(
+        label: Text("🔍 $_searchQuery"),
+        onSelected: (_) {
+          setState(() {
+            _searchController.clear();
+            _searchQuery = "";
+          });
+        },
+      ),
+    );
+  }
+
+  if (_selectedDate != null) {
+    chips.add(
+      FilterChip(
+        label: Text(
+          "📅 ${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}",
+        ),
+        onSelected: (_) {
+          setState(() {
+            _selectedDate = null;
+          });
+        },
+      ),
+    );
+  }
+
+  if (_selectedEmployeeId != null) {
+    final employeeName = workOrders
+        .expand((wo) => wo.assignedEmployees)
+        .firstWhere(
+          (emp) => emp.id == _selectedEmployeeId,
+          orElse: () =>  EmployeeAssignment(id: '', fullName: ''),
+        )
+        .fullName;
+
+    chips.add(
+      FilterChip(
+        label: Text("👤 $employeeName"),
+        onSelected: (_) {
+          setState(() {
+            _selectedEmployeeId = null;
+          });
+        },
+      ),
+    );
+  }
+
+  if (chips.isEmpty) return const SizedBox();
+
+  chips.add(
+    TextButton(
+      onPressed: () {
+        setState(() {
+          _searchQuery = "";
+          _searchController.clear();
+          _selectedDate = null;
+          _selectedEmployeeId = null;
+          selectedFilter = "All";
+        });
+      },
+      child: const Text("Clear All"),
+    ),
+  );
+
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    child: Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: chips,
+    ),
+  );
+}
 
   Future<void> loadWorkOrders() async {
     final data = await _service.fetchWorkOrders();
@@ -272,7 +351,7 @@ IconButton(
           ),
 
           const SizedBox(height: 10),
-
+         buildActiveFiltersRow(),
           // ✅ LIST
           Expanded(
             child: RefreshIndicator(
