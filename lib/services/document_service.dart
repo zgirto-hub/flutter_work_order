@@ -9,7 +9,7 @@ class DocumentService {
         .from('documents')
         .select()
         .order('created_at', ascending: false);
-
+    print("Supabase response: $response");
     return (response as List)
         .map((doc) => DocumentModel.fromJson(doc))
         .toList();
@@ -29,5 +29,16 @@ class DocumentService {
       'file_path': '',
       'parsed_text': parsedText,
     });
+  }
+
+  Future<List<DocumentModel>> searchDocuments(String query) async {
+    final response = await _client
+        .from('documents')
+        .select()
+        .textSearch('search_vector', query);
+
+    return (response as List)
+        .map((doc) => DocumentModel.fromJson(doc))
+        .toList();
   }
 }
