@@ -18,7 +18,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     super.initState();
     _documentsFuture = _service.fetchDocuments();
   }
-
+Future<void> _refreshDocuments() async {
+  setState(() {
+    _documentsFuture = _service.fetchDocuments();
+  });
+}
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -44,22 +48,26 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               );
             }
 
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: documents.length,
-              itemBuilder: (context, index) {
-                final doc = documents[index];
+            return RefreshIndicator(
+  onRefresh: _refreshDocuments,
+  child: ListView.builder(  physics: const AlwaysScrollableScrollPhysics(),
 
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    leading: const Icon(Icons.description),
-                    title: Text(doc.title),
-                    subtitle: Text(doc.documentType),
-                  ),
-                );
-              },
-            );
+    padding: const EdgeInsets.all(16),
+    itemCount: documents.length,
+    itemBuilder: (context, index) {
+      final doc = documents[index];
+
+      return Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        child: ListTile(
+          leading: const Icon(Icons.description),
+          title: Text(doc.title),
+          subtitle: Text(doc.documentType),
+        ),
+      );
+    },
+  ),
+);
           },
         ),
 
