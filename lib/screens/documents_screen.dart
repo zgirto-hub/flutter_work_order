@@ -1,24 +1,74 @@
 import 'package:flutter/material.dart';
+import '../models/document.dart';
+import '../services/document_service.dart';
 
-class DocumentsScreen extends StatelessWidget {
+class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({super.key});
+
+  @override
+  State<DocumentsScreen> createState() => _DocumentsScreenState();
+}
+
+class _DocumentsScreenState extends State<DocumentsScreen> {
+  final DocumentService _service = DocumentService();
+  late Future<List<DocumentModel>> _documentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _documentsFuture = _service.fetchDocuments();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        const Center(
-          child: Text(
-            "Documents will appear here",
-            style: TextStyle(fontSize: 18),
-          ),
+        FutureBuilder<List<DocumentModel>>(
+          future: _documentsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return const Center(
+                child: Text("Error loading documents"),
+              );
+            }
+
+            final documents = snapshot.data ?? [];
+
+            if (documents.isEmpty) {
+              return const Center(
+                child: Text("No documents found"),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: documents.length,
+              itemBuilder: (context, index) {
+                final doc = documents[index];
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: ListTile(
+                    leading: const Icon(Icons.description),
+                    title: Text(doc.title),
+                    subtitle: Text(doc.documentType),
+                  ),
+                );
+              },
+            );
+          },
         ),
+
         Positioned(
           bottom: 16,
           right: 16,
           child: FloatingActionButton(
             onPressed: () {
-              // Later: Add document
+              // Next step: add document
             },
             child: const Icon(Icons.add),
           ),
