@@ -36,29 +36,58 @@ class _DocumentViewerScreenState
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isPdf =
-        widget.fileUrl.toLowerCase().endsWith(".pdf");
+@override
+Widget build(BuildContext context) {
+  final url = widget.fileUrl.toLowerCase();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Document Viewer"),
-      ),
-      body: isPdf
-          ? SfPdfViewer.network(widget.fileUrl)
-          : _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _textContent != null
-                  ? Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: SingleChildScrollView(
-                        child: SelectableText(_textContent!),
-                      ),
-                    )
-                  : const Center(
-                      child: Text("Unsupported file type"),
-                    ),
-    );
-  }
-}
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text("Document Viewer"),
+    ),
+    body: Builder(
+      builder: (_) {
+        // 📄 PDF
+        if (url.endsWith(".pdf")) {
+          return SfPdfViewer.network(widget.fileUrl);
+        }
+
+        // 📝 TXT
+        if (url.endsWith(".txt")) {
+          return FutureBuilder(
+            future: http.get(Uri.parse(widget.fileUrl)),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final response = snapshot.data as http.Response;
+
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: SingleChildScrollView(
+                  child: SelectableText(response.body),
+                ),
+              );
+            },
+          );
+        }
+
+        // 🖼 IMAGE
+        if (url.endsWith(".jpg") ||
+            url.endsWith(".jpeg") ||
+            url.endsWith(".png")) {
+          return Center(
+            child: InteractiveViewer(
+              child: Image.network(widget.fileUrl),
+            ),
+          );
+        }
+
+        // ❌ Unsupported
+        return const Center(
+          child: Text("Unsupported file type"),
+        );
+      },
+    ),
+  );
+}}
