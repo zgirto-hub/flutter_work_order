@@ -149,8 +149,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     const Duration(milliseconds: 400),
                     () {
                       if (value.isEmpty) {
-                        _currentSearch = "";
-                        _refreshDocuments();
+                        setState(() {
+                          _currentSearch = "";
+                          _documentsFuture = _service.fetchDocuments();
+                        });
                       } else {
                         setState(() {
                           _currentSearch = value.trim();
@@ -180,101 +182,128 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   }
 
                   final documents = snapshot.data ?? [];
+                  final int resultCount = documents.length;
 
                   if (documents.isEmpty) {
-                    return const Center(
-                      child: Text("No documents found"),
+                    return Center(
+                      child: Text(
+                        _currentSearch.isEmpty
+                            ? "No documents available"
+                            : "No documents found for \"$_currentSearch\"",
+                      ),
                     );
                   }
 
-                  return RefreshIndicator(
-                    onRefresh: _refreshDocuments,
-                    child: ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      itemCount: documents.length,
-                      itemBuilder: (context, index) {
-                        final doc = documents[index];
-
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            leading: const Icon(Icons.description),
-                            title: Text(doc.title),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  doc.documentType,
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                                const SizedBox(height: 4),
-                                if (doc.parsedText != null)
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: highlightText(
-                                      doc.parsedText ?? "",
-                                      _currentSearch,
-                                      maxLines: 4,
-                                    ),
-                                  ),
-                              ],
+                  return Column(
+                    children: [
+                      if (_currentSearch.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 4),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              "$resultCount document(s) found",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey,
+                              ),
                             ),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => DocumentDetailsScreen(
-                                    document: doc,
-                                    searchQuery: _currentSearch,
-                                  ),
-                                ),
-                              );
-                            },
-                            onLongPress: () {
-                              showModalBottomSheet(
-                                context: context,
-                                builder: (_) => SafeArea(
-                                  child: Wrap(
+                          ),
+                        ),
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: _refreshDocuments,
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(16),
+                            itemCount: documents.length,
+                            itemBuilder: (context, index) {
+                              final doc = documents[index];
+
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: ListTile(
+                                  leading: const Icon(Icons.description),
+                                  title: Text(doc.title),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      ListTile(
-                                        leading: const Icon(Icons.edit),
-                                        title: const Text("Rename"),
-                                        onTap: () {
-                                          Navigator.pop(context);
-                                          _showRenameDialog(doc);
-                                        },
+                                      Text(
+                                        doc.documentType,
+                                        style: const TextStyle(fontSize: 12),
                                       ),
-                                      ListTile(
-                                        leading: const Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
+                                      const SizedBox(height: 4),
+                                      if (doc.parsedText != null)
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: highlightText(
+                                            doc.parsedText ?? "",
+                                            _currentSearch,
+                                            maxLines: 4,
+                                          ),
                                         ),
-                                        title: const Text(
-                                          "Delete",
-                                          style:
-                                              TextStyle(color: Colors.red),
-                                        ),
-                                        onTap: () async {
-                                          Navigator.pop(context);
-                                          await _deleteDocument(doc.id);
-                                        },
-                                      ),
-                                      ListTile(
-                                        leading: const Icon(Icons.close),
-                                        title: const Text("Cancel"),
-                                        onTap: () =>
-                                            Navigator.pop(context),
-                                      ),
                                     ],
                                   ),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => DocumentDetailsScreen(
+                                          document: doc,
+                                          searchQuery: _currentSearch,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  onLongPress: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      builder: (_) => SafeArea(
+                                        child: Wrap(
+                                          children: [
+                                            ListTile(
+                                              leading: const Icon(Icons.edit),
+                                              title: const Text("Rename"),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                _showRenameDialog(doc);
+                                              },
+                                            ),
+                                            ListTile(
+                                              leading: const Icon(
+                                                Icons.delete,
+                                                color: Colors.red,
+                                              ),
+                                              title: const Text(
+                                                "Delete",
+                                                style: TextStyle(
+                                                    color: Colors.red),
+                                              ),
+                                              onTap: () async {
+                                                Navigator.pop(context);
+                                                await _deleteDocument(doc.id);
+                                              },
+                                            ),
+                                            ListTile(
+                                              leading: const Icon(Icons.close),
+                                              title: const Text("Cancel"),
+                                              onTap: () =>
+                                                  Navigator.pop(context),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               );
                             },
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),

@@ -21,7 +21,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   Future<void> _pickAndUploadFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'],    );
+      allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'],
+    );
 
     if (result == null) return;
 
@@ -98,7 +99,7 @@ allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'],    );
                   onPressed: _isLoading ? null : _pickAndUploadFile,
                   child: _isLoading
                       ? const CircularProgressIndicator()
-                      : const Text("Save"),
+                      : const Text("Upload"),
                 ),
               ),
             ],
