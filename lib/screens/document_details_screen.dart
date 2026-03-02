@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import '../models/document.dart';
 import 'document_viewer_screen.dart';
 
-class DocumentDetailsScreen extends StatelessWidget {
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:io';
+
+class DocumentDetailsScreen extends StatefulWidget {
   final DocumentModel document;
   final String searchQuery;
 
@@ -11,6 +16,53 @@ class DocumentDetailsScreen extends StatelessWidget {
     required this.document,
     required this.searchQuery,
   });
+
+  @override
+  State<DocumentDetailsScreen> createState() => _DocumentDetailsScreenState();
+}
+
+class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
+  // =============================
+  // DOWNLOAD FUNCTION (CROSS PLATFORM)
+  // =============================
+  Future<void> _downloadFile(String url, String fileName) async {
+    try {
+      Directory? directory;
+
+      if (Platform.isAndroid) {
+        var status = await Permission.storage.request();
+        if (!status.isGranted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Storage permission denied")),
+          );
+          return;
+        }
+
+        directory = await getExternalStorageDirectory();
+      } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        directory = await getDownloadsDirectory();
+      }
+
+      if (directory == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Cannot access download folder")),
+        );
+        return;
+      }
+
+      final savePath = "${directory.path}${Platform.pathSeparator}$fileName";
+
+      await Dio().download(url, savePath);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("File saved to ${directory.path}")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Download failed: $e")),
+      );
+    }
+  }
 
   Widget highlightFullText(String text, String query) {
     if (query.isEmpty) {
@@ -58,16 +110,16 @@ class DocumentDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fileName =
-        document.filePath != null ? document.filePath!.split('/').last : null;
-
-    final fileUrl = fileName != null
-        ? "http://100.92.159.81:8000/files/$fileName"
+    final fileName = widget.document.filePath != null
+        ? widget.document.filePath!.split('/').last
         : null;
+
+    final fileUrl =
+        fileName != null ? "http://100.92.159.81:8000/files/$fileName" : null;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(document.title),
+        title: Text(widget.document.title),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -75,7 +127,7 @@ class DocumentDetailsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              document.documentType,
+              widget.document.documentType,
               style: const TextStyle(
                 fontSize: 14,
                 color: Colors.grey,
@@ -83,32 +135,41 @@ class DocumentDetailsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              document.fileName ?? '',
+              widget.document.fileName ?? '',
               style: const TextStyle(fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 16),
-
             if (fileUrl != null)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            DocumentViewerScreen(fileUrl: fileUrl),
-                      ),
-                    );
-                  },
-                  child: const Text("Open Attached File"),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                DocumentViewerScreen(fileUrl: fileUrl),
+                          ),
+                        );
+                      },
+                      child: const Text("Open Attached File"),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        _downloadFile(fileUrl, fileName!);
+                      },
+                      child: const Text("Download File"),
+                    ),
+                  ),
+                ],
               ),
-
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 16),
-
             const Text(
               "Document Content",
               style: TextStyle(
@@ -117,12 +178,11 @@ class DocumentDetailsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-
             Expanded(
               child: SingleChildScrollView(
                 child: highlightFullText(
-                  document.parsedText ?? "No content available",
-                  searchQuery,
+                  widget.document.parsedText ?? "No content available",
+                  widget.searchQuery,
                 ),
               ),
             ),
