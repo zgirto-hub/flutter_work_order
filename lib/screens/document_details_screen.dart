@@ -4,18 +4,66 @@ import 'document_viewer_screen.dart';
 
 class DocumentDetailsScreen extends StatelessWidget {
   final DocumentModel document;
+  final String searchQuery;
 
-  const DocumentDetailsScreen({super.key, required this.document});
+  const DocumentDetailsScreen({
+    super.key,
+    required this.document,
+    required this.searchQuery,
+  });
+
+  Widget highlightFullText(String text, String query) {
+    if (query.isEmpty) {
+      return Text(text);
+    }
+
+    final lowerText = text.toLowerCase();
+    final lowerQuery = query.toLowerCase();
+
+    final spans = <TextSpan>[];
+    int start = 0;
+
+    while (true) {
+      final index = lowerText.indexOf(lowerQuery, start);
+
+      if (index == -1) {
+        spans.add(TextSpan(text: text.substring(start)));
+        break;
+      }
+
+      if (index > start) {
+        spans.add(TextSpan(text: text.substring(start, index)));
+      }
+
+      spans.add(
+        TextSpan(
+          text: text.substring(index, index + query.length),
+          style: const TextStyle(
+            backgroundColor: Colors.yellow,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+
+      start = index + query.length;
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(color: Colors.black, fontSize: 14),
+        children: spans,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Extract filename from stored path
     final fileName =
         document.filePath != null ? document.filePath!.split('/').last : null;
 
-    // Emulator URL
-    final fileUrl =
-        fileName != null ? "http://100.92.159.81:8000/files/$fileName" : null;
+    final fileUrl = fileName != null
+        ? "http://100.92.159.81:8000/files/$fileName"
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -40,7 +88,6 @@ class DocumentDetailsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // 🔥 Open File Button
             if (fileUrl != null)
               SizedBox(
                 width: double.infinity,
@@ -49,7 +96,8 @@ class DocumentDetailsScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => DocumentViewerScreen(fileUrl: fileUrl),
+                        builder: (_) =>
+                            DocumentViewerScreen(fileUrl: fileUrl),
                       ),
                     );
                   },
@@ -60,6 +108,7 @@ class DocumentDetailsScreen extends StatelessWidget {
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 16),
+
             const Text(
               "Document Content",
               style: TextStyle(
@@ -68,11 +117,12 @@ class DocumentDetailsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
+
             Expanded(
               child: SingleChildScrollView(
-                child: Text(
+                child: highlightFullText(
                   document.parsedText ?? "No content available",
-                  textAlign: TextAlign.start,
+                  searchQuery,
                 ),
               ),
             ),

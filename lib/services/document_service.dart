@@ -41,4 +41,18 @@ class DocumentService {
         .map((doc) => DocumentModel.fromJson(doc))
         .toList();
   }
+
+  Future<void> deleteDocument(String id) async {
+  await _client
+      .from('documents')
+      .delete()
+      .eq('id', id);
+}
+
+Future<void> renameDocument(String id, String newTitle) async {
+  await _client
+      .from('documents')
+      .update({'title': newTitle})
+      .eq('id', id);
+}
 }
