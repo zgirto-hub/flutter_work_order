@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/document_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart'; // <-- ADD THIS
 
 class AddDocumentScreen extends StatefulWidget {
   const AddDocumentScreen({super.key});
@@ -19,22 +20,37 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   final DocumentService _service = DocumentService();
   bool _isLoading = false;
   Future<void> _pickAndUploadFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'],
+  if (!_formKey.currentState!.validate()) return;
+
+  final result = await FilePicker.platform.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'],
+    withData: kIsWeb, // IMPORTANT for Web
+  );
+
+  if (result == null) return;
+
+  final file = result.files.single;
+
+  setState(() => _isLoading = true);
+
+  final request = http.MultipartRequest(
+    'POST',
+    Uri.parse('http://100.92.159.81:8000/upload'),
+  );
+
+  // ✅ WEB
+  if (kIsWeb) {
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        file.bytes!,
+        filename: file.name,
+      ),
     );
-
-    if (result == null) return;
-
-    final file = result.files.single;
-
-    setState(() => _isLoading = true);
-
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('http://100.92.159.81:8000/upload'),
-    );
-
+  } 
+  // ✅ ANDROID / WINDOWS
+  else {
     request.files.add(
       await http.MultipartFile.fromPath(
         'file',
@@ -42,10 +58,12 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         filename: file.name,
       ),
     );
+  }
 
-    request.fields['title'] = _titleController.text;
-    request.fields['document_type'] = _typeController.text;
+  request.fields['title'] = _titleController.text;
+  request.fields['document_type'] = _typeController.text;
 
+  try {
     final response = await request.send();
 
     setState(() => _isLoading = false);
@@ -57,7 +75,13 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         const SnackBar(content: Text("Upload failed")),
       );
     }
+  } catch (e) {
+    setState(() => _isLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Upload error")),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {

@@ -5,7 +5,10 @@ import 'document_viewer_screen.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'dart:io';
+// ignore: deprecated_member_use
+import 'dart:html' as html;
+
+import 'package:flutter/foundation.dart';
 
 class DocumentDetailsScreen extends StatefulWidget {
   final DocumentModel document;
@@ -25,44 +28,63 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
   // =============================
   // DOWNLOAD FUNCTION (CROSS PLATFORM)
   // =============================
-  Future<void> _downloadFile(String url, String fileName) async {
-    try {
-      Directory? directory;
-
-      if (Platform.isAndroid) {
-        var status = await Permission.storage.request();
-        if (!status.isGranted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Storage permission denied")),
-          );
-          return;
-        }
-
-        directory = await getExternalStorageDirectory();
-      } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-        directory = await getDownloadsDirectory();
-      }
-
-      if (directory == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Cannot access download folder")),
-        );
-        return;
-      }
-
-      final savePath = "${directory.path}${Platform.pathSeparator}$fileName";
-
-      await Dio().download(url, savePath);
-
+/*  Future<void> _downloadFile(String url, String fileName) async {
+  try {
+    if (kIsWeb) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("File saved to ${directory.path}")),
+        const SnackBar(content: Text("Download not supported on Web")),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Download failed: $e")),
-      );
+      return;
     }
+
+    Directory? directory;
+
+    if (Platform.isAndroid) {
+      directory = await getExternalStorageDirectory();
+    } else if (Platform.isWindows ||
+        Platform.isLinux ||
+        Platform.isMacOS) {
+      directory = await getDownloadsDirectory();
+    }
+
+    if (directory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Cannot access download folder")),
+      );
+      return;
+    }
+
+    final savePath =
+        "${directory.path}${Platform.pathSeparator}$fileName";
+
+    await Dio().download(url, savePath);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("File saved to ${directory.path}")),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Download failed: $e")),
+    );
   }
+}*/
+
+Future<void> _downloadFile(String url, String fileName) async {
+  try {
+    if (kIsWeb) {
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute("download", fileName)
+        ..click();
+      return;
+    }
+
+    // Mobile / Desktop logic here (optional)
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Download failed: $e")),
+    );
+  }
+}
 
   Widget highlightFullText(String text, String query) {
     if (query.isEmpty) {
