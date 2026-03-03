@@ -50,7 +50,14 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Image.asset(
+              'assets/images/logo.png',
+              height: 120,
+            ),
+
+            const SizedBox(height: 20),
             TextField(
               controller: emailController,
               decoration: const InputDecoration(labelText: "Email"),
@@ -61,18 +68,30 @@ class _LoginScreenState extends State<LoginScreen> {
               obscureText: true,
             ),
             const SizedBox(height: 20),
+
             ElevatedButton(
               onPressed: signIn,
               child: const Text("Login"),
             ),
+
+            const SizedBox(height: 10),
+
+            // 🔒 Disabled Create Account Button
             TextButton(
-  onPressed: () {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Account creation is disabled.")),
-    );
-  },
-  child: const Text("Create Account"),
-),
+              onPressed: null, // makes button disabled
+              child: const Text("Create Account"),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 👇 Footer Text
+            const Text(
+              "Developed by Salah on 2026",
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+            ),
           ],
         ),
       ),

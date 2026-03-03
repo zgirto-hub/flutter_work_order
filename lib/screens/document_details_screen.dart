@@ -69,22 +69,22 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
   }
 }*/
 
-Future<void> _downloadFile(String url, String fileName) async {
-  try {
-    if (kIsWeb) {
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute("download", fileName)
-        ..click();
-      return;
-    }
+  Future<void> _downloadFile(String url, String fileName) async {
+    try {
+      if (kIsWeb) {
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute("download", fileName)
+          ..click();
+        return;
+      }
 
-    // Mobile / Desktop logic here (optional)
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Download failed: $e")),
-    );
+      // Mobile / Desktop logic here (optional)
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Download failed: $e")),
+      );
+    }
   }
-}
 
   Widget highlightFullText(String text, String query) {
     if (query.isEmpty) {
@@ -137,7 +137,7 @@ Future<void> _downloadFile(String url, String fileName) async {
         : null;
 
     final fileUrl =
-        fileName != null ? "http://100.92.159.81:8000/files/$fileName" : null;
+        fileName != null ? "http://100.85.73.37:8000/files/$fileName" : null;
 
     return Scaffold(
       appBar: AppBar(
