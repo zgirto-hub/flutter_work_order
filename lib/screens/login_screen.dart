@@ -66,9 +66,13 @@ class _LoginScreenState extends State<LoginScreen> {
               child: const Text("Login"),
             ),
             TextButton(
-              onPressed: signUp,
-              child: const Text("Create Account"),
-            ),
+  onPressed: () {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Account creation is disabled.")),
+    );
+  },
+  child: const Text("Create Account"),
+),
           ],
         ),
       ),
