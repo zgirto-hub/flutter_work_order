@@ -35,14 +35,6 @@ print("UPLOAD DIRECTORY:", UPLOAD_DIR)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app.mount("/files", StaticFiles(directory=UPLOAD_DIR), name="files")
-# Serve Flutter Web
-FLUTTER_WEB_DIR = os.path.join(BASE_DIR, "flutter_web")
-
-app.mount(
-    "/app",
-    StaticFiles(directory=FLUTTER_WEB_DIR, html=True),
-    name="flutter_web",
-)
 
 
 # --------------------
