@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,9 +10,19 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  String version = "";
+  String buildNumber = "";
+  String buildDate = "";
+
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final supabase = Supabase.instance.client;
+
+  @override
+  void initState() {
+    super.initState();
+    loadAppInfo();
+  }
 
   Future<void> signIn() async {
     try {
@@ -19,8 +30,6 @@ class _LoginScreenState extends State<LoginScreen> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
-      // ❌ DO NOT navigate here
-      // StreamBuilder in main.dart will handle it automatically
     } catch (e) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(e.toString())));
@@ -43,6 +52,18 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+ Future<void> loadAppInfo() async {
+  final info = await PackageInfo.fromPlatform();
+
+  final now = DateTime.now();
+
+  setState(() {
+    version = info.version;
+    buildNumber = info.buildNumber;
+    buildDate = "${now.year}-${now.month}-${now.day} ${now.hour}:${now.minute}";
+  });
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,15 +79,18 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
 
             const SizedBox(height: 20),
+
             TextField(
               controller: emailController,
               decoration: const InputDecoration(labelText: "Email"),
             ),
+
             TextField(
               controller: passwordController,
               decoration: const InputDecoration(labelText: "Password"),
               obscureText: true,
             ),
+
             const SizedBox(height: 20),
 
             ElevatedButton(
@@ -76,22 +100,47 @@ class _LoginScreenState extends State<LoginScreen> {
 
             const SizedBox(height: 10),
 
-            // 🔒 Disabled Create Account Button
             TextButton(
-              onPressed: null, // makes button disabled
+              onPressed: null,
               child: const Text("Create Account"),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
 
-            // 👇 Footer Text
-            const Text(
-              "Developed by Salah on 2026",
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
-            ),
+            // 👇 Footer
+            Column(
+  children: [
+    const Text(
+      "Developed by Salah © 2026",
+      style: TextStyle(
+        fontSize: 12,
+        color: Colors.grey,
+      ),
+    ),
+
+    const SizedBox(height: 4),
+
+    if (version.isNotEmpty)
+      Text(
+        "Version $version (Build $buildNumber)",
+        style: const TextStyle(
+          fontSize: 11,
+          color: Colors.grey,
+        ),
+      ),
+
+    const SizedBox(height: 2),
+
+    if (buildDate.isNotEmpty)
+      Text(
+        "Build: $buildDate",
+        style: const TextStyle(
+          fontSize: 10,
+          color: Colors.grey,
+        ),
+      ),
+  ],
+)
           ],
         ),
       ),

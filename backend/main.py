@@ -1,4 +1,5 @@
-print("=== THIS MAIN.PY IS RUNNING v2===")
+print("=== THIS MAIN.PY IS RUNNING v2 ===")
+
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -6,6 +7,7 @@ from supabase import create_client, Client
 import os
 import uuid
 import unicodedata
+from datetime import datetime
 
 from PyPDF2 import PdfReader
 from docx import Document
@@ -41,6 +43,35 @@ app.mount(
     StaticFiles(directory=FLUTTER_WEB_DIR, html=True),
     name="flutter_web",
 )
+
+
+# --------------------
+# Startup Banner
+# --------------------
+@app.on_event("startup")
+async def startup_banner():
+
+    banner = r"""
+████████╗██╗ ██████╗██╗  ██╗███████╗████████╗
+╚══██╔══╝██║██╔════╝██║ ██╔╝██╔════╝╚══██╔══╝
+   ██║   ██║██║     █████╔╝ █████╗     ██║
+   ██║   ██║██║     ██╔═██╗ ██╔══╝     ██║
+   ██║   ██║╚██████╗██║  ██╗███████╗   ██║
+   ╚═╝   ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝   ╚═╝
+"""
+
+    print(banner)
+    print("🎟  TICKETING SYSTEM API STARTED")
+    print("📡 API URL: http://0.0.0.0:8000")
+    print("📂 Upload Folder:", UPLOAD_DIR)
+    print("🕒 Startup Time:", datetime.now())
+    print("===============================================")
+
+
+# --------------------
+# CORS
+# --------------------
+
 
 app.add_middleware(
     CORSMiddleware,
