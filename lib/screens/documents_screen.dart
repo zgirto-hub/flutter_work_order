@@ -24,7 +24,73 @@ final Set<String> _selectedDocuments = {};
 
   Timer? _debounce;
   String _currentSearch = "";
+  
+  Future<void> _deleteSelectedDocuments_2() async {}
 
+Future<void> _deleteSelectedDocuments() async {
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text("Confirm Delete"),
+        content: Text(
+          "Are you sure you want to delete ${_selectedDocuments.length} document(s)?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete"),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (confirm != true) return;
+
+  // SHOW LOADING
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(
+      child: CircularProgressIndicator(),
+    ),
+  );
+
+  final deletedIds = List<String>.from(_selectedDocuments);
+
+  for (var id in deletedIds) {
+    await _service.deleteDocument(id);
+  }
+
+  Navigator.pop(context); // close loading
+
+  setState(() {
+    _selectedDocuments.clear();
+    _selectionMode = false;
+  });
+
+  _refreshDocuments();
+
+  // SNACKBAR WITH UNDO
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text("${deletedIds.length} document(s) deleted"),
+      action: SnackBarAction(
+        label: "UNDO",
+        onPressed: () async {
+          // restore documents logic here if supported
+        },
+      ),
+      duration: const Duration(seconds: 4),
+    ),
+  );
+}
   @override
   void initState() {
     super.initState();
@@ -265,32 +331,45 @@ final Set<String> _selectedDocuments = {};
             onPressed: () => Navigator.pop(context, false),
             child: const Text("Cancel"),
           ),
-         /* ElevatedButton(
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
             child: const Text("Delete"),
-          ),*/
-          ElevatedButton(
-  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-  onPressed: () => Navigator.pop(context, true),
-  child: const Text("Delete"),
-)
+          )
         ],
       );
     },
   );
 
-  if (confirm == true) {
-    for (var id in _selectedDocuments) {
-      await _service.deleteDocument(id);
-    }
+  if (confirm != true) return;
 
-    setState(() {
-      _selectedDocuments.clear();
-      _selectionMode = false;
-    });
+  final deletedCount = _selectedDocuments.length;
 
-    _refreshDocuments();
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+
+  for (var id in _selectedDocuments) {
+    await _service.deleteDocument(id);
   }
+
+  Navigator.pop(context);
+
+  setState(() {
+    _selectedDocuments.clear();
+    _selectionMode = false;
+  });
+
+  _refreshDocuments();
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text("$deletedCount document(s) deleted"),
+      duration: const Duration(seconds: 3),
+    ),
+  );
 },
       ),
     ),
@@ -308,20 +387,29 @@ final Set<String> _selectedDocuments = {};
                               return Card(
                                 margin: const EdgeInsets.only(bottom: 12),
                                 child: ListTile(
-                                  leading: _selectionMode
-                                  ? Checkbox(
-                                      value: _selectedDocuments.contains(doc.id),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          if (value == true) {
-                                            _selectedDocuments.add(doc.id);
-                                          } else {
-                                            _selectedDocuments.remove(doc.id);
-                                          }
-                                        });
-                                      },
-                                    )
-                                  : const Icon(Icons.description),
+                                  leading: AnimatedSwitcher(
+  duration: const Duration(milliseconds: 250),
+  transitionBuilder: (child, animation) =>
+      ScaleTransition(scale: animation, child: child),
+  child: _selectionMode
+      ? Checkbox(
+          key: const ValueKey("checkbox"),
+          value: _selectedDocuments.contains(doc.id),
+          onChanged: (value) {
+            setState(() {
+              if (value == true) {
+                _selectedDocuments.add(doc.id);
+              } else {
+                _selectedDocuments.remove(doc.id);
+              }
+            });
+          },
+        )
+      : const Icon(
+          Icons.description,
+          key: ValueKey("icon"),
+        ),
+),
                                   title: Text(doc.title),
                                   subtitle: Column(
                                     crossAxisAlignment:

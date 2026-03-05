@@ -176,17 +176,21 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
           filteredOrders.where((wo) => wo.status == selectedFilter).toList();
     }
 
-// ✅ Filter by Search (Job No + Description)
-    if (_searchQuery.isNotEmpty) {
-      filteredOrders = filteredOrders.where((wo) {
-        final jobNoMatch = wo.jobNo.toLowerCase().contains(_searchQuery);
+// ✅ Filter by Search (Job No + Job Title + Description)
+if (_searchQuery.isNotEmpty) {
+  filteredOrders = filteredOrders.where((wo) {
+    final jobNoMatch =
+        wo.jobNo.toLowerCase().contains(_searchQuery);
 
-        final descriptionMatch =
-            wo.description.toLowerCase().contains(_searchQuery);
+    final titleMatch =
+        wo.Title.toLowerCase().contains(_searchQuery);
 
-        return jobNoMatch || descriptionMatch;
-      }).toList();
-    }
+    final descriptionMatch =
+        wo.description.toLowerCase().contains(_searchQuery);
+
+    return jobNoMatch || titleMatch || descriptionMatch;
+  }).toList();
+}
     // ✅ Filter by Date
 if (_selectedDate != null) {
   filteredOrders = filteredOrders.where((wo) {
@@ -218,7 +222,7 @@ if (_selectedEmployeeId != null) {
                 controller: _searchController,
                 autofocus: true,
                 decoration: const InputDecoration(
-                  hintText: "Search job no or description...",
+                 hintText: "Search job no, title or description...",
                   border: InputBorder.none,
                 ),
                 onChanged: (value) {
