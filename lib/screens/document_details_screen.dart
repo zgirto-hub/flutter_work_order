@@ -72,6 +72,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
   Future<void> _downloadFile(String url, String fileName) async {
     try {
       if (kIsWeb) {
+        print("Download URL: $url");
         final anchor = html.AnchorElement(href: url)
           ..setAttribute("download", fileName)
           ..click();
@@ -132,13 +133,10 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final fileName = widget.document.filePath != null
-        ? widget.document.filePath!.split('/').last
-        : null;
-
+    final filePath = widget.document.filePath;
+    final fileName = filePath?.split('/').last;
     final fileUrl =
-        fileName != null ? "http://100.85.73.37:8000/files/$fileName" : null;
-
+        filePath != null ? "http://100.85.73.37:8001$filePath" : null;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.document.title),
