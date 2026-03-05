@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/document.dart';
 import 'document_viewer_screen.dart';
+import '../config.dart';
 
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
@@ -25,49 +26,7 @@ class DocumentDetailsScreen extends StatefulWidget {
 }
 
 class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
-  // =============================
-  // DOWNLOAD FUNCTION (CROSS PLATFORM)
-  // =============================
-/*  Future<void> _downloadFile(String url, String fileName) async {
-  try {
-    if (kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Download not supported on Web")),
-      );
-      return;
-    }
-
-    Directory? directory;
-
-    if (Platform.isAndroid) {
-      directory = await getExternalStorageDirectory();
-    } else if (Platform.isWindows ||
-        Platform.isLinux ||
-        Platform.isMacOS) {
-      directory = await getDownloadsDirectory();
-    }
-
-    if (directory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Cannot access download folder")),
-      );
-      return;
-    }
-
-    final savePath =
-        "${directory.path}${Platform.pathSeparator}$fileName";
-
-    await Dio().download(url, savePath);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("File saved to ${directory.path}")),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Download failed: $e")),
-    );
-  }
-}*/
+  
 
   Future<void> _downloadFile(String url, String fileName) async {
     try {
@@ -136,7 +95,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
     final filePath = widget.document.filePath;
     final fileName = filePath?.split('/').last;
     final fileUrl =
-        filePath != null ? "http://100.85.73.37:8001$filePath" : null;
+        filePath != null ? "${AppConfig.downloadUrl}$filePath" : null;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.document.title),

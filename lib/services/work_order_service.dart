@@ -22,21 +22,44 @@ class WorkOrderService {
 
   // ✅ ADD WORK ORDER (returns full inserted object)
   Future<WorkOrder> addWorkOrder(WorkOrder workOrder) async {
-    final user = _client.auth.currentUser;
+  final user = _client.auth.currentUser;
 
-    if (user == null) {
-      throw Exception("User not authenticated");
-    }
+  if (user == null) {
+    throw Exception("User not authenticated");
+  }
 
-    final response = await _client.from('work_orders').insert({
-      // ❌ DO NOT send job_no anymore
-      'title': workOrder.Title,
-      'description': workOrder.description,
-      'status': workOrder.status,
-      'location': workOrder.location,
-      'type': workOrder.type,
-      'created_by': user.id,
-    }).select('''
+  // 1️⃣ Insert Work Order
+  final workOrderResponse = await _client
+      .from('work_orders')
+      .insert({
+        'title': workOrder.Title,
+        'description': workOrder.description,
+        'status': workOrder.status,
+        'location': workOrder.location,
+        'type': workOrder.type,
+        'created_by': user.id,
+      })
+      .select()
+      .single();
+
+  final workOrderId = workOrderResponse['id'];
+
+  // 2️⃣ Insert Employee Assignments
+  if (workOrder.assignedEmployees.isNotEmpty) {
+    final assignments = workOrder.assignedEmployees
+        .map((emp) => {
+              'work_order_id': workOrderId,
+              'employee_id': emp.id,
+            })
+        .toList();
+
+    await _client.from('work_order_assignments').insert(assignments);
+  }
+
+  // 3️⃣ Fetch full object with employees
+  final fullResponse = await _client
+      .from('work_orders')
+      .select('''
         *,
         work_order_assignments (
           employee_id,
@@ -45,18 +68,39 @@ class WorkOrderService {
             full_name
           )
         )
-      ''').single();
+      ''')
+      .eq('id', workOrderId)
+      .single();
 
-    return WorkOrder.fromJson(response);
-  }
+  return WorkOrder.fromJson(fullResponse);
+}
 
   // ✅ UPDATE WORK ORDER
   Future<void> updateWorkOrder(WorkOrder workOrder) async {
-    await _client
-        .from('work_orders')
-        .update(workOrder.toJson())
-        .eq('id', workOrder.id);
+  // 1️⃣ Update main work order
+  await _client
+      .from('work_orders')
+      .update(workOrder.toJson())
+      .eq('id', workOrder.id);
+
+  // 2️⃣ Remove existing assignments
+  await _client
+      .from('work_order_assignments')
+      .delete()
+      .eq('work_order_id', workOrder.id);
+
+  // 3️⃣ Insert new assignments
+  if (workOrder.assignedEmployees.isNotEmpty) {
+    final assignments = workOrder.assignedEmployees.map((emp) {
+      return {
+        'work_order_id': workOrder.id,
+        'employee_id': emp.id,
+      };
+    }).toList();
+
+    await _client.from('work_order_assignments').insert(assignments);
   }
+}
 
   // ✅ DELETE WORK ORDER
   Future<void> deleteWorkOrder(String id) async {

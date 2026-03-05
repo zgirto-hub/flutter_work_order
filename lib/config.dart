@@ -1,4 +1,8 @@
 class AppConfig {
-  //abood-old-pc : Tailscale ip =100.92.159.81
-  static const String baseUrl = "http://100.85.73.37:8001";
+  // abood-old-pc : Tailscale ip
+  static const String baseUrl = "http://100.85.73.37:8000/api";
+  static const String downloadUrl = "http://100.85.73.37:8000";
+
+  static const String buildDate =
+      String.fromEnvironment('BUILD_DATE', defaultValue: '5 Mar 2026');
 }

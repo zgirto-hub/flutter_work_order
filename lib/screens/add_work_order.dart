@@ -3,6 +3,7 @@ import '../models/work_order.dart';
 import '../services/work_order_service.dart';
 import '../models/employee.dart';
 import '../services/employee_service.dart';
+import '../models/employee_assignment.dart';
 
 class AddWorkOrderScreen extends StatefulWidget {
   final WorkOrder? workOrder;
@@ -81,18 +82,20 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     try {
       final now = DateTime.now().toIso8601String();
 
-      final newWorkOrder = WorkOrder(
-        id: widget.workOrder?.id ?? '',
-        jobNo: jobNoController.text.trim(),
-        Title: clientController.text.trim(),
-        status: selectedStatus,
-        description: descriptionController.text.trim(),
-        location: locationController.text.trim(),
-        type: selectedType,
-        dateCreated: widget.workOrder?.dateCreated ?? now,
-        dateModified: now,
-      );
-
+   final newWorkOrder = WorkOrder(
+  id: widget.workOrder?.id ?? '',
+  jobNo: jobNoController.text.trim(),
+  Title: clientController.text.trim(),
+  status: selectedStatus,
+  description: descriptionController.text.trim(),
+  location: locationController.text.trim(),
+  type: selectedType,
+  dateCreated: widget.workOrder?.dateCreated ?? now,
+  dateModified: now,
+ assignedEmployees: _selectedEmployeeIds
+    .map((id) => EmployeeAssignment(id: id, fullName: ''))
+    .toList(),
+);
       if (widget.workOrder == null) {
         // 🔥 ADD MODE
         final createdOrder = await _service.addWorkOrder(newWorkOrder);
