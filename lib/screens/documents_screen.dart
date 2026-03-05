@@ -239,6 +239,62 @@ final Set<String> _selectedDocuments = {};
                             ),
                           ),
                         ),
+                        if (_selectionMode && _selectedDocuments.isNotEmpty)
+  Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.delete),
+        label: const Text("Delete Selected"),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.amberAccent,
+        ),
+        onPressed: () async {
+
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text("Confirm Delete"),
+        content: Text(
+          "Are you sure you want to delete ${_selectedDocuments.length} document(s)?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+         /* ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete"),
+          ),*/
+          ElevatedButton(
+  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+  onPressed: () => Navigator.pop(context, true),
+  child: const Text("Delete"),
+)
+        ],
+      );
+    },
+  );
+
+  if (confirm == true) {
+    for (var id in _selectedDocuments) {
+      await _service.deleteDocument(id);
+    }
+
+    setState(() {
+      _selectedDocuments.clear();
+      _selectionMode = false;
+    });
+
+    _refreshDocuments();
+  }
+},
+      ),
+    ),
+  ),
                       Expanded(
                         child: RefreshIndicator(
                           onRefresh: _refreshDocuments,
@@ -252,7 +308,20 @@ final Set<String> _selectedDocuments = {};
                               return Card(
                                 margin: const EdgeInsets.only(bottom: 12),
                                 child: ListTile(
-                                  leading: const Icon(Icons.description),
+                                  leading: _selectionMode
+                                  ? Checkbox(
+                                      value: _selectedDocuments.contains(doc.id),
+                                      onChanged: (value) {
+                                        setState(() {
+                                          if (value == true) {
+                                            _selectedDocuments.add(doc.id);
+                                          } else {
+                                            _selectedDocuments.remove(doc.id);
+                                          }
+                                        });
+                                      },
+                                    )
+                                  : const Icon(Icons.description),
                                   title: Text(doc.title),
                                   subtitle: Column(
                                     crossAxisAlignment:
@@ -275,16 +344,26 @@ final Set<String> _selectedDocuments = {};
                                     ],
                                   ),
                                   onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => DocumentDetailsScreen(
-                                          document: doc,
-                                          searchQuery: _currentSearch,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                          if (_selectionMode) {
+                                            setState(() {
+                                              if (_selectedDocuments.contains(doc.id)) {
+                                                _selectedDocuments.remove(doc.id);
+                                              } else {
+                                                _selectedDocuments.add(doc.id);
+                                              }
+                                            });
+                                                } else {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (_) => DocumentDetailsScreen(
+                                                        document: doc,
+                                                        searchQuery: _currentSearch,
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                              },
                                   onLongPress: () {
                                     showModalBottomSheet(
                                       context: context,
