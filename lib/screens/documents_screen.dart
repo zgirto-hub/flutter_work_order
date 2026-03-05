@@ -14,6 +14,8 @@ class DocumentsScreen extends StatefulWidget {
 }
 
 class _DocumentsScreenState extends State<DocumentsScreen> {
+  bool _selectionMode = false;
+final Set<String> _selectedDocuments = {};
   final DocumentService _service = DocumentService();
 
   late Future<List<DocumentModel>> _documentsFuture;
@@ -129,7 +131,33 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     return Stack(
       children: [
         Column(
-          children: [
+  children: [
+
+    // SELECT / CANCEL BUTTON
+    Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+
+          if (_selectionMode)
+            Text(
+              "${_selectedDocuments.length} selected",
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _selectionMode = !_selectionMode;
+                _selectedDocuments.clear();
+              });
+            },
+            child: Text(_selectionMode ? "Cancel" : "Select"),
+          ),
+        ],
+      ),
+    ),
             // 🔎 SEARCH BAR
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
