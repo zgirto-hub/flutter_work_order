@@ -304,8 +304,22 @@ Future<void> _deleteSelectedDocuments() async {
                               ),
                             ),
                           ),
-                        ),
-                        if (_selectionMode && _selectedDocuments.isNotEmpty)
+                        ),if (_currentSearch.isNotEmpty)
+  Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        "$resultCount document(s) found",
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.grey,
+        ),
+      ),
+    ),
+  ),
+
+if (_selectionMode && _selectedDocuments.isNotEmpty)
   Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     child: Align(
@@ -317,64 +331,66 @@ Future<void> _deleteSelectedDocuments() async {
           backgroundColor: Colors.amberAccent,
         ),
         onPressed: () async {
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: const Text("Confirm Delete"),
+                content: Text(
+                  "Are you sure you want to delete ${_selectedDocuments.length} document(s)?",
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text("Cancel"),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red),
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text("Delete"),
+                  ),
+                ],
+              );
+            },
+          );
 
-  final confirm = await showDialog<bool>(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: const Text("Confirm Delete"),
-        content: Text(
-          "Are you sure you want to delete ${_selectedDocuments.length} document(s)?",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Delete"),
-          )
-        ],
-      );
-    },
-  );
+          if (confirm != true) return;
 
-  if (confirm != true) return;
+          final deletedCount = _selectedDocuments.length;
 
-  final deletedCount = _selectedDocuments.length;
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) =>
+                const Center(child: CircularProgressIndicator()),
+          );
 
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => const Center(child: CircularProgressIndicator()),
-  );
+          for (var id in _selectedDocuments) {
+            await _service.deleteDocument(id);
+          }
 
-  for (var id in _selectedDocuments) {
-    await _service.deleteDocument(id);
-  }
+          Navigator.pop(context);
 
-  Navigator.pop(context);
+          setState(() {
+            _selectedDocuments.clear();
+            _selectionMode = false;
+          });
 
-  setState(() {
-    _selectedDocuments.clear();
-    _selectionMode = false;
-  });
+          _refreshDocuments();
 
-  _refreshDocuments();
-
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text("$deletedCount document(s) deleted"),
-      duration: const Duration(seconds: 3),
-    ),
-  );
-},
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("$deletedCount document(s) deleted"),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        },
       ),
     ),
   ),
-                      Expanded(
+
+Expanded(
                         child: RefreshIndicator(
                           onRefresh: _refreshDocuments,
                           child: ListView.builder(
@@ -507,25 +523,29 @@ Future<void> _deleteSelectedDocuments() async {
         ),
 
         // ➕ FLOATING BUTTON
-        Positioned(
-          bottom: 16,
-          right: 16,
-          child: FloatingActionButton(
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const AddDocumentScreen(),
-                ),
-              );
-
-              if (result == true) {
-                _refreshDocuments();
-              }
-            },
-            child: const Icon(Icons.add),
+Positioned(
+  bottom: 16,
+  right: 16,
+  child: FloatingActionButton(
+    onPressed: () async {
+      final result = await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(20),
           ),
         ),
+        builder: (context) => const AddDocumentScreen(),
+      );
+
+      if (result == true) {
+        _refreshDocuments();
+      }
+    },
+    child: const Icon(Icons.add),
+  ),
+),
       ],
     );
   }

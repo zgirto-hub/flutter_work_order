@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../services/document_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
@@ -16,45 +15,82 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _typeController = TextEditingController();
-  final _contentController = TextEditingController();
 
-  final DocumentService _service = DocumentService();
   bool _isLoading = false;
-  Future<void> _pickAndUploadFile() async {
-    if (!_formKey.currentState!.validate()) return;
+  PlatformFile? _selectedFile;
 
+  String _detectDocumentType(String filename) {
+    final name = filename.toLowerCase();
+
+    if (name.contains("invoice")) return "Invoice";
+    if (name.contains("drawing") || name.contains("plan")) return "Drawing";
+    if (name.contains("report")) return "Report";
+    if (name.contains("contract")) return "Contract";
+    if (name.endsWith(".jpg") ||
+        name.endsWith(".jpeg") ||
+        name.endsWith(".png")) {
+      return "Image";
+    }
+
+    return "General";
+  }
+
+  String _extractTitleFromFilename(String filename) {
+    String title = filename.split('.').first;
+    title = title.replaceAll("_", " ");
+    title = title.replaceAll("-", " ");
+    return title;
+  }
+
+  Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'],
-      withData: kIsWeb, // IMPORTANT for Web
+      withData: kIsWeb,
     );
 
-    if (result == null) return;
+    if (result != null) {
+      final file = result.files.single;
 
-    final file = result.files.single;
+      setState(() {
+        _selectedFile = file;
+        _titleController.text = _extractTitleFromFilename(file.name);
+        _typeController.text = _detectDocumentType(file.name);
+      });
+    }
+  }
+
+  Future<void> _uploadFile() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select a file")),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
+
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('${AppConfig.baseUrl}/upload'),
     );
-    // ✅ WEB
+
     if (kIsWeb) {
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
-          file.bytes!,
-          filename: file.name,
+          _selectedFile!.bytes!,
+          filename: _selectedFile!.name,
         ),
       );
-    }
-    // ✅ ANDROID / WINDOWS
-    else {
+    } else {
       request.files.add(
         await http.MultipartFile.fromPath(
           'file',
-          file.path!,
-          filename: file.name,
+          _selectedFile!.path!,
+          filename: _selectedFile!.name,
         ),
       );
     }
@@ -76,6 +112,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Upload error")),
       );
@@ -84,47 +121,153 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Add Document")),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         child: Form(
           key: _formKey,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
+
+              /// Drag handle
+              Container(
+                width: 45,
+                height: 5,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+
+              const Text(
+                "Upload Document",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+
+              const SizedBox(height: 25),
+
+              /// Title
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(labelText: "Title"),
-                validator: (value) =>
-                    value == null || value.isEmpty ? "Required" : null,
+                decoration: InputDecoration(
+                  labelText: "Title",
+                  prefixIcon: const Icon(Icons.title),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                validator: (v) =>
+                    v == null || v.isEmpty ? "Enter title" : null,
               ),
+
               const SizedBox(height: 16),
+
+              /// Document Type
               TextFormField(
                 controller: _typeController,
-                decoration: const InputDecoration(labelText: "Document Type"),
-                validator: (value) =>
-                    value == null || value.isEmpty ? "Required" : null,
+                decoration: InputDecoration(
+                  labelText: "Document Type",
+                  prefixIcon: const Icon(Icons.category),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                validator: (v) =>
+                    v == null || v.isEmpty ? "Enter type" : null,
               ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: TextFormField(
-                  controller: _contentController,
-                  maxLines: null,
-                  expands: true,
-                  decoration:
-                      const InputDecoration(labelText: "Document Content"),
+
+              const SizedBox(height: 20),
+
+              /// File selector card
+              GestureDetector(
+                onTap: _pickFile,
+                child: Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.grey.shade300),
+                    color: Colors.grey.shade50,
+                  ),
+                  child: Row(
+                    children: const [
+                      Icon(Icons.attach_file, size: 28),
+                      SizedBox(width: 12),
+                      Text(
+                        "Select File",
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
+
+              const SizedBox(height: 10),
+
+              /// Selected file preview
+              if (_selectedFile != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(top: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.green.shade50,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.insert_drive_file),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _selectedFile!.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 25),
+
+              /// Upload button
               SizedBox(
                 width: double.infinity,
+                height: 48,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _pickAndUploadFile,
+                  onPressed: _isLoading ? null : _uploadFile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   child: _isLoading
-                      ? const CircularProgressIndicator()
-                      : const Text("Upload"),
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          "Upload Document",
+                          style: TextStyle(fontSize: 16),
+                        ),
                 ),
               ),
+
+              const SizedBox(height: 10),
             ],
           ),
         ),
