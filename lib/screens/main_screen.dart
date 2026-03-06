@@ -75,8 +75,85 @@ class SettingsPage extends StatelessWidget {
   Future<void> _logout(BuildContext context) async {
     await Supabase.instance.client.auth.signOut();
   }
+@override
+Widget build(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Choose App Color",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
 
- @override
+        const SizedBox(height: 20),
+
+        Wrap(
+          spacing: 16,
+          children: [
+            _colorCircle(Colors.blue),
+            _colorCircle(Colors.green),
+            _colorCircle(Colors.purple),
+            _colorCircle(Colors.orange),
+            _colorCircle(Colors.red),
+          ],
+        ),
+
+        const Spacer(),
+
+        Center(
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.logout),
+            label: const Text("Logout"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 30,
+                vertical: 14,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Logout"),
+                  content: const Text("Are you sure you want to logout?"),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text("Cancel"),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text("Logout"),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                await Supabase.instance.client.auth.signOut();
+              }
+            },
+          ),
+        ),
+
+        const SizedBox(height: 20),
+      ],
+    ),
+  );
+}
+
+/*
+@override
 Widget build(BuildContext context) {
   return Padding(
     padding: const EdgeInsets.all(24),
@@ -105,40 +182,23 @@ Widget build(BuildContext context) {
         ),
 
         const SizedBox(height: 40),
+
         const Divider(),
+
         const SizedBox(height: 10),
 
         ListTile(
           leading: const Icon(Icons.logout, color: Colors.red),
           title: const Text("Logout"),
           onTap: () async {
-            final confirm = await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text("Logout"),
-                content: const Text("Are you sure you want to logout?"),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text("Cancel"),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text("Logout"),
-                  ),
-                ],
-              ),
-            );
-
-            if (confirm == true) {
-              await Supabase.instance.client.auth.signOut();
-            }
+            await Supabase.instance.client.auth.signOut();
           },
         ),
       ],
     ),
   );
-}
+}*/
+
   Widget _colorCircle(Color color) {
     return GestureDetector(
       onTap: () {
