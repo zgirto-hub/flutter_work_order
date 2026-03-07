@@ -6,6 +6,16 @@ import '../services/document_service.dart';
 import 'document_details_screen.dart';
 import 'add_document_screen.dart';
 
+import '../filters/document_filter_engine.dart';
+import '../controllers/filter_controller.dart';
+
+import '../widgets/search_appbar.dart';
+import '../widgets/animated_entity_list.dart';
+
+import '../widgets/document_card.dart';
+import '../widgets/active_filters_row.dart';
+
+
 class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({super.key});
 
@@ -18,13 +28,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   bool _selectionMode = false;
   final Set<String> _selectedDocuments = {};
-
+  final FilterController filterController = FilterController();
   final DocumentService _service = DocumentService();
 
   final TextEditingController _searchController = TextEditingController();
 
   Timer? _debounce;
-  String _currentSearch = "";
+  
 
   @override
   void initState() {
@@ -32,6 +42,17 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     _refreshDocuments();
   }
 
+
+List<String> getDocumentTypes() {
+  final types = _documents
+      .map((doc) => doc.documentType)
+      .toSet()
+      .toList();
+
+  types.sort();
+
+  return ["All", ...types];
+}
   // 🔄 Load documents
   Future<void> _refreshDocuments() async {
     final docs = await _service.fetchDocuments();
@@ -44,20 +65,23 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   }
 
   // 🔎 Highlight search
-  Widget highlightText(String text, String query, {int maxLines = 4}) {
-    if (query.isEmpty) {
-      return Text(
-        text,
-        maxLines: maxLines,
-        overflow: TextOverflow.ellipsis,
-      );
-    }
+ Widget highlightText(String text, String query, {int maxLines = 4}) {
+  if (query.isEmpty) {
+    return Text(
+      text,
+      maxLines: maxLines,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
 
-    final spans = <TextSpan>[];
-    int start = 0;
+  final lowerText = text.toLowerCase();
+  final lowerQuery = query.toLowerCase();
 
-    while (true) {
-      final index = text.toLowerCase().indexOf(query.toLowerCase(), start);
+  final spans = <TextSpan>[];
+  int start = 0;
+
+  while (true) {
+    final index = lowerText.indexOf(lowerQuery, start);
 
       if (index == -1) {
         spans.add(TextSpan(text: text.substring(start)));
@@ -70,7 +94,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
       spans.add(
         TextSpan(
-          text: text.substring(index, index + query.length),
+          text: text.substring(index, index + lowerQuery.length),
           style: const TextStyle(
             backgroundColor: Colors.yellow,
             fontWeight: FontWeight.bold,
@@ -90,6 +114,40 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       ),
     );
   }
+
+Widget buildActiveFiltersRow() {
+  final List<Widget> chips = [];
+
+  if (filterController.searchQuery.isNotEmpty) {
+    chips.add(
+      FilterChip(
+        label: Text("🔍 ${filterController.searchQuery}"),
+        onSelected: (_) {
+          setState(() {
+            filterController.setSearchQuery("");
+            _searchController.clear();
+          });
+        },
+      ),
+    );
+  }
+
+  if (chips.isEmpty) return const SizedBox();
+
+  chips.add(
+    TextButton(
+      onPressed: () {
+        setState(() {
+          filterController.clearAll();
+          _searchController.clear();
+        });
+      },
+      child: const Text("Clear"),
+    ),
+  );
+
+  return ActiveFiltersRow(chips: chips);
+}
 
   // ✏ Rename
   void _showRenameDialog(DocumentModel doc) {
@@ -130,7 +188,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final documents = _documents;
+    final documents =
+    DocumentFilterEngine.applyFilters(
+      _documents,
+      filterController,
+    );
     final int resultCount = documents.length;
 
     return Stack(
@@ -164,47 +226,29 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             // SEARCH BAR
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: "Search documents...",
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onChanged: (value) {
-                  if (_debounce?.isActive ?? false) _debounce!.cancel();
+              child: SearchAppBar(
+  controller: _searchController,
+  hintText: "Search documents...",
+  onChanged: (value) {
 
-                  _debounce = Timer(const Duration(milliseconds: 400), () async {
-                    if (value.isEmpty) {
-                      final docs = await _service.fetchDocuments();
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
 
-                      if (!mounted) return;
+    _debounce = Timer(const Duration(milliseconds: 400), () {
 
-                      setState(() {
-                        _currentSearch = "";
-                        _documents = docs;
-                      });
-                    } else {
-                      final docs =
-                          await _service.searchDocuments(value.trim());
+      setState(() {
+        filterController.setSearchQuery(value.trim());
+      });
 
-                      if (!mounted) return;
+    });
 
-                      setState(() {
-                        _currentSearch = value.trim();
-                        _documents = docs;
-                      });
-                    }
-                  });
-                },
-              ),
+  },
+),
             ),
 
             // RESULT COUNT
-            if (_currentSearch.isNotEmpty)
+            if (filterController.searchQuery.isNotEmpty)
               Padding(
+
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Align(
                   alignment: Alignment.centerLeft,
@@ -217,8 +261,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     ),
                   ),
                 ),
+                
+              
               ),
-
+ 
+ buildDocumentTypeFilters(),
+  buildActiveFiltersRow(),
             // DOCUMENT LIST
             Expanded(
               child: RefreshIndicator(
@@ -229,130 +277,36 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                           const SizedBox(height: 200),
                           Center(
                             child: Text(
-                              _currentSearch.isEmpty
+                              filterController.searchQuery.isEmpty
                                   ? "No documents available"
-                                  : "No documents found for \"$_currentSearch\"",
+                                  : "No documents found for \"${filterController.searchQuery}\"",
                             ),
                           ),
                         ],
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: documents.length,
-                        itemBuilder: (context, index) {
-                          final doc = documents[index];
+                    : AnimatedEntityList<DocumentModel>(
+  items: documents,
+  onRefresh: _refreshDocuments,
+  itemBuilder: (context, doc, index) {
+                          
 
-                          return AnimatedContainer(
-  duration: const Duration(milliseconds: 220),
-  curve: Curves.easeOut,
-  margin: const EdgeInsets.only(bottom: 12),
-  child: Card(
-    elevation: 2,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-
-      leading: const Icon(
-        Icons.description_outlined,
-        size: 28,
-        color: Colors.blueGrey,
-      ),
-
-      title: Text(
-        doc.title,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 15,
+                          return DocumentCard(
+                        document: doc,
+                        searchQuery: filterController.searchQuery,
+                        highlightBuilder: highlightText,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+       builder: (_) => DocumentDetailsScreen(
+          document: doc,
+          searchQuery: filterController.searchQuery,
         ),
       ),
-
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-
-            Text(
-              doc.documentType,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
-            ),
-
-            const SizedBox(height: 6),
-
-            if (doc.parsedText != null && doc.parsedText!.isNotEmpty)
-              highlightText(
-                doc.parsedText!,
-                _currentSearch,
-                maxLines: 4,
-              ),
-
-          ],
-        ),
-      ),
-
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DocumentDetailsScreen(
-              document: doc,
-              searchQuery: _currentSearch,
-            ),
-          ),
-        );
-      },
-
-      onLongPress: () {
-        showModalBottomSheet(
-          context: context,
-          builder: (_) => SafeArea(
-            child: Wrap(
-              children: [
-
-                ListTile(
-                  leading: const Icon(Icons.edit),
-                  title: const Text("Rename"),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showRenameDialog(doc);
-                  },
-                ),
-
-                ListTile(
-                  leading: const Icon(
-                    Icons.delete,
-                    color: Colors.red,
-                  ),
-                  title: const Text(
-                    "Delete",
-                    style: TextStyle(color: Colors.red),
-                  ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await _deleteDocument(doc.id);
-                  },
-                ),
-
-                const Divider(),
-
-                ListTile(
-                  leading: const Icon(Icons.close),
-                  title: const Text("Cancel"),
-                  onTap: () => Navigator.pop(context),
-                ),
-
-              ],
-            ),
-          ),
-        );
-      },
-    ),
-  ),
+    );
+  },
+  onRename: () => _showRenameDialog(doc),
+  onDelete: () => _deleteDocument(doc.id),
 );
                         },
                       ),
@@ -381,11 +335,71 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       ],
     );
   }
+Widget buildDocumentTypeFilters() {
 
+  final types = getDocumentTypes();
+
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: types.map((type) {
+
+          final isSelected =
+              filterController.selectedDocumentType == type ||
+              (type == "All" && filterController.selectedDocumentType == null);
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: GestureDetector(
+              onTap: () {
+
+                setState(() {
+
+                  if (type == "All") {
+                    filterController.setDocumentType(null);
+                  } else {
+                    filterController.setDocumentType(type);
+                  }
+
+                });
+
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 16,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  type,
+                  style: TextStyle(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          );
+
+        }).toList(),
+      ),
+    ),
+  );
+}
   @override
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
-}
+} 
