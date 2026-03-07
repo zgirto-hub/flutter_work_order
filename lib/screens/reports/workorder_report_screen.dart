@@ -254,41 +254,82 @@ if (results.isNotEmpty)
 
 const SizedBox(height: 10),
             /// Results
-            Expanded(
+ /// Results
+Expanded(
   child: loading
       ? const Center(child: CircularProgressIndicator())
       : results.isEmpty
           ? const Center(child: Text("No results"))
-          : SingleChildScrollView(
-              child: DataTable(
-                columnSpacing: 20,
-                columns: const [
-                  DataColumn(label: Text("Title")),
-                  DataColumn(label: Text("Location")),
-                  DataColumn(label: Text("Closed")),
-                ],
-                rows: results.map((item) {
-                  return DataRow(
-                    cells: [
-                      DataCell(
-  SizedBox(
-    width: 220,
-    child: Text(
-      item.title,
-      overflow: TextOverflow.ellipsis,
-    ),
-  ),
-),
-                      DataCell(Text(item.location)),
-                      DataCell(Text(
-                        item.modifiedDate
-                            .toString()
-                            .split(" ")[0],
-                      )),
-                    ],
-                  );
-                }).toList(),
-              ),
+          : LayoutBuilder(
+              builder: (context, constraints) {
+
+                final isLandscape =
+                    MediaQuery.of(context).orientation ==
+                        Orientation.landscape;
+
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minWidth: constraints.maxWidth,
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: DataTable(
+                        columnSpacing: 30,
+                        headingRowHeight: 42,
+                        dataRowHeight: 50,
+                        columns: const [
+                          DataColumn(label: Text("Title")),
+                          DataColumn(label: Text("Location")),
+                          DataColumn(label: Text("Closed")),
+                        ],
+                        rows: results.map((item) {
+                          return DataRow(
+                            cells: [
+
+                              /// Title
+                              DataCell(
+                                Container(
+                                  alignment: Alignment.centerLeft,
+                                  width: isLandscape ? 420 : 220,
+                                  child: Text(
+                                    item.title,
+                                    textAlign: TextAlign.left,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+
+                              /// Location
+                              DataCell(
+                                Container(
+                                  alignment: Alignment.centerLeft,
+                                  width: 140,
+                                  child: Text(item.location),
+                                ),
+                              ),
+
+                              /// Closed Date
+                              DataCell(
+                                Container(
+                                  alignment: Alignment.centerLeft,
+                                  width: 120,
+                                  child: Text(
+                                    item.modifiedDate
+                                        .toString()
+                                        .split(" ")[0],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
 )
           ],
