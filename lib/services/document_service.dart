@@ -34,31 +34,39 @@ class DocumentService {
   }
 
   /// ✅ FIXED: supports positional search
-  Future<List<DocumentModel>> searchDocuments(
-    String? query, {
-    String? documentType,
-  }) async {
-    var request = _client.from('documents').select();
+Future<List<DocumentModel>> searchDocuments(
+  String? query, {
+  String? documentType,
+}) async {
 
-    // Filter by type
-    if (documentType != null && documentType != "All") {
-      request = request.eq('document_type', documentType);
-    }
+  final searchQuery = query?.trim();
 
-    // Search by title or parsed_text
-    if (query != null && query.isNotEmpty) {
-      request = request.or(
-        'title.ilike.%$query%,parsed_text.ilike.%$query%',
-      );
-    }
+  var request = _client.from('documents').select();
 
-    final response = await request.order('created_at', ascending: false);
-
-    return (response as List)
-        .map((doc) => DocumentModel.fromJson(doc))
-        .toList();
+  // Filter by document type
+  if (documentType != null && documentType != "All") {
+    request = request.eq('document_type', documentType);
   }
 
+  final response = await request.order('created_at', ascending: false);
+
+  final docs = (response as List)
+      .map((doc) => DocumentModel.fromJson(doc))
+      .toList();
+
+  // Apply search locally (prevents duplicate API results)
+  if (searchQuery != null && searchQuery.isNotEmpty) {
+    return docs.where((doc) {
+      final title = doc.title.toLowerCase();
+      final parsed = (doc.parsedText ?? "").toLowerCase();
+      final q = searchQuery.toLowerCase();
+
+      return title.contains(q) || parsed.contains(q);
+    }).toList();
+  }
+
+  return docs;
+}
   Future<void> deleteDocument(String id) async {
     final response = await http.delete(
       Uri.parse('${AppConfig.baseUrl}/delete/$id'),
@@ -69,23 +77,7 @@ class DocumentService {
     }
   }
 
-  /*Future<void> deleteDocument(String id) async {
-    print("DELETE FUNCTION CALLED: $id");
 
-    final url = '${AppConfig.baseUrl}/delete/$id';
-    print("Calling: $url");
-
-    final response = await http.delete(Uri.parse(url));
-
-    print("Status: ${response.statusCode}");
-    print("Body: ${response.body}");
-
-    if (response.statusCode != 200) {
-      throw Exception("Failed to delete document");
-    }
-
-    print("DELETE SUCCESS");
-  }*/
 
   Future<void> renameDocument(String id, String newTitle) async {
     await _client.from('documents').update({'title': newTitle}).eq('id', id);

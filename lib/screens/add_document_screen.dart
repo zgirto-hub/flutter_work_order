@@ -246,7 +246,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _uploadFile,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                    backgroundColor: Colors.greenAccent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),

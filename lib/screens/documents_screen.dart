@@ -14,95 +14,37 @@ class DocumentsScreen extends StatefulWidget {
 }
 
 class _DocumentsScreenState extends State<DocumentsScreen> {
-  bool _selectionMode = false;
-final Set<String> _selectedDocuments = {};
-  final DocumentService _service = DocumentService();
+  List<DocumentModel> _documents = [];
 
-  late Future<List<DocumentModel>> _documentsFuture;
+  bool _selectionMode = false;
+  final Set<String> _selectedDocuments = {};
+
+  final DocumentService _service = DocumentService();
 
   final TextEditingController _searchController = TextEditingController();
 
   Timer? _debounce;
   String _currentSearch = "";
-  
-  Future<void> _deleteSelectedDocuments_2() async {}
 
-Future<void> _deleteSelectedDocuments() async {
-  final confirm = await showDialog<bool>(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: const Text("Confirm Delete"),
-        content: Text(
-          "Are you sure you want to delete ${_selectedDocuments.length} document(s)?",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Delete"),
-          ),
-        ],
-      );
-    },
-  );
-
-  if (confirm != true) return;
-
-  // SHOW LOADING
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => const Center(
-      child: CircularProgressIndicator(),
-    ),
-  );
-
-  final deletedIds = List<String>.from(_selectedDocuments);
-
-  for (var id in deletedIds) {
-    await _service.deleteDocument(id);
-  }
-
-  Navigator.pop(context); // close loading
-
-  setState(() {
-    _selectedDocuments.clear();
-    _selectionMode = false;
-  });
-
-  _refreshDocuments();
-
-  // SNACKBAR WITH UNDO
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text("${deletedIds.length} document(s) deleted"),
-      action: SnackBarAction(
-        label: "UNDO",
-        onPressed: () async {
-          // restore documents logic here if supported
-        },
-      ),
-      duration: const Duration(seconds: 4),
-    ),
-  );
-}
   @override
   void initState() {
     super.initState();
-    _documentsFuture = _service.fetchDocuments();
+    _refreshDocuments();
   }
 
-  // 🔎 Highlight with max 4 lines
-  Widget highlightText(
-    String text,
-    String query, {
-    int maxLines = 4,
-  }) {
+  // 🔄 Load documents
+  Future<void> _refreshDocuments() async {
+    final docs = await _service.fetchDocuments();
+
+    if (!mounted) return;
+
+    setState(() {
+      _documents = docs;
+    });
+  }
+
+  // 🔎 Highlight search
+  Widget highlightText(String text, String query, {int maxLines = 4}) {
     if (query.isEmpty) {
       return Text(
         text,
@@ -115,7 +57,7 @@ Future<void> _deleteSelectedDocuments() async {
     int start = 0;
 
     while (true) {
-      final index = text.indexOf(query, start);
+      final index = text.toLowerCase().indexOf(query.toLowerCase(), start);
 
       if (index == -1) {
         spans.add(TextSpan(text: text.substring(start)));
@@ -149,13 +91,6 @@ Future<void> _deleteSelectedDocuments() async {
     );
   }
 
-  // 🔄 Refresh list
-  Future<void> _refreshDocuments() async {
-    setState(() {
-      _documentsFuture = _service.fetchDocuments();
-    });
-  }
-
   // ✏ Rename
   void _showRenameDialog(DocumentModel doc) {
     final controller = TextEditingController(text: doc.title);
@@ -176,6 +111,7 @@ Future<void> _deleteSelectedDocuments() async {
           ElevatedButton(
             onPressed: () async {
               await _service.renameDocument(doc.id, controller.text);
+              if (!mounted) return;
               Navigator.pop(context);
               _refreshDocuments();
             },
@@ -186,7 +122,7 @@ Future<void> _deleteSelectedDocuments() async {
     );
   }
 
-  // 🗑 Delete
+  // 🗑 Delete single
   Future<void> _deleteDocument(String id) async {
     await _service.deleteDocument(id);
     _refreshDocuments();
@@ -194,37 +130,38 @@ Future<void> _deleteSelectedDocuments() async {
 
   @override
   Widget build(BuildContext context) {
+    final documents = _documents;
+    final int resultCount = documents.length;
+
     return Stack(
       children: [
         Column(
-  children: [
-
-    // SELECT / CANCEL BUTTON
-    Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-
-          if (_selectionMode)
-            Text(
-              "${_selectedDocuments.length} selected",
-              style: const TextStyle(fontWeight: FontWeight.bold),
+          children: [
+            // SELECT BUTTON
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (_selectionMode)
+                    Text(
+                      "${_selectedDocuments.length} selected",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectionMode = !_selectionMode;
+                        _selectedDocuments.clear();
+                      });
+                    },
+                    child: Text(_selectionMode ? "Cancel" : "Select"),
+                  ),
+                ],
+              ),
             ),
 
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _selectionMode = !_selectionMode;
-                _selectedDocuments.clear();
-              });
-            },
-            child: Text(_selectionMode ? "Cancel" : "Select"),
-          ),
-        ],
-      ),
-    ),
-            // 🔎 SEARCH BAR
+            // SEARCH BAR
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: TextField(
@@ -239,313 +176,208 @@ Future<void> _deleteSelectedDocuments() async {
                 onChanged: (value) {
                   if (_debounce?.isActive ?? false) _debounce!.cancel();
 
-                  _debounce = Timer(
-                    const Duration(milliseconds: 400),
-                    () {
-                      if (value.isEmpty) {
-                        setState(() {
-                          _currentSearch = "";
-                          _documentsFuture = _service.fetchDocuments();
-                        });
-                      } else {
-                        setState(() {
-                          _currentSearch = value.trim();
-                          _documentsFuture =
-                              _service.searchDocuments(_currentSearch);
-                        });
-                      }
-                    },
-                  );
+                  _debounce = Timer(const Duration(milliseconds: 400), () async {
+                    if (value.isEmpty) {
+                      final docs = await _service.fetchDocuments();
+
+                      if (!mounted) return;
+
+                      setState(() {
+                        _currentSearch = "";
+                        _documents = docs;
+                      });
+                    } else {
+                      final docs =
+                          await _service.searchDocuments(value.trim());
+
+                      if (!mounted) return;
+
+                      setState(() {
+                        _currentSearch = value.trim();
+                        _documents = docs;
+                      });
+                    }
+                  });
                 },
               ),
             ),
 
-            // 📄 DOCUMENT LIST
+            // RESULT COUNT
+            if (_currentSearch.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "$resultCount document(s) found",
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+
+            // DOCUMENT LIST
             Expanded(
-              child: FutureBuilder<List<DocumentModel>>(
-                future: _documentsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (snapshot.hasError) {
-                    return const Center(
-                      child: Text("Error loading documents"),
-                    );
-                  }
-
-                  final documents = snapshot.data ?? [];
-                  final int resultCount = documents.length;
-
-                  if (documents.isEmpty) {
-                    return Center(
-                      child: Text(
-                        _currentSearch.isEmpty
-                            ? "No documents available"
-                            : "No documents found for \"$_currentSearch\"",
-                      ),
-                    );
-                  }
-
-                  return Column(
-                    children: [
-                      if (_currentSearch.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 4),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
+              child: RefreshIndicator(
+                onRefresh: _refreshDocuments,
+                child: documents.isEmpty
+                    ? ListView(
+                        children: [
+                          const SizedBox(height: 200),
+                          Center(
                             child: Text(
-                              "$resultCount document(s) found",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey,
-                              ),
+                              _currentSearch.isEmpty
+                                  ? "No documents available"
+                                  : "No documents found for \"$_currentSearch\"",
                             ),
                           ),
-                        ),if (_currentSearch.isNotEmpty)
-  Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-    child: Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        "$resultCount document(s) found",
+                        ],
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: documents.length,
+                        itemBuilder: (context, index) {
+                          final doc = documents[index];
+
+                          return AnimatedContainer(
+  duration: const Duration(milliseconds: 220),
+  curve: Curves.easeOut,
+  margin: const EdgeInsets.only(bottom: 12),
+  child: Card(
+    elevation: 2,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+
+      leading: const Icon(
+        Icons.description_outlined,
+        size: 28,
+        color: Colors.blueGrey,
+      ),
+
+      title: Text(
+        doc.title,
         style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.grey,
+          fontWeight: FontWeight.w600,
+          fontSize: 15,
         ),
       ),
-    ),
-  ),
 
-if (_selectionMode && _selectedDocuments.isNotEmpty)
-  Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    child: Align(
-      alignment: Alignment.centerLeft,
-      child: ElevatedButton.icon(
-        icon: const Icon(Icons.delete),
-        label: const Text("Delete Selected"),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.amberAccent,
-        ),
-        onPressed: () async {
-          final confirm = await showDialog<bool>(
-            context: context,
-            builder: (context) {
-              return AlertDialog(
-                title: const Text("Confirm Delete"),
-                content: Text(
-                  "Are you sure you want to delete ${_selectedDocuments.length} document(s)?",
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text("Cancel"),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red),
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text("Delete"),
-                  ),
-                ],
-              );
-            },
-          );
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
 
-          if (confirm != true) return;
-
-          final deletedCount = _selectedDocuments.length;
-
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) =>
-                const Center(child: CircularProgressIndicator()),
-          );
-
-          for (var id in _selectedDocuments) {
-            await _service.deleteDocument(id);
-          }
-
-          Navigator.pop(context);
-
-          setState(() {
-            _selectedDocuments.clear();
-            _selectionMode = false;
-          });
-
-          _refreshDocuments();
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("$deletedCount document(s) deleted"),
-              duration: const Duration(seconds: 3),
+            Text(
+              doc.documentType,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
             ),
-          );
-        },
+
+            const SizedBox(height: 6),
+
+            if (doc.parsedText != null && doc.parsedText!.isNotEmpty)
+              highlightText(
+                doc.parsedText!,
+                _currentSearch,
+                maxLines: 4,
+              ),
+
+          ],
+        ),
       ),
+
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DocumentDetailsScreen(
+              document: doc,
+              searchQuery: _currentSearch,
+            ),
+          ),
+        );
+      },
+
+      onLongPress: () {
+        showModalBottomSheet(
+          context: context,
+          builder: (_) => SafeArea(
+            child: Wrap(
+              children: [
+
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: const Text("Rename"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showRenameDialog(doc);
+                  },
+                ),
+
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete,
+                    color: Colors.red,
+                  ),
+                  title: const Text(
+                    "Delete",
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _deleteDocument(doc.id);
+                  },
+                ),
+
+                const Divider(),
+
+                ListTile(
+                  leading: const Icon(Icons.close),
+                  title: const Text("Cancel"),
+                  onTap: () => Navigator.pop(context),
+                ),
+
+              ],
+            ),
+          ),
+        );
+      },
     ),
   ),
-
-Expanded(
-                        child: RefreshIndicator(
-                          onRefresh: _refreshDocuments,
-                          child: ListView.builder(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(16),
-                            itemCount: documents.length,
-                            itemBuilder: (context, index) {
-                              final doc = documents[index];
-
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                child: ListTile(
-                                  leading: AnimatedSwitcher(
-  duration: const Duration(milliseconds: 250),
-  transitionBuilder: (child, animation) =>
-      ScaleTransition(scale: animation, child: child),
-  child: _selectionMode
-      ? Checkbox(
-          key: const ValueKey("checkbox"),
-          value: _selectedDocuments.contains(doc.id),
-          onChanged: (value) {
-            setState(() {
-              if (value == true) {
-                _selectedDocuments.add(doc.id);
-              } else {
-                _selectedDocuments.remove(doc.id);
-              }
-            });
-          },
-        )
-      : const Icon(
-          Icons.description,
-          key: ValueKey("icon"),
-        ),
-),
-                                  title: Text(doc.title),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        doc.documentType,
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      if (doc.parsedText != null)
-                                        SizedBox(
-                                          width: double.infinity,
-                                          child: highlightText(
-                                            doc.parsedText ?? "",
-                                            _currentSearch,
-                                            maxLines: 4,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  onTap: () {
-                                          if (_selectionMode) {
-                                            setState(() {
-                                              if (_selectedDocuments.contains(doc.id)) {
-                                                _selectedDocuments.remove(doc.id);
-                                              } else {
-                                                _selectedDocuments.add(doc.id);
-                                              }
-                                            });
-                                                } else {
-                                                  Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (_) => DocumentDetailsScreen(
-                                                        document: doc,
-                                                        searchQuery: _currentSearch,
-                                                      ),
-                                                    ),
-                                                  );
-                                                }
-                                              },
-                                  onLongPress: () {
-                                    showModalBottomSheet(
-                                      context: context,
-                                      builder: (_) => SafeArea(
-                                        child: Wrap(
-                                          children: [
-                                            ListTile(
-                                              leading: const Icon(Icons.edit),
-                                              title: const Text("Rename"),
-                                              onTap: () {
-                                                Navigator.pop(context);
-                                                _showRenameDialog(doc);
-                                              },
-                                            ),
-                                            ListTile(
-                                              leading: const Icon(
-                                                Icons.delete,
-                                                color: Colors.red,
-                                              ),
-                                              title: const Text(
-                                                "Delete",
-                                                style: TextStyle(
-                                                    color: Colors.red),
-                                              ),
-                                              onTap: () async {
-                                                Navigator.pop(context);
-                                                await _deleteDocument(doc.id);
-                                              },
-                                            ),
-                                            ListTile(
-                                              leading: const Icon(Icons.close),
-                                              title: const Text("Cancel"),
-                                              onTap: () =>
-                                                  Navigator.pop(context),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+);
+                        },
                       ),
-                    ],
-                  );
-                },
               ),
             ),
           ],
         ),
 
-        // ➕ FLOATING BUTTON
-Positioned(
-  bottom: 16,
-  right: 16,
-  child: FloatingActionButton(
-    onPressed: () async {
-      final result = await showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(20),
+        // ADD BUTTON
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: FloatingActionButton(
+            onPressed: () async {
+              await showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                builder: (context) => const AddDocumentScreen(),
+              );
+
+              _refreshDocuments();
+            },
+            child: const Icon(Icons.add),
           ),
         ),
-        builder: (context) => const AddDocumentScreen(),
-      );
-
-      if (result == true) {
-        _refreshDocuments();
-      }
-    },
-    child: const Icon(Icons.add),
-  ),
-),
       ],
     );
   }
