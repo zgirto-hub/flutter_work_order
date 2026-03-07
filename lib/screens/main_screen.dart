@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/theme_controller.dart';
 import 'work_order_home.dart';
 import 'documents_screen.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'reports/workorder_report_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -30,9 +30,9 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
 final pages = [
-  const WorkOrderHome(), // Dashboard
-  const Center(child: Text("Work Orders")), // Work Orders
+  const WorkOrderHome(), // Work Orders
   const DocumentsScreen(), // Documents
+  const WorkOrderReportScreen(), // Reports
   SettingsPage(themeController: widget.themeController),
 ];
     return Scaffold(
@@ -41,12 +41,7 @@ final pages = [
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
-        destinations: const [
-  NavigationDestination(
-    icon: Icon(Icons.dashboard_outlined),
-    selectedIcon: Icon(Icons.dashboard),
-    label: "Dashboard",
-  ),
+  destinations: const [
   NavigationDestination(
     icon: Icon(Icons.work_outline),
     selectedIcon: Icon(Icons.work),
@@ -56,6 +51,11 @@ final pages = [
     icon: Icon(Icons.description_outlined),
     selectedIcon: Icon(Icons.description),
     label: "Documents",
+  ),
+  NavigationDestination(
+    icon: Icon(Icons.bar_chart_outlined),
+    selectedIcon: Icon(Icons.bar_chart),
+    label: "Reports",
   ),
   NavigationDestination(
     icon: Icon(Icons.settings_outlined),
@@ -152,52 +152,7 @@ Widget build(BuildContext context) {
   );
 }
 
-/*
-@override
-Widget build(BuildContext context) {
-  return Padding(
-    padding: const EdgeInsets.all(24),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Choose App Color",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
 
-        const SizedBox(height: 20),
-
-        Wrap(
-          spacing: 16,
-          children: [
-            _colorCircle(Colors.blue),
-            _colorCircle(Colors.green),
-            _colorCircle(Colors.purple),
-            _colorCircle(Colors.orange),
-            _colorCircle(Colors.red),
-          ],
-        ),
-
-        const SizedBox(height: 40),
-
-        const Divider(),
-
-        const SizedBox(height: 10),
-
-        ListTile(
-          leading: const Icon(Icons.logout, color: Colors.red),
-          title: const Text("Logout"),
-          onTap: () async {
-            await Supabase.instance.client.auth.signOut();
-          },
-        ),
-      ],
-    ),
-  );
-}*/
 
   Widget _colorCircle(Color color) {
     return GestureDetector(
