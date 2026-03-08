@@ -36,7 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> signUp() async {
+  /*Future<void> signUp2() async {
     try {
       await supabase.auth.signUp(
         email: emailController.text.trim(),
@@ -50,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(e.toString())));
     }
-  }
+  }*/
 
   Future<void> loadAppInfo() async {
     final info = await PackageInfo.fromPlatform();
@@ -113,17 +113,22 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 10),
 
          TextButton(
-  onPressed: () {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-  behavior: SnackBarBehavior.floating,
-  backgroundColor: Colors.orange,
-  content: Text("Contact Salah for new Account Creation"),
-)
-    );
-  },
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        behavior: SnackBarBehavior.floating,
+                        backgroundColor: Colors.orange,
+                        content: Text("Contact Salah for new Account Creation"),
+                    )
+                  );
+                },
+                child: const Text("Create Account"),
+             ),
+
+       /*   TextButton(
+  onPressed: signUp,
   child: const Text("Create Account"),
-),
+),*/
           const SizedBox(height: 40),
 
           Column(
@@ -157,4 +162,37 @@ class _LoginScreenState extends State<LoginScreen> {
 ),
     );
   }
+/*Future<void> signUp() async {
+  try {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Enter email and password")),
+      );
+      return;
+    }
+
+    final res = await Supabase.instance.client.auth.signUp(
+      email: email,
+      password: password,
+    );
+
+    if (res.user != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.green,
+          content: Text("Account created successfully"),
+        ),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Signup error: $e")),
+    );
+  }
+}*/
+
 }

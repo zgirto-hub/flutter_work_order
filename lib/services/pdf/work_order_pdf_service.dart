@@ -1,13 +1,14 @@
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
+import '../../models/workorder_report.dart';
 
 class WorkOrderPdfService {
   static Future<void> exportReport({
     required String employeeName,
     required DateTime startDate,
     required DateTime endDate,
-    required List<dynamic> results,
+    required List<WorkOrderReport> results,
     required PdfColor primaryColor,
   }) async {
     final pdf = pw.Document();

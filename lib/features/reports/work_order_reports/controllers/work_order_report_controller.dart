@@ -11,13 +11,25 @@ class WorkOrderReportController {
   String? employeeId;
 
   List<Employee> employees = [];
-  List<WorkOrderReport> results = [];
+    List<WorkOrderReport> results = [];
 
   bool loading = false;
   bool employeesLoading = true;
 
   final client = Supabase.instance.client;
+String get selectedEmployeeName {
+  final emp = employees.firstWhere(
+    (e) => e.id == employeeId,
+    orElse: () => const Employee(
+      id: '',
+      fullName: '',
+      shiftType: '',
+      active: false,
+    ),
+  );
 
+  return emp.fullName;
+}
   /// Load employees
   Future<void> loadEmployees() async {
 

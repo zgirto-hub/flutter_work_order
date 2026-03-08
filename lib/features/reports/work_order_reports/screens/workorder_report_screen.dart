@@ -53,19 +53,21 @@ Future<void> _pickStartDate() async {
       initialDate: DateTime.now(),
     );
 
-    if (date != null) {
-      setState(() => endDate = date);
-    }
+  if (date != null) {
+    setState(() {
+      controller.endDate = date;
+    });
+  }
   }
   Future<void> _exportPdf() async {
 
   final themeColor = Theme.of(context).colorScheme.primary;
 
   await WorkOrderPdfService.exportReport(
-    employeeName: selectedEmployeeName,
+    employeeName: controller.selectedEmployeeName,
     startDate: controller.startDate!,
     endDate: controller.endDate!,
-    results: results,
+    results: controller.results,
 
     primaryColor: PdfColor(
       themeColor.red / 255,
