@@ -4,5 +4,5 @@ class AppConfig {
   static const String downloadUrl = "http://100.85.73.37:8000";
 
   static const String buildDate =
-      String.fromEnvironment('BUILD_DATE', defaultValue: '#');
+      String.fromEnvironment('BUILD_DATE', defaultValue: '8 Mar 2026');
 }
