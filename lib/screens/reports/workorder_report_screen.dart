@@ -4,11 +4,6 @@ import '../../models/workorder_report.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/employee.dart';
 import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
-
-import 'package:pdf/pdf.dart';
-
 import '../../services/pdf/work_order_pdf_service.dart';
 
 class WorkOrderReportScreen extends StatefulWidget {
@@ -27,6 +22,8 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
   List<Employee> employees = [];
    List<WorkOrderReport> results = [];
   bool loading = false;
+  Set<int> expandedRows = {};
+  bool employeesLoading = true;
 
   Future<void> _pickStartDate() async {
     final date = await showDatePicker(
@@ -86,14 +83,13 @@ String get selectedEmployeeName {
 }
 Future<void> _generateReport() async {
   if (employeeId == null || startDate == null || endDate == null) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Please select employee and date range")),
     );
     return;
   }
-print("Employee: $employeeId");
-print("Start: $startDate");
-print("End: $endDate");
+
   setState(() {
     loading = true;
     results = [];
@@ -110,11 +106,13 @@ final data = await Supabase.instance.client.rpc(
   },
 );
 
-print("Report raw data: $data");
+
 
 final list = (data as List)
     .map((e) => WorkOrderReport.fromJson(e))
     .toList();
+
+if (!mounted) return;
 
 setState(() {
   results = list;
@@ -127,9 +125,11 @@ setState(() {
     );
   }
 
-  setState(() {
-    loading = false;
-  });
+if (!mounted) return;
+
+setState(() {
+  loading = false;
+});
 }
 
 Future<void> loadEmployees() async {
@@ -140,19 +140,25 @@ Future<void> loadEmployees() async {
         .eq('active', true)
         .order('full_name');
 
-    print("Supabase response: $data");
-
     final list = (data as List)
         .map((e) => Employee.fromJson(e))
         .toList();
 
+    if (!mounted) return;
+
     setState(() {
       employees = list;
+      employeesLoading = false;
     });
 
-    print("Employees loaded: ${employees.length}");
   } catch (e) {
-    print("Error loading employees: $e");
+    if (!mounted) return;
+
+    setState(() {
+      employeesLoading = false;
+    });
+
+    debugPrint("Error loading employees: $e");
   }
 }
 @override
@@ -168,33 +174,39 @@ void initState() {
         title: const Text("Work Order Reports"),
       ),
 
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+  body: Padding(
+  padding: const EdgeInsets.all(16),
+  child: Column(
           children: [
 
             /// Employee
-employees.isEmpty
+employeesLoading
     ? const Center(child: CircularProgressIndicator())
     
-    : DropdownButtonFormField<String>(
-        value: employeeId,
-        decoration: const InputDecoration(
-          labelText: "Employee",
-          border: OutlineInputBorder(),
-        ),
-        items: employees
-            .map((emp) => DropdownMenuItem(
-                  value: emp.id,
-                  child: Text(emp.fullName),
-                ))
-            .toList(),
-        onChanged: (value) {
-          setState(() {
-            employeeId = value;
-          });
-        },
-      ),
+    : employeesLoading
+    ? const Center(child: CircularProgressIndicator())
+    : employees.isEmpty
+        ? const Text("No employees available")
+        : DropdownButtonFormField<String>(
+            isDense: true,
+            value: employeeId,
+            decoration: const InputDecoration(
+              labelText: "Employee",
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+            items: employees
+                .map((emp) => DropdownMenuItem(
+                      value: emp.id,
+                      child: Text(emp.fullName),
+                    ))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                employeeId = value;
+              });
+            },
+          ),
 
             const SizedBox(height: 16),
 
@@ -203,10 +215,11 @@ employees.isEmpty
               children: [
 
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: _pickStartDate,
-                    child: Text(
-                      startDate == null
+                  child: OutlinedButton.icon(
+                            icon: const Icon(Icons.calendar_today, size: 16),
+                            onPressed: _pickStartDate,
+                            label: Text(
+                          startDate == null
                           ? "Start Date"
                           : startDate!.toString().split(" ")[0],
                     ),
@@ -216,9 +229,10 @@ employees.isEmpty
                 const SizedBox(width: 10),
 
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: _pickEndDate,
-                    child: Text(
+                  child: OutlinedButton.icon(
+                        icon: const Icon(Icons.calendar_today, size: 16),
+                        onPressed: _pickEndDate,
+                        label: Text(
                       endDate == null
                           ? "End Date"
                           : endDate!.toString().split(" ")[0],
@@ -231,9 +245,9 @@ employees.isEmpty
             const SizedBox(height: 16),
 
             /// Generate
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
+                SizedBox(
+                height: 42,
+                child: ElevatedButton(
                 onPressed: loading ? null : _generateReport,
                 child: const Text("Generate Report"),
               ),
@@ -242,15 +256,7 @@ employees.isEmpty
             const SizedBox(height: 20),
            _buildReportSummary(),
 
-if (results.isNotEmpty)
-  Align(
-    alignment: Alignment.centerRight,
-    child: ElevatedButton.icon(
-      icon: const Icon(Icons.picture_as_pdf),
-      label: const Text("Export PDF"),
-      onPressed: _exportPdf,
-    ),
-  ),
+
 
 const SizedBox(height: 10),
             /// Results
@@ -259,125 +265,147 @@ Expanded(
   child: loading
       ? const Center(child: CircularProgressIndicator())
       : results.isEmpty
-          ? const Center(child: Text("No results"))
-          : LayoutBuilder(
-              builder: (context, constraints) {
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(Icons.assignment_outlined, size: 48, color: Colors.grey),
+                SizedBox(height: 10),
+                Text("No work orders found"),
+              ],
+            )
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: DataTable(
+                  columnSpacing: 30,
+                  headingRowHeight: 42,
+                  columns: const [
+                    DataColumn(label: Text("Title")),
+                    DataColumn(label: Text("Location")),
+                    DataColumn(label: Text("Closed")),
+                  ],
+                  rows: results.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final item = entry.value;
 
-                final isLandscape =
-                    MediaQuery.of(context).orientation ==
-                        Orientation.landscape;
-
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minWidth: constraints.maxWidth,
-                    ),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: DataTable(
-                        columnSpacing: 30,
-                        headingRowHeight: 42,
-                        dataRowHeight: 50,
-                        columns: const [
-                          DataColumn(label: Text("Title")),
-                          DataColumn(label: Text("Location")),
-                          DataColumn(label: Text("Closed")),
-                        ],
-                        rows: results.map((item) {
-                          return DataRow(
-                            cells: [
-
-                              /// Title
-                              DataCell(
-                                Container(
-                                  alignment: Alignment.centerLeft,
-                                  width: isLandscape ? 420 : 220,
-                                  child: Text(
-                                    item.title,
-                                    textAlign: TextAlign.left,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                    return DataRow(
+                      cells: [
+                        DataCell(
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                if (expandedRows.contains(index)) {
+                                  expandedRows.remove(index);
+                                } else {
+                                  expandedRows.add(index);
+                                }
+                              });
+                            },
+                            child: SizedBox(
+                              width: 260,
+                              child: AnimatedSize(
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeInOut,
+                                alignment: Alignment.topLeft,
+                                child: Text(
+                                  item.title,
+                                  maxLines:
+                                      expandedRows.contains(index) ? null : 1,
+                                  overflow: expandedRows.contains(index)
+                                      ? TextOverflow.visible
+                                      : TextOverflow.ellipsis,
                                 ),
                               ),
+                            ),
+                          ),
+                        ),
 
-                              /// Location
-                              DataCell(
-                                Container(
-                                  alignment: Alignment.centerLeft,
-                                  width: 140,
-                                  child: Text(item.location),
-                                ),
-                              ),
+                        DataCell(
+                          SizedBox(
+                            width: 140,
+                            child: Text(item.location),
+                          ),
+                        ),
 
-                              /// Closed Date
-                              DataCell(
-                                Container(
-                                  alignment: Alignment.centerLeft,
-                                  width: 120,
-                                  child: Text(
-                                    item.modifiedDate
-                                        .toString()
-                                        .split(" ")[0],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                );
-              },
+                        DataCell(
+                          SizedBox(
+                            width: 120,
+                            child: Text(
+                              item.modifiedDate.toString().split(" ")[0],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
             ),
 )
           ],
+        
         ),
-      ),
-    );
+  ),
+      );
+    
   }
   Widget _buildReportSummary() {
-  if (results.isEmpty) return const SizedBox();
+if (results.isEmpty) return const SizedBox();
 
-  return Card(
-    elevation: 2,
-    margin: const EdgeInsets.only(bottom: 16),
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+return Card(
+elevation: 2,
+margin: const EdgeInsets.only(bottom: 16),
+child: Padding(
+padding: const EdgeInsets.all(16),
+child: Column(
+crossAxisAlignment: CrossAxisAlignment.start,
+children: [
+
+
+      /// Header + Export Button
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-
           const Text(
             "Report Summary",
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
 
-          const SizedBox(height: 10),
-
-          Text("Employee: $selectedEmployeeName"),
-
-          Text(
-            "Date Range: "
-            "${startDate!.toString().split(' ')[0]} to "
-            "${endDate!.toString().split(' ')[0]}",
-          ),
-
-          const SizedBox(height: 6),
-
-          Text(
-            "Total Closed Work Orders: ${results.length}",
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.picture_as_pdf),
+            label: const Text("Export PDF"),
+            onPressed: _exportPdf,
           ),
         ],
       ),
-    ),
-  );
+
+      const SizedBox(height: 12),
+
+      Text("Employee: $selectedEmployeeName"),
+
+      Text(
+        "Date Range: "
+        "${startDate!.toString().split(' ')[0]} to "
+        "${endDate!.toString().split(' ')[0]}",
+      ),
+
+      const SizedBox(height: 8),
+
+      Text(
+        "Total Closed Work Orders: ${results.length}",
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ],
+  ),
+),
+
+);
 }
+
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../models/work_order.dart';
-import '../services/work_order_service.dart';
-import '../models/employee.dart';
-import '../services/employee_service.dart';
-import '../models/employee_assignment.dart';
+import '../../models/work_order.dart';
+import '../../services/work_order_service.dart';
+import '../../models/employee.dart';
+import '../../services/employee_service.dart';
+import '../../models/employee_assignment.dart';
 
 class AddWorkOrderScreen extends StatefulWidget {
   final WorkOrder? workOrder;

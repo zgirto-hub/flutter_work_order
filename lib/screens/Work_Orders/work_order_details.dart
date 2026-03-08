@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/work_order.dart';
+import '../../models/work_order.dart';
 
 class WorkOrderDetailsModal extends StatelessWidget {
   final WorkOrder workOrder;

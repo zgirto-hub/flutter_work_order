@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
-import '../models/document.dart';
-import 'document_viewer_screen.dart';
-import '../config.dart';
+import '../../models/document.dart';
+import '../Documents/document_viewer_screen.dart';
+import '../../config.dart';
+import '../../services/download_helper.dart';
 
-import 'package:dio/dio.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-// ignore: deprecated_member_use
-import 'dart:html' as html;
 
-import 'package:flutter/foundation.dart';
 
 class DocumentDetailsScreen extends StatefulWidget {
   final DocumentModel document;
@@ -28,7 +23,7 @@ class DocumentDetailsScreen extends StatefulWidget {
 class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
   
 
-  Future<void> _downloadFile(String url, String fileName) async {
+  /*Future<void> _downloadFile(String url, String fileName) async {
     try {
       if (kIsWeb) {
         print("Download URL: $url");
@@ -44,7 +39,16 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
         SnackBar(content: Text("Download failed: $e")),
       );
     }
+  }*/
+  Future<void> _downloadFile(String url, String fileName) async {
+  try {
+    await downloadFile(url, fileName);
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Download failed: $e")),
+    );
   }
+}
 
   Widget highlightFullText(String text, String query) {
     if (query.isEmpty) {

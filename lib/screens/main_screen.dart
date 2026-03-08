@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/theme_controller.dart';
-import 'work_order_home.dart';
-import 'documents_screen.dart';
-import 'reports/workorder_report_screen.dart';
+import '../screens/Work_Orders/work_order_home.dart';
+import '../screens/Documents/documents_screen.dart';
+import '../screens/reports/workorder_report_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final ThemeController themeController;

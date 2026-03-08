@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 
-import '../models/document.dart';
-import '../services/document_service.dart';
-import 'document_details_screen.dart';
-import 'add_document_screen.dart';
+import '../../models/document.dart';
+import '../../services/document_service.dart';
+import '../Documents/document_details_screen.dart';
+import '../Documents/add_document_screen.dart';
 
-import '../filters/document_filter_engine.dart';
-import '../controllers/filter_controller.dart';
+import '../../filters/document_filter_engine.dart';
+import '../../controllers/filter_controller.dart';
 
-import '../widgets/search_appbar.dart';
-import '../widgets/animated_entity_list.dart';
+import '../../widgets/search_appbar.dart';
+import '../../widgets/animated_entity_list.dart';
 
-import '../widgets/document_card.dart';
-import '../widgets/active_filters_row.dart';
+import '../../widgets/document_card.dart';
+import '../../widgets/active_filters_row.dart';
 
 
 class DocumentsScreen extends StatefulWidget {
