@@ -1,4 +1,4 @@
-print("=== THIS MAIN.PY IS RUNNING v2 ===")
+print("=== THIS MAIN.PY IS RUNNING v1.1 ===")
 
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
