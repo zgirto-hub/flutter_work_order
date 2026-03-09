@@ -47,3 +47,11 @@ backend/__pycache__/
 backend/*.pyc
 backend/uploaded_files/
 .env
+# Python
+backend/venv/
+__pycache__/
+*.pyc
+
+# Flutter
+frontend/build/
+frontend/.dart_tool/
