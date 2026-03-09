@@ -1,0 +1,12 @@
+[Unit]
+Description=FastAPI Document Server
+After=network.target
+
+[Service]
+User=zorin
+WorkingDirectory=/home/zorin/Development/flutter_work_order/backend
+ExecStart=/home/zorin/Development/flutter_work_order/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
