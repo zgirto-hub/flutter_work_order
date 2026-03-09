@@ -353,11 +353,10 @@ IconButton(
 )
         ],
       ),
-   floatingActionButton: FloatingActionButton.extended(
-  onPressed: openAddScreen,
-  icon: const Icon(Icons.add),
-  label: const Text("New Work Order"),
-),
+       floatingActionButton: FloatingActionButton(
+    onPressed: openAddScreen,
+    child: const Icon(Icons.add),
+    ),
     );
   }
 

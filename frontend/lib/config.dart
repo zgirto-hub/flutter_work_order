@@ -6,5 +6,5 @@ class AppConfig {
 static const String baseUrl = "/api";
   static const String downloadUrl = "";
   static const String buildDate =
-      String.fromEnvironment('BUILD_DATE', defaultValue: '9 Mar 2026');
+      String.fromEnvironment('BUILD_DATE', defaultValue: '10 Mar 2026');
 }

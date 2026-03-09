@@ -4,6 +4,8 @@ import '../../services/work_order_service.dart';
 import '../../models/employee.dart';
 import '../../services/employee_service.dart';
 import '../../models/employee_assignment.dart';
+import '../widgets/employee_selector.dart';
+
 
 class AddWorkOrderScreen extends StatefulWidget {
   final WorkOrder? workOrder;
@@ -123,150 +125,142 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.workOrder == null ? "New Work Order" : "Edit Work Order",
-        ),
-        actions: [
-          if (widget.workOrder != null)
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: _confirmDelete,
-            ),
-        ],
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text(
+        widget.workOrder == null ? "New Work Order" : "Edit Work Order",
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextFormField(
-                  controller: jobNoController,
-                  readOnly: true,
-                  decoration: const InputDecoration(
-                    labelText: "Job No",
-                    hintText: "Auto-generated",
-                    filled: true,
-                  ),
+      actions: [
+        if (widget.workOrder != null)
+          IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: _confirmDelete,
+          ),
+      ],
+    ),
+    body: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                controller: jobNoController,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: "Job No",
+                  hintText: "Auto-generated",
+                  filled: true,
                 ),
-                const SizedBox(height: 10),
+              ),
 
-                TextFormField(
-                  controller: clientController,
-                  decoration: const InputDecoration(labelText: "Title"),
-                  validator: (value) => value!.isEmpty ? "Enter Title" : null,
+              const SizedBox(height: 10),
+
+              TextFormField(
+                controller: clientController,
+                decoration: const InputDecoration(labelText: "Title"),
+                validator: (value) => value!.isEmpty ? "Enter Title" : null,
+              ),
+
+              const SizedBox(height: 10),
+
+              DropdownButtonFormField<String>(
+                value: selectedStatus,
+                items: const [
+                  DropdownMenuItem(value: "Pending", child: Text("Pending")),
+                  DropdownMenuItem(
+                      value: "In Progress", child: Text("In Progress")),
+                  DropdownMenuItem(value: "Closed", child: Text("Closed")),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    selectedStatus = value!;
+                  });
+                },
+                decoration: const InputDecoration(labelText: "Status"),
+              ),
+
+              const SizedBox(height: 10),
+
+              TextFormField(
+                controller: locationController,
+                decoration: const InputDecoration(labelText: "Location"),
+                validator: (value) =>
+                    value!.isEmpty ? "Enter Location" : null,
+              ),
+
+              const SizedBox(height: 10),
+
+              DropdownButtonFormField<String>(
+                value: selectedType,
+                items: const [
+                  DropdownMenuItem(
+                      value: "Technical", child: Text("Technical")),
+                  DropdownMenuItem(value: "Other", child: Text("Other")),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    selectedType = value!;
+                  });
+                },
+                decoration: const InputDecoration(labelText: "Type"),
+              ),
+
+              const SizedBox(height: 10),
+
+              TextFormField(
+                controller: descriptionController,
+                decoration: const InputDecoration(labelText: "Description"),
+                maxLines: 3,
+              ),
+
+              // 🔥 ASSIGN EMPLOYEES SECTION
+              const SizedBox(height: 25),
+
+              const Text(
+                "Assign Employees",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 10),
+              ),
 
-                DropdownButtonFormField<String>(
-                  value: selectedStatus,
-                  items: const [
-                    DropdownMenuItem(value: "Pending", child: Text("Pending")),
-                    DropdownMenuItem(
-                        value: "In Progress", child: Text("In Progress")),
-                    DropdownMenuItem(value: "Closed", child: Text("Closed")),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      selectedStatus = value!;
-                    });
-                  },
-                  decoration: const InputDecoration(labelText: "Status"),
+              const SizedBox(height: 10),
+
+             GestureDetector(
+                            onTap: _openEmployeeSelector,
+                             child: _buildSelectedEmployees(),
+                            ),
+
+              const SizedBox(height: 10),
+
+              ElevatedButton.icon(
+                icon: const Icon(Icons.people),
+                label: const Text("Select Employees"),
+                onPressed: _openEmployeeSelector,
+              ),
+
+              const SizedBox(height: 25),
+
+              ElevatedButton(
+                onPressed: submit,
+                child: Text(
+                  widget.workOrder == null
+                      ? "Add Work Order"
+                      : "Save Changes",
                 ),
-                const SizedBox(height: 10),
-
-                TextFormField(
-                  controller: locationController,
-                  decoration: const InputDecoration(labelText: "Location"),
-                  validator: (value) =>
-                      value!.isEmpty ? "Enter Location" : null,
-                ),
-                const SizedBox(height: 10),
-
-                DropdownButtonFormField<String>(
-                  value: selectedType,
-                  items: const [
-                    DropdownMenuItem(
-                        value: "Technical", child: Text("Technical")),
-                    DropdownMenuItem(value: "Other", child: Text("Other")),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      selectedType = value!;
-                    });
-                  },
-                  decoration: const InputDecoration(labelText: "Type"),
-                ),
-                const SizedBox(height: 10),
-
-                TextFormField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(labelText: "Description"),
-                  maxLines: 3,
-                ),
-
-                // 🔥 NEW SECTION STARTS HERE
-                const SizedBox(height: 25),
-
-                const Text(
-                  "Assign Employees",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                _employees.isEmpty
-                    ? const Center(child: CircularProgressIndicator())
-                    : Column(
-                        children: _employees.map((employee) {
-                          final isSelected =
-                              _selectedEmployeeIds.contains(employee.id);
-
-                          return CheckboxListTile(
-                            value: isSelected,
-                            title: Text(employee.fullName),
-                            subtitle: Text(employee.shiftType),
-                            controlAffinity: ListTileControlAffinity.leading,
-                            contentPadding: EdgeInsets.zero,
-                            onChanged: (value) {
-                              setState(() {
-                                if (value == true) {
-                                  _selectedEmployeeIds.add(employee.id);
-                                } else {
-                                  _selectedEmployeeIds.remove(employee.id);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-
-                const SizedBox(height: 25),
-
-                ElevatedButton(
-                  onPressed: submit,
-                  child: Text(
-                    widget.workOrder == null
-                        ? "Add Work Order"
-                        : "Save Changes",
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _confirmDelete() async {
     final confirm = await showDialog<bool>(
@@ -309,4 +303,76 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     locationController.dispose();
     super.dispose();
   }
+  void _openEmployeeSelector() {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) {
+      return EmployeeSelector(
+        employees: _employees,
+        selectedIds: _selectedEmployeeIds,
+        onChanged: (ids) {
+          setState(() {
+            _selectedEmployeeIds = ids;
+          });
+        },
+      );
+    },
+  );
+}
+Widget _buildSelectedEmployees() {
+  final selectedEmployees = _employees
+      .where((e) => _selectedEmployeeIds.contains(e.id))
+      .toList();
+
+  if (selectedEmployees.isEmpty) {
+    return const Text(
+      "No employees selected",
+      style: TextStyle(color: Colors.grey),
+    );
+  }
+
+  const maxVisible = 4;
+
+  final visibleEmployees = selectedEmployees.take(maxVisible).toList();
+  final remaining = selectedEmployees.length - visibleEmployees.length;
+
+  return Row(
+    children: [
+      ...visibleEmployees.map((employee) {
+        final initials = employee.fullName
+            .split(" ")
+            .map((e) => e[0])
+            .take(2)
+            .join();
+
+        return Padding(
+          padding: const EdgeInsets.only(right: 6),
+          child: CircleAvatar(
+            radius: 18,
+            backgroundColor: Colors.blue.shade100,
+            child: Text(
+              initials,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+      }),
+
+      if (remaining > 0)
+        CircleAvatar(
+          radius: 18,
+          backgroundColor: Colors.grey.shade300,
+          child: Text(
+            "+$remaining",
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
+    ],
+  );
+}
+
 }

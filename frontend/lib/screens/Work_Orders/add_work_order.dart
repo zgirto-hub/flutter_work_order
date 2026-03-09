@@ -4,6 +4,7 @@ import '../../services/work_order_service.dart';
 import '../../models/employee.dart';
 import '../../services/employee_service.dart';
 import '../../models/employee_assignment.dart';
+import '../../widgets/employee_selector.dart';
 
 class AddWorkOrderScreen extends StatefulWidget {
   final WorkOrder? workOrder;
@@ -214,42 +215,39 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                 // 🔥 NEW SECTION STARTS HERE
                 const SizedBox(height: 25),
 
-                const Text(
-                  "Assign Employees",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+               const Text(
+  "Assign Employees",
+  style: TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+  ),
+),
 
-                const SizedBox(height: 10),
+const SizedBox(height: 10),
 
-                _employees.isEmpty
-                    ? const Center(child: CircularProgressIndicator())
-                    : Column(
-                        children: _employees.map((employee) {
-                          final isSelected =
-                              _selectedEmployeeIds.contains(employee.id);
+ElevatedButton.icon(
+  icon: const Icon(Icons.people),
+  label: const Text("Select Employees"),
+  onPressed: _openEmployeeSelector,
+),
 
-                          return CheckboxListTile(
-                            value: isSelected,
-                            title: Text(employee.fullName),
-                            subtitle: Text(employee.shiftType),
-                            controlAffinity: ListTileControlAffinity.leading,
-                            contentPadding: EdgeInsets.zero,
-                            onChanged: (value) {
-                              setState(() {
-                                if (value == true) {
-                                  _selectedEmployeeIds.add(employee.id);
-                                } else {
-                                  _selectedEmployeeIds.remove(employee.id);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
+const SizedBox(height: 10),
 
+Wrap(
+  spacing: 8,
+  children: _employees
+      .where((e) => _selectedEmployeeIds.contains(e.id))
+      .map((employee) => Chip(
+            label: Text(employee.fullName),
+            deleteIcon: const Icon(Icons.close),
+            onDeleted: () {
+              setState(() {
+                _selectedEmployeeIds.remove(employee.id);
+              });
+            },
+          ))
+      .toList(),
+),
                 const SizedBox(height: 25),
 
                 ElevatedButton(
@@ -309,4 +307,21 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     locationController.dispose();
     super.dispose();
   }
+  void _openEmployeeSelector() {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (context) {
+      return EmployeeSelector(
+        employees: _employees,
+        selectedIds: _selectedEmployeeIds,
+        onChanged: (ids) {
+          setState(() {
+            _selectedEmployeeIds = ids;
+          });
+        },
+      );
+    },
+  );
+}
 }
