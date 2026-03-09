@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-import '../config.dart';
-import '../models/workorder_report.dart';
+import '../../../../config.dart';
+import '../../../../models/workorder_report.dart';
 
 class ReportService {
   static Future<List<WorkOrderReport>> getClosedWorkOrders({

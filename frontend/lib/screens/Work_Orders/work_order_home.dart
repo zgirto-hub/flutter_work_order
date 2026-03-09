@@ -240,7 +240,7 @@ return ActiveFiltersRow(chips: chips);
     },
   ),
   
-  
+   // 👤 EMPLOYEE FILTER
 IconButton(
   icon: Icon(
     filterController.selectedEmployeeId == null
@@ -286,11 +286,7 @@ IconButton(
     }
   },
 ),
-  // ➕ ADD BUTTON
-  IconButton(
-    icon: const Icon(Icons.add),
-    onPressed: openAddScreen,
-  ),
+  
 ],
         
       ),
@@ -357,6 +353,11 @@ IconButton(
 )
         ],
       ),
+   floatingActionButton: FloatingActionButton.extended(
+  onPressed: openAddScreen,
+  icon: const Icon(Icons.add),
+  label: const Text("New Work Order"),
+),
     );
   }
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/document.dart';
-import '../Documents/document_viewer_screen.dart';
+import './Documents/document_viewer_screen.dart';
 import '../../config.dart';
 import '../../services/download_helper.dart';
 

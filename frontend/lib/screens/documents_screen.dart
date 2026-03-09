@@ -3,8 +3,8 @@ import 'dart:async';
 
 import '../../models/document.dart';
 import '../../services/document_service.dart';
-import '../Documents/document_details_screen.dart';
-import '../Documents/add_document_screen.dart';
+import './Documents/document_details_screen.dart';
+import './Documents/add_document_screen.dart';
 
 import '../../filters/document_filter_engine.dart';
 import '../../controllers/filter_controller.dart';
