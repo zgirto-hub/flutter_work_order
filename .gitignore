@@ -48,6 +48,7 @@ backend/*.pyc
 backend/uploaded_files/
 .env
 # Python
+venv/
 backend/venv/
 __pycache__/
 *.pyc
