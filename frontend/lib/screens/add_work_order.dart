@@ -238,12 +238,7 @@ Widget build(BuildContext context) {
 
               const SizedBox(height: 10),
 
-              ElevatedButton.icon(
-                icon: const Icon(Icons.people),
-                label: const Text("Select Employees"),
-                onPressed: _openEmployeeSelector,
-              ),
-
+             
               const SizedBox(height: 25),
 
               ElevatedButton(
@@ -321,9 +316,8 @@ Widget build(BuildContext context) {
   );
 }
 Widget _buildSelectedEmployees() {
-  final selectedEmployees = _employees
-      .where((e) => _selectedEmployeeIds.contains(e.id))
-      .toList();
+  final selectedEmployees =
+      _employees.where((e) => _selectedEmployeeIds.contains(e.id)).toList();
 
   if (selectedEmployees.isEmpty) {
     return const Text(
@@ -332,47 +326,46 @@ Widget _buildSelectedEmployees() {
     );
   }
 
-  const maxVisible = 4;
-
-  final visibleEmployees = selectedEmployees.take(maxVisible).toList();
-  final remaining = selectedEmployees.length - visibleEmployees.length;
-
-  return Row(
-    children: [
-      ...visibleEmployees.map((employee) {
-        final initials = employee.fullName
-            .split(" ")
-            .map((e) => e[0])
-            .take(2)
-            .join();
-
-        return Padding(
-          padding: const EdgeInsets.only(right: 6),
-          child: CircleAvatar(
-            radius: 18,
-            backgroundColor: Colors.blue.shade100,
-            child: Text(
-              initials,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+  return Column(
+    children: selectedEmployees.map((employee) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.blue,
+              child: Text(
+                employee.fullName[0].toUpperCase(),
+                style: const TextStyle(color: Colors.white),
               ),
             ),
-          ),
-        );
-      }),
 
-      if (remaining > 0)
-        CircleAvatar(
-          radius: 18,
-          backgroundColor: Colors.grey.shade300,
-          child: Text(
-            "+$remaining",
-            style: const TextStyle(fontSize: 12),
-          ),
+            const SizedBox(width: 10),
+
+            Expanded(
+              child: Text(
+                employee.fullName,
+                style: const TextStyle(fontSize: 15),
+              ),
+            ),
+
+            IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: () {
+                setState(() {
+                  _selectedEmployeeIds.remove(employee.id);
+                });
+              },
+            )
+          ],
         ),
-    ],
+      );
+    }).toList(),
   );
-}
-
-}
+}}
