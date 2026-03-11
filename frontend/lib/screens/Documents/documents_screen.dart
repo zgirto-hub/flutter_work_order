@@ -1,20 +1,17 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
 
+import 'package:flutter/material.dart';
+
+import '../../controllers/filter_controller.dart';
+import '../../filters/document_filter_engine.dart';
 import '../../models/document.dart';
 import '../../services/document_service.dart';
-import '../Documents/document_details_screen.dart';
-import '../Documents/add_document_screen.dart';
-
-import '../../filters/document_filter_engine.dart';
-import '../../controllers/filter_controller.dart';
-
-import '../../widgets/search_appbar.dart';
-import '../../widgets/animated_entity_list.dart';
-
-import '../../widgets/document_card.dart';
 import '../../widgets/active_filters_row.dart';
-
+import '../../widgets/animated_entity_list.dart';
+import '../../widgets/document_card.dart';
+import '../../widgets/search_appbar.dart';
+import '../Documents/add_document_screen.dart';
+import '../Documents/document_details_screen.dart';
 
 class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({super.key});
@@ -32,9 +29,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   final DocumentService _service = DocumentService();
 
   final TextEditingController _searchController = TextEditingController();
-
   Timer? _debounce;
-  
 
   @override
   void initState() {
@@ -42,46 +37,41 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     _refreshDocuments();
   }
 
+  List<String> getDocumentTypes() {
+    final types = _documents.map((doc) => doc.documentType).toSet().toList();
+    types.sort();
+    return ["All", ...types];
+  }
 
-List<String> getDocumentTypes() {
-  final types = _documents
-      .map((doc) => doc.documentType)
-      .toSet()
-      .toList();
-
-  types.sort();
-
-  return ["All", ...types];
-}
-  // 🔄 Load documents
   Future<void> _refreshDocuments() async {
     final docs = await _service.fetchDocuments();
-
     if (!mounted) return;
 
     setState(() {
       _documents = docs;
+      _selectedDocuments.removeWhere(
+        (selectedId) => !_documents.any((doc) => doc.id == selectedId),
+      );
     });
   }
 
-  // 🔎 Highlight search
- Widget highlightText(String text, String query, {int maxLines = 4}) {
-  if (query.isEmpty) {
-    return Text(
-      text,
-      maxLines: maxLines,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
+  Widget highlightText(String text, String query, {int maxLines = 4}) {
+    if (query.isEmpty) {
+      return Text(
+        text,
+        maxLines: maxLines,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
 
-  final lowerText = text.toLowerCase();
-  final lowerQuery = query.toLowerCase();
+    final lowerText = text.toLowerCase();
+    final lowerQuery = query.toLowerCase();
 
-  final spans = <TextSpan>[];
-  int start = 0;
+    final spans = <TextSpan>[];
+    int start = 0;
 
-  while (true) {
-    final index = lowerText.indexOf(lowerQuery, start);
+    while (true) {
+      final index = lowerText.indexOf(lowerQuery, start);
 
       if (index == -1) {
         spans.add(TextSpan(text: text.substring(start)));
@@ -115,41 +105,40 @@ List<String> getDocumentTypes() {
     );
   }
 
-Widget buildActiveFiltersRow() {
-  final List<Widget> chips = [];
+  Widget buildActiveFiltersRow() {
+    final List<Widget> chips = [];
 
-  if (filterController.searchQuery.isNotEmpty) {
+    if (filterController.searchQuery.isNotEmpty) {
+      chips.add(
+        FilterChip(
+          label: Text("🔍 ${filterController.searchQuery}"),
+          onSelected: (_) {
+            setState(() {
+              filterController.setSearchQuery("");
+              _searchController.clear();
+            });
+          },
+        ),
+      );
+    }
+
+    if (chips.isEmpty) return const SizedBox();
+
     chips.add(
-      FilterChip(
-        label: Text("🔍 ${filterController.searchQuery}"),
-        onSelected: (_) {
+      TextButton(
+        onPressed: () {
           setState(() {
-            filterController.setSearchQuery("");
+            filterController.clearAll();
             _searchController.clear();
           });
         },
+        child: const Text("Clear"),
       ),
     );
+
+    return ActiveFiltersRow(chips: chips);
   }
 
-  if (chips.isEmpty) return const SizedBox();
-
-  chips.add(
-    TextButton(
-      onPressed: () {
-        setState(() {
-          filterController.clearAll();
-          _searchController.clear();
-        });
-      },
-      child: const Text("Clear"),
-    ),
-  );
-
-  return ActiveFiltersRow(chips: chips);
-}
-
-  // ✏ Rename
   void _showRenameDialog(DocumentModel doc) {
     final controller = TextEditingController(text: doc.title);
 
@@ -180,7 +169,6 @@ Widget buildActiveFiltersRow() {
     );
   }
 
-  // 🏷 Edit document type
   void _showEditDocumentTypeDialog(DocumentModel doc) {
     final controller = TextEditingController(text: doc.documentType);
 
@@ -211,16 +199,115 @@ Widget buildActiveFiltersRow() {
     );
   }
 
-  // 🗑 Delete single
   Future<void> _deleteDocument(String id) async {
     await _service.deleteDocument(id);
     _refreshDocuments();
   }
 
+  Future<void> _deleteSelectedDocuments() async {
+    if (_selectedDocuments.isEmpty) return;
+
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Selected Documents'),
+        content: Text(
+          'Delete ${_selectedDocuments.length} selected document(s)?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true) return;
+
+    final idsToDelete = _selectedDocuments.toList();
+    for (final id in idsToDelete) {
+      await _service.deleteDocument(id);
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _selectionMode = false;
+      _selectedDocuments.clear();
+    });
+
+    await _refreshDocuments();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${idsToDelete.length} document(s) deleted')),
+    );
+  }
+
+  Widget buildDocumentTypeFilters() {
+    final types = getDocumentTypes();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: types.map((type) {
+            final isSelected =
+                filterController.selectedDocumentType == type ||
+                (type == "All" && filterController.selectedDocumentType == null);
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (type == "All") {
+                      filterController.setDocumentType(null);
+                    } else {
+                      filterController.setDocumentType(type);
+                    }
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    type,
+                    style: TextStyle(
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final documents =
-    DocumentFilterEngine.applyFilters(
+    final documents = DocumentFilterEngine.applyFilters(
       _documents,
       filterController,
     );
@@ -230,7 +317,6 @@ Widget buildActiveFiltersRow() {
       children: [
         Column(
           children: [
-            // SELECT BUTTON
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Row(
@@ -238,53 +324,59 @@ Widget buildActiveFiltersRow() {
                 children: [
                   if (_selectionMode)
                     Text(
-                      "${_selectedDocuments.length} selected",
+                      '${_selectedDocuments.length} selected',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _selectionMode = !_selectionMode;
-                        _selectedDocuments.clear();
-                      });
-                    },
-                    child: Text(_selectionMode ? "Cancel" : "Select"),
+                  Row(
+                    children: [
+                      if (_selectionMode)
+                        TextButton.icon(
+                          onPressed: _selectedDocuments.isEmpty
+                              ? null
+                              : _deleteSelectedDocuments,
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          label: const Text(
+                            'Delete Selected',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _selectionMode = !_selectionMode;
+                            _selectedDocuments.clear();
+                          });
+                        },
+                        child: Text(_selectionMode ? 'Cancel' : 'Select'),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-
-            // SEARCH BAR
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: SearchAppBar(
-  controller: _searchController,
-  hintText: "Search documents...",
-  onChanged: (value) {
+                controller: _searchController,
+                hintText: 'Search documents...',
+                onChanged: (value) {
+                  if (_debounce?.isActive ?? false) _debounce!.cancel();
 
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-
-    _debounce = Timer(const Duration(milliseconds: 400), () {
-
-      setState(() {
-        filterController.setSearchQuery(value.trim());
-      });
-
-    });
-
-  },
-),
+                  _debounce = Timer(const Duration(milliseconds: 400), () {
+                    setState(() {
+                      filterController.setSearchQuery(value.trim());
+                    });
+                  });
+                },
+              ),
             ),
-
-            // RESULT COUNT
             if (filterController.searchQuery.isNotEmpty)
               Padding(
-
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    "$resultCount document(s) found",
+                    '$resultCount document(s) found',
                     style: const TextStyle(
                       fontSize: 13,
                       color: Colors.grey,
@@ -292,13 +384,9 @@ Widget buildActiveFiltersRow() {
                     ),
                   ),
                 ),
-                
-              
               ),
- 
- buildDocumentTypeFilters(),
-  buildActiveFiltersRow(),
-            // DOCUMENT LIST
+            buildDocumentTypeFilters(),
+            buildActiveFiltersRow(),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _refreshDocuments,
@@ -309,45 +397,65 @@ Widget buildActiveFiltersRow() {
                           Center(
                             child: Text(
                               filterController.searchQuery.isEmpty
-                                  ? "No documents available"
-                                  : "No documents found for \"${filterController.searchQuery}\"",
+                                  ? 'No documents available'
+                                  : 'No documents found for "${filterController.searchQuery}"',
                             ),
                           ),
                         ],
                       )
                     : AnimatedEntityList<DocumentModel>(
-  items: documents,
-  onRefresh: _refreshDocuments,
-  itemBuilder: (context, doc, index) {
-                          
+                        items: documents,
+                        onRefresh: _refreshDocuments,
+                        itemBuilder: (context, doc, index) {
+                          final isSelected = _selectedDocuments.contains(doc.id);
 
                           return DocumentCard(
-                        document: doc,
-                        searchQuery: filterController.searchQuery,
-                        highlightBuilder: highlightText,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-       builder: (_) => DocumentDetailsScreen(
-          document: doc,
-          searchQuery: filterController.searchQuery,
-        ),
-      ),
-    );
-  },
-  onRename: () => _showRenameDialog(doc),
-  onEditType: () => _showEditDocumentTypeDialog(doc),
-  onDelete: () => _deleteDocument(doc.id),
-);
+                            document: doc,
+                            searchQuery: filterController.searchQuery,
+                            highlightBuilder: highlightText,
+                            selectionMode: _selectionMode,
+                            isSelected: isSelected,
+                            onSelectionChanged: (selected) {
+                              setState(() {
+                                if (selected ?? false) {
+                                  _selectedDocuments.add(doc.id);
+                                } else {
+                                  _selectedDocuments.remove(doc.id);
+                                }
+                              });
+                            },
+                            onTap: () {
+                              if (_selectionMode) {
+                                setState(() {
+                                  if (isSelected) {
+                                    _selectedDocuments.remove(doc.id);
+                                  } else {
+                                    _selectedDocuments.add(doc.id);
+                                  }
+                                });
+                                return;
+                              }
+
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => DocumentDetailsScreen(
+                                    document: doc,
+                                    searchQuery: filterController.searchQuery,
+                                  ),
+                                ),
+                              );
+                            },
+                            onRename: () => _showRenameDialog(doc),
+                            onEditType: () => _showEditDocumentTypeDialog(doc),
+                            onDelete: () => _deleteDocument(doc.id),
+                          );
                         },
                       ),
               ),
             ),
           ],
         ),
-
-        // ADD BUTTON
         Positioned(
           bottom: 16,
           right: 16,
@@ -367,71 +475,11 @@ Widget buildActiveFiltersRow() {
       ],
     );
   }
-Widget buildDocumentTypeFilters() {
 
-  final types = getDocumentTypes();
-
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: types.map((type) {
-
-          final isSelected =
-              filterController.selectedDocumentType == type ||
-              (type == "All" && filterController.selectedDocumentType == null);
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: GestureDetector(
-              onTap: () {
-
-                setState(() {
-
-                  if (type == "All") {
-                    filterController.setDocumentType(null);
-                  } else {
-                    filterController.setDocumentType(type);
-                  }
-
-                });
-
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 10,
-                  horizontal: 16,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  type,
-                  style: TextStyle(
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          );
-
-        }).toList(),
-      ),
-    ),
-  );
-}
   @override
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
-} 
+}
