@@ -83,6 +83,13 @@ Future<List<DocumentModel>> searchDocuments(
     await _client.from('documents').update({'title': newTitle}).eq('id', id);
   }
 
+  Future<void> updateDocumentType(String id, String newType) async {
+    await _client
+        .from('documents')
+        .update({'document_type': newType})
+        .eq('id', id);
+  }
+
   Future<List<DocumentModel>> filterByType(String type) async {
     final response =
         await _client.from('documents').select().eq('document_type', type);
