@@ -353,10 +353,28 @@ IconButton(
 )
         ],
       ),
-       floatingActionButton: FloatingActionButton(
-    onPressed: openAddScreen,
-    child: const Icon(Icons.add),
+      floatingActionButton: Column(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+
+    // 🔄 REFRESH BUTTON
+    FloatingActionButton(
+      heroTag: "refresh",
+      mini: true,
+      onPressed: loadWorkOrders,
+      child: const Icon(Icons.refresh),
     ),
+
+    const SizedBox(height: 10),
+
+    // ➕ ADD WORK ORDER
+    FloatingActionButton(
+      heroTag: "add",
+      onPressed: openAddScreen,
+      child: const Icon(Icons.add),
+    ),
+  ],
+),
     );
   }
 
