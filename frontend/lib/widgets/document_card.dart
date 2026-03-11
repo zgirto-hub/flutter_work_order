@@ -6,6 +6,7 @@ class DocumentCard extends StatelessWidget {
   final String searchQuery;
   final VoidCallback onTap;
   final VoidCallback onRename;
+  final VoidCallback onEditType;
   final VoidCallback onDelete;
   final Widget Function(String text, String query, {int maxLines}) highlightBuilder;
 
@@ -15,6 +16,7 @@ class DocumentCard extends StatelessWidget {
     required this.searchQuery,
     required this.onTap,
     required this.onRename,
+    required this.onEditType,
     required this.onDelete,
     required this.highlightBuilder,
   });
@@ -90,6 +92,15 @@ class DocumentCard extends StatelessWidget {
                       onTap: () {
                         Navigator.pop(context);
                         onRename();
+                      },
+                    ),
+
+                    ListTile(
+                      leading: const Icon(Icons.category_outlined),
+                      title: const Text("Edit document type"),
+                      onTap: () {
+                        Navigator.pop(context);
+                        onEditType();
                       },
                     ),
 
