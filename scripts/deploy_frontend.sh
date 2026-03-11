@@ -1,8 +1,17 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 SERVER="zorin@100.85.73.37"
-LOCAL_PROJECT="/c/Development/flutter_work_order/frontend"
+
+# Detect OS and set project path
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  LOCAL_PROJECT="$HOME/Development/flutter_work_order/frontend"
+elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]]; then
+  LOCAL_PROJECT="/c/Development/flutter_work_order/frontend"
+else
+  echo "Unsupported OS"
+  exit 1
+fi
 
 RELEASE_DIR="/var/www/releases"
 CURRENT_LINK="/var/www/flutter_app"
@@ -11,7 +20,7 @@ TIMESTAMP=$(date +%F_%H-%M)
 NEW_RELEASE="$RELEASE_DIR/release_$TIMESTAMP"
 
 echo "Building Flutter Web..."
-cd $LOCAL_PROJECT
+cd "$LOCAL_PROJECT"
 flutter build web
 
 echo "Creating new release..."
