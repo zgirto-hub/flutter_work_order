@@ -358,7 +358,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: SearchAppBar(
                 controller: _searchController,
-                hintText: 'Search Documentos...',
+                hintText: 'Search Document...',
                 onChanged: (value) {
                   if (_debounce?.isActive ?? false) _debounce!.cancel();
 
@@ -457,21 +457,39 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           ],
         ),
         Positioned(
-          bottom: 16,
-          right: 16,
-          child: FloatingActionButton(
-            onPressed: () async {
-              await showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                builder: (context) => const AddDocumentScreen(),
-              );
+  bottom: 16,
+  right: 16,
+  child: Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
 
-              _refreshDocuments();
-            },
-            child: const Icon(Icons.add),
-          ),
-        ),
+      // 🔄 REFRESH
+      FloatingActionButton(
+        heroTag: "refreshDocs",
+        mini: true,
+        onPressed: _refreshDocuments,
+        child: const Icon(Icons.refresh),
+      ),
+
+      const SizedBox(height: 10),
+
+      // ➕ ADD DOCUMENT
+      FloatingActionButton(
+        heroTag: "addDoc",
+        onPressed: () async {
+          await showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            builder: (context) => const AddDocumentScreen(),
+          );
+
+          _refreshDocuments();
+        },
+        child: const Icon(Icons.add),
+      ),
+    ],
+  ),
+),
       ],
     );
   }

@@ -261,7 +261,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                           ),
                         )
                       : const Text(
-                          "Upload Document",
+                          "Upload Document[*]",
                           style: TextStyle(fontSize: 16),
                         ),
                 ),

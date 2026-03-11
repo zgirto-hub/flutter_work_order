@@ -129,7 +129,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.workOrder == null ? "New Work Order" : "Edit Work Order",
+          widget.workOrder == null ? "New Work Order[*]" : "Edit Work Order[*]",
         ),
         actions: [
           if (widget.workOrder != null)
