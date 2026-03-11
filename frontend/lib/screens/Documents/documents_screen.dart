@@ -476,6 +476,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       // ➕ ADD DOCUMENT
       FloatingActionButton(
         heroTag: "addDoc",
+        mini: true,
         onPressed: () async {
           await showModalBottomSheet(
             context: context,

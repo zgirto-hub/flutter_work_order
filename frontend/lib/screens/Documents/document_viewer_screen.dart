@@ -42,7 +42,7 @@ Widget build(BuildContext context) {
 
   return Scaffold(
     appBar: AppBar(
-      title: const Text("Document Viewer[*]"),
+      title: const Text("Document Viewer"),
     ),
     body: Builder(
       builder: (_) {
