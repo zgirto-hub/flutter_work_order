@@ -120,86 +120,88 @@ class WorkOrderCard extends StatelessWidget {
             ],
 
             const SizedBox(height: 8),
-            // 🔹 ASSIGNED COUNT (collapsed only)
-            if (!isExpanded && workOrder.assignedEmployees.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  const SizedBox(width: 4),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4B5563).withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.people_outline,
-                          size: 14,
-                          color: Color(0xFF4B5563),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          "${workOrder.assignedEmployees.length} Assigned",
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF4B5563),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 8),
+            /// 🔹 ASSIGNED + STATUS (same row)
+if (!isExpanded) ...[
+  const SizedBox(height: 6),
+  Row(
+    children: [
 
-            /// 🔹 STATUS BADGE
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: getStatusColor(context, workOrder.status)
-                        .withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        workOrder.status == "Closed"
-                            ? Icons.check_circle
-                            : workOrder.status == "In Progress"
-                                ? Icons.autorenew
-                                : Icons.schedule,
-                        size: 16,
-                        color: getStatusColor(context, workOrder.status),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        workOrder.status,
-                        style: TextStyle(
-                          color: getStatusColor(context, workOrder.status),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+      /// ASSIGNED CAPSULE
+      if (workOrder.assignedEmployees.isNotEmpty)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFF4B5563).withOpacity(0.08),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.people_outline,
+                size: 14,
+                color: Color(0xFF4B5563),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                "${workOrder.assignedEmployees.length} Assigned",
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF4B5563),
+                  fontWeight: FontWeight.w500,
                 ),
               ),
+            ],
+          ),
+        ),
+
+      const SizedBox(width: 8),
+
+      /// STATUS CAPSULE
+      ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: getStatusColor(context, workOrder.status)
+                  .withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 1,
+              ),
             ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  workOrder.status == "Closed"
+                      ? Icons.check_circle
+                      : workOrder.status == "In Progress"
+                          ? Icons.autorenew
+                          : Icons.schedule,
+                  size: 16,
+                  color: getStatusColor(context, workOrder.status),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  workOrder.status,
+                  style: TextStyle(
+                    color: getStatusColor(context, workOrder.status),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ],
+  ),
+],
 
             /// 🔹 EXPANDABLE SECTION
             AnimatedCrossFade(

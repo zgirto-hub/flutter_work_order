@@ -196,11 +196,38 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       ),
     );
   }
+Future<void> _deleteDocument(DocumentModel doc) async {
+  final shouldDelete = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('Delete Document'),
+      content: Text('Delete "${doc.title}"?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
 
-  Future<void> _deleteDocument(String id) async {
-    await _service.deleteDocument(id);
-    _refreshDocuments();
-  }
+  if (shouldDelete != true) return;
+
+  await _service.deleteDocument(doc.id);
+
+  if (!mounted) return;
+
+  await _refreshDocuments();
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Document deleted')),
+  );
+}
 
   Future<void> _deleteSelectedDocuments() async {
     if (_selectedDocuments.isEmpty) return;
@@ -458,7 +485,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                               onRename: () => _showRenameDialog(doc),
                               onEditType: () =>
                                   _showEditDocumentTypeDialog(doc),
-                              onDelete: () => _deleteDocument(doc.id),
+                              onDelete: () => _deleteDocument(doc),
                             );
                           },
                         ),
