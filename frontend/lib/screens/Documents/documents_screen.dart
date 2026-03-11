@@ -249,20 +249,27 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   }
 
   Widget buildDocumentTypeFilters() {
-    final types = getDocumentTypes();
+  final types = getDocumentTypes();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: types.map((type) {
-            final isSelected = filterController.selectedDocumentType == type ||
+            final isSelected =
+                filterController.selectedDocumentType == type ||
                 (type == "All" &&
                     filterController.selectedDocumentType == null);
 
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
               child: GestureDetector(
                 onTap: () {
                   setState(() {
@@ -282,7 +289,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.surfaceContainerHighest,
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -300,8 +307,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           }).toList(),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
