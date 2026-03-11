@@ -23,4 +23,7 @@ scp -r build/web/* $SERVER:$NEW_RELEASE/
 echo "Switching to new release..."
 ssh $SERVER "ln -sfn $NEW_RELEASE $CURRENT_LINK"
 
+echo "Cleaning old releases (keep last 5)..."
+ssh $SERVER "ls -dt $RELEASE_DIR/release_* | tail -n +6 | xargs rm -rf"
+
 echo "Deployment complete."
