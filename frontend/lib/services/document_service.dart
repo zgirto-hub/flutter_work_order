@@ -77,7 +77,11 @@ Future<List<DocumentModel>> searchDocuments(
     }
   }
 
-
+  Future<void> deleteDocuments(List<String> ids) async {
+    for (final id in ids) {
+      await deleteDocument(id);
+    }
+  }
 
   Future<void> renameDocument(String id, String newTitle) async {
     await _client.from('documents').update({'title': newTitle}).eq('id', id);

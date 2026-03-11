@@ -358,7 +358,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: SearchAppBar(
                 controller: _searchController,
-                hintText: 'Search documents...',
+                hintText: 'Search Documentos...',
                 onChanged: (value) {
                   if (_debounce?.isActive ?? false) _debounce!.cancel();
 

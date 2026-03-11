@@ -370,6 +370,7 @@ IconButton(
     // ➕ ADD WORK ORDER
     FloatingActionButton(
       heroTag: "add",
+       mini: true,
       onPressed: openAddScreen,
       child: const Icon(Icons.add),
     ),
