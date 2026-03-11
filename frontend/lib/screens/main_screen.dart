@@ -37,8 +37,11 @@ final pages = [
 ];
     return Scaffold(
       
-      body: pages[_selectedIndex],
-      bottomNavigationBar: NavigationBar(
+      body: IndexedStack(
+         index: _selectedIndex,
+         children: pages,
+),
+        bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
   destinations: const [

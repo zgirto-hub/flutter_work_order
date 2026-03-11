@@ -18,11 +18,12 @@ class WorkOrderHome extends StatefulWidget {
   State<WorkOrderHome> createState() => _WorkOrderHomeState();
 }
 
-class _WorkOrderHomeState extends State<WorkOrderHome> {
-
+class _WorkOrderHomeState extends State<WorkOrderHome>
+with AutomaticKeepAliveClientMixin {
   bool _isSearching = false;
  
-  
+  @override
+  bool get wantKeepAlive => true;
   final TextEditingController _searchController = TextEditingController();
  
   int? expandedIndex;
@@ -168,7 +169,8 @@ return ActiveFiltersRow(chips: chips);
   }
 
   @override
-  Widget build(BuildContext context) {
+Widget build(BuildContext context) {
+  super.build(context);
   final filteredOrders =
     WorkOrderFilterEngine.applyFilters(
         workOrders,
