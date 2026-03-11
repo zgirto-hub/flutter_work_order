@@ -180,6 +180,37 @@ Widget buildActiveFiltersRow() {
     );
   }
 
+  // 🏷 Edit document type
+  void _showEditDocumentTypeDialog(DocumentModel doc) {
+    final controller = TextEditingController(text: doc.documentType);
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Edit Document Type"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: "Document Type"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await _service.updateDocumentType(doc.id, controller.text);
+              if (!mounted) return;
+              Navigator.pop(context);
+              _refreshDocuments();
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
   // 🗑 Delete single
   Future<void> _deleteDocument(String id) async {
     await _service.deleteDocument(id);
@@ -306,6 +337,7 @@ Widget buildActiveFiltersRow() {
     );
   },
   onRename: () => _showRenameDialog(doc),
+  onEditType: () => _showEditDocumentTypeDialog(doc),
   onDelete: () => _deleteDocument(doc.id),
 );
                         },
