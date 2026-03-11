@@ -394,6 +394,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 ),
               buildDocumentTypeFilters(),
               buildActiveFiltersRow(),
+              const SizedBox(height: 10), // 👈 SAFE SPACE BETWEEN FILTERS AND LIST
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: _refreshDocuments,
