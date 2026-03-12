@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from supabase import create_client, Client
 import os
+import json
 import uuid
 import unicodedata
 from datetime import datetime
@@ -13,7 +14,7 @@ from PyPDF2 import PdfReader
 from docx import Document
 
 import pytesseract
-import json
+
 from pdf2image import convert_from_path
 
 
@@ -24,18 +25,6 @@ SUPABASE_URL = "https://rydrqsjofoulwdtwfbgv.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5ZHJxc2pvZm91bHdkdHdmYmd2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjE0MTg5MiwiZXhwIjoyMDg3NzE3ODkyfQ.HvebR7mHIz2Dp4HRiLf6nVrzbqgeIX5XLc3NuVexwII"  # VERY IMPORTANT
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# --------------------
-# Check for Update 
-# --------------------
-import json
-
-@app.get("/api/version")
-def get_version():
-    with open("version.json") as f:
-        return json.load(f)
-
-
 # --------------------
 # FastAPI Setup
 # --------------------
@@ -55,6 +44,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --------------------
+# Check for Update 
+# --------------------
+
+@app.get("/api/version")
+def get_version():
+    with open("version.json") as f:
+        return json.load(f)
+
+
 
 # --------------------
 # Arabic Normalization
