@@ -29,7 +29,7 @@ class MyApp extends StatelessWidget {
           useMaterial3: true,
           scaffoldBackgroundColor: const Color(0xFFF5F7FA),
           colorScheme: ColorScheme.fromSeed(
-            seedColor: themeController.primaryColor,
+            seedColor: themeController.color,
             brightness: Brightness.light,
           ),
           textTheme: const TextTheme(

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-
 import '../theme/theme_controller.dart';
 import '../screens/Work_Orders/work_order_home.dart';
 import '../screens/Documents/documents_screen.dart';
 import '../features/reports/work_order_reports/screens/workorder_report_screen.dart';
 import '../config.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class MainScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -80,14 +81,48 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  String latestVersion = "";
+bool checkingUpdate = false;
+String updateMessage = "";
   String version = "";
-
+  Color selectedColor = Colors.blue;
   @override
   void initState() {
     super.initState();
     _loadVersion();
   }
+Future<void> checkForUpdates() async {
+  setState(() {
+    checkingUpdate = true;
+    updateMessage = "";
+  });
 
+  try {
+    final response = await http.get(
+      Uri.parse("${AppConfig.baseUrl}/version"),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      latestVersion = data["version"];
+
+      if (latestVersion != version.split("+")[0]) {
+        updateMessage = "Update available: $latestVersion";
+      } else {
+        updateMessage = "You are using the latest version";
+      }
+    } else {
+      updateMessage = "Failed to check updates";
+    }
+  } catch (e) {
+    updateMessage = "Update check error";
+  }
+
+  setState(() {
+    checkingUpdate = false;
+  });
+}
   Future<void> _loadVersion() async {
     final info = await PackageInfo.fromPlatform();
     setState(() {
@@ -150,15 +185,19 @@ Widget build(BuildContext context) {
                 const SizedBox(height: 14),
 
                 Wrap(
-                  spacing: 14,
-                  children: [
-                    _colorCircle(Colors.blue),
-                    _colorCircle(Colors.green),
-                    _colorCircle(Colors.purple),
-                    _colorCircle(Colors.orange),
-                    _colorCircle(Colors.red),
-                  ],
-                ),
+                      spacing: 14,
+                      children: [
+                    
+
+                        _colorCircle(Colors.green),
+                        _colorCircle(Colors.purple),                       
+
+                        /// Gradient themes
+                        _colorCircle(Colors.blue, gradientEnd: Colors.purple),
+                        _colorCircle(Colors.orange, gradientEnd: Colors.red),
+                        _colorCircle(Colors.teal, gradientEnd: Colors.blue),
+  ],
+)
               ],
             ),
           ),
@@ -215,60 +254,138 @@ Widget build(BuildContext context) {
 
         /// App Information
         Card(
-          elevation: 1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+  elevation: 1,
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(14),
+  ),
+  child: Padding(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+
+        const Text(
+          "App Information",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
+        ),
 
-                Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text("Version"),
-                    Text(version),
-                  ],
-                ),
+        const SizedBox(height: 14),
 
-                const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text("Version"),
+            Text(version),
+          ],
+        ),
 
-                Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text("Build Date"),
-                    Text(AppConfig.buildDate),
-                  ],
-                ),
+        const SizedBox(height: 8),
 
-                const Divider(height: 22),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text("Build Date"),
+            Text(AppConfig.buildDate),
+          ],
+        ),
 
-                const Text(
-                  "Developed by Salah",
-                  style: TextStyle(
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
+        const SizedBox(height: 16),
+
+        Center(
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.system_update),
+            label: const Text("Check for Updates"),
+            onPressed: checkingUpdate ? null : checkForUpdates,
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        if (checkingUpdate)
+          const Center(
+            child: CircularProgressIndicator(),
+          ),
+
+        if (updateMessage.isNotEmpty)
+          Center(
+            child: Text(
+              updateMessage,
+              style: const TextStyle(
+                color: Colors.grey,
+              ),
+            ),
+          ),
+
+        const Divider(height: 22),
+
+        const Center(
+          child: Text(
+            "Developed by Salah",
+            style: TextStyle(
+              color: Colors.grey,
             ),
           ),
         ),
       ],
     ),
-  );
-}
-Widget _colorCircle(Color color) {
-  return GestureDetector(
-    onTap: () {
-      widget.themeController.changeColor(color);
-    },
-    child: CircleAvatar(
-      radius: 22,
-      backgroundColor: color,
+  ),
+)
+      ],
     ),
   );
 }
-}
+Widget _colorCircle(Color color, {Color? gradientEnd}) {
+  final isSelected = selectedColor == color;
+
+  return GestureDetector(
+    onTap: () {
+      setState(() {
+        selectedColor = color;
+      });
+
+      widget.themeController.changeColor(color);
+    },
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: isSelected ? Border.all(color: Colors.black, width: 2) : null,
+      ),
+      child: AnimatedScale(
+        scale: isSelected ? 1.15 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: gradientEnd != null
+                    ? LinearGradient(
+                        colors: [color, gradientEnd],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                color: gradientEnd == null ? color : null,
+              ),
+            ),
+            if (isSelected)
+              const Icon(
+                Icons.check,
+                color: Colors.white,
+                size: 20,
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}}
