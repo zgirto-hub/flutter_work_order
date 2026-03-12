@@ -12,6 +12,10 @@ class AddDocumentScreen extends StatefulWidget {
 }
 
 class _AddDocumentScreenState extends State<AddDocumentScreen> {
+
+  int _uploadIndex = 0;
+int _totalUploads = 0;
+  List<PlatformFile> _selectedFiles = [];
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _typeController = TextEditingController();
@@ -19,6 +23,86 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
   bool _isLoading = false;
   PlatformFile? _selectedFile;
 
+Future<void> _uploadMultipleFiles() async {
+  if (_selectedFiles.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please select files")),
+    );
+    return;
+  }
+
+  setState(() {
+    _isLoading = true;
+    _uploadIndex = 0;
+    _totalUploads = _selectedFiles.length;
+  });
+
+  try {
+    for (final file in _selectedFiles) {
+      setState(() {
+        _uploadIndex++;
+      });
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${AppConfig.baseUrl}/upload'),
+      );
+
+      if (kIsWeb) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            file.bytes!,
+            filename: file.name,
+          ),
+        );
+      } else {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'file',
+            file.path!,
+            filename: file.name,
+          ),
+        );
+      }
+
+      request.fields['title'] = _extractTitleFromFilename(file.name);
+      request.fields['document_type'] = _detectDocumentType(file.name);
+
+      final response = await request.send();
+
+      if (response.statusCode != 200) {
+        throw Exception("Upload failed");
+      }
+    }
+
+    setState(() => _isLoading = false);
+
+    if (mounted) Navigator.pop(context, true);
+
+  } catch (e) {
+    setState(() => _isLoading = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Multi upload error")),
+    );
+  }
+}
+
+Future<void> _pickMultipleFiles() async {
+  final result = await FilePicker.platform.pickFiles(
+    allowMultiple: true,
+    type: FileType.custom,
+    allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'],
+    withData: kIsWeb,
+  );
+
+  if (result != null) {
+    setState(() {
+      _selectedFiles = result.files;
+    });
+  }
+}
   String _detectDocumentType(String filename) {
     final name = filename.toLowerCase();
 
@@ -213,6 +297,34 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
               ),
 
               const SizedBox(height: 10),
+              if (_isLoading && _totalUploads > 0)
+  Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Text(
+      "Uploading $_uploadIndex of $_totalUploads...",
+      style: const TextStyle(fontSize: 14),
+    ),
+  ),
+              /*Upload Multiple Files */
+              SizedBox(
+  width: double.infinity,
+  height: 48,
+  child: OutlinedButton(
+    onPressed: _isLoading ? null : () async {
+      await _pickMultipleFiles();
+      await _uploadMultipleFiles();
+    },
+    style: OutlinedButton.styleFrom(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    ),
+    child: const Text(
+      "Upload Multiple Files",
+      style: TextStyle(fontSize: 16),
+    ),
+  ),
+),
 
               /// Selected file preview
               if (_selectedFile != null)
