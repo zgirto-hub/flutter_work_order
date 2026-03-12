@@ -9,6 +9,7 @@ class WorkOrder {
   final String type;
   final String dateCreated;
   final String dateModified;
+  final String? closedAt;
   final String id;
   final String? createdBy;
   final List<EmployeeAssignment> assignedEmployees;
@@ -23,6 +24,7 @@ class WorkOrder {
     required this.type,
     required this.dateCreated,
     required this.dateModified,
+    this.closedAt,
     this.createdBy,
     this.assignedEmployees = const [],
   });
@@ -38,6 +40,7 @@ class WorkOrder {
       type: json['type'] ?? '',
       dateCreated: json['created_at']?.toString() ?? '',
       dateModified: json['updated_at']?.toString() ?? '',
+      closedAt: json['closed_at']?.toString(),
       createdBy: json['created_by'],
       assignedEmployees: (json['work_order_assignments'] as List<dynamic>?)
               ?.map((assignment) => EmployeeAssignment.fromJson(assignment))
