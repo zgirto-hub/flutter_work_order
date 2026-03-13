@@ -218,6 +218,8 @@ Future<void> _deleteDocument(DocumentModel doc) async {
 
   if (shouldDelete != true) return;
 
+  try {
+
   await _service.deleteDocument(doc.id);
 
   if (!mounted) return;
@@ -227,53 +229,82 @@ Future<void> _deleteDocument(DocumentModel doc) async {
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(content: Text('Document deleted')),
   );
+
+} catch (e) {
+
+  if (!mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(e.toString())),
+  );
+
+}
 }
 
   Future<void> _deleteSelectedDocuments() async {
-    if (_selectedDocuments.isEmpty) return;
+  if (_selectedDocuments.isEmpty) return;
 
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Selected Documents'),
-        content: Text(
-          'Delete ${_selectedDocuments.length} selected document(s)?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
+  final shouldDelete = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('Delete Selected Documents'),
+      content: Text(
+        'Delete ${_selectedDocuments.length} selected document(s)?',
       ),
-    );
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
 
-    if (shouldDelete != true) return;
+  if (shouldDelete != true) return;
 
-    final idsToDelete = _selectedDocuments.toList();
-    for (final id in idsToDelete) {
+  int deletedCount = 0;
+  int blockedCount = 0;
+
+  final idsToDelete = _selectedDocuments.toList();
+
+  for (final id in idsToDelete) {
+    try {
       await _service.deleteDocument(id);
+      deletedCount++;
+    } catch (e) {
+      blockedCount++;
     }
-
-    if (!mounted) return;
-
-    setState(() {
-      _selectionMode = false;
-      _selectedDocuments.clear();
-    });
-
-    await _refreshDocuments();
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${idsToDelete.length} document(s) deleted')),
-    );
   }
+
+  if (!mounted) return;
+
+  setState(() {
+    _selectionMode = false;
+    _selectedDocuments.clear();
+  });
+
+  await _refreshDocuments();
+
+  if (!mounted) return;
+
+  String message;
+
+  if (blockedCount == 0) {
+    message = '$deletedCount document(s) deleted';
+  } else {
+    message =
+        '$deletedCount deleted, $blockedCount not allowed (not owner)';
+  }
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(message)),
+  );
+}
 
   Widget buildDocumentTypeFilters() {
   final types = getDocumentTypes();
