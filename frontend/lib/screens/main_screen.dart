@@ -8,6 +8,7 @@ import '../features/reports/work_order_reports/screens/workorder_report_screen.d
 import '../config.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../widgets/change_password_dialog.dart';
 
 class MainScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -159,6 +160,16 @@ Widget build(BuildContext context) {
             subtitle: Text(email),
           ),
         ),
+                  ListTile(
+            leading: const Icon(Icons.lock),
+            title: const Text("Change Password"),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (_) => const ChangePasswordDialog(),
+              );
+            },
+          ),
 
         const SizedBox(height: 24),
 
