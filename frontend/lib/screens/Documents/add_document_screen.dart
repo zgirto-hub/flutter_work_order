@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import '../../config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AddDocumentScreen extends StatefulWidget {
   const AddDocumentScreen({super.key});
@@ -65,10 +66,11 @@ Future<void> _uploadMultipleFiles() async {
           ),
         );
       }
-
-      request.fields['title'] = _extractTitleFromFilename(file.name);
-      request.fields['document_type'] = _detectDocumentType(file.name);
-     request.fields['is_private'] = isPrivate.toString();
+      final user = Supabase.instance.client.auth.currentUser;
+      final email = user?.email ?? "";request.fields['title'] = _titleController.text;
+request.fields['document_type'] = _typeController.text;
+request.fields['is_private'] = isPrivate ? "1" : "0";
+request.fields['uploaded_by'] = email;
       final response = await request.send();
 
       if (response.statusCode != 200) {
@@ -155,7 +157,7 @@ Future<void> _pickMultipleFiles() async {
     }
 
     setState(() => _isLoading = true);
-
+   
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('${AppConfig.baseUrl}/upload'),
@@ -178,11 +180,12 @@ Future<void> _pickMultipleFiles() async {
         ),
       );
     }
-
-    request.fields['title'] = _titleController.text;
-    request.fields['document_type'] = _typeController.text;
-    request.fields['is_private'] = isPrivate ? "1" : "0";
-
+    final user = Supabase.instance.client.auth.currentUser;
+    final email = user?.email ?? "";
+  request.fields['title'] = _titleController.text;
+request.fields['document_type'] = _typeController.text;
+request.fields['is_private'] = isPrivate ? "1" : "0";
+request.fields['uploaded_by'] = email;
     try {
       final response = await request.send();
 
