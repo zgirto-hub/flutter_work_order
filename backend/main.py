@@ -177,6 +177,8 @@ async def upload_file(
 @app.delete("/api/delete/{doc_id}")
 async def delete_document(doc_id: str, user_email: str):
 
+    print("DELETE DEBUG -> user_email:", user_email)
+
     response = supabase.table("documents") \
         .select("file_path, uploaded_by") \
         .eq("id", doc_id) \
@@ -189,8 +191,13 @@ async def delete_document(doc_id: str, user_email: str):
 
     owner = doc["uploaded_by"]
 
+    print("DELETE DEBUG -> owner:", owner)
+
     if owner != user_email:
+        print("DELETE BLOCKED")
         return {"error": "Not allowed to delete this document"}
+
+    print("DELETE ALLOWED")
 
     file_path = doc["file_path"]
 
