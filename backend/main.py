@@ -134,6 +134,7 @@ async def upload_file(
     is_private: bool = Form(False),
 
 ):
+print("UPLOAD DEBUG -> private:", is_private)
 
     file_id = str(uuid.uuid4())
     extension = file.filename.split(".")[-1].lower()
