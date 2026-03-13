@@ -132,9 +132,9 @@ async def upload_file(
     title: str = Form(...),
     document_type: str = Form(...),
     is_private: bool = Form(False),
-
 ):
-print("UPLOAD DEBUG -> private:", is_private)
+
+    print("UPLOAD DEBUG -> private:", is_private)
 
     file_id = str(uuid.uuid4())
     extension = file.filename.split(".")[-1].lower()
@@ -147,12 +147,11 @@ print("UPLOAD DEBUG -> private:", is_private)
         content = await file.read()
         f.write(content)
 
-    # Store relative path
     public_url = f"/files/{filename}"
 
     # Extract text
     parsed_text = extract_text(file_path, extension)
-print("UPLOAD DEBUG -> private:", is_private)
+
     supabase.table("documents").insert({
         "title": title,
         "document_type": document_type,
@@ -161,7 +160,7 @@ print("UPLOAD DEBUG -> private:", is_private)
         "mime_type": file.content_type,
         "file_path": public_url,
         "parsed_text": parsed_text,
-         "is_private": is_private,
+        "is_private": is_private,
     }).execute()
 
     return {
