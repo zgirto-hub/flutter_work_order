@@ -3,8 +3,8 @@ import '../../models/document.dart';
 import '../Documents/document_viewer_screen.dart';
 import '../../config.dart';
 import '../../services/download_helper.dart';
-
-
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class DocumentDetailsScreen extends StatefulWidget {
   final DocumentModel document;
@@ -22,24 +22,31 @@ class DocumentDetailsScreen extends StatefulWidget {
 
 class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
   
+List<String> sharedUsers = [];
 
-  /*Future<void> _downloadFile(String url, String fileName) async {
-    try {
-      if (kIsWeb) {
-        print("Download URL: $url");
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute("download", fileName)
-          ..click();
-        return;
-      }
+@override
+void initState() {
+  super.initState();
+  loadSharedUsers();
+}
+Future<void> loadSharedUsers() async {
 
-      // Mobile / Desktop logic here (optional)
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Download failed: $e")),
-      );
-    }
-  }*/
+  print("LOADING SHARES FOR: ${widget.document.id}");
+
+  final response = await http.get(
+    Uri.parse("${AppConfig.baseUrl}/document-shares/${widget.document.id}")
+  );
+
+  print("SHARE RESPONSE: ${response.body}");
+
+  if (response.statusCode == 200) {
+    final data = json.decode(response.body);
+    setState(() {
+      sharedUsers = List<String>.from(data["users"]);
+    });
+  }
+}
+  
   Future<void> _downloadFile(String url, String fileName) async {
   try {
     await downloadFile(url, fileName);
@@ -152,6 +159,23 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
               ),
             const SizedBox(height: 16),
             const Divider(),
+            if (sharedUsers.isNotEmpty) ...[
+  const SizedBox(height: 20),
+  const Text(
+    "Shared with:",
+    style: TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 16,
+    ),
+  ),
+  const SizedBox(height: 8),
+
+  for (final user in sharedUsers)
+    Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text("• $user"),
+    ),
+],
             const SizedBox(height: 16),
             const Text(
               "Document Content",
