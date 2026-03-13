@@ -134,9 +134,9 @@ async def upload_file(
     is_private: bool = Form(False),
     uploaded_by: str = Form(...)
 ):
-    print("UPLOAD DEBUG -> Uploaded by :", uploaded_by)
-    print("UPLOAD DEBUG -> private:", is_private)
 
+    print("UPLOAD DEBUG -> private:", is_private)
+    print("UPLOAD DEBUG -> uploaded_by:", uploaded_by)
 
     file_id = str(uuid.uuid4())
     extension = file.filename.split(".")[-1].lower()
@@ -149,27 +149,28 @@ async def upload_file(
         content = await file.read()
         f.write(content)
 
+    # Public URL
     public_url = f"/files/{filename}"
 
     # Extract text
     parsed_text = extract_text(file_path, extension)
 
- supabase.table("documents").insert({
-    "title": title,
-    "document_type": document_type,
-    "file_name": file.filename,
-    "file_extension": extension,
-    "mime_type": file.content_type,
-    "file_path": public_url,
-    "parsed_text": parsed_text,
-    "is_private": is_private,
-    "uploaded_by": uploaded_by
-}).execute()
+    supabase.table("documents").insert({
+        "title": title,
+        "document_type": document_type,
+        "file_name": file.filename,
+        "file_extension": extension,
+        "mime_type": file.content_type,
+        "file_path": public_url,
+        "parsed_text": parsed_text,
+        "is_private": is_private,
+        "uploaded_by": uploaded_by
+    }).execute()
+
     return {
         "status": "success",
         "file_url": public_url
     }
-
 # --------------------
 # Delete Endpoint
 # --------------------
