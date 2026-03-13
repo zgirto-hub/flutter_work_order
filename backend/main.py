@@ -9,12 +9,9 @@ import json
 import uuid
 import unicodedata
 from datetime import datetime
-
 from PyPDF2 import PdfReader
 from docx import Document
-
 import pytesseract
-
 from pdf2image import convert_from_path
 
 
@@ -173,7 +170,8 @@ async def upload_file(
     }
 # --------------------
 # Delete Endpoint
-# --------------------
+# --------------------from fastapi import HTTPException, Query
+
 @app.delete("/api/delete/{doc_id}")
 async def delete_document(
     doc_id: str,
@@ -197,10 +195,10 @@ async def delete_document(
     print("DELETE DEBUG -> owner:", owner)
 
     if owner != user_email:
-    raise HTTPException(
-        status_code=403,
-        detail="You are not allowed to delete this document"
-    )
+        raise HTTPException(
+            status_code=403,
+            detail="You are not allowed to delete this document"
+        )
 
     print("DELETE ALLOWED")
 
