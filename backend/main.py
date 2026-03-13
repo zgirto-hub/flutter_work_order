@@ -175,32 +175,32 @@ async def upload_file(
 # Delete Endpoint
 # --------------------
 @app.delete("/api/delete/{doc_id}")
-async def delete_document(doc_id: str):
+async def delete_document(doc_id: str, user_email: str):
 
-    # Get file path from DB
     response = supabase.table("documents") \
-        .select("file_path") \
+        .select("file_path, uploaded_by") \
         .eq("id", doc_id) \
         .execute()
 
     if not response.data:
         return {"error": "Document not found"}
 
-    file_path = response.data[0]["file_path"]
+    doc = response.data[0]
 
-    # Delete file from disk
+    owner = doc["uploaded_by"]
+
+    if owner != user_email:
+        return {"error": "Not allowed to delete this document"}
+
+    file_path = doc["file_path"]
+
     if file_path:
         filename = os.path.basename(file_path)
         absolute_path = os.path.join(UPLOAD_DIR, filename)
 
-        print("DELETE DEBUG")
-        print("Path:", absolute_path)
-
         if os.path.exists(absolute_path):
             os.remove(absolute_path)
-            print("File deleted")
 
-    # Delete DB record
     supabase.table("documents") \
         .delete() \
         .eq("id", doc_id) \

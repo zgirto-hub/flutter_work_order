@@ -80,14 +80,18 @@ Future<List<DocumentModel>> searchDocuments(
   return docs;
 }
   Future<void> deleteDocument(String id) async {
-    final response = await http.delete(
-      Uri.parse('${AppConfig.baseUrl}/delete/$id'),
-    );
 
-    if (response.statusCode != 200) {
-      throw Exception("Failed to delete document");
-    }
+  final user = _client.auth.currentUser;
+  final email = user?.email ?? "";
+
+  final response = await http.delete(
+    Uri.parse('${AppConfig.baseUrl}/api/delete/$id?user_email=$email'),
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception("Failed to delete document");
   }
+}
 
   Future<void> deleteDocuments(List<String> ids) async {
     for (final id in ids) {
