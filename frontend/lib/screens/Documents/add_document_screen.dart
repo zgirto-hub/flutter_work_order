@@ -68,7 +68,7 @@ Future<void> _uploadMultipleFiles() async {
 
       request.fields['title'] = _extractTitleFromFilename(file.name);
       request.fields['document_type'] = _detectDocumentType(file.name);
-      request.fields['is_private'] = isPrivate.toString();
+     request.fields['is_private'] = isPrivate.toString();
       final response = await request.send();
 
       if (response.statusCode != 200) {
@@ -181,7 +181,7 @@ Future<void> _pickMultipleFiles() async {
 
     request.fields['title'] = _titleController.text;
     request.fields['document_type'] = _typeController.text;
-    request.fields['is_private'] = isPrivate.toString();
+    request.fields['is_private'] = isPrivate ? "1" : "0";
 
     try {
       final response = await request.send();
