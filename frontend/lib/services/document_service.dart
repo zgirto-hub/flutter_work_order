@@ -6,15 +6,34 @@ import 'package:http/http.dart' as http;
 class DocumentService {
   final SupabaseClient _client = Supabase.instance.client;
 
-  Future<List<DocumentModel>> fetchDocuments() async {
+Future<List<DocumentModel>> fetchDocuments() async {
 
   final user = _client.auth.currentUser;
-  final email = user?.email;
+  final email = user?.email ?? "";
+
+  /// Get shared document ids
+  final shared = await _client
+      .from('document_permissions')
+      .select('document_id')
+      .eq('user_email', email);
+
+  final sharedIds = (shared as List)
+      .map((e) => e['document_id'])
+      .toList();
+
+  String filter;
+
+  if (sharedIds.isEmpty) {
+    filter = 'is_private.eq.false,uploaded_by.eq.$email';
+  } else {
+    filter =
+        'is_private.eq.false,uploaded_by.eq.$email,id.in.(${sharedIds.join(',')})';
+  }
 
   final response = await _client
       .from('documents')
       .select()
-      .or('is_private.eq.false,uploaded_by.eq.$email')
+      .or(filter)
       .order('created_at', ascending: false);
 
   return (response as List)
