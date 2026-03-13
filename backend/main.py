@@ -1,6 +1,6 @@
-print("=== THIS MAIN.PY IS RUNNING v1.1 ===")
+print("=== THIS MAIN.PY IS RUNNING v1.2 ===")
 
-from fastapi import FastAPI, UploadFile, File, Form, Query
+from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from supabase import create_client, Client
@@ -197,8 +197,10 @@ async def delete_document(
     print("DELETE DEBUG -> owner:", owner)
 
     if owner != user_email:
-        print("DELETE BLOCKED")
-        return {"error": "Not allowed to delete this document"}
+    raise HTTPException(
+        status_code=403,
+        detail="You are not allowed to delete this document"
+    )
 
     print("DELETE ALLOWED")
 
