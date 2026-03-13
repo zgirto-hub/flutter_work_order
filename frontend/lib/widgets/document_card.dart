@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/document.dart';
 
@@ -12,7 +13,8 @@ class DocumentCard extends StatelessWidget {
   final bool selectionMode;
   final bool isSelected;
   final ValueChanged<bool?>? onSelectionChanged;
-  final Widget Function(String text, String query, {int maxLines}) highlightBuilder;
+  final Widget Function(String text, String query, {int maxLines})
+      highlightBuilder;
 
   const DocumentCard({
     super.key,
@@ -30,6 +32,11 @@ class DocumentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser =
+        Supabase.instance.client.auth.currentUser?.email;
+
+    final isOwner = document.uploadedBy == currentUser;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,
@@ -40,18 +47,55 @@ class DocumentCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          leading: const Icon(
-            Icons.description_outlined,
-            size: 28,
-            color: Colors.blueGrey,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+
+          /// Document icon + indicators
+          leading: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.description_outlined,
+                size: 24,
+                color: Colors.blueGrey,
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (document.isPrivate)
+                    const Tooltip(
+                      message: "Private document",
+                      child: Icon(
+                        Icons.lock,
+                        size: 14,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  if (isOwner)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 3),
+                      child: Tooltip(
+                        message: "Owned by you",
+                        child: Icon(
+                          Icons.person,
+                          size: 14,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ),
+
           trailing: selectionMode
               ? Checkbox(
                   value: isSelected,
                   onChanged: onSelectionChanged,
                 )
               : null,
+
           title: Text(
             document.title,
             style: const TextStyle(
@@ -59,6 +103,7 @@ class DocumentCard extends StatelessWidget {
               fontSize: 15,
             ),
           ),
+
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Column(
@@ -72,7 +117,8 @@ class DocumentCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                if (document.parsedText != null && document.parsedText!.isNotEmpty)
+                if (document.parsedText != null &&
+                    document.parsedText!.isNotEmpty)
                   highlightBuilder(
                     document.parsedText!,
                     searchQuery,
@@ -81,7 +127,9 @@ class DocumentCard extends StatelessWidget {
               ],
             ),
           ),
+
           onTap: onTap,
+
           onLongPress: selectionMode
               ? null
               : () {
@@ -90,34 +138,53 @@ class DocumentCard extends StatelessWidget {
                     builder: (_) => SafeArea(
                       child: Wrap(
                         children: [
+
+                          /// Rename
                           ListTile(
                             leading: const Icon(Icons.edit),
                             title: const Text("Rename"),
-                            onTap: () {
-                              Navigator.pop(context);
-                              onRename();
-                            },
+                            enabled: isOwner,
+                            onTap: isOwner
+                                ? () {
+                                    Navigator.pop(context);
+                                    onRename();
+                                  }
+                                : null,
                           ),
+
+                          /// Edit type
                           ListTile(
-                            leading: const Icon(Icons.category_outlined),
-                            title: const Text("Edit document type"),
+                            leading:
+                                const Icon(Icons.category_outlined),
+                            title:
+                                const Text("Edit document type"),
                             onTap: () {
                               Navigator.pop(context);
                               onEditType();
                             },
                           ),
+
+                          /// Delete
                           ListTile(
-                            leading: const Icon(Icons.delete, color: Colors.red),
+                            leading: const Icon(
+                              Icons.delete,
+                              color: Colors.red,
+                            ),
                             title: const Text(
                               "Delete",
                               style: TextStyle(color: Colors.red),
                             ),
-                            onTap: () {
-                              Navigator.pop(context);
-                              onDelete();
-                            },
+                            enabled: isOwner,
+                            onTap: isOwner
+                                ? () {
+                                    Navigator.pop(context);
+                                    onDelete();
+                                  }
+                                : null,
                           ),
+
                           const Divider(),
+
                           ListTile(
                             leading: const Icon(Icons.close),
                             title: const Text("Cancel"),

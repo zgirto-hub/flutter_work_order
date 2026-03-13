@@ -6,6 +6,9 @@ class DocumentModel {
   final String? filePath;
   final String? parsedText;
 
+  final bool isPrivate;
+  final String? uploadedBy;
+
   DocumentModel({
     required this.id,
     required this.title,
@@ -13,6 +16,8 @@ class DocumentModel {
     this.fileName,
     this.filePath,
     this.parsedText,
+    required this.isPrivate,
+    this.uploadedBy,
   });
 
   factory DocumentModel.fromJson(Map<String, dynamic> json) {
@@ -23,6 +28,10 @@ class DocumentModel {
       fileName: json['file_name'],
       filePath: json['file_path'],
       parsedText: json['parsed_text'],
+
+      /// new fields
+      isPrivate: json['is_private'] ?? false,
+      uploadedBy: json['uploaded_by'],
     );
   }
 }
