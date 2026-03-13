@@ -5,6 +5,7 @@ import '../../config.dart';
 import '../../services/download_helper.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DocumentDetailsScreen extends StatefulWidget {
   final DocumentModel document;
@@ -106,6 +107,9 @@ Future<void> loadSharedUsers() async {
 
   @override
   Widget build(BuildContext context) {
+    
+    print("DOC OWNER: ${widget.document.uploadedBy}");
+print("CURRENT USER: ${Supabase.instance.client.auth.currentUser?.email}");
     final filePath = widget.document.filePath;
     final fileName = filePath?.split('/').last;
     final fileUrl =
@@ -174,10 +178,28 @@ Future<void> loadSharedUsers() async {
   const SizedBox(height: 8),
 
   for (final user in sharedUsers)
-    Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text("• $user"),
+  Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+
+        Text("• $user"),
+
+        if (widget.document.uploadedBy ==
+            Supabase.instance.client.auth.currentUser?.email)
+
+          TextButton(
+            onPressed: () => removeAccess(user),
+            child: const Text(
+              "Remove",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+
+      ],
     ),
+  ),
 ],
             const SizedBox(height: 16),
             const Text(
@@ -201,4 +223,35 @@ Future<void> loadSharedUsers() async {
       ),
     );
   }
+  Future<void> removeAccess(String userEmail) async {
+
+  final owner =
+      Supabase.instance.client.auth.currentUser?.email ?? "";
+
+  final url =
+      "https://zorin.taila92fe8.ts.net/api/remove-share"
+      "?document_id=${widget.document.id}"
+      "&owner_email=$owner"
+      "&remove_user=$userEmail";
+
+  final response = await http.delete(Uri.parse(url));
+
+  if (response.statusCode == 200) {
+
+    setState(() {
+      sharedUsers.remove(userEmail);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Access removed")),
+    );
+
+  } else {
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Failed to remove access")),
+    );
+
+  }
+}
 }

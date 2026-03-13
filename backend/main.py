@@ -301,7 +301,7 @@ async def get_document_shares(doc_id: str):
         "users": users
     }
 
-    
+
 # --------------------
 # Revoke Share
 # --------------------
@@ -344,3 +344,23 @@ async def remove_share(
         .execute()
 
     return {"status": "access removed"}
+
+    # --------------------
+# List Users (No Duplicates)
+# --------------------
+
+@app.get("/api/users")
+async def list_users():
+
+    response = supabase.table("documents") \
+        .select("uploaded_by") \
+        .execute()
+
+    if not response.data:
+        return {"users": []}
+
+    users = list({row["uploaded_by"] for row in response.data if row["uploaded_by"]})
+
+    users.sort()
+
+    return {"users": users}
