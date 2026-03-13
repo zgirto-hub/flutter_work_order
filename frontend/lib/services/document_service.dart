@@ -11,15 +11,16 @@ Future<List<DocumentModel>> fetchDocuments() async {
   final user = _client.auth.currentUser;
   final email = user?.email ?? "";
 
-  /// Get shared document ids
-  final shared = await _client
-      .from('document_permissions')
-      .select('document_id')
-      .eq('user_email', email);
+final shared = await _client
+    .from('document_permissions')
+    .select('document_id,user_email');
 
-  final sharedIds = (shared as List)
-      .map((e) => e['document_id'])
-      .toList();
+final sharedIds = (shared as List)
+    .where((row) => row['user_email'] == email)
+    .map((row) => row['document_id'].toString())
+    .toList();
+
+print("SHARED IDS: $sharedIds");
 
   String filter;
 
@@ -36,9 +37,19 @@ Future<List<DocumentModel>> fetchDocuments() async {
       .or(filter)
       .order('created_at', ascending: false);
 
-  return (response as List)
+  final docs = (response as List)
       .map((doc) => DocumentModel.fromJson(doc))
       .toList();
+
+  /// Mark shared documents
+  final result = docs.map((doc) {
+    if (sharedIds.contains(doc.id)) {
+      return doc.copyWith(isShared: true);
+    }
+    return doc;
+  }).toList();
+
+  return result;
 }
 
   Future<void> insertDocument({

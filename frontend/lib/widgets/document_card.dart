@@ -52,42 +52,64 @@ class DocumentCard extends StatelessWidget {
 
           /// Document icon + indicators
           leading: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.description_outlined,
-                size: 24,
-                color: Colors.blueGrey,
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (document.isPrivate)
-                    const Tooltip(
-                      message: "Private document",
-                      child: Icon(
-                        Icons.lock,
-                        size: 14,
-                        color: Colors.orange,
-                      ),
-                    ),
-                  if (isOwner)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 3),
-                      child: Tooltip(
-                        message: "Owned by you",
-                        child: Icon(
-                          Icons.person,
-                          size: 14,
-                          color: Colors.green,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+
+    const Icon(
+      Icons.description_outlined,
+      size: 24,
+      color: Colors.blueGrey,
+    ),
+
+    const SizedBox(height: 4),
+
+    Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+
+        /// Private document
+        if (document.isPrivate)
+          const Tooltip(
+            message: "Private document",
+            child: Icon(
+              Icons.lock,
+              size: 14,
+              color: Colors.orange,
+            ),
           ),
+
+        /// Owner
+        if (isOwner)
+          const Padding(
+            padding: EdgeInsets.only(left: 3),
+            child: Tooltip(
+              message: "Owned by you",
+              child: Icon(
+                Icons.person,
+                size: 14,
+                color: Colors.green,
+              ),
+            ),
+          ),
+
+        /// Shared with you
+        if (document.isShared)
+          const Padding(
+            padding: EdgeInsets.only(left: 3),
+            child: Tooltip(
+              message: "Shared with you",
+              child: Icon(
+                Icons.handshake,
+                size: 14,
+                color: Colors.blue,
+              ),
+            ),
+          ),
+
+      ],
+    ),
+  ],
+),
 
           trailing: selectionMode
               ? Checkbox(
