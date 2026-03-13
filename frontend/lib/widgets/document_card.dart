@@ -138,6 +138,18 @@ class DocumentCard extends StatelessWidget {
                     color: Colors.grey,
                   ),
                 ),
+                if (document.isShared)
+  Padding(
+    padding: const EdgeInsets.only(top: 2),
+    child: Text(
+      "Shared by: ${document.uploadedBy ?? 'Unknown'}",
+      style: const TextStyle(
+        fontSize: 11,
+        color: Colors.blueGrey,
+        fontStyle: FontStyle.italic,
+      ),
+    ),
+  ),
                 const SizedBox(height: 6),
                 if (document.parsedText != null &&
                     document.parsedText!.isNotEmpty)

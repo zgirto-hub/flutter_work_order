@@ -279,3 +279,24 @@ async def share_document(
     }).execute()
 
     return {"status": "document shared"}
+
+# --------------------
+# List Shared Users
+# --------------------
+
+@app.get("/api/document-shares/{doc_id}")
+async def get_document_shares(doc_id: str):
+
+    response = supabase.table("document_permissions") \
+        .select("user_email") \
+        .eq("document_id", doc_id) \
+        .execute()
+
+    if not response.data:
+        return {"users": []}
+
+    users = [row["user_email"] for row in response.data]
+
+    return {
+        "users": users
+    }
