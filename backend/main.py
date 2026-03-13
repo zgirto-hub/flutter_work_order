@@ -300,3 +300,47 @@ async def get_document_shares(doc_id: str):
     return {
         "users": users
     }
+
+    
+# --------------------
+# Revoke Share
+# --------------------
+
+from fastapi import Query
+
+@app.delete("/api/remove-share")
+async def remove_share(
+    document_id: str = Query(...),
+    owner_email: str = Query(...),
+    remove_user: str = Query(...)
+):
+
+    print("REMOVE SHARE -> doc:", document_id)
+    print("OWNER:", owner_email)
+    print("REMOVE USER:", remove_user)
+
+    # Verify owner
+    response = supabase.table("documents") \
+        .select("uploaded_by") \
+        .eq("id", document_id) \
+        .execute()
+
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    owner = response.data[0]["uploaded_by"]
+
+    if owner != owner_email:
+        raise HTTPException(
+            status_code=403,
+            detail="Only owner can remove access"
+        )
+
+    # Remove permission
+    supabase.table("document_permissions") \
+        .delete() \
+        .eq("document_id", document_id) \
+        .eq("user_email", remove_user) \
+        .execute()
+
+    return {"status": "access removed"}

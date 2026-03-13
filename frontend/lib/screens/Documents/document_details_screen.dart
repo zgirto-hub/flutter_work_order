@@ -33,8 +33,11 @@ Future<void> loadSharedUsers() async {
 
   print("LOADING SHARES FOR: ${widget.document.id}");
 
-  final response = await http.get(
+ /* final response = await http.get(
     Uri.parse("${AppConfig.baseUrl}/document-shares/${widget.document.id}")
+  );*/
+    final response = await http.get(
+    Uri.parse("https://zorin.taila92fe8.ts.net/api/document-shares/${widget.document.id}")
   );
 
   print("SHARE RESPONSE: ${response.body}");
