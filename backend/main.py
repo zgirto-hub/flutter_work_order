@@ -1,6 +1,6 @@
 print("=== THIS MAIN.PY IS RUNNING v1.1 ===")
 
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from supabase import create_client, Client
@@ -175,7 +175,10 @@ async def upload_file(
 # Delete Endpoint
 # --------------------
 @app.delete("/api/delete/{doc_id}")
-async def delete_document(doc_id: str, user_email: str):
+async def delete_document(
+    doc_id: str,
+    user_email: str = Query(...)
+):
 
     print("DELETE DEBUG -> user_email:", user_email)
 
