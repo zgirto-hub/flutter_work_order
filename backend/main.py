@@ -1,4 +1,4 @@
-print("=== THIS MAIN.PY IS RUNNING v1.2 ===")
+print("=== THIS MAIN.PY IS RUNNING v1.3 ===")
 
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -170,7 +170,7 @@ async def upload_file(
     }
 # --------------------
 # Delete Endpoint
-# --------------------from fastapi import HTTPException, Query
+# --------------------
 
 @app.delete("/api/delete/{doc_id}")
 async def delete_document(
@@ -217,3 +217,65 @@ async def delete_document(
         .execute()
 
     return {"status": "deleted"}
+
+
+# --------------------
+# Share Endpoint
+# --------------------
+
+@app.post("/api/share-document")
+async def share_document(
+    document_id: str = Form(...),
+    owner_email: str = Form(...),
+    share_with: str = Form(...)
+):
+
+    print("SHARE DEBUG -> doc:", document_id)
+    print("SHARE DEBUG -> owner:", owner_email)
+    print("SHARE DEBUG -> share_with:", share_with)
+
+    # Check document owner
+    response = supabase.table("documents") \
+        .select("uploaded_by") \
+        .eq("id", document_id) \
+        .execute()
+
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    owner = response.data[0]["uploaded_by"]
+
+    # Only owner can share
+    if owner != owner_email:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the owner can share this document"
+        )
+
+    # Prevent sharing with yourself
+    if owner_email == share_with:
+        raise HTTPException(
+            status_code=400,
+            detail="You already own this document"
+        )
+
+    # Check if already shared
+    existing = supabase.table("document_permissions") \
+        .select("id") \
+        .eq("document_id", document_id) \
+        .eq("user_email", share_with) \
+        .execute()
+
+    if existing.data:
+        raise HTTPException(
+            status_code=400,
+            detail="Document already shared with this user"
+        )
+
+    # Insert permission
+    supabase.table("document_permissions").insert({
+        "document_id": document_id,
+        "user_email": share_with
+    }).execute()
+
+    return {"status": "document shared"}
