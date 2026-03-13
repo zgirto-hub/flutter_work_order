@@ -14,12 +14,12 @@ class AddDocumentScreen extends StatefulWidget {
 class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
   int _uploadIndex = 0;
-int _totalUploads = 0;
+  int _totalUploads = 0;
   List<PlatformFile> _selectedFiles = [];
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _typeController = TextEditingController();
-
+  bool isPrivate = false;
   bool _isLoading = false;
   PlatformFile? _selectedFile;
 
@@ -68,7 +68,7 @@ Future<void> _uploadMultipleFiles() async {
 
       request.fields['title'] = _extractTitleFromFilename(file.name);
       request.fields['document_type'] = _detectDocumentType(file.name);
-
+      request.fields['is_private'] = isPrivate.toString();
       final response = await request.send();
 
       if (response.statusCode != 200) {
@@ -181,6 +181,7 @@ Future<void> _pickMultipleFiles() async {
 
     request.fields['title'] = _titleController.text;
     request.fields['document_type'] = _typeController.text;
+    request.fields['is_private'] = isPrivate.toString();
 
     try {
       final response = await request.send();
@@ -272,7 +273,16 @@ Future<void> _pickMultipleFiles() async {
               ),
 
               const SizedBox(height: 20),
-
+SwitchListTile(
+  title: const Text("Private Document"),
+  subtitle: const Text("Only you can see this document"),
+  value: isPrivate,
+  onChanged: (value) {
+    setState(() {
+      isPrivate = value;
+    });
+  },
+),
               /// File selector card
               GestureDetector(
                 onTap: _pickFile,

@@ -7,31 +7,43 @@ class DocumentService {
   final SupabaseClient _client = Supabase.instance.client;
 
   Future<List<DocumentModel>> fetchDocuments() async {
-    final response = await _client
-        .from('documents')
-        .select()
-        .order('created_at', ascending: false);
 
-    return (response as List)
-        .map((doc) => DocumentModel.fromJson(doc))
-        .toList();
-  }
+  final user = _client.auth.currentUser;
+  final email = user?.email;
+
+  final response = await _client
+      .from('documents')
+      .select()
+      .or('is_private.eq.false,uploaded_by.eq.$email')
+      .order('created_at', ascending: false);
+
+  return (response as List)
+      .map((doc) => DocumentModel.fromJson(doc))
+      .toList();
+}
 
   Future<void> insertDocument({
-    required String title,
-    required String documentType,
-    String? parsedText,
-  }) async {
-    await _client.from('documents').insert({
-      'title': title,
-      'document_type': documentType,
-      'file_name': '',
-      'file_extension': '',
-      'mime_type': '',
-      'file_path': '',
-      'parsed_text': parsedText,
-    });
-  }
+  required String title,
+  required String documentType,
+  String? parsedText,
+  bool isPrivate = false,
+}) async {
+
+  final user = _client.auth.currentUser;
+  final email = user?.email;
+
+  await _client.from('documents').insert({
+    'title': title,
+    'document_type': documentType,
+    'file_name': '',
+    'file_extension': '',
+    'mime_type': '',
+    'file_path': '',
+    'parsed_text': parsedText,
+    'uploaded_by': email,
+    'is_private': isPrivate,
+  });
+}
 
   /// ✅ FIXED: supports positional search
 Future<List<DocumentModel>> searchDocuments(
