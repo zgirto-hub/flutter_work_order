@@ -9,7 +9,8 @@ import 'request_detail_screen.dart';
 
 class RequestsScreen extends StatefulWidget {
   final String userRole;
-  const RequestsScreen({super.key, required this.userRole});
+  final VoidCallback? onChanged;
+  const RequestsScreen({super.key, required this.userRole, this.onChanged});
 
   @override
   State<RequestsScreen> createState() => _RequestsScreenState();
@@ -41,6 +42,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
       _requests = data;
       _loading = false;
     });
+    widget.onChanged?.call();
   }
 
   List<RequestModel> get _filtered {

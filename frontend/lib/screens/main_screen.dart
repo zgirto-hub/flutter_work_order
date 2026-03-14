@@ -30,6 +30,7 @@ class _MainScreenState extends State<MainScreen> {
   int _index = 0;
   String _userRole = 'admin';
   bool _roleLoaded = false;
+  int _openRequestCount = 0;
 
   // Only prompt once per app session
   static bool _faceIdPromptShown = false;
@@ -56,6 +57,18 @@ class _MainScreenState extends State<MainScreen> {
       _index = 0;
       _roleLoaded = true;
     });
+    if (role != 'requester') _refreshRequestCount();
+  }
+
+  Future<void> _refreshRequestCount() async {
+    try {
+      final res = await http.get(Uri.parse('${AppConfig.baseUrl}/requests/count-open'));
+      if (!mounted) return;
+      if (res.statusCode == 200) {
+        final count = jsonDecode(res.body)['count'] as int? ?? 0;
+        setState(() => _openRequestCount = count);
+      }
+    } catch (_) {}
   }
 
   Future<void> _checkFaceIdPrompt() async {
@@ -125,30 +138,44 @@ class _MainScreenState extends State<MainScreen> {
 
     final isRequester = _userRole == 'requester';
 
+    final requestsTab = NavigationDestination(
+      icon: Badge(
+        isLabelVisible: !isRequester && _openRequestCount > 0,
+        label: Text('$_openRequestCount', style: const TextStyle(fontSize: 10)),
+        child: const Icon(Icons.inbox_outlined),
+      ),
+      selectedIcon: Badge(
+        isLabelVisible: !isRequester && _openRequestCount > 0,
+        label: Text('$_openRequestCount', style: const TextStyle(fontSize: 10)),
+        child: const Icon(Icons.inbox_rounded),
+      ),
+      label: 'Requests',
+    );
+
     final pages = isRequester
         ? [
-            RequestsScreen(userRole: _userRole),
+            RequestsScreen(userRole: _userRole, onChanged: _refreshRequestCount),
             SettingsPage(themeController: widget.themeController, userRole: _userRole),
           ]
         : [
             const WorkOrderHome(),
             const DocumentsScreen(),
             const WorkOrderReportScreen(),
-            RequestsScreen(userRole: _userRole),
+            RequestsScreen(userRole: _userRole, onChanged: _refreshRequestCount),
             SettingsPage(themeController: widget.themeController, userRole: _userRole),
           ];
 
     final destinations = isRequester
-        ? const [
-            NavigationDestination(icon: Icon(Icons.inbox_outlined), selectedIcon: Icon(Icons.inbox_rounded), label: 'Requests'),
-            NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Settings'),
+        ? [
+            requestsTab,
+            const NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Settings'),
           ]
-        : const [
-            NavigationDestination(icon: Icon(Icons.work_outline_rounded), selectedIcon: Icon(Icons.work_rounded), label: 'Orders'),
-            NavigationDestination(icon: Icon(Icons.description_outlined), selectedIcon: Icon(Icons.description_rounded), label: 'Documents'),
-            NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart_rounded), label: 'Reports'),
-            NavigationDestination(icon: Icon(Icons.inbox_outlined), selectedIcon: Icon(Icons.inbox_rounded), label: 'Requests'),
-            NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Settings'),
+        : [
+            const NavigationDestination(icon: Icon(Icons.work_outline_rounded), selectedIcon: Icon(Icons.work_rounded), label: 'Orders'),
+            const NavigationDestination(icon: Icon(Icons.description_outlined), selectedIcon: Icon(Icons.description_rounded), label: 'Documents'),
+            const NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart_rounded), label: 'Reports'),
+            requestsTab,
+            const NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Settings'),
           ];
 
     return Scaffold(

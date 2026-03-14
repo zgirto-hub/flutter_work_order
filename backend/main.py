@@ -1,4 +1,4 @@
-print("=== THIS MAIN.PY IS RUNNING v1.5 ===")
+print("=== THIS MAIN.PY IS RUNNING v1.6 ===")
 
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -369,6 +369,11 @@ async def get_user_role(email: str = Query(...)):
     if not result.data:
         return {"user_type": "admin"}
     return {"user_type": result.data[0]["user_type"]}
+
+@app.get("/api/requests/count-open")
+async def count_open_requests():
+    result = supabase.table("requests").select("id").eq("status", "Open").execute()
+    return {"count": len(result.data or [])}
 
 @app.get("/api/requests")
 async def get_requests(email: str = Query(...), user_role: str = Query(...)):
