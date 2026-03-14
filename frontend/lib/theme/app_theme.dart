@@ -36,17 +36,28 @@ class AppColors {
 }
 
 class AppTheme {
-  static ThemeData get light {
+  static TextTheme _buildTextTheme(String fontFamily) {
+    final base = switch (fontFamily) {
+      'Roboto'  => GoogleFonts.robotoTextTheme(),
+      'Poppins' => GoogleFonts.poppinsTextTheme(),
+      'Lato'    => GoogleFonts.latoTextTheme(),
+      'Nunito'  => GoogleFonts.nunitoTextTheme(),
+      _         => GoogleFonts.interTextTheme(),
+    };
+    return base;
+  }
+
+  static ThemeData light([Color accent = AppColors.accent, String fontFamily = 'Inter']) {
     return ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: AppColors.bgPrimary,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.accent,
+        seedColor: accent,
         brightness: Brightness.light,
         surface: AppColors.bgSurface,
         background: AppColors.bgPrimary,
       ),
-      textTheme: GoogleFonts.interTextTheme().copyWith(
+      textTheme: _buildTextTheme(fontFamily).copyWith(
         displayLarge: const TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.w600,
@@ -145,16 +156,16 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.bgSurface,
-        indicatorColor: AppColors.accentBg,
+        indicatorColor: accent.withValues(alpha: 0.12),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: AppColors.accent, size: 22);
+            return IconThemeData(color: accent, size: 22);
           }
           return const IconThemeData(color: AppColors.textTertiary, size: 22);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.accent);
+            return TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: accent);
           }
           return const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textTertiary);
         }),

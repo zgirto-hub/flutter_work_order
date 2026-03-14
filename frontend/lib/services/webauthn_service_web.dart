@@ -1,49 +1,35 @@
-// Web implementation — calls window.webauthnRegister / window.webauthnAuthenticate
-// from webauthn.js via dart:js
-
-// ignore_for_file: avoid_web_libraries_in_flutter
-import 'dart:js' as js;
+// Web implementation using dart:js_interop (Dart 3.x compatible)
+import 'dart:js_interop';
 import 'dart:async';
 
+@JS('webauthnIsSupported')
+external bool _webauthnIsSupported();
+
+@JS('webauthnIsPlatformSupported')
+external JSPromise<JSBoolean> _webauthnIsPlatformSupported();
+
+@JS('webauthnRegister')
+external JSPromise<JSString> _webauthnRegister(String optionsJson);
+
+@JS('webauthnAuthenticate')
+external JSPromise<JSString> _webauthnAuthenticate(String optionsJson);
+
 Future<bool> checkWebAuthnSupport() async {
-  final supported = js.context.callMethod('webauthnIsSupported', []);
-  if (supported != true) return false;
-
-  final completer = Completer<bool>();
-
-  js.context.callMethod('webauthnIsPlatformSupported', []).then((result) {
-    completer.complete(result == true);
-  }).catchError((_) {
-    completer.complete(false);
-  });
-
-  return completer.future;
+  if (!_webauthnIsSupported()) return false;
+  try {
+    final result = await _webauthnIsPlatformSupported().toDart;
+    return result.toDart;
+  } catch (_) {
+    return false;
+  }
 }
 
 Future<String> callWebAuthnRegister(String optionsJson) async {
-  final completer = Completer<String>();
-
-  final promise = js.context.callMethod('webauthnRegister', [optionsJson]);
-
-  promise.then((result) {
-    completer.complete(result.toString());
-  }).catchError((error) {
-    completer.completeError(Exception(error.toString()));
-  });
-
-  return completer.future;
+  final result = await _webauthnRegister(optionsJson).toDart;
+  return result.toDart;
 }
 
 Future<String> callWebAuthnAuthenticate(String optionsJson) async {
-  final completer = Completer<String>();
-
-  final promise = js.context.callMethod('webauthnAuthenticate', [optionsJson]);
-
-  promise.then((result) {
-    completer.complete(result.toString());
-  }).catchError((error) {
-    completer.completeError(Exception(error.toString()));
-  });
-
-  return completer.future;
+  final result = await _webauthnAuthenticate(optionsJson).toDart;
+  return result.toDart;
 }

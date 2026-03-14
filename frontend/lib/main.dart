@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
             title: 'Work Order',
-            theme: AppTheme.light,
+            theme: AppTheme.light(themeController.color, themeController.fontFamily),
             home: AuthWrapper(themeController: themeController),
           ),
         );

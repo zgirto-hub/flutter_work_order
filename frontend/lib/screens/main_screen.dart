@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../widgets/claude_widgets.dart';
 import '../widgets/change_password_dialog.dart';
 import '../screens/Work_Orders/work_order_home.dart';
@@ -307,6 +308,14 @@ class _SettingsPageState extends State<SettingsPage> {
                       labels: _fontLabels,
                       onChanged: (scale) => widget.themeController.setFontScale(scale),
                     ),
+
+                    const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+
+                    // Font type row
+                    _FontTypeRow(
+                      currentFamily: widget.themeController.fontFamily,
+                      onChanged: (family) => widget.themeController.setFontFamily(family),
+                    ),
                   ],
                 ),
               ),
@@ -384,6 +393,87 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─── Font Type Row ────────────────────────────────────────────────────────────
+
+class _FontTypeRow extends StatelessWidget {
+  final String currentFamily;
+  final ValueChanged<String> onChanged;
+
+  const _FontTypeRow({required this.currentFamily, required this.onChanged});
+
+  static TextStyle _previewStyle(String family) {
+    return switch (family) {
+      'Roboto'  => GoogleFonts.roboto(fontSize: 13, fontWeight: FontWeight.w500),
+      'Poppins' => GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500),
+      'Lato'    => GoogleFonts.lato(fontSize: 13, fontWeight: FontWeight.w500),
+      'Nunito'  => GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w500),
+      _         => GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(color: AppColors.bgSurface2, borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.font_download_outlined, size: 15, color: AppColors.textSecondary),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text('Font type', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: AppColors.accentBg, borderRadius: BorderRadius.circular(10)),
+                child: Text(
+                  currentFamily,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.accent),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: kAvailableFonts.map((family) {
+              final isSelected = currentFamily == family;
+              return GestureDetector(
+                onTap: () => onChanged(family),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.textPrimary : AppColors.bgSurface2,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(
+                      color: isSelected ? AppColors.textPrimary : AppColors.border2,
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Text(
+                    family,
+                    style: _previewStyle(family).copyWith(
+                      color: isSelected ? Colors.white : AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }

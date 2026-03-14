@@ -22,6 +22,7 @@ from webauthn.helpers.structs import (
     AuthenticatorSelectionCriteria,
     UserVerificationRequirement,
     ResidentKeyRequirement,
+    PublicKeyCredentialDescriptor,
 )
 from webauthn.helpers.cose import COSEAlgorithmIdentifier
 from pydantic import BaseModel
@@ -387,7 +388,8 @@ async def webauthn_register_complete(req: RegisterCompleteRequest):
         raise HTTPException(status_code=400, detail=f"Verification failed: {str(e)}")
 
     # Store credential in Supabase
-    credential_id = base64.b64encode(verification.credential_id).decode()
+    # credential_id stored as base64url (no padding) to match what browsers send back
+    credential_id = base64.urlsafe_b64encode(verification.credential_id).decode().rstrip('=')
     public_key = base64.b64encode(verification.credential_public_key).decode()
 
     # Remove any existing credential for this device (re-registration)
@@ -429,8 +431,12 @@ async def webauthn_auth_begin(req: AuthBeginRequest):
     challenge = secrets.token_bytes(32)
     _pending_challenges[f"auth:{email}"] = base64.b64encode(challenge).decode()
 
+    # Decode stored base64url IDs back to bytes for py-webauthn
     allow_credentials = [
-        {"type": "public-key", "id": row["credential_id"]}
+        PublicKeyCredentialDescriptor(
+            id=base64.urlsafe_b64decode(row["credential_id"] + '=='),
+            type="public-key",
+        )
         for row in result.data
     ]
 
