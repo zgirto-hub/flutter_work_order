@@ -320,6 +320,95 @@ async def list_users():
     return {"users": users}
 
 # ====================
+# REQUEST ENDPOINTS
+# ====================
+
+class CreateUserBody(BaseModel):
+    email: str
+    password: str
+    user_type: str  # 'tech' | 'requester'
+
+@app.post("/api/admin/create-user")
+async def admin_create_user(body: CreateUserBody):
+    role = body.user_type.strip().lower()
+    if role not in ("tech", "requester"):
+        raise HTTPException(status_code=400, detail="user_type must be 'tech' or 'requester'")
+    email = body.email.strip().lower()
+    try:
+        supabase.auth.admin.create_user({
+            "email": email,
+            "password": body.password,
+            "email_confirm": True,
+        })
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    # Upsert role in user_profiles
+    supabase.table("user_profiles").upsert({
+        "email": email,
+        "user_type": role,
+    }).execute()
+    return {"status": "created"}
+
+class CreateRequestBody(BaseModel):
+    title: str
+    description: Optional[str] = None
+    created_by: str
+    requester_name: str
+    location: Optional[str] = None
+
+class CloseRequestBody(BaseModel):
+    closed_by: str
+    tech_notes: Optional[str] = None
+
+@app.get("/api/user-role")
+async def get_user_role(email: str = Query(...)):
+    result = supabase.table("user_profiles") \
+        .select("user_type") \
+        .eq("email", email.strip().lower()) \
+        .execute()
+    if not result.data:
+        return {"user_type": "admin"}
+    return {"user_type": result.data[0]["user_type"]}
+
+@app.get("/api/requests")
+async def get_requests(email: str = Query(...), user_role: str = Query(...)):
+    query = supabase.table("requests").select("*")
+    if user_role == "requester":
+        query = query.eq("created_by", email)
+    result = query.order("created_at", desc=True).execute()
+    return {"requests": result.data or []}
+
+@app.post("/api/requests")
+async def create_request(body: CreateRequestBody):
+    supabase.table("requests").insert({
+        "title": body.title,
+        "description": body.description,
+        "created_by": body.created_by,
+        "requester_name": body.requester_name,
+        "location": body.location,
+        "status": "Open",
+    }).execute()
+    return {"status": "created"}
+
+@app.patch("/api/requests/{request_id}/close")
+async def close_request(request_id: str, body: CloseRequestBody):
+    result = supabase.table("requests") \
+        .select("status") \
+        .eq("id", request_id) \
+        .execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if result.data[0]["status"] == "Closed":
+        raise HTTPException(status_code=400, detail="Request already closed")
+    supabase.table("requests").update({
+        "status": "Closed",
+        "closed_by": body.closed_by,
+        "closed_at": datetime.utcnow().isoformat(),
+        "tech_notes": body.tech_notes,
+    }).eq("id", request_id).execute()
+    return {"status": "closed"}
+
+# ====================
 # WEBAUTHN ENDPOINTS
 # ====================
 

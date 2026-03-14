@@ -13,8 +13,10 @@ import '../widgets/change_password_dialog.dart';
 import '../screens/Work_Orders/work_order_home.dart';
 import '../screens/Documents/documents_screen.dart';
 import '../screens/reports/workorder_report_screen.dart';
+import '../screens/Requests/requests_screen.dart';
 import '../config.dart';
 import '../services/webauthn_service.dart';
+import '../services/request_service.dart';
 
 class MainScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -26,6 +28,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _index = 0;
+  String _userRole = 'admin';
 
   // Only prompt once per app session
   static bool _faceIdPromptShown = false;
@@ -33,9 +36,21 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    _loadUserRole();
     if (kIsWeb && !_faceIdPromptShown) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _checkFaceIdPrompt());
     }
+  }
+
+  Future<void> _loadUserRole() async {
+    final email = Supabase.instance.client.auth.currentUser?.email;
+    if (email == null) return;
+    final role = await RequestService().getUserRole(email);
+    if (!mounted) return;
+    setState(() {
+      _userRole = role;
+      _index = 0;
+    });
   }
 
   Future<void> _checkFaceIdPrompt() async {
@@ -91,12 +106,33 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      const WorkOrderHome(),
-      const DocumentsScreen(),
-      const WorkOrderReportScreen(),
-      SettingsPage(themeController: widget.themeController),
-    ];
+    final isRequester = _userRole == 'requester';
+
+    final pages = isRequester
+        ? [
+            RequestsScreen(userRole: _userRole),
+            SettingsPage(themeController: widget.themeController, userRole: _userRole),
+          ]
+        : [
+            const WorkOrderHome(),
+            const DocumentsScreen(),
+            const WorkOrderReportScreen(),
+            RequestsScreen(userRole: _userRole),
+            SettingsPage(themeController: widget.themeController, userRole: _userRole),
+          ];
+
+    final destinations = isRequester
+        ? const [
+            NavigationDestination(icon: Icon(Icons.inbox_outlined), selectedIcon: Icon(Icons.inbox_rounded), label: 'Requests'),
+            NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Settings'),
+          ]
+        : const [
+            NavigationDestination(icon: Icon(Icons.work_outline_rounded), selectedIcon: Icon(Icons.work_rounded), label: 'Orders'),
+            NavigationDestination(icon: Icon(Icons.description_outlined), selectedIcon: Icon(Icons.description_rounded), label: 'Documents'),
+            NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart_rounded), label: 'Reports'),
+            NavigationDestination(icon: Icon(Icons.inbox_outlined), selectedIcon: Icon(Icons.inbox_rounded), label: 'Requests'),
+            NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Settings'),
+          ];
 
     return Scaffold(
       body: IndexedStack(index: _index, children: pages),
@@ -113,12 +149,7 @@ class _MainScreenState extends State<MainScreen> {
           shadowColor: Colors.transparent,
           height: 60,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.work_outline_rounded), selectedIcon: Icon(Icons.work_rounded), label: 'Orders'),
-            NavigationDestination(icon: Icon(Icons.description_outlined), selectedIcon: Icon(Icons.description_rounded), label: 'Documents'),
-            NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart_rounded), label: 'Reports'),
-            NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Settings'),
-          ],
+          destinations: destinations,
         ),
       ),
     );
@@ -127,7 +158,8 @@ class _MainScreenState extends State<MainScreen> {
 
 class SettingsPage extends StatefulWidget {
   final ThemeController themeController;
-  const SettingsPage({super.key, required this.themeController});
+  final String userRole;
+  const SettingsPage({super.key, required this.themeController, this.userRole = 'admin'});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -183,6 +215,178 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _applyUpdate() {
     if (kIsWeb) web.window.location.reload();
+  }
+
+  Future<void> _showCreateAccountDialog(BuildContext context) async {
+    final emailCtrl = TextEditingController();
+    final passCtrl = TextEditingController();
+    String selectedRole = 'requester';
+    bool loading = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: !loading,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          backgroundColor: AppColors.bgSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          title: const Text('Create Account',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Email
+              const Text('Email',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
+              const SizedBox(height: 4),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.bgSurface2,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border, width: 0.5),
+                ),
+                child: TextField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                  decoration: const InputDecoration(
+                    hintText: 'user@company.com',
+                    hintStyle: TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Password
+              const Text('Password',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
+              const SizedBox(height: 4),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.bgSurface2,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border, width: 0.5),
+                ),
+                child: TextField(
+                  controller: passCtrl,
+                  obscureText: true,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                  decoration: const InputDecoration(
+                    hintText: '••••••••',
+                    hintStyle: TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Role selector
+              const Text('Role',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
+              const SizedBox(height: 6),
+              Row(
+                children: ['requester', 'tech'].map((role) {
+                  final isSel = selectedRole == role;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => setDlg(() => selectedRole = role),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        margin: EdgeInsets.only(right: role == 'requester' ? 6 : 0),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isSel ? AppColors.textPrimary : AppColors.bgSurface2,
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(
+                            color: isSel ? AppColors.textPrimary : AppColors.border2,
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            role == 'requester' ? 'Requester' : 'Tech',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isSel ? Colors.white : AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: loading ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: loading
+                  ? null
+                  : () async {
+                      final email = emailCtrl.text.trim();
+                      final password = passCtrl.text;
+                      if (email.isEmpty || password.isEmpty) return;
+                      setDlg(() => loading = true);
+                      try {
+                        final res = await http.post(
+                          Uri.parse('${AppConfig.baseUrl}/admin/create-user'),
+                          headers: {'Content-Type': 'application/json'},
+                          body: jsonEncode({
+                            'email': email,
+                            'password': password,
+                            'user_type': selectedRole,
+                          }),
+                        );
+                        if (!ctx.mounted) return;
+                        if (res.statusCode == 200) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('Account created for $email'),
+                            backgroundColor: AppColors.closedText,
+                            behavior: SnackBarBehavior.floating,
+                          ));
+                        } else {
+                          final body = jsonDecode(res.body);
+                          setDlg(() => loading = false);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(body['detail'] ?? 'Failed to create account'),
+                            backgroundColor: AppColors.dangerText,
+                            behavior: SnackBarBehavior.floating,
+                          ));
+                        }
+                      } catch (e) {
+                        setDlg(() => loading = false);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('Error: $e'),
+                          backgroundColor: AppColors.dangerText,
+                          behavior: SnackBarBehavior.floating,
+                        ));
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.textPrimary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: loading
+                  ? const SizedBox(
+                      width: 14, height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white),
+                    )
+                  : const Text('Create', style: TextStyle(fontSize: 13)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _signOut() async {
@@ -321,6 +525,22 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
 
               const SizedBox(height: 12),
+
+              // User Management (admin only)
+              if (widget.userRole == 'admin') ...[
+                SectionLabel(text: 'User Management'),
+                SurfaceCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: SettingsRow(
+                    icon: Icons.person_add_outlined,
+                    label: 'Create account',
+                    subtitle: 'Add a tech or requester user',
+                    showDivider: false,
+                    onTap: () => _showCreateAccountDialog(context),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
 
               // Application
               SectionLabel(text: 'Application'),
