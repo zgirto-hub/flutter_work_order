@@ -1,4 +1,4 @@
-print("=== THIS MAIN.PY IS RUNNING v1.8 ===")
+print("=== THIS MAIN.PY IS RUNNING v1.9 ===")
 
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -577,6 +577,15 @@ async def webauthn_auth_complete(req: AuthCompleteRequest):
 
     # Get stored credential
     cred_id = req.credential.get("id", "").rstrip("=")
+
+    # Debug: log what we're looking for vs what's in DB
+    all_creds = supabase.table("webauthn_credentials") \
+        .select("credential_id") \
+        .eq("user_email", email) \
+        .execute()
+    print(f"[AUTH-COMPLETE] email={email}")
+    print(f"[AUTH-COMPLETE] incoming cred_id={repr(cred_id)}")
+    print(f"[AUTH-COMPLETE] stored creds={[r['credential_id'] for r in all_creds.data]}")
 
     result = supabase.table("webauthn_credentials") \
         .select("*") \
