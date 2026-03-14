@@ -1,4 +1,4 @@
-print("=== THIS MAIN.PY IS RUNNING v1.9 ===")
+print("=== THIS MAIN.PY IS RUNNING v1.9.1 ===")
 
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -575,25 +575,20 @@ async def webauthn_auth_complete(req: AuthCompleteRequest):
 
     expected_challenge = base64.b64decode(stored)
 
-    # Get stored credential
-    cred_id = req.credential.get("id", "").rstrip("=")
+    # Get stored credential — normalize padding on both sides before comparing
+    cred_id_normalized = req.credential.get("id", "").rstrip("=")
 
-    # Debug: log what we're looking for vs what's in DB
     all_creds = supabase.table("webauthn_credentials") \
-        .select("credential_id") \
-        .eq("user_email", email) \
-        .execute()
-    print(f"[AUTH-COMPLETE] email={email}")
-    print(f"[AUTH-COMPLETE] incoming cred_id={repr(cred_id)}")
-    print(f"[AUTH-COMPLETE] stored creds={[r['credential_id'] for r in all_creds.data]}")
-
-    result = supabase.table("webauthn_credentials") \
         .select("*") \
         .eq("user_email", email) \
-        .eq("credential_id", cred_id) \
         .execute()
 
-    if not result.data:
+    stored_cred = next(
+        (r for r in all_creds.data if r["credential_id"].rstrip("=") == cred_id_normalized),
+        None,
+    )
+
+    if not stored_cred:
         raise HTTPException(status_code=404, detail="Credential not found")
 
     stored_cred = result.data[0]
