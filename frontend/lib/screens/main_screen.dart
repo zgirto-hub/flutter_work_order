@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:web/web.dart' as web;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
@@ -30,7 +31,7 @@ class _MainScreenState extends State<MainScreen> {
   String _userRole = 'admin';
   bool _roleLoaded = false;
   int _openRequestCount = 0;
-  RealtimeChannel? _realtimeChannel;
+  Timer? _pollTimer;
 
   @override
   void initState() {
@@ -40,7 +41,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   void dispose() {
-    _realtimeChannel?.unsubscribe();
+    _pollTimer?.cancel();
     super.dispose();
   }
 
@@ -59,7 +60,7 @@ class _MainScreenState extends State<MainScreen> {
     });
     if (role != 'requester') {
       _refreshRequestCount();
-      _subscribeToRequests();
+      _startPolling();
     }
   }
 
@@ -74,47 +75,25 @@ class _MainScreenState extends State<MainScreen> {
     } catch (_) {}
   }
 
-  void _subscribeToRequests() {
-    _realtimeChannel = Supabase.instance.client
-        .channel('public:requests')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'requests',
-          callback: (payload) {
-            if (!mounted) return;
-            final data = payload.newRecord;
-            final title = data['title'] as String? ?? 'New request';
-            final requester = data['requester_name'] as String? ?? '';
-            setState(() => _openRequestCount++);
+  void _startPolling() {
+    _pollTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
+      try {
+        final res = await http.get(Uri.parse('${AppConfig.baseUrl}/requests/count-open'));
+        if (!mounted) return;
+        if (res.statusCode == 200) {
+          final newCount = jsonDecode(res.body)['count'] as int? ?? 0;
+          if (newCount > _openRequestCount) {
+            final diff = newCount - _openRequestCount;
+            setState(() => _openRequestCount = newCount);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Row(
                   children: [
                     const Icon(Icons.inbox_rounded, color: Colors.white, size: 18),
                     const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'New Request',
-                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.white),
-                          ),
-                          Text(
-                            title,
-                            style: const TextStyle(fontSize: 12, color: Colors.white),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (requester.isNotEmpty)
-                            Text(
-                              'by $requester',
-                              style: const TextStyle(fontSize: 11, color: Colors.white70),
-                            ),
-                        ],
-                      ),
+                    Text(
+                      '$diff new request${diff > 1 ? 's' : ''} received',
+                      style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -124,9 +103,12 @@ class _MainScreenState extends State<MainScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             );
-          },
-        )
-        .subscribe();
+          } else {
+            setState(() => _openRequestCount = newCount);
+          }
+        }
+      } catch (_) {}
+    });
   }
 
   @override
