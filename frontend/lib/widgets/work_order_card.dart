@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/work_order.dart';
+import '../theme/app_theme.dart';
+import 'claude_widgets.dart';
 
 class WorkOrderCard extends StatelessWidget {
   final WorkOrder workOrder;
@@ -15,183 +17,226 @@ class WorkOrderCard extends StatelessWidget {
     required this.onEdit,
   });
 
-  Color statusColor(String status) {
-    switch (status) {
-      case "Pending":
-        return Colors.orange;
-      case "In Progress":
-        return Colors.blue;
-      case "Closed":
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final color = statusColor(workOrder.status);
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 10,
-            color: Colors.black.withOpacity(0.04),
-          )
-        ],
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: AppColors.bgSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: expanded ? AppColors.border2 : AppColors.border,
+            width: 0.5,
+          ),
+        ),
         child: Column(
           children: [
 
-            /// MAIN ROW
+            // ── Main Row ─────────────────────────────────────
             Padding(
               padding: const EdgeInsets.all(14),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  /// STATUS COLOR BAR
-                  Container(
-                    width: 6,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
+                  // Left accent dot
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3, right: 12),
+                    child: _StatusDot(status: workOrder.status),
                   ),
 
-                  const SizedBox(width: 12),
-
-                  /// CONTENT
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
 
-                        /// JOB NUMBER + STATUS
+                        // Top row: job no + badge
                         Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: color.withOpacity(.12),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                workOrder.jobNo,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: color,
-                                ),
+                            Text(
+                              workOrder.jobNo,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textTertiary,
+                                letterSpacing: 0.03,
                               ),
                             ),
+                            const Spacer(),
+                            StatusBadge(status: workOrder.status),
+                          ],
+                        ),
 
-                            const SizedBox(width: 8),
+                        const SizedBox(height: 5),
 
-                            Text(
-                              workOrder.status,
-                              style: TextStyle(
-                                color: color,
-                                fontWeight: FontWeight.w500,
+                        // Title
+                        Text(
+                          workOrder.Title,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary,
+                            height: 1.4,
+                          ),
+                        ),
+
+                        const SizedBox(height: 5),
+
+                        // Meta: location
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined, size: 12, color: AppColors.textTertiary),
+                            const SizedBox(width: 3),
+                            Expanded(
+                              child: Text(
+                                workOrder.location,
+                                style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
                         ),
 
-                        const SizedBox(height: 6),
-
-                        /// TITLE
-                        Text(
-                          workOrder.Title,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
+                        // Employees
+                        if (workOrder.assignedEmployees.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              ...workOrder.assignedEmployees.take(3).map(
+                                (emp) => Padding(
+                                  padding: const EdgeInsets.only(right: 4),
+                                  child: InitialsAvatar(name: emp.fullName, size: 22),
+                                ),
+                              ),
+                              if (workOrder.assignedEmployees.length > 3) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  '+${workOrder.assignedEmployees.length - 3}',
+                                  style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                                ),
+                              ],
+                            ],
                           ),
-                        ),
-
-                        const SizedBox(height: 4),
-
-                        /// DESCRIPTION
-                        Text(
-                          workOrder.description ?? "",
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
 
-                  /// EXPAND ICON
-                  Icon(
-                    expanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    color: Colors.grey,
-                  )
+                  // Expand icon
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2, left: 8),
+                    child: Icon(
+                      expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
                 ],
               ),
             ),
 
-            /// EXPANDED SECTION
-            if (expanded)
+            // ── Expanded Section ──────────────────────────────
+            if (expanded) ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(14),
-                  ),
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                decoration: const BoxDecoration(
+                  color: AppColors.bgSurface2,
+                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
 
-                    /// EMPLOYEES
-                    if (workOrder.assignedEmployees.isNotEmpty)
+                    if (workOrder.description.isNotEmpty) ...[
+                      Text(
+                        workOrder.description,
+                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.5),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+
+                    if (workOrder.assignedEmployees.isNotEmpty) ...[
                       Wrap(
                         spacing: 6,
+                        runSpacing: 6,
                         children: workOrder.assignedEmployees.map((emp) {
-                          return Chip(
-                            label: Text(emp.fullName),
-                            avatar: const CircleAvatar(
-                              radius: 10,
-                              child: Icon(Icons.person, size: 12),
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSurface,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppColors.border2, width: 0.5),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                InitialsAvatar(name: emp.fullName, size: 18),
+                                const SizedBox(width: 6),
+                                Text(emp.fullName, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+                              ],
                             ),
                           );
                         }).toList(),
                       ),
+                      const SizedBox(height: 10),
+                    ],
 
-                    const SizedBox(height: 10),
-
-                    /// ACTION BUTTON
                     Align(
                       alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: onEdit,
-                        icon: const Icon(Icons.edit),
-                        label: const Text("Edit"),
+                      child: GestureDetector(
+                        onTap: onEdit,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: AppColors.bgSurface,
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(color: AppColors.border2, width: 0.5),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.edit_outlined, size: 13, color: AppColors.textSecondary),
+                              SizedBox(width: 5),
+                              Text('Edit', style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        ),
                       ),
-                    )
+                    ),
                   ],
                 ),
-              )
+              ),
+            ],
           ],
         ),
       ),
+    );
+  }
+}
+
+class _StatusDot extends StatelessWidget {
+  final String status;
+  const _StatusDot({required this.status});
+
+  Color get _color {
+    switch (status.toLowerCase()) {
+      case 'pending': return AppColors.pendingText;
+      case 'in progress': return AppColors.inProgressText;
+      case 'closed': return AppColors.closedText;
+      default: return AppColors.textTertiary;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 7,
+      height: 7,
+      decoration: BoxDecoration(color: _color, shape: BoxShape.circle),
     );
   }
 }
