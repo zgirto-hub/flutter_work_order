@@ -398,7 +398,7 @@ async def create_request(body: CreateRequestBody):
 @app.delete("/api/requests/{request_id}")
 async def delete_request(request_id: str, email: str = Query(...)):
     result = supabase.table("requests") \
-        .select("created_by, status") \
+        .select("created_by") \
         .eq("id", request_id) \
         .execute()
     if not result.data:
@@ -406,8 +406,6 @@ async def delete_request(request_id: str, email: str = Query(...)):
     row = result.data[0]
     if row["created_by"] != email:
         raise HTTPException(status_code=403, detail="Not allowed to delete this request")
-    if row["status"] != "Open":
-        raise HTTPException(status_code=400, detail="Only Open requests can be deleted")
     supabase.table("requests").delete().eq("id", request_id).execute()
     return {"status": "deleted"}
 

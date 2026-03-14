@@ -150,8 +150,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
                                 const SizedBox(height: 8),
                             itemBuilder: (_, i) {
                               final req = _filtered[i];
-                              final canDelete = widget.userRole == 'requester' &&
-                                  req.status == 'Open';
+                              final canDelete = widget.userRole == 'requester';
                               if (!canDelete) {
                                 return _RequestCard(
                                   request: req,
@@ -247,7 +246,6 @@ class _RequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOpen = request.status == 'Open';
     return GestureDetector(
       onTap: onTap,
       child: Container(
