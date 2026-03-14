@@ -1,4 +1,4 @@
-print("=== THIS MAIN.PY IS RUNNING v1.6 ===")
+print("=== THIS MAIN.PY IS RUNNING v1.7 ===")
 
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -545,7 +545,6 @@ async def webauthn_auth_begin(req: AuthBeginRequest):
     allow_credentials = [
         PublicKeyCredentialDescriptor(
             id=base64.urlsafe_b64decode(row["credential_id"] + '=='),
-            type="public-key",
         )
         for row in result.data
     ]
