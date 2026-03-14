@@ -148,11 +148,82 @@ class _RequestsScreenState extends State<RequestsScreen> {
                             itemCount: _filtered.length,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 8),
-                            itemBuilder: (_, i) =>
-                                _RequestCard(
-                                  request: _filtered[i],
-                                  onTap: () => _openDetail(_filtered[i]),
+                            itemBuilder: (_, i) {
+                              final req = _filtered[i];
+                              final canDelete = widget.userRole == 'requester' &&
+                                  req.status == 'Open';
+                              if (!canDelete) {
+                                return _RequestCard(
+                                  request: req,
+                                  onTap: () => _openDetail(req),
+                                );
+                              }
+                              return Dismissible(
+                                key: ValueKey(req.id),
+                                direction: DismissDirection.endToStart,
+                                background: Container(
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.only(right: 20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade700,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.white,
+                                    size: 26,
+                                  ),
                                 ),
+                                confirmDismiss: (_) async {
+                                  return await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      backgroundColor: AppColors.bgSurface,
+                                      title: const Text(
+                                        'Delete Request',
+                                        style: TextStyle(color: AppColors.textPrimary),
+                                      ),
+                                      content: const Text(
+                                        'Are you sure you want to delete this request?',
+                                        style: TextStyle(color: AppColors.textSecondary),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(ctx, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(ctx, true),
+                                          child: Text(
+                                            'Delete',
+                                            style: TextStyle(color: Colors.red.shade400),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ) ?? false;
+                                },
+                                onDismissed: (_) async {
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  try {
+                                    await _service.deleteRequest(
+                                      id: req.id,
+                                      email: _email,
+                                    );
+                                    await _load();
+                                  } catch (e) {
+                                    messenger.showSnackBar(
+                                      SnackBar(content: Text('Failed to delete: $e')),
+                                    );
+                                    if (mounted) await _load();
+                                  }
+                                },
+                                child: _RequestCard(
+                                  request: req,
+                                  onTap: () => _openDetail(req),
+                                ),
+                              );
+                            },
                           ),
                         ),
             ),
