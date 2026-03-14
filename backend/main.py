@@ -1,4 +1,4 @@
-print("=== THIS MAIN.PY IS RUNNING v1.9.1 ===")
+print("=== THIS MAIN.PY IS RUNNING v1.9.2 ===")
 
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -591,7 +591,6 @@ async def webauthn_auth_complete(req: AuthCompleteRequest):
     if not stored_cred:
         raise HTTPException(status_code=404, detail="Credential not found")
 
-    stored_cred = result.data[0]
     public_key = base64.b64decode(stored_cred["public_key"])
     sign_count = stored_cred["sign_count"]
 
