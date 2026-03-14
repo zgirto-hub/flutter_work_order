@@ -24,11 +24,124 @@ class DocumentDetailsScreen extends StatefulWidget {
 class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
   
 List<String> sharedUsers = [];
-
+List<String> users = [];
 @override
 void initState() {
   super.initState();
   loadSharedUsers();
+  loadUsers();
+}
+void showShareDialog() {
+
+  String? selectedUser;
+
+  final availableUsers =
+      users.where((user) => !sharedUsers.contains(user)).toList();
+
+  showDialog(
+    context: context,
+    builder: (context) {
+
+      return AlertDialog(
+        title: const Text("Share Document"),
+
+        content: StatefulBuilder(
+          builder: (context, setStateDialog) {
+
+            return SizedBox(
+              width: double.maxFinite,
+              child: ListView(
+                shrinkWrap: true,
+                children: availableUsers.map((user) {
+
+                  return RadioListTile<String>(
+                    title: Text(user),
+                    value: user,
+                    groupValue: selectedUser,
+                    onChanged: (value) {
+                      setStateDialog(() {
+                        selectedUser = value;
+                      });
+                    },
+                  );
+
+                }).toList(),
+              ),
+            );
+          },
+        ),
+
+        actions: [
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+          ElevatedButton(
+            onPressed: selectedUser == null
+                ? null
+                : () {
+                    Navigator.pop(context);
+                    shareDocument(selectedUser!);
+                  },
+            child: const Text("Share"),
+          ),
+
+        ],
+      );
+    },
+  );
+}
+Future<void> shareDocument(String email) async {
+
+  final owner =
+      Supabase.instance.client.auth.currentUser?.email ?? "";
+
+  final request = http.MultipartRequest(
+    'POST',
+    Uri.parse("https://zorin.taila92fe8.ts.net/api/share-document"),
+  );
+
+  request.fields['document_id'] = widget.document.id;
+  request.fields['owner_email'] = owner;
+  request.fields['share_with'] = email;
+
+  final response = await request.send();
+
+  if (response.statusCode == 200) {
+
+    setState(() {
+      sharedUsers.add(email);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Document shared")),
+    );
+
+  } else {
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Failed to share document")),
+    );
+
+  }
+}
+Future<void> loadUsers() async {
+
+  final response = await http.get(
+    Uri.parse("https://zorin.taila92fe8.ts.net/api/users"),
+  );
+
+  if (response.statusCode == 200) {
+
+    final data = json.decode(response.body);
+
+    setState(() {
+      users = List<String>.from(data["users"]);
+    });
+
+  }
 }
 Future<void> loadSharedUsers() async {
 
@@ -107,7 +220,7 @@ Future<void> loadSharedUsers() async {
 
   @override
   Widget build(BuildContext context) {
-    
+
     print("DOC OWNER: ${widget.document.uploadedBy}");
 print("CURRENT USER: ${Supabase.instance.client.auth.currentUser?.email}");
     final filePath = widget.document.filePath;
@@ -166,41 +279,51 @@ print("CURRENT USER: ${Supabase.instance.client.auth.currentUser?.email}");
               ),
             const SizedBox(height: 16),
             const Divider(),
-            if (sharedUsers.isNotEmpty) ...[
-  const SizedBox(height: 20),
+    /// Shared users section
+if (sharedUsers.isNotEmpty) ...[
   const Text(
     "Shared with:",
-    style: TextStyle(
-      fontWeight: FontWeight.bold,
-      fontSize: 16,
-    ),
+    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
   ),
   const SizedBox(height: 8),
 
   for (final user in sharedUsers)
-  Padding(
-    padding: const EdgeInsets.only(bottom: 6),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
+    Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
 
-        Text("• $user"),
+          Text("• $user"),
 
-        if (widget.document.uploadedBy ==
-            Supabase.instance.client.auth.currentUser?.email)
-
-          TextButton(
-            onPressed: () => removeAccess(user),
-            child: const Text(
-              "Remove",
-              style: TextStyle(color: Colors.red),
+          if (widget.document.uploadedBy ==
+              Supabase.instance.client.auth.currentUser?.email)
+            TextButton(
+              onPressed: () => removeAccess(user),
+              child: const Text(
+                "Remove",
+                style: TextStyle(color: Colors.red),
+              ),
             ),
-          ),
-
-      ],
+        ],
+      ),
     ),
-  ),
+        
 ],
+
+/// Share button (always visible for owner)
+const SizedBox(height: 12),
+
+if (widget.document.uploadedBy ==
+    Supabase.instance.client.auth.currentUser?.email)
+
+  ElevatedButton.icon(
+    onPressed: showShareDialog,
+    icon: const Icon(Icons.person_add),
+    label: const Text("Share with user"),
+  ),
+
+
             const SizedBox(height: 16),
             const Text(
               "Document Content",
@@ -223,6 +346,7 @@ print("CURRENT USER: ${Supabase.instance.client.auth.currentUser?.email}");
       ),
     );
   }
+
   Future<void> removeAccess(String userEmail) async {
 
   final owner =
