@@ -8,23 +8,12 @@ import os
 import json
 import uuid
 import unicodedata
-import base64
-import secrets
 from datetime import datetime, timedelta
 from PyPDF2 import PdfReader
 from docx import Document
 import pytesseract
 from pdf2image import convert_from_path
 
-# WebAuthn
-import webauthn
-from webauthn.helpers.structs import (
-    AuthenticatorSelectionCriteria,
-    UserVerificationRequirement,
-    ResidentKeyRequirement,
-    PublicKeyCredentialDescriptor,
-)
-from webauthn.helpers.cose import COSEAlgorithmIdentifier
 from pydantic import BaseModel
 from typing import Optional
 
@@ -35,17 +24,6 @@ SUPABASE_URL = "https://rydrqsjofoulwdtwfbgv.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5ZHJxc2pvZm91bHdkdHdmYmd2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjE0MTg5MiwiZXhwIjoyMDg3NzE3ODkyfQ.HvebR7mHIz2Dp4HRiLf6nVrzbqgeIX5XLc3NuVexwII"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# --------------------
-# WebAuthn Config
-# --------------------
-RP_ID = "zorin.taila92fe8.ts.net"
-RP_NAME = "Work Order App"
-ORIGIN = "https://zorin.taila92fe8.ts.net"
-
-# In-memory challenge store (keyed by email)
-# In production you'd use Redis, but this works fine for single-server setup
-_pending_challenges: dict[str, str] = {}
 
 # --------------------
 # FastAPI Setup
@@ -68,21 +46,6 @@ app.add_middleware(
 # --------------------
 # Pydantic Models
 # --------------------
-
-class RegisterBeginRequest(BaseModel):
-    email: str
-
-class RegisterCompleteRequest(BaseModel):
-    email: str
-    credential: dict
-    device_name: Optional[str] = None
-
-class AuthBeginRequest(BaseModel):
-    email: str
-
-class AuthCompleteRequest(BaseModel):
-    email: str
-    credential: dict
 
 # --------------------
 # Check for Update
@@ -427,237 +390,3 @@ async def close_request(request_id: str, body: CloseRequestBody):
     }).eq("id", request_id).execute()
     return {"status": "closed"}
 
-# ====================
-# WEBAUTHN ENDPOINTS
-# ====================
-
-# --------------------
-# Register: Begin
-# Returns options for the browser to create a credential
-# --------------------
-
-@app.post("/api/webauthn/register-begin")
-async def webauthn_register_begin(req: RegisterBeginRequest):
-    email = req.email.strip().lower()
-
-    # Check user exists in Supabase auth
-    # (they must be logged in via password first before registering Face ID)
-
-    # Generate a challenge
-    challenge = secrets.token_bytes(32)
-    _pending_challenges[f"reg:{email}"] = base64.b64encode(challenge).decode()
-
-    # Build registration options
-    options = webauthn.generate_registration_options(
-        rp_id=RP_ID,
-        rp_name=RP_NAME,
-        user_id=email.encode(),
-        user_name=email,
-        user_display_name=email.split("@")[0],
-        challenge=challenge,
-        authenticator_selection=AuthenticatorSelectionCriteria(
-            user_verification=UserVerificationRequirement.REQUIRED,
-            resident_key=ResidentKeyRequirement.PREFERRED,
-        ),
-        supported_pub_key_algs=[
-            COSEAlgorithmIdentifier.ECDSA_SHA_256,
-            COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256,
-        ],
-        timeout=60000,
-    )
-
-    return json.loads(webauthn.options_to_json(options))
-
-
-# --------------------
-# Register: Complete
-# Verifies the browser response and saves the credential
-# --------------------
-
-@app.post("/api/webauthn/register-complete")
-async def webauthn_register_complete(req: RegisterCompleteRequest):
-    email = req.email.strip().lower()
-
-    stored = _pending_challenges.pop(f"reg:{email}", None)
-    if not stored:
-        raise HTTPException(status_code=400, detail="No pending registration for this email")
-
-    expected_challenge = base64.b64decode(stored)
-
-    try:
-        verification = webauthn.verify_registration_response(
-            credential=json.dumps(req.credential),
-            expected_challenge=expected_challenge,
-            expected_rp_id=RP_ID,
-            expected_origin=ORIGIN,
-            require_user_verification=True,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Verification failed: {str(e)}")
-
-    # Store credential in Supabase
-    # credential_id stored as base64url (no padding) to match what browsers send back
-    credential_id = base64.urlsafe_b64encode(verification.credential_id).decode().rstrip('=')
-    public_key = base64.b64encode(verification.credential_public_key).decode()
-
-    # Remove any existing credential for this device (re-registration)
-    supabase.table("webauthn_credentials") \
-        .delete() \
-        .eq("user_email", email) \
-        .eq("credential_id", credential_id) \
-        .execute()
-
-    supabase.table("webauthn_credentials").insert({
-        "user_email": email,
-        "credential_id": credential_id,
-        "public_key": public_key,
-        "sign_count": verification.sign_count,
-        "device_name": req.device_name or "Unknown device",
-    }).execute()
-
-    return {"status": "registered"}
-
-
-# --------------------
-# Authenticate: Begin
-# Returns a challenge for the browser to sign with Face ID
-# --------------------
-
-@app.post("/api/webauthn/auth-begin")
-async def webauthn_auth_begin(req: AuthBeginRequest):
-    email = req.email.strip().lower()
-
-    # Look up credentials for this user
-    result = supabase.table("webauthn_credentials") \
-        .select("credential_id") \
-        .eq("user_email", email) \
-        .execute()
-
-    if not result.data:
-        raise HTTPException(status_code=404, detail="No Face ID registered for this account")
-
-    challenge = secrets.token_bytes(32)
-    _pending_challenges[f"auth:{email}"] = base64.b64encode(challenge).decode()
-
-    # Decode stored base64url IDs back to bytes for py-webauthn
-    allow_credentials = [
-        PublicKeyCredentialDescriptor(
-            id=base64.urlsafe_b64decode(row["credential_id"] + '=='),
-        )
-        for row in result.data
-    ]
-
-    options = webauthn.generate_authentication_options(
-        rp_id=RP_ID,
-        challenge=challenge,
-        allow_credentials=allow_credentials,
-        user_verification=UserVerificationRequirement.REQUIRED,
-        timeout=60000,
-    )
-
-    return json.loads(webauthn.options_to_json(options))
-
-
-# --------------------
-# Authenticate: Complete
-# Verifies Face ID response → returns a Supabase magic link token
-# --------------------
-
-@app.post("/api/webauthn/auth-complete")
-async def webauthn_auth_complete(req: AuthCompleteRequest):
-    email = req.email.strip().lower()
-
-    stored = _pending_challenges.pop(f"auth:{email}", None)
-    if not stored:
-        raise HTTPException(status_code=400, detail="No pending authentication for this email")
-
-    expected_challenge = base64.b64decode(stored)
-
-    # Get stored credential — normalize padding on both sides before comparing
-    cred_id_normalized = req.credential.get("id", "").rstrip("=")
-
-    all_creds = supabase.table("webauthn_credentials") \
-        .select("*") \
-        .eq("user_email", email) \
-        .execute()
-
-    stored_cred = next(
-        (r for r in all_creds.data if r["credential_id"].rstrip("=") == cred_id_normalized),
-        None,
-    )
-
-    if not stored_cred:
-        raise HTTPException(status_code=404, detail="Credential not found")
-
-    public_key = base64.b64decode(stored_cred["public_key"])
-    sign_count = stored_cred["sign_count"]
-
-    try:
-        verification = webauthn.verify_authentication_response(
-            credential=json.dumps(req.credential),
-            expected_challenge=expected_challenge,
-            expected_rp_id=RP_ID,
-            expected_origin=ORIGIN,
-            credential_public_key=public_key,
-            credential_current_sign_count=sign_count,
-            require_user_verification=True,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Face ID verification failed: {str(e)}")
-
-    # Update sign count (replay attack prevention)
-    supabase.table("webauthn_credentials") \
-        .update({"sign_count": verification.new_sign_count}) \
-        .eq("id", stored_cred["id"]) \
-        .execute()
-
-    # Generate a Supabase magic link for this user so Flutter can sign them in
-    try:
-        link_response = supabase.auth.admin.generate_link({
-            "type": "magiclink",
-            "email": email,
-        })
-        token = link_response.properties.hashed_token
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Could not generate login token: {str(e)}")
-
-    return {
-        "status": "authenticated",
-        "email": email,
-        "token": token,
-    }
-
-
-# --------------------
-# Check if Face ID is registered
-# --------------------
-
-@app.get("/api/webauthn/status")
-async def webauthn_status(email: str = Query(...)):
-    result = supabase.table("webauthn_credentials") \
-        .select("id, device_name, created_at") \
-        .eq("user_email", email.strip().lower()) \
-        .execute()
-
-    return {
-        "registered": len(result.data) > 0,
-        "devices": result.data or [],
-    }
-
-
-# --------------------
-# Remove a registered credential
-# --------------------
-
-@app.delete("/api/webauthn/remove")
-async def webauthn_remove(
-    email: str = Query(...),
-    credential_id: str = Query(...),
-):
-    supabase.table("webauthn_credentials") \
-        .delete() \
-        .eq("user_email", email.strip().lower()) \
-        .eq("credential_id", credential_id) \
-        .execute()
-
-    return {"status": "removed"}
