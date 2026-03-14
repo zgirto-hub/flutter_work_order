@@ -9,7 +9,7 @@ import '../widgets/claude_widgets.dart';
 import '../widgets/change_password_dialog.dart';
 import '../screens/Work_Orders/work_order_home.dart';
 import '../screens/Documents/documents_screen.dart';
-import '../features/reports/work_order_reports/screens/workorder_report_screen.dart';
+import '../screens/reports/workorder_report_screen.dart';  // ← fixed import
 import '../config.dart';
 
 class MainScreen extends StatefulWidget {
@@ -48,10 +48,26 @@ class _MainScreenState extends State<MainScreen> {
           height: 60,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           destinations: const [
-            NavigationDestination(icon: Icon(Icons.work_outline_rounded), selectedIcon: Icon(Icons.work_rounded), label: 'Orders'),
-            NavigationDestination(icon: Icon(Icons.description_outlined), selectedIcon: Icon(Icons.description_rounded), label: 'Documents'),
-            NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart_rounded), label: 'Reports'),
-            NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Settings'),
+            NavigationDestination(
+              icon: Icon(Icons.work_outline_rounded),
+              selectedIcon: Icon(Icons.work_rounded),
+              label: 'Orders',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.description_outlined),
+              selectedIcon: Icon(Icons.description_rounded),
+              label: 'Documents',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.bar_chart_outlined),
+              selectedIcon: Icon(Icons.bar_chart_rounded),
+              label: 'Reports',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: 'Settings',
+            ),
           ],
         ),
       ),
@@ -59,7 +75,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-// ─── Settings Page ─────────────────────────────────────────────────────────
+// ─── Settings Page ────────────────────────────────────────────────────────────
 
 class SettingsPage extends StatefulWidget {
   final ThemeController themeController;
@@ -124,11 +140,17 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Sign out', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-        content: const Text('Are you sure you want to sign out?', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+        title: const Text('Sign out',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        content: const Text('Are you sure you want to sign out?',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sign out')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Sign out')),
         ],
       ),
     );
@@ -150,11 +172,16 @@ class _SettingsPageState extends State<SettingsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              const Text('Settings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -0.3)),
+              const Text('Settings',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -0.3)),
 
               const SizedBox(height: 16),
 
-              // ── Profile card ──────────────────────────────
+              // Profile card
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -169,9 +196,15 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(nameInitials, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                          Text(nameInitials,
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary)),
                           const SizedBox(height: 2),
-                          Text(email, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                          Text(email,
+                              style: const TextStyle(
+                                  fontSize: 11, color: AppColors.textTertiary)),
                         ],
                       ),
                     ),
@@ -181,7 +214,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
               const SizedBox(height: 12),
 
-              // ── Account section ───────────────────────────
               SectionLabel(text: 'Account'),
 
               SurfaceCard(
@@ -191,7 +223,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     SettingsRow(
                       icon: Icons.lock_outline_rounded,
                       label: 'Change password',
-                      onTap: () => showDialog(context: context, builder: (_) => const ChangePasswordDialog()),
+                      onTap: () => showDialog(
+                          context: context,
+                          builder: (_) => const ChangePasswordDialog()),
                     ),
                   ],
                 ),
@@ -199,7 +233,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
               const SizedBox(height: 12),
 
-              // ── Appearance section ────────────────────────
               SectionLabel(text: 'Appearance'),
 
               SurfaceCard(
@@ -226,10 +259,15 @@ class _SettingsPageState extends State<SettingsPage> {
                             color: c,
                             shape: BoxShape.circle,
                             border: isSel
-                                ? Border.all(color: AppColors.textPrimary, width: 2)
-                                : Border.all(color: AppColors.border2, width: 0.5),
+                                ? Border.all(
+                                    color: AppColors.textPrimary, width: 2)
+                                : Border.all(
+                                    color: AppColors.border2, width: 0.5),
                           ),
-                          child: isSel ? const Icon(Icons.check_rounded, color: Colors.white, size: 11) : null,
+                          child: isSel
+                              ? const Icon(Icons.check_rounded,
+                                  color: Colors.white, size: 11)
+                              : null,
                         ),
                       );
                     }).toList(),
@@ -239,7 +277,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
               const SizedBox(height: 12),
 
-              // ── App section ───────────────────────────────
               SectionLabel(text: 'Application'),
 
               SurfaceCard(
@@ -252,8 +289,15 @@ class _SettingsPageState extends State<SettingsPage> {
                       subtitle: version.isNotEmpty ? 'v$version' : null,
                       onTap: checkingUpdate ? null : _checkUpdates,
                       trailing: checkingUpdate
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.textTertiary))
-                          : const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.textTertiary),
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                  color: AppColors.textTertiary),
+                            )
+                          : const Icon(Icons.chevron_right_rounded,
+                              size: 16, color: AppColors.textTertiary),
                       showDivider: false,
                     ),
                   ],
@@ -264,40 +308,52 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 8),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(updateMessage, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                  child: Text(updateMessage,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textTertiary)),
                 ),
               ],
 
               const SizedBox(height: 20),
 
-              // ── Sign out ──────────────────────────────────
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: _signOut,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.dangerText,
-                    side: const BorderSide(color: AppColors.dangerBorder, width: 0.5),
+                    side: const BorderSide(
+                        color: AppColors.dangerBorder, width: 0.5),
                     backgroundColor: AppColors.dangerBg,
                     padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
-                  child: const Text('Sign out', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  child: const Text('Sign out',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w500)),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // ── Version footer ────────────────────────────
               Center(
                 child: Column(
                   children: [
-                    const Text('Work Order', style: TextStyle(fontSize: 12, color: AppColors.textTertiary, fontWeight: FontWeight.w500)),
+                    const Text('Work Order',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textTertiary,
+                            fontWeight: FontWeight.w500)),
                     const SizedBox(height: 3),
                     if (version.isNotEmpty)
-                      Text('Version $version · Build $buildNumber', style: const TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+                      Text('Version $version · Build $buildNumber',
+                          style: const TextStyle(
+                              fontSize: 10, color: AppColors.textTertiary)),
                     const SizedBox(height: 2),
-                    const Text('Developed by Salah · 2026', style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+                    const Text('Developed by Salah · 2026',
+                        style: TextStyle(
+                            fontSize: 10, color: AppColors.textTertiary)),
                   ],
                 ),
               ),
