@@ -33,62 +33,78 @@ void initState() {
 }
 void showShareDialog() {
 
-  String? selectedUser;
+  final currentUser =
+      Supabase.instance.client.auth.currentUser?.email ?? "";
 
-  final availableUsers =
-      users.where((user) => !sharedUsers.contains(user)).toList();
+  final availableUsers = users.where((user) =>
+      !sharedUsers.contains(user) && user != currentUser).toList();
+
+  final Set<String> selectedUsers = {};
 
   showDialog(
     context: context,
     builder: (context) {
 
-      return AlertDialog(
-        title: const Text("Share Document"),
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
 
-        content: StatefulBuilder(
-          builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: const Text("Share Document"),
 
-            return SizedBox(
+            content: SizedBox(
               width: double.maxFinite,
               child: ListView(
                 shrinkWrap: true,
                 children: availableUsers.map((user) {
 
-                  return RadioListTile<String>(
+                  return CheckboxListTile(
                     title: Text(user),
-                    value: user,
-                    groupValue: selectedUser,
-                    onChanged: (value) {
+                    value: selectedUsers.contains(user),
+
+                    onChanged: (checked) {
+
                       setStateDialog(() {
-                        selectedUser = value;
+
+                        if (checked == true) {
+                          selectedUsers.add(user);
+                        } else {
+                          selectedUsers.remove(user);
+                        }
+
                       });
                     },
                   );
 
                 }).toList(),
               ),
-            );
-          },
-        ),
+            ),
 
-        actions: [
+            actions: [
 
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
+              ),
 
-          ElevatedButton(
-            onPressed: selectedUser == null
-                ? null
-                : () {
-                    Navigator.pop(context);
-                    shareDocument(selectedUser!);
-                  },
-            child: const Text("Share"),
-          ),
+              ElevatedButton(
+                onPressed: selectedUsers.isEmpty
+                    ? null
+                    : () async {
 
-        ],
+                        Navigator.pop(context);
+
+                        for (final user in selectedUsers) {
+                          await shareDocument(user);
+                        }
+
+                        await loadSharedUsers();
+                      },
+                child: const Text("Share"),
+              ),
+
+            ],
+          );
+        },
       );
     },
   );

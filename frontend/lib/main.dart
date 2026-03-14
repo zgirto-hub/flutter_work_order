@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
 
         return AnimatedTheme(
           data: themeData,
-          duration: const Duration(milliseconds: 400), // 🔥 smooth speed
+          duration: const Duration(milliseconds: 400),
           curve: Curves.easeInOut,
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
@@ -60,17 +60,39 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
-      builder: (context, snapshot) {
-        final session = snapshot.data?.session;
+    return Container(
+      color: const Color(0xFFE5E7EB), // gray browser background
+      child: Center(
+        child: Container(
+          width: 600,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [
+              BoxShadow(
+                blurRadius: 20,
+                color: Colors.black12,
+                offset: Offset(0, 8),
+              )
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: StreamBuilder<AuthState>(
+              stream: Supabase.instance.client.auth.onAuthStateChange,
+              builder: (context, snapshot) {
+                final session = snapshot.data?.session;
 
-        if (session == null) {
-          return const LoginScreen();
-        } else {
-          return MainScreen(themeController: themeController);
-        }
-      },
+                if (session == null) {
+                  return const LoginScreen();
+                } else {
+                  return MainScreen(themeController: themeController);
+                }
+              },
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

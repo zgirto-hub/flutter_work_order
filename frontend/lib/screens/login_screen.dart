@@ -24,6 +24,63 @@ class _LoginScreenState extends State<LoginScreen> {
     loadAppInfo();
   }
 
+  Future<void> showResetPasswordDialog() async {
+  final resetEmailController =
+    TextEditingController(text: emailController.text);
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text("Reset Password"),
+        content: TextField(
+          controller: resetEmailController,
+          decoration: const InputDecoration(
+            labelText: "Enter your email",
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = resetEmailController.text.trim();
+
+              if (email.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Please enter email")),
+                );
+                return;
+              }
+
+              try {
+                await supabase.auth.resetPasswordForEmail(email);
+
+                Navigator.pop(context);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: Colors.green,
+                    content: Text("Password reset email sent"),
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Error: $e")),
+                );
+              }
+            },
+            child: const Text("Send"),
+          ),
+        ],
+      );
+    },
+  );
+}
   Future<void> signIn() async {
     try {
       await supabase.auth.signInWithPassword(
@@ -101,7 +158,16 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
 
           const SizedBox(height: 20),
+          const SizedBox(height: 5),
 
+Align(
+  alignment: Alignment.centerRight,
+  child: TextButton(
+    onPressed: showResetPasswordDialog,
+    child: const Text("Forgot Password?"),
+  ),
+),
+const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
