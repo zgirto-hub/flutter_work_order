@@ -33,16 +33,19 @@ class WorkOrderList extends StatelessWidget {
       child: AnimatedEntityList<WorkOrder>(
   items: orders,
   onRefresh: onRefresh,
-  itemBuilder: (context, workOrder, index) {
+itemBuilder: (context, workOrder, index) {
 
-    return WorkOrderCard(
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    child: WorkOrderCard(
       workOrder: workOrder,
+      expanded: expandedIndex == index,
       onTap: () => onTap(index),
-      isExpanded: expandedIndex == index,
       onEdit: () => onEdit(workOrder),
-    );
+    ),
+  );
 
-  },
+},
 )
     );
   }
