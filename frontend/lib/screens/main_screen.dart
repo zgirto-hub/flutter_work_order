@@ -29,6 +29,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _index = 0;
   String _userRole = 'admin';
+  bool _roleLoaded = false;
 
   // Only prompt once per app session
   static bool _faceIdPromptShown = false;
@@ -44,12 +45,16 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _loadUserRole() async {
     final email = Supabase.instance.client.auth.currentUser?.email;
-    if (email == null) return;
+    if (email == null) {
+      if (mounted) setState(() => _roleLoaded = true);
+      return;
+    }
     final role = await RequestService().getUserRole(email);
     if (!mounted) return;
     setState(() {
       _userRole = role;
       _index = 0;
+      _roleLoaded = true;
     });
   }
 
@@ -106,6 +111,18 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_roleLoaded) {
+      return const Scaffold(
+        backgroundColor: AppColors.bgPrimary,
+        body: Center(
+          child: CircularProgressIndicator(
+            color: AppColors.accent,
+            strokeWidth: 1.5,
+          ),
+        ),
+      );
+    }
+
     final isRequester = _userRole == 'requester';
 
     final pages = isRequester

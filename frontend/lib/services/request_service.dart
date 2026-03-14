@@ -1,28 +1,35 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../models/request_model.dart';
+import '../config.dart';
 
 class RequestService {
-  final _client = Supabase.instance.client;
-
   Future<String> getUserRole(String email) async {
-    final res = await _client
-        .from('user_profiles')
-        .select('user_type')
-        .eq('email', email)
-        .maybeSingle();
-    return res?['user_type'] as String? ?? 'admin';
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/user-role?email=${Uri.encodeComponent(email)}'),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      return data['user_type'] as String? ?? 'admin';
+    }
+    return 'admin';
   }
 
   Future<List<RequestModel>> fetchRequests({
     required String email,
     required String userRole,
   }) async {
-    var query = _client.from('requests').select('*');
-    if (userRole == 'requester') {
-      query = query.eq('created_by', email);
+    final res = await http.get(
+      Uri.parse(
+        '${AppConfig.baseUrl}/requests?email=${Uri.encodeComponent(email)}&user_role=${Uri.encodeComponent(userRole)}',
+      ),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      final list = data['requests'] as List<dynamic>;
+      return list.map((j) => RequestModel.fromJson(j as Map<String, dynamic>)).toList();
     }
-    final res = await query.order('created_at', ascending: false);
-    return res.map<RequestModel>((j) => RequestModel.fromJson(j)).toList();
+    return [];
   }
 
   Future<void> createRequest({
@@ -32,14 +39,20 @@ class RequestService {
     required String requesterName,
     required String location,
   }) async {
-    await _client.from('requests').insert({
-      'title': title,
-      'description': description,
-      'created_by': createdBy,
-      'requester_name': requesterName,
-      'location': location,
-      'status': 'Open',
-    });
+    final res = await http.post(
+      Uri.parse('${AppConfig.baseUrl}/requests'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'title': title,
+        'description': description,
+        'created_by': createdBy,
+        'requester_name': requesterName,
+        'location': location,
+      }),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(jsonDecode(res.body)['detail'] ?? 'Failed to create request');
+    }
   }
 
   Future<void> closeRequest({
@@ -47,11 +60,16 @@ class RequestService {
     required String closedBy,
     String? techNotes,
   }) async {
-    await _client.from('requests').update({
-      'status': 'Closed',
-      'closed_by': closedBy,
-      'closed_at': DateTime.now().toIso8601String(),
-      'tech_notes': techNotes,
-    }).eq('id', id);
+    final res = await http.patch(
+      Uri.parse('${AppConfig.baseUrl}/requests/$id/close'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'closed_by': closedBy,
+        'tech_notes': techNotes,
+      }),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(jsonDecode(res.body)['detail'] ?? 'Failed to close request');
+    }
   }
 }
