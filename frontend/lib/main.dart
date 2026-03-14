@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'screens/main_screen.dart';
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
@@ -8,30 +7,33 @@ import 'theme/theme_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Supabase.initialize(
     url: 'https://rydrqsjofoulwdtwfbgv.supabase.co',
     anonKey: 'sb_publishable_smzkBX6r1G8TwlmQbhs7lw_bZgmZUC7',
   );
-
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  MyApp({super.key});
+
+  final ThemeController themeController = ThemeController();
 
   @override
   Widget build(BuildContext context) {
-    final themeController = ThemeController();
-
     return AnimatedBuilder(
       animation: themeController,
       builder: (context, _) {
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: 'Work Order',
-          theme: AppTheme.light,
-          home: AuthWrapper(themeController: themeController),
+        return MediaQuery(
+          data: MediaQueryData.fromView(View.of(context)).copyWith(
+            textScaler: TextScaler.linear(themeController.fontScale),
+          ),
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: 'Work Order',
+            theme: AppTheme.light,
+            home: AuthWrapper(themeController: themeController),
+          ),
         );
       },
     );
@@ -44,13 +46,11 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Desktop/Web: constrained centered container (matches original)
     return Container(
       color: AppColors.bgSurface2,
       child: Center(
         child: Container(
           width: 620,
-          constraints: const BoxConstraints(maxHeight: double.infinity),
           decoration: BoxDecoration(
             color: AppColors.bgSurface,
             borderRadius: BorderRadius.circular(16),
