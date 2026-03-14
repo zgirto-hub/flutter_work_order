@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../config.dart';
-import '../services/webauthn_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,9 +18,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
   bool _rememberMe = false;
   bool _isLoading = false;
-  bool _isFaceIdLoading = false;
-  bool _faceIdRegistered = false;
-  bool _showEnableFaceId = false;
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -56,16 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final savedEmail = prefs.getString(_keyEmail) ?? '';
     if (remember && savedEmail.isNotEmpty) {
       setState(() { _rememberMe = true; emailController.text = savedEmail; });
-      _checkFaceIdRegistered(savedEmail);
     }
-  }
-
-  Future<void> _checkFaceIdRegistered(String email) async {
-    if (email.isEmpty || !kIsWeb) return;
-    try {
-      final registered = await WebAuthnService.isRegistered(email);
-      if (mounted) setState(() => _faceIdRegistered = registered);
-    } catch (_) {}
   }
 
   Future<void> _saveCredentials() async {
@@ -90,10 +76,6 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await supabase.auth.signInWithPassword(email: email, password: password);
       await _saveCredentials();
-      if (kIsWeb && mounted) {
-        final registered = await WebAuthnService.isRegistered(email);
-        if (!registered && mounted) setState(() => _showEnableFaceId = true);
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -101,53 +83,10 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _signInWithFaceId() async {
-    final email = emailController.text.trim();
-    if (email.isEmpty) { _showSnack('Enter your email first', isError: true); return; }
-    setState(() => _isFaceIdLoading = true);
-    try {
-      final token = await WebAuthnService.authenticate(email);
-      await supabase.auth.verifyOTP(email: email, token: token, type: OtpType.magiclink);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isFaceIdLoading = false);
-      final msg = e.toString();
-      if (msg.contains('No Face ID') || msg.contains('404')) {
-        setState(() { _faceIdRegistered = false; _showEnableFaceId = true; });
-        _showSnack('Face ID not set up yet — enable it below');
-      } else {
-        _showSnack(_friendlyFaceIdError(msg), isError: true);
-      }
-    }
-  }
-
-  Future<void> _enableFaceId() async {
-    final email = emailController.text.trim();
-    if (email.isEmpty) { _showSnack('Enter your email first', isError: true); return; }
-    setState(() => _isFaceIdLoading = true);
-    try {
-      await WebAuthnService.register(email: email, deviceName: 'iPhone / Browser');
-      if (!mounted) return;
-      setState(() { _faceIdRegistered = true; _showEnableFaceId = false; _isFaceIdLoading = false; });
-      _showSnack('Face ID enabled! You can now sign in with Face ID.');
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isFaceIdLoading = false);
-      _showSnack(_friendlyFaceIdError(e.toString()), isError: true);
-    }
-  }
-
   String _friendlyError(String e) {
     if (e.contains('Invalid login')) return 'Incorrect email or password';
     if (e.contains('Email not confirmed')) return 'Please confirm your email first';
     return 'Sign in failed. Please try again.';
-  }
-
-  String _friendlyFaceIdError(String e) {
-    if (e.contains('NotAllowedError') || e.contains('cancelled')) return 'Face ID was cancelled';
-    if (e.contains('NotSupportedError')) return 'Face ID is not supported on this device';
-    if (e.contains('timed out')) return 'Face ID timed out — try again';
-    return 'Face ID failed. Try signing in with your password.';
   }
 
   void _showSnack(String msg, {bool isError = false}) {
@@ -225,7 +164,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     autofillHints: const [AutofillHints.email, AutofillHints.username],
                     textInputAction: TextInputAction.next,
                     style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-                    onChanged: (v) => _checkFaceIdRegistered(v.trim()),
                     decoration: const InputDecoration(hintText: 'you@company.com'),
                   ),
                   const SizedBox(height: 14),
@@ -277,7 +215,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Sign in button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -287,58 +224,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           : const Text('Sign in'),
                     ),
                   ),
-
-                  // Face ID sign in button (only on web, only if registered)
-                  if (kIsWeb && _faceIdRegistered) ...[
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _isFaceIdLoading ? null : _signInWithFaceId,
-                        icon: _isFaceIdLoading
-                            ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5))
-                            : const Icon(Icons.face_retouching_natural_rounded, size: 18),
-                        label: Text(_isFaceIdLoading ? 'Verifying…' : 'Sign in with Face ID'),
-                      ),
-                    ),
-                  ],
-
-                  // Enable Face ID banner (shown after successful password login)
-                  if (kIsWeb && _showEnableFaceId) ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentBg,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 0.5),
-                      ),
-                      child: Row(children: [
-                        const Icon(Icons.face_retouching_natural_rounded, size: 22, color: AppColors.accent),
-                        const SizedBox(width: 10),
-                        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('Enable Face ID', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.accent)),
-                          Text('Sign in faster next time', style: TextStyle(fontSize: 11, color: AppColors.accent)),
-                        ])),
-                        GestureDetector(
-                          onTap: _isFaceIdLoading ? null : _enableFaceId,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(8)),
-                            child: _isFaceIdLoading
-                                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white))
-                                : const Text('Enable', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500)),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        GestureDetector(
-                          onTap: () => setState(() => _showEnableFaceId = false),
-                          child: const Icon(Icons.close_rounded, size: 16, color: AppColors.accent),
-                        ),
-                      ]),
-                    ),
-                  ],
-
                   const SizedBox(height: 12),
 
                   SizedBox(
