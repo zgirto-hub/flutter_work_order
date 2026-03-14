@@ -30,11 +30,18 @@ class _MainScreenState extends State<MainScreen> {
   String _userRole = 'admin';
   bool _roleLoaded = false;
   int _openRequestCount = 0;
+  RealtimeChannel? _realtimeChannel;
 
   @override
   void initState() {
     super.initState();
     _loadUserRole();
+  }
+
+  @override
+  void dispose() {
+    _realtimeChannel?.unsubscribe();
+    super.dispose();
   }
 
   Future<void> _loadUserRole() async {
@@ -50,7 +57,10 @@ class _MainScreenState extends State<MainScreen> {
       _index = 0;
       _roleLoaded = true;
     });
-    if (role != 'requester') _refreshRequestCount();
+    if (role != 'requester') {
+      _refreshRequestCount();
+      _subscribeToRequests();
+    }
   }
 
   Future<void> _refreshRequestCount() async {
@@ -62,6 +72,61 @@ class _MainScreenState extends State<MainScreen> {
         setState(() => _openRequestCount = count);
       }
     } catch (_) {}
+  }
+
+  void _subscribeToRequests() {
+    _realtimeChannel = Supabase.instance.client
+        .channel('public:requests')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'requests',
+          callback: (payload) {
+            if (!mounted) return;
+            final data = payload.newRecord;
+            final title = data['title'] as String? ?? 'New request';
+            final requester = data['requester_name'] as String? ?? '';
+            setState(() => _openRequestCount++);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.inbox_rounded, color: Colors.white, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'New Request',
+                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.white),
+                          ),
+                          Text(
+                            title,
+                            style: const TextStyle(fontSize: 12, color: Colors.white),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (requester.isNotEmpty)
+                            Text(
+                              'by $requester',
+                              style: const TextStyle(fontSize: 11, color: Colors.white70),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                duration: const Duration(seconds: 6),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: AppColors.textPrimary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            );
+          },
+        )
+        .subscribe();
   }
 
   @override
