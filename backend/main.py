@@ -488,7 +488,7 @@ async def webauthn_register_complete(req: RegisterCompleteRequest):
 
     try:
         verification = webauthn.verify_registration_response(
-            credential=req.credential,
+            credential=json.dumps(req.credential),
             expected_challenge=expected_challenge,
             expected_rp_id=RP_ID,
             expected_origin=ORIGIN,
@@ -594,7 +594,7 @@ async def webauthn_auth_complete(req: AuthCompleteRequest):
 
     try:
         verification = webauthn.verify_authentication_response(
-            credential=req.credential,
+            credential=json.dumps(req.credential),
             expected_challenge=expected_challenge,
             expected_rp_id=RP_ID,
             expected_origin=ORIGIN,
