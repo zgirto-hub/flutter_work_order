@@ -1,4 +1,4 @@
-print("=== THIS MAIN.PY IS RUNNING v1.7 ===")
+print("=== THIS MAIN.PY IS RUNNING v1.8 ===")
 
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -576,7 +576,7 @@ async def webauthn_auth_complete(req: AuthCompleteRequest):
     expected_challenge = base64.b64decode(stored)
 
     # Get stored credential
-    cred_id = req.credential.get("id", "")
+    cred_id = req.credential.get("id", "").rstrip("=")
 
     result = supabase.table("webauthn_credentials") \
         .select("*") \
