@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,11 +21,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _rememberMe = false;
   bool _isLoading = false;
   bool _isFaceIdLoading = false;
-
-  // Face ID state
-  bool _faceIdSupported = false;
   bool _faceIdRegistered = false;
-  bool _showEnableFaceId = false; // shown after successful password login
+  bool _showEnableFaceId = false;
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -38,7 +36,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     _loadAppInfo();
     _loadSavedCredentials();
-    _checkFaceIdStatus();
   }
 
   @override
@@ -50,10 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loadAppInfo() async {
     final info = await PackageInfo.fromPlatform();
-    setState(() {
-      version = info.version;
-      buildNumber = info.buildNumber;
-    });
+    setState(() { version = info.version; buildNumber = info.buildNumber; });
   }
 
   Future<void> _loadSavedCredentials() async {
@@ -61,24 +55,17 @@ class _LoginScreenState extends State<LoginScreen> {
     final remember = prefs.getBool(_keyRemember) ?? false;
     final savedEmail = prefs.getString(_keyEmail) ?? '';
     if (remember && savedEmail.isNotEmpty) {
-      setState(() {
-        _rememberMe = true;
-        emailController.text = savedEmail;
-      });
-      // Check if Face ID is registered for saved email
-      _checkFaceIdForEmail(savedEmail);
+      setState(() { _rememberMe = true; emailController.text = savedEmail; });
+      _checkFaceIdRegistered(savedEmail);
     }
   }
 
-  Future<void> _checkFaceIdStatus() async {
-    final supported = await WebAuthnService.isSupported();
-    setState(() => _faceIdSupported = supported);
-  }
-
-  Future<void> _checkFaceIdForEmail(String email) async {
-    if (email.isEmpty || !_faceIdSupported) return;
-    final registered = await WebAuthnService.isRegistered(email);
-    setState(() => _faceIdRegistered = registered);
+  Future<void> _checkFaceIdRegistered(String email) async {
+    if (email.isEmpty || !kIsWeb) return;
+    try {
+      final registered = await WebAuthnService.isRegistered(email);
+      if (mounted) setState(() => _faceIdRegistered = registered);
+    } catch (_) {}
   }
 
   Future<void> _saveCredentials() async {
@@ -92,31 +79,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // ── Normal password sign in ───────────────────────────────────────────────
-
   Future<void> _signIn() async {
-    if (emailController.text.trim().isEmpty || passwordController.text.isEmpty) {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
       _showSnack('Please enter your email and password', isError: true);
       return;
     }
-
     setState(() => _isLoading = true);
-
     try {
-      await supabase.auth.signInWithPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
-
+      await supabase.auth.signInWithPassword(email: email, password: password);
       await _saveCredentials();
-
-      // After successful login, check if they should be offered Face ID setup
-      if (_faceIdSupported) {
-        final email = emailController.text.trim();
+      if (kIsWeb && mounted) {
         final registered = await WebAuthnService.isRegistered(email);
-        if (!registered && mounted) {
-          setState(() => _showEnableFaceId = true);
-        }
+        if (!registered && mounted) setState(() => _showEnableFaceId = true);
       }
     } catch (e) {
       if (!mounted) return;
@@ -125,52 +101,35 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // ── Face ID sign in ───────────────────────────────────────────────────────
-
   Future<void> _signInWithFaceId() async {
     final email = emailController.text.trim();
-    if (email.isEmpty) {
-      _showSnack('Enter your email first', isError: true);
-      return;
-    }
-
+    if (email.isEmpty) { _showSnack('Enter your email first', isError: true); return; }
     setState(() => _isFaceIdLoading = true);
-
     try {
       final token = await WebAuthnService.authenticate(email);
-
-      // Use the magic link token to sign in to Supabase
-      await supabase.auth.verifyOTP(
-        email: email,
-        token: token,
-        type: OtpType.magiclink,
-      );
+      await supabase.auth.verifyOTP(email: email, token: token, type: OtpType.magiclink);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isFaceIdLoading = false);
-      _showSnack(_friendlyFaceIdError(e.toString()), isError: true);
+      final msg = e.toString();
+      if (msg.contains('No Face ID') || msg.contains('404')) {
+        setState(() { _faceIdRegistered = false; _showEnableFaceId = true; });
+        _showSnack('Face ID not set up yet — enable it below');
+      } else {
+        _showSnack(_friendlyFaceIdError(msg), isError: true);
+      }
     }
   }
-
-  // ── Enable Face ID (shown after password login) ───────────────────────────
 
   Future<void> _enableFaceId() async {
     final email = emailController.text.trim();
+    if (email.isEmpty) { _showSnack('Enter your email first', isError: true); return; }
     setState(() => _isFaceIdLoading = true);
-
     try {
-      await WebAuthnService.register(
-        email: email,
-        deviceName: _getDeviceName(),
-      );
-
-      setState(() {
-        _faceIdRegistered = true;
-        _showEnableFaceId = false;
-        _isFaceIdLoading = false;
-      });
-
-      _showSnack('Face ID enabled successfully!');
+      await WebAuthnService.register(email: email, deviceName: 'iPhone / Browser');
+      if (!mounted) return;
+      setState(() { _faceIdRegistered = true; _showEnableFaceId = false; _isFaceIdLoading = false; });
+      _showSnack('Face ID enabled! You can now sign in with Face ID.');
     } catch (e) {
       if (!mounted) return;
       setState(() => _isFaceIdLoading = false);
@@ -178,23 +137,16 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  String _getDeviceName() {
-    // Browser user agent detection
-    return 'Browser Device';
-  }
-
-  String _friendlyError(String error) {
-    if (error.contains('Invalid login')) return 'Incorrect email or password';
-    if (error.contains('Email not confirmed')) return 'Please confirm your email first';
-    if (error.contains('network')) return 'No internet connection';
+  String _friendlyError(String e) {
+    if (e.contains('Invalid login')) return 'Incorrect email or password';
+    if (e.contains('Email not confirmed')) return 'Please confirm your email first';
     return 'Sign in failed. Please try again.';
   }
 
-  String _friendlyFaceIdError(String error) {
-    if (error.contains('No Face ID registered')) return 'Face ID not set up for this account';
-    if (error.contains('NotAllowedError')) return 'Face ID was cancelled or not allowed';
-    if (error.contains('NotSupportedError')) return 'This device does not support Face ID';
-    if (error.contains('cancelled')) return 'Face ID was cancelled';
+  String _friendlyFaceIdError(String e) {
+    if (e.contains('NotAllowedError') || e.contains('cancelled')) return 'Face ID was cancelled';
+    if (e.contains('NotSupportedError')) return 'Face ID is not supported on this device';
+    if (e.contains('timed out')) return 'Face ID timed out — try again';
     return 'Face ID failed. Try signing in with your password.';
   }
 
@@ -214,26 +166,14 @@ class _LoginScreenState extends State<LoginScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Reset password',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("We'll send a reset link to your email.",
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            const SizedBox(height: 14),
-            TextField(
-              controller: resetCtrl,
-              style: const TextStyle(fontSize: 13),
-              decoration: const InputDecoration(labelText: 'Email address'),
-            ),
-          ],
-        ),
+        title: const Text('Reset password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text("We'll send a reset link to your email.", style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          const SizedBox(height: 14),
+          TextField(controller: resetCtrl, style: const TextStyle(fontSize: 13), decoration: const InputDecoration(labelText: 'Email address')),
+        ]),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
               final email = resetCtrl.text.trim();
@@ -264,35 +204,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  // ── Logo ──────────────────────────────────────
                   Center(
                     child: Container(
                       width: 52, height: 52,
-                      decoration: BoxDecoration(
-                        color: AppColors.textPrimary,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(Icons.description_rounded,
-                          color: Colors.white, size: 26),
+                      decoration: BoxDecoration(color: AppColors.textPrimary, borderRadius: BorderRadius.circular(16)),
+                      child: const Icon(Icons.description_rounded, color: Colors.white, size: 26),
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
-                  const Center(
-                    child: Text('Work Order',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary, letterSpacing: -0.4)),
-                  ),
+                  const Center(child: Text('Work Order', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -0.4))),
                   const SizedBox(height: 6),
-                  const Center(
-                    child: Text('Sign in to your account',
-                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                  ),
-
+                  const Center(child: Text('Sign in to your account', style: TextStyle(fontSize: 13, color: AppColors.textSecondary))),
                   const SizedBox(height: 32),
 
-                  // ── Email ─────────────────────────────────────
                   const _InputLabel(label: 'Email address'),
                   const SizedBox(height: 6),
                   TextField(
@@ -301,13 +225,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     autofillHints: const [AutofillHints.email, AutofillHints.username],
                     textInputAction: TextInputAction.next,
                     style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-                    onChanged: (v) => _checkFaceIdForEmail(v.trim()),
+                    onChanged: (v) => _checkFaceIdRegistered(v.trim()),
                     decoration: const InputDecoration(hintText: 'you@company.com'),
                   ),
-
                   const SizedBox(height: 14),
 
-                  // ── Password ──────────────────────────────────
                   const _InputLabel(label: 'Password'),
                   const SizedBox(height: 6),
                   TextField(
@@ -321,146 +243,104 @@ class _LoginScreenState extends State<LoginScreen> {
                       hintText: '••••••••',
                       suffixIcon: GestureDetector(
                         onTap: () => setState(() => _obscure = !_obscure),
-                        child: Icon(
-                          _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                          size: 16, color: AppColors.textTertiary,
-                        ),
+                        child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 16, color: AppColors.textTertiary),
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 12),
 
-                  // ── Remember me + Forgot ──────────────────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       GestureDetector(
                         onTap: () => setState(() => _rememberMe = !_rememberMe),
-                        child: Row(
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              width: 18, height: 18,
-                              decoration: BoxDecoration(
-                                color: _rememberMe ? AppColors.textPrimary : AppColors.bgSurface,
-                                borderRadius: BorderRadius.circular(5),
-                                border: Border.all(
-                                  color: _rememberMe ? AppColors.textPrimary : AppColors.border2,
-                                  width: 0.5,
-                                ),
-                              ),
-                              child: _rememberMe
-                                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 12)
-                                  : null,
+                        child: Row(children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            width: 18, height: 18,
+                            decoration: BoxDecoration(
+                              color: _rememberMe ? AppColors.textPrimary : AppColors.bgSurface,
+                              borderRadius: BorderRadius.circular(5),
+                              border: Border.all(color: _rememberMe ? AppColors.textPrimary : AppColors.border2, width: 0.5),
                             ),
-                            const SizedBox(width: 7),
-                            const Text('Remember me',
-                                style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                          ],
-                        ),
+                            child: _rememberMe ? const Icon(Icons.check_rounded, color: Colors.white, size: 12) : null,
+                          ),
+                          const SizedBox(width: 7),
+                          const Text('Remember me', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                        ]),
                       ),
                       GestureDetector(
                         onTap: _showResetPasswordDialog,
-                        child: const Text('Forgot password?',
-                            style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                        child: const Text('Forgot password?', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 20),
 
-                  // ── Sign in button ────────────────────────────
+                  // Sign in button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _signIn,
                       child: _isLoading
-                          ? const SizedBox(width: 18, height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : const Text('Sign in'),
                     ),
                   ),
 
-                  // ── Face ID sign in button ────────────────────
-                  if (_faceIdSupported && _faceIdRegistered) ...[
+                  // Face ID sign in button (only on web, only if registered)
+                  if (kIsWeb && _faceIdRegistered) ...[
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: _isFaceIdLoading ? null : _signInWithFaceId,
                         icon: _isFaceIdLoading
-                            ? const SizedBox(width: 14, height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 1.5))
+                            ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5))
                             : const Icon(Icons.face_retouching_natural_rounded, size: 18),
                         label: Text(_isFaceIdLoading ? 'Verifying…' : 'Sign in with Face ID'),
                       ),
                     ),
                   ],
 
-                  // ── Enable Face ID banner (after password login) ──
-                  if (_showEnableFaceId) ...[
-                    const SizedBox(height: 16),
+                  // Enable Face ID banner (shown after successful password login)
+                  if (kIsWeb && _showEnableFaceId) ...[
+                    const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: AppColors.accentBg,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: AppColors.accent.withOpacity(0.3), width: 0.5),
+                        border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 0.5),
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.face_retouching_natural_rounded,
-                              size: 22, color: AppColors.accent),
-                          const SizedBox(width: 10),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Enable Face ID',
-                                    style: TextStyle(fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        color: AppColors.accent)),
-                                Text('Sign in faster next time',
-                                    style: TextStyle(fontSize: 11,
-                                        color: AppColors.accent)),
-                              ],
-                            ),
+                      child: Row(children: [
+                        const Icon(Icons.face_retouching_natural_rounded, size: 22, color: AppColors.accent),
+                        const SizedBox(width: 10),
+                        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('Enable Face ID', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.accent)),
+                          Text('Sign in faster next time', style: TextStyle(fontSize: 11, color: AppColors.accent)),
+                        ])),
+                        GestureDetector(
+                          onTap: _isFaceIdLoading ? null : _enableFaceId,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(8)),
+                            child: _isFaceIdLoading
+                                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white))
+                                : const Text('Enable', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500)),
                           ),
-                          GestureDetector(
-                            onTap: _enableFaceId,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: AppColors.accent,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: _isFaceIdLoading
-                                  ? const SizedBox(width: 14, height: 14,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 1.5, color: Colors.white))
-                                  : const Text('Enable',
-                                      style: TextStyle(fontSize: 12,
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w500)),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          GestureDetector(
-                            onTap: () => setState(() => _showEnableFaceId = false),
-                            child: const Icon(Icons.close_rounded,
-                                size: 16, color: AppColors.accent),
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () => setState(() => _showEnableFaceId = false),
+                          child: const Icon(Icons.close_rounded, size: 16, color: AppColors.accent),
+                        ),
+                      ]),
                     ),
                   ],
 
                   const SizedBox(height: 12),
 
-                  // ── Create account ────────────────────────────
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
@@ -471,25 +351,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 40),
 
-                  // ── Footer ────────────────────────────────────
-                  Center(
-                    child: Column(
-                      children: [
-                        const Text('Developed by Salah © 2026',
-                            style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                        if (version.isNotEmpty) ...[
-                          const SizedBox(height: 3),
-                          Text('Version $version (Build $buildNumber)',
-                              style: const TextStyle(fontSize: 10, color: AppColors.textTertiary)),
-                        ],
-                        if (AppConfig.buildDate.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text('Build: ${AppConfig.buildDate}',
-                              style: const TextStyle(fontSize: 10, color: AppColors.textTertiary)),
-                        ],
-                      ],
-                    ),
-                  ),
+                  Center(child: Column(children: [
+                    const Text('Developed by Salah © 2026', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                    if (version.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text('Version $version (Build $buildNumber)', style: const TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+                    ],
+                    if (AppConfig.buildDate.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text('Build: ${AppConfig.buildDate}', style: const TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+                    ],
+                  ])),
                 ],
               ),
             ),
@@ -506,8 +378,6 @@ class _InputLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(label,
-        style: const TextStyle(fontSize: 12,
-            fontWeight: FontWeight.w500, color: AppColors.textSecondary));
+    return Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary));
   }
 }

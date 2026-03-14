@@ -43,5 +43,25 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+
+  <script>
+    // Auto-reload when a new version is deployed
+    if ('serviceWorker' in navigator) {
+      function checkForUpdate() {
+        navigator.serviceWorker.getRegistration().then(function(reg) {
+          if (reg) reg.update();
+        });
+      }
+
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        window.location.reload();
+      });
+
+      // Check when tab becomes visible again (user reopens tab)
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') checkForUpdate();
+      });
+    }
+  </script>
 </body>
 </html>

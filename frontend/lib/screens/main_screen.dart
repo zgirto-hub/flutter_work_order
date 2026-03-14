@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:web/web.dart' as web;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:convert';
@@ -11,6 +13,7 @@ import '../screens/Work_Orders/work_order_home.dart';
 import '../screens/Documents/documents_screen.dart';
 import '../screens/reports/workorder_report_screen.dart';
 import '../config.dart';
+import '../services/webauthn_service.dart';
 
 class MainScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -22,6 +25,68 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _index = 0;
+
+  // Only prompt once per app session
+  static bool _faceIdPromptShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb && !_faceIdPromptShown) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkFaceIdPrompt());
+    }
+  }
+
+  Future<void> _checkFaceIdPrompt() async {
+    final email = Supabase.instance.client.auth.currentUser?.email;
+    if (email == null || !mounted) return;
+    final registered = await WebAuthnService.isRegistered(email);
+    if (registered || !mounted) return;
+    _faceIdPromptShown = true;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Row(children: [
+          Icon(Icons.face_retouching_natural_rounded, color: AppColors.accent, size: 20),
+          SizedBox(width: 8),
+          Text('Enable Face ID', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        ]),
+        content: const Text(
+          'Sign in faster next time using Face ID or biometrics instead of your password.',
+          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Not now'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await WebAuthnService.register(email: email, deviceName: 'Browser');
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Face ID enabled! You can now sign in with Face ID.'),
+                  behavior: SnackBarBehavior.floating,
+                ));
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Face ID setup failed: ${e.toString()}'),
+                  backgroundColor: AppColors.dangerText,
+                  behavior: SnackBarBehavior.floating,
+                ));
+              }
+            },
+            child: const Text('Enable'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +137,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String buildNumber = '';
   String updateMessage = '';
   bool checkingUpdate = false;
+  bool updateAvailable = false;
   Color _selectedColor = AppColors.textPrimary;
 
   static const _colorOptions = [
@@ -94,14 +160,17 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _checkUpdates() async {
-    setState(() { checkingUpdate = true; updateMessage = ''; });
+    setState(() { checkingUpdate = true; updateMessage = ''; updateAvailable = false; });
     try {
       final res = await http.get(Uri.parse('${AppConfig.baseUrl}/version'));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final latest = data['version'] as String;
-        setState(() => updateMessage = latest != version.split('+')[0]
-            ? 'Update available: $latest' : 'You are on the latest version');
+        final hasUpdate = latest != version.split('+')[0];
+        setState(() {
+          updateAvailable = hasUpdate;
+          updateMessage = hasUpdate ? 'Update available: $latest' : 'You are on the latest version';
+        });
       } else {
         setState(() => updateMessage = 'Could not check for updates');
       }
@@ -109,6 +178,10 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => updateMessage = 'Update check failed');
     }
     setState(() => checkingUpdate = false);
+  }
+
+  void _applyUpdate() {
+    if (kIsWeb) web.window.location.reload();
   }
 
   Future<void> _signOut() async {
@@ -260,7 +333,18 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 8),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(updateMessage, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                  child: Row(
+                    children: [
+                      Text(updateMessage, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                      if (updateAvailable) ...[
+                        const SizedBox(width: 10),
+                        GestureDetector(
+                          onTap: _applyUpdate,
+                          child: const Text('Update now', style: TextStyle(fontSize: 12, color: AppColors.accent, fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ],
 
