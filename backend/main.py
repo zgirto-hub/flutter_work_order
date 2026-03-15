@@ -46,10 +46,10 @@ def _send_push_notification(title: str, body: str):
             "contents": {"en": body},
         }).encode("utf-8")
         req = urllib.request.Request(
-            "https://onesignal.com/api/v1/notifications",
+            "https://api.onesignal.com/notifications",
             data=data,
             headers={
-                "Authorization": f"Basic {ONESIGNAL_API_KEY}",
+                "Authorization": f"Key {ONESIGNAL_API_KEY}",
                 "Content-Type": "application/json",
             },
             method="POST",
