@@ -10,6 +10,7 @@ class DocumentCard extends StatelessWidget {
   final VoidCallback onRename;
   final VoidCallback onEditType;
   final VoidCallback onDelete;
+  final VoidCallback onMove;
   final bool selectionMode;
   final bool isSelected;
   final ValueChanged<bool?>? onSelectionChanged;
@@ -23,6 +24,7 @@ class DocumentCard extends StatelessWidget {
     required this.onRename,
     required this.onEditType,
     required this.onDelete,
+    required this.onMove,
     required this.highlightBuilder,
     this.selectionMode = false,
     this.isSelected = false,
@@ -62,6 +64,7 @@ class DocumentCard extends StatelessWidget {
                   isOwner: isOwner,
                   onRename: () { Navigator.pop(context); onRename(); },
                   onEditType: () { Navigator.pop(context); onEditType(); },
+                  onMove: () { Navigator.pop(context); onMove(); },
                   onDelete: () { Navigator.pop(context); onDelete(); },
                 ),
               );
@@ -192,6 +195,7 @@ class _DocActionSheet extends StatelessWidget {
   final bool isOwner;
   final VoidCallback onRename;
   final VoidCallback onEditType;
+  final VoidCallback onMove;
   final VoidCallback onDelete;
 
   const _DocActionSheet({
@@ -199,6 +203,7 @@ class _DocActionSheet extends StatelessWidget {
     required this.isOwner,
     required this.onRename,
     required this.onEditType,
+    required this.onMove,
     required this.onDelete,
   });
 
@@ -217,6 +222,7 @@ class _DocActionSheet extends StatelessWidget {
           const Divider(height: 0, thickness: 0.5),
           _ActionRow(icon: Icons.edit_outlined, label: 'Rename', enabled: isOwner, onTap: isOwner ? onRename : null),
           _ActionRow(icon: Icons.category_outlined, label: 'Edit document type', onTap: onEditType),
+          _ActionRow(icon: Icons.drive_file_move_outline, label: 'Move to folder', enabled: isOwner, onTap: isOwner ? onMove : null),
           _ActionRow(icon: Icons.delete_outline_rounded, label: 'Delete', enabled: isOwner, danger: true, onTap: isOwner ? onDelete : null),
           const Divider(height: 0, thickness: 0.5),
           _ActionRow(icon: Icons.close_rounded, label: 'Cancel', onTap: () => Navigator.pop(context)),

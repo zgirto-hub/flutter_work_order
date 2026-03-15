@@ -9,6 +9,7 @@ class DocumentModel {
   final bool isPrivate;
   final String? uploadedBy;
   final bool isShared;
+  final String? folderId;
 
   DocumentModel({
     required this.id,
@@ -20,6 +21,7 @@ class DocumentModel {
     required this.isPrivate,
     this.uploadedBy,
     this.isShared = false,
+    this.folderId,
   });
 
   factory DocumentModel.fromJson(Map<String, dynamic> json) {
@@ -32,10 +34,11 @@ class DocumentModel {
       parsedText: json['parsed_text'],
       isPrivate: json['is_private'] ?? false,
       uploadedBy: json['uploaded_by'],
+      folderId: json['folder_id']?.toString(),
     );
   }
 
-  DocumentModel copyWith({bool? isShared}) {
+  DocumentModel copyWith({bool? isShared, String? folderId}) {
     return DocumentModel(
       id: id,
       title: title,
@@ -46,6 +49,7 @@ class DocumentModel {
       isPrivate: isPrivate,
       uploadedBy: uploadedBy,
       isShared: isShared ?? this.isShared,
+      folderId: folderId ?? this.folderId,
     );
   }
 }
