@@ -763,10 +763,10 @@ class _FontTypeRow extends StatelessWidget {
                   duration: const Duration(milliseconds: 150),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.textPrimary : AppColors.bgSurface2,
+                    color: isSelected ? AppColors.accent : AppColors.bgSurface2,
                     borderRadius: BorderRadius.circular(9),
                     border: Border.all(
-                      color: isSelected ? AppColors.textPrimary : AppColors.border2,
+                      color: isSelected ? AppColors.accent : AppColors.border2,
                       width: 0.5,
                     ),
                   ),
@@ -846,10 +846,10 @@ class _FontSizeRow extends StatelessWidget {
                     margin: EdgeInsets.only(right: i < scales.length - 1 ? 6 : 0),
                     padding: const EdgeInsets.symmetric(vertical: 9),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.textPrimary : AppColors.bgSurface2,
+                      color: isSelected ? AppColors.accent : AppColors.bgSurface2,
                       borderRadius: BorderRadius.circular(9),
                       border: Border.all(
-                        color: isSelected ? AppColors.textPrimary : AppColors.border2,
+                        color: isSelected ? AppColors.accent : AppColors.border2,
                         width: 0.5,
                       ),
                     ),
