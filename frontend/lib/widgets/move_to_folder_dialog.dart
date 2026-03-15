@@ -3,7 +3,6 @@ import '../models/folder_model.dart';
 import '../services/folder_service.dart';
 import '../theme/app_theme.dart';
 
-/// Returns null = cancelled, "root" = move to root, or a folder id string.
 class MoveToFolderDialog extends StatefulWidget {
   final FolderService folderService;
   final String? excludeFolderId;
@@ -59,11 +58,9 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
       final folders = await widget.folderService.fetchAllFolders();
       if (!mounted) return;
 
-      // Build set of excluded ids (the folder itself + all its descendants)
       final excludedIds = <String>{};
       if (widget.excludeFolderId != null) {
-        _collectDescendants(
-            widget.excludeFolderId!, folders, excludedIds);
+        _collectDescendants(widget.excludeFolderId!, folders, excludedIds);
       }
 
       setState(() {
@@ -92,22 +89,12 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
     return _allFolders
         .where((f) => f.parentId == parentId)
         .toList()
-      ..sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      ..sort((a, b) =>
+          a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   }
 
   bool _hasChildren(String folderId) =>
       _allFolders.any((f) => f.parentId == folderId);
-
-  void _toggleExpand(String folderId) {
-    setState(() {
-      if (_expanded.contains(folderId)) {
-        _expanded.remove(folderId);
-      } else {
-        _expanded.add(folderId);
-      }
-    });
-  }
 
   List<Widget> _buildTree(String? parentId, int depth) {
     final folders = _childrenOf(parentId);
@@ -119,79 +106,105 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
       final hasKids = _hasChildren(folder.id);
 
       rows.add(
-        InkWell(
-          onTap: () => setState(() => _selected = folder.id),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            color: isSelected ? AppColors.accentBg : Colors.transparent,
-            padding: EdgeInsets.only(
-              left: 12.0 + depth * 20.0,
-              right: 16,
-              top: 10,
-              bottom: 10,
-            ),
-            child: Row(
-              children: [
-                // Chevron — tappable independently
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: hasKids ? () => _toggleExpand(folder.id) : null,
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: Center(
+        Container(
+          color: isSelected ? AppColors.accentBg : Colors.transparent,
+          child: Row(
+            children: [
+              // ── Chevron zone (expand/collapse only) ──────────
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (!hasKids) return;
+                  setState(() {
+                    if (_expanded.contains(folder.id)) {
+                      _expanded.remove(folder.id);
+                    } else {
+                      _expanded.add(folder.id);
+                    }
+                  });
+                },
+                child: SizedBox(
+                  width: 20.0 + depth * 20.0 + 28,
+                  height: 44,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 4),
                       child: AnimatedRotation(
                         turns: isExpanded ? 0.25 : 0.0,
                         duration: const Duration(milliseconds: 150),
                         child: Icon(
                           Icons.chevron_right_rounded,
-                          size: 16,
+                          size: 18,
+                          // Always show chevron — gray if no children
                           color: hasKids
                               ? AppColors.textSecondary
-                              : Colors.transparent,
+                              : AppColors.bgSurface3,
                         ),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 4),
-                // Folder icon
-                Icon(
-                  isExpanded
-                      ? Icons.folder_open_outlined
-                      : Icons.folder_outlined,
-                  size: 17,
-                  color: AppColors.accent,
-                ),
-                const SizedBox(width: 8),
-                // Name
-                Expanded(
-                  child: Text(
-                    folder.name,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isSelected
-                          ? AppColors.accent
-                          : AppColors.textPrimary,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w400,
+              ),
+
+              // ── Folder name zone (select only) ────────────────
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _selected = folder.id),
+                  child: SizedBox(
+                    height: 44,
+                    child: Row(
+                      children: [
+                        Icon(
+                          isExpanded
+                              ? Icons.folder_open_outlined
+                              : Icons.folder_outlined,
+                          size: 17,
+                          color: AppColors.accent,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            folder.name,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isSelected
+                                  ? AppColors.accent
+                                  : AppColors.textPrimary,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isSelected)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 16),
+                            child: Icon(Icons.check_rounded,
+                                size: 16, color: AppColors.accent),
+                          ),
+                      ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // Selected checkmark
-                if (isSelected)
-                  const Icon(Icons.check_rounded,
-                      size: 16, color: AppColors.accent),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       );
 
-      // Render children inline if expanded
+      // Divider
+      rows.add(const Divider(
+          height: 0,
+          thickness: 0.5,
+          color: AppColors.border,
+          indent: 16,
+          endIndent: 16));
+
+      // Children (inline, only when expanded)
       if (isExpanded) {
         rows.addAll(_buildTree(folder.id, depth + 1));
       }
@@ -212,7 +225,7 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
       builder: (_, scrollController) {
         return Column(
           children: [
-            // Handle bar
+            // Handle
             Container(
               margin: const EdgeInsets.symmetric(vertical: 10),
               width: 36,
@@ -239,18 +252,21 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
                 height: 0, thickness: 0.5, color: AppColors.border),
 
             // Root option
-            InkWell(
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: () => setState(() => _selected = 'root'),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
                 color: isRootSelected
                     ? AppColors.accentBg
                     : Colors.transparent,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                height: 44,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
-                    const SizedBox(width: 28), // align with tree rows
+                    // Spacer matching chevron width at depth 0
+                    const SizedBox(width: 32),
                     Icon(Icons.home_outlined,
                         size: 17,
                         color: isRootSelected
@@ -282,7 +298,7 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
             const Divider(
                 height: 0, thickness: 0.5, color: AppColors.border),
 
-            // Folder tree
+            // Tree
             Expanded(
               child: _loading
                   ? const Center(
@@ -291,22 +307,23 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
                   : _error != null
                       ? Center(
                           child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                              const Icon(Icons.error_outline,
-                                  color: AppColors.dangerText,
-                                  size: 32),
-                              const SizedBox(height: 8),
-                              Text(_error!,
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textTertiary),
-                                  textAlign: TextAlign.center),
-                              const SizedBox(height: 10),
-                              TextButton(
-                                  onPressed: _load,
-                                  child: const Text('Retry')),
-                            ]))
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.error_outline,
+                                color: AppColors.dangerText,
+                                size: 32),
+                            const SizedBox(height: 8),
+                            Text(_error!,
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textTertiary),
+                                textAlign: TextAlign.center),
+                            const SizedBox(height: 10),
+                            TextButton(
+                                onPressed: _load,
+                                child: const Text('Retry')),
+                          ],
+                        ))
                       : _allFolders.isEmpty
                           ? const Center(
                               child: Text('No folders yet',
@@ -323,7 +340,7 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
             const Divider(
                 height: 0, thickness: 0.5, color: AppColors.border),
 
-            // Action buttons
+            // Buttons
             Padding(
               padding: EdgeInsets.fromLTRB(
                   16,
@@ -334,12 +351,14 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context, null),
+                      onPressed: () =>
+                          Navigator.pop(context, null),
                       style: OutlinedButton.styleFrom(
-                        side:
-                            const BorderSide(color: AppColors.border),
+                        side: const BorderSide(
+                            color: AppColors.border),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                            borderRadius:
+                                BorderRadius.circular(10)),
                       ),
                       child: const Text('Cancel',
                           style: TextStyle(
@@ -357,7 +376,8 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
                         backgroundColor: AppColors.accent,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                            borderRadius:
+                                BorderRadius.circular(10)),
                       ),
                       child: const Text('Move here'),
                     ),

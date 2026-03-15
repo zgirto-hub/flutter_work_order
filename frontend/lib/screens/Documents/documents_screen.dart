@@ -56,15 +56,24 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   Future<void> _refresh() async {
     setState(() => _loading = true);
-    final docs = await _service.fetchDocuments();
-    final folders = await _folderService.fetchAllFolders();
-    if (!mounted) return;
-    setState(() {
-      _allDocuments = docs;
-      _allFolders = folders;
-      _loading = false;
-      _selectedDocs.removeWhere((id) => !_allDocuments.any((d) => d.id == id));
-    });
+    try {
+      final docs = await _service.fetchDocuments();
+      final folders = await _folderService.fetchAllFolders();
+      if (!mounted) return;
+      setState(() {
+        _allDocuments = docs;
+        _allFolders = folders;
+        _loading = false;
+        _selectedDocs.removeWhere((id) => !_allDocuments.any((d) => d.id == id));
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to load: $e'),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   List<FolderModel> _childFolders(String? parentId) {
@@ -314,6 +323,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                               name: n, parentId: parentId);
                           if (!mounted) return;
                           Navigator.pop(context);
+                          if (parentId != null) {
+                            setState(() =>
+                                _expandedFolderIds.add(parentId));
+                          }
                           _refresh();
                         } catch (e) {
                           if (!mounted) return;
