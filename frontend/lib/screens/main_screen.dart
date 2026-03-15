@@ -17,6 +17,7 @@ import '../screens/reports/workorder_report_screen.dart';
 import '../screens/Requests/requests_screen.dart';
 import '../config.dart';
 import '../services/request_service.dart';
+import '../services/onesignal_service.dart';
 
 class MainScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -61,6 +62,9 @@ class _MainScreenState extends State<MainScreen> {
     if (role != 'requester') {
       _refreshRequestCount();
       _startPolling();
+      OneSignalService.subscribe(email, role);
+    } else {
+      OneSignalService.unsubscribe();
     }
   }
 

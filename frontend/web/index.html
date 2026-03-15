@@ -2,6 +2,39 @@
 <html>
 <head>
   <script src="webauthn.js"></script>
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.init({
+        appId: "760f00e5-fb08-4c0c-b898-ea35737bcc21",
+        notifyButton: { enable: false },
+        allowLocalhostAsSecureOrigin: true,
+      });
+    });
+
+    async function oneSignalSubscribe(email, role) {
+      return new Promise((resolve) => {
+        OneSignalDeferred.push(async function(OneSignal) {
+          try {
+            await OneSignal.login(email);
+            await OneSignal.User.addTag("role", role);
+            await OneSignal.Notifications.requestPermission();
+            resolve(true);
+          } catch(e) { resolve(false); }
+        });
+      });
+    }
+
+    async function oneSignalUnsubscribe() {
+      return new Promise((resolve) => {
+        OneSignalDeferred.push(async function(OneSignal) {
+          try { await OneSignal.logout(); } catch(e) {}
+          resolve();
+        });
+      });
+    }
+  </script>
   <!--
     If you are serving your web app in a path other than the root, change the
     href value below to reflect the base path you are serving from.

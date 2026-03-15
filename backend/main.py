@@ -8,6 +8,7 @@ import os
 import json
 import uuid
 import unicodedata
+import urllib.request
 from datetime import datetime, timedelta
 from PyPDF2 import PdfReader
 from docx import Document
@@ -24,6 +25,33 @@ SUPABASE_URL = "https://rydrqsjofoulwdtwfbgv.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5ZHJxc2pvZm91bHdkdHdmYmd2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjE0MTg5MiwiZXhwIjoyMDg3NzE3ODkyfQ.HvebR7mHIz2Dp4HRiLf6nVrzbqgeIX5XLc3NuVexwII"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# --------------------
+# OneSignal Config
+# --------------------
+ONESIGNAL_APP_ID = "760f00e5-fb08-4c0c-b898-ea35737bcc21"
+ONESIGNAL_API_KEY = "os_v2_app_oyhqbzp3bbgazoey5i2xg66meeckbcwfpfkunlvaerqzrxfjttcqsmc6mihcssoflslj7uuchv7k5gcjc2zvdkuadwggduykrf6vteq"
+
+def _send_push_notification(title: str, body: str):
+    try:
+        data = json.dumps({
+            "app_id": ONESIGNAL_APP_ID,
+            "included_segments": ["All"],
+            "headings": {"en": title},
+            "contents": {"en": body},
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://onesignal.com/api/v1/notifications",
+            data=data,
+            headers={
+                "Authorization": f"Key {ONESIGNAL_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
+    except Exception as e:
+        print(f"OneSignal error: {e}")
 
 # --------------------
 # FastAPI Setup
@@ -356,6 +384,10 @@ async def create_request(body: CreateRequestBody):
         "location": body.location,
         "status": "Open",
     }).execute()
+    _send_push_notification(
+        title="New Request",
+        body=f"{body.requester_name}: {body.title}",
+    )
     return {"status": "created"}
 
 @app.delete("/api/requests/{request_id}")
