@@ -359,6 +359,13 @@ class CloseRequestBody(BaseModel):
     closed_by: str
     tech_notes: Optional[str] = None
 
+class UpdateRequestBody(BaseModel):
+    title: str
+    description: str = ""
+    requester_name: str
+    location: str = ""
+    email: str
+
 @app.get("/api/user-role")
 async def get_user_role(email: str = Query(...)):
     result = supabase.table("user_profiles") \
@@ -411,6 +418,27 @@ async def delete_request(request_id: str, email: str = Query(...)):
         raise HTTPException(status_code=403, detail="Not allowed to delete this request")
     supabase.table("requests").delete().eq("id", request_id).execute()
     return {"status": "deleted"}
+
+@app.post("/api/requests/{request_id}/update")
+async def update_request(request_id: str, body: UpdateRequestBody):
+    result = supabase.table("requests") \
+        .select("status, created_by") \
+        .eq("id", request_id) \
+        .execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Request not found")
+    req = result.data[0]
+    if req["status"] == "Closed":
+        raise HTTPException(status_code=400, detail="Cannot edit a closed request")
+    if req["created_by"] != body.email:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this request")
+    supabase.table("requests").update({
+        "title": body.title,
+        "description": body.description,
+        "requester_name": body.requester_name,
+        "location": body.location,
+    }).eq("id", request_id).execute()
+    return {"status": "updated"}
 
 @app.patch("/api/requests/{request_id}/close")
 async def close_request(request_id: str, body: CloseRequestBody):

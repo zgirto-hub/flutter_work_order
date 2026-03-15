@@ -4,6 +4,7 @@ import '../../models/request_model.dart';
 import '../../services/request_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/claude_widgets.dart';
+import 'add_request_screen.dart';
 
 class RequestDetailScreen extends StatefulWidget {
   final RequestModel request;
@@ -29,6 +30,19 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   bool get _canClose =>
       (widget.userRole == 'tech' || widget.userRole == 'admin') &&
       widget.request.status == 'Open';
+
+  bool get _canEdit =>
+      widget.userRole == 'requester' && widget.request.status == 'Open';
+
+  Future<void> _openEdit() async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddRequestScreen(request: widget.request),
+      ),
+    );
+    if (updated == true && mounted) Navigator.pop(context, true);
+  }
 
   Future<void> _closeRequest() async {
     final notesCtrl = TextEditingController();
@@ -164,6 +178,23 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                       ),
                     ),
                   ),
+                  if (_canEdit) ...[
+                    GestureDetector(
+                      onTap: _openEdit,
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: AppColors.bgSurface2,
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(color: AppColors.border2, width: 0.5),
+                        ),
+                        child: const Icon(Icons.edit_outlined,
+                            size: 16, color: AppColors.textSecondary),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   _StatusPill(status: req.status),
                 ],
               ),

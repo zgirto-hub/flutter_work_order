@@ -55,6 +55,30 @@ class RequestService {
     }
   }
 
+  Future<void> updateRequest({
+    required String id,
+    required String title,
+    required String description,
+    required String requesterName,
+    required String location,
+    required String email,
+  }) async {
+    final res = await http.post(
+      Uri.parse('${AppConfig.baseUrl}/requests/$id/update'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'title': title,
+        'description': description,
+        'requester_name': requesterName,
+        'location': location,
+        'email': email,
+      }),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(jsonDecode(res.body)['detail'] ?? 'Failed to update request');
+    }
+  }
+
   Future<void> deleteRequest({
     required String id,
     required String email,

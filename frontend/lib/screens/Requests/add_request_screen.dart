@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/request_model.dart';
 import '../../services/request_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/claude_widgets.dart';
 
 class AddRequestScreen extends StatefulWidget {
-  const AddRequestScreen({super.key});
+  final RequestModel? request; // null = create, non-null = edit
+  const AddRequestScreen({super.key, this.request});
 
   @override
   State<AddRequestScreen> createState() => _AddRequestScreenState();
@@ -18,6 +20,19 @@ class _AddRequestScreenState extends State<AddRequestScreen> {
   final _nameCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
   bool _loading = false;
+
+  bool get _isEditing => widget.request != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) {
+      _titleCtrl.text = widget.request!.title;
+      _descCtrl.text = widget.request!.description;
+      _nameCtrl.text = widget.request!.requesterName;
+      _locationCtrl.text = widget.request!.location;
+    }
+  }
 
   @override
   void dispose() {
@@ -43,22 +58,32 @@ class _AddRequestScreenState extends State<AddRequestScreen> {
 
     setState(() => _loading = true);
     try {
-      final email =
-          Supabase.instance.client.auth.currentUser?.email ?? '';
-      await _service.createRequest(
-        title: title,
-        description: _descCtrl.text.trim(),
-        createdBy: email,
-        requesterName: name,
-        location: _locationCtrl.text.trim(),
-      );
+      final email = Supabase.instance.client.auth.currentUser?.email ?? '';
+      if (_isEditing) {
+        await _service.updateRequest(
+          id: widget.request!.id,
+          title: title,
+          description: _descCtrl.text.trim(),
+          requesterName: name,
+          location: _locationCtrl.text.trim(),
+          email: email,
+        );
+      } else {
+        await _service.createRequest(
+          title: title,
+          description: _descCtrl.text.trim(),
+          createdBy: email,
+          requesterName: name,
+          location: _locationCtrl.text.trim(),
+        );
+      }
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to submit: $e'),
+          content: Text('Failed to ${_isEditing ? 'update' : 'submit'}: $e'),
           backgroundColor: AppColors.dangerText,
           behavior: SnackBarBehavior.floating,
         ),
@@ -97,9 +122,9 @@ class _AddRequestScreenState extends State<AddRequestScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    'New Request',
-                    style: TextStyle(
+                  Text(
+                    _isEditing ? 'Edit Request' : 'New Request',
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
@@ -187,9 +212,9 @@ class _AddRequestScreenState extends State<AddRequestScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text(
-                                'Submit Request',
-                                style: TextStyle(
+                            : Text(
+                                _isEditing ? 'Save Changes' : 'Submit Request',
+                                style: const TextStyle(
                                     fontSize: 13, fontWeight: FontWeight.w600),
                               ),
                       ),

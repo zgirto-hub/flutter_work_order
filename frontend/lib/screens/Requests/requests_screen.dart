@@ -22,8 +22,14 @@ class _RequestsScreenState extends State<RequestsScreen> {
   String _statusFilter = 'All';
   bool _loading = true;
 
+  // Selection mode (requester only)
+  bool _selectionMode = false;
+  final Set<String> _selectedIds = {};
+
   String get _email =>
       Supabase.instance.client.auth.currentUser?.email ?? '';
+
+  bool get _canDelete => widget.userRole == 'requester';
 
   @override
   void initState() {
@@ -48,6 +54,71 @@ class _RequestsScreenState extends State<RequestsScreen> {
   List<RequestModel> get _filtered {
     if (_statusFilter == 'All') return _requests;
     return _requests.where((r) => r.status == _statusFilter).toList();
+  }
+
+  void _enterSelectionMode(String id) {
+    setState(() {
+      _selectionMode = true;
+      _selectedIds.add(id);
+    });
+  }
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+        if (_selectedIds.isEmpty) _selectionMode = false;
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    final count = _selectedIds.length;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        title: const Text('Delete Requests', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text(
+          'Delete $count request${count > 1 ? 's' : ''}?',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Delete', style: TextStyle(color: Colors.red.shade400)),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirm || !mounted) return;
+
+    final ids = List<String>.from(_selectedIds);
+    _exitSelectionMode();
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      for (final id in ids) {
+        await _service.deleteRequest(id: id, email: _email);
+      }
+      await _load();
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+      if (mounted) await _load();
+    }
   }
 
   Future<void> _openAdd() async {
@@ -81,27 +152,36 @@ class _RequestsScreenState extends State<RequestsScreen> {
             // ── Header ──────────────────────────────────────────
             Container(
               color: AppColors.bgSurface,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Requests',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.3,
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
+              child: _selectionMode
+                  ? _SelectionBar(
+                      count: _selectedIds.length,
+                      onCancel: _exitSelectionMode,
+                      onDelete: _selectedIds.isNotEmpty ? _deleteSelected : null,
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Requests',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          FilterChipRow(
+                            filters: const ['All', 'Open', 'Closed'],
+                            selected: _statusFilter,
+                            onSelected: (s) => setState(() => _statusFilter = s),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  FilterChipRow(
-                    filters: const ['All', 'Open', 'Closed'],
-                    selected: _statusFilter,
-                    onSelected: (s) => setState(() => _statusFilter = s),
-                  ),
-                ],
-              ),
             ),
 
             const Divider(height: 0, thickness: 0.5, color: AppColors.border),
@@ -143,20 +223,31 @@ class _RequestsScreenState extends State<RequestsScreen> {
                           onRefresh: _load,
                           color: AppColors.accent,
                           child: ListView.separated(
-                            padding:
-                                const EdgeInsets.fromLTRB(14, 12, 14, 80),
+                            padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
                             itemCount: _filtered.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 8),
+                            separatorBuilder: (_, __) => const SizedBox(height: 8),
                             itemBuilder: (_, i) {
                               final req = _filtered[i];
-                              final canDelete = widget.userRole == 'requester';
-                              if (!canDelete) {
+
+                              // Selection mode: show checkboxes, no swipe
+                              if (_selectionMode) {
+                                return _RequestCard(
+                                  request: req,
+                                  selectionMode: true,
+                                  isSelected: _selectedIds.contains(req.id),
+                                  onTap: () => _toggleSelection(req.id),
+                                );
+                              }
+
+                              // Non-requester: no delete, no long press
+                              if (!_canDelete) {
                                 return _RequestCard(
                                   request: req,
                                   onTap: () => _openDetail(req),
                                 );
                               }
+
+                              // Requester: swipe to delete + long press for multi-select
                               return Dismissible(
                                 key: ValueKey(req.id),
                                 direction: DismissDirection.endToStart,
@@ -220,6 +311,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
                                 child: _RequestCard(
                                   request: req,
                                   onTap: () => _openDetail(req),
+                                  onLongPress: () => _enterSelectionMode(req.id),
                                 ),
                               );
                             },
@@ -229,9 +321,44 @@ class _RequestsScreenState extends State<RequestsScreen> {
           ],
         ),
       ),
-      floatingActionButton: widget.userRole == 'requester'
+      floatingActionButton: (!_selectionMode && widget.userRole == 'requester')
           ? ClaudeFAB(onTap: _openAdd)
           : null,
+    );
+  }
+}
+
+// ── Selection bar ─────────────────────────────────────────────────────────────
+
+class _SelectionBar extends StatelessWidget {
+  final int count;
+  final VoidCallback onCancel;
+  final VoidCallback? onDelete;
+
+  const _SelectionBar({required this.count, required this.onCancel, this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textPrimary),
+          onPressed: onCancel,
+          padding: const EdgeInsets.all(8),
+        ),
+        Expanded(
+          child: Text(
+            '$count selected',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          ),
+        ),
+        if (onDelete != null)
+          IconButton(
+            icon: Icon(Icons.delete_outline_rounded, size: 22, color: Colors.red.shade400),
+            onPressed: onDelete,
+            padding: const EdgeInsets.all(8),
+          ),
+      ],
     );
   }
 }
@@ -241,25 +368,55 @@ class _RequestsScreenState extends State<RequestsScreen> {
 class _RequestCard extends StatelessWidget {
   final RequestModel request;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final bool selectionMode;
+  final bool isSelected;
 
-  const _RequestCard({required this.request, required this.onTap});
+  const _RequestCard({
+    required this.request,
+    required this.onTap,
+    this.onLongPress,
+    this.selectionMode = false,
+    this.isSelected = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.bgSurface,
+          color: isSelected ? AppColors.accentBg : AppColors.bgSurface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border, width: 0.5),
+          border: Border.all(
+            color: isSelected ? AppColors.accent : AppColors.border,
+            width: isSelected ? 1.5 : 0.5,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
+                if (selectionMode)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: Checkbox(
+                        value: isSelected,
+                        onChanged: (_) => onTap(),
+                        activeColor: AppColors.accent,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                        side: const BorderSide(color: AppColors.border2, width: 1.5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      ),
+                    ),
+                  ),
                 Expanded(
                   child: Text(
                     request.title,

@@ -107,6 +107,11 @@ class WorkOrderService {
     await _client.from('work_orders').delete().eq('id', id);
   }
 
+  // ✅ DELETE MULTIPLE WORK ORDERS
+  Future<void> deleteWorkOrders(List<String> ids) async {
+    await _client.from('work_orders').delete().inFilter('id', ids);
+  }
+
   // ✅ REAL-TIME STREAM (optional usage)
   Stream<List<WorkOrder>> streamWorkOrders() {
     return _client

@@ -8,6 +8,9 @@ class WorkOrderCard extends StatelessWidget {
   final bool expanded;
   final VoidCallback onTap;
   final VoidCallback onEdit;
+  final bool selectionMode;
+  final bool isSelected;
+  final VoidCallback? onLongPress;
 
   const WorkOrderCard({
     super.key,
@@ -15,20 +18,26 @@ class WorkOrderCard extends StatelessWidget {
     required this.expanded,
     required this.onTap,
     required this.onEdit,
+    this.selectionMode = false,
+    this.isSelected = false,
+    this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: AppColors.bgSurface,
+          color: isSelected ? AppColors.accentBg : AppColors.bgSurface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: expanded ? AppColors.border2 : AppColors.border,
-            width: 0.5,
+            color: isSelected
+                ? AppColors.accent
+                : (expanded ? AppColors.border2 : AppColors.border),
+            width: isSelected ? 1.5 : 0.5,
           ),
         ),
         child: Column(
@@ -41,10 +50,24 @@ class WorkOrderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  // Left accent dot
+                  // Left: checkbox in selection mode, status dot otherwise
                   Padding(
                     padding: const EdgeInsets.only(top: 3, right: 12),
-                    child: _StatusDot(status: workOrder.status),
+                    child: selectionMode
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: Checkbox(
+                              value: isSelected,
+                              onChanged: (_) => onTap(),
+                              activeColor: AppColors.accent,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                              side: const BorderSide(color: AppColors.border2, width: 1.5),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            ),
+                          )
+                        : _StatusDot(status: workOrder.status),
                   ),
 
                   Expanded(
@@ -125,21 +148,22 @@ class WorkOrderCard extends StatelessWidget {
                     ),
                   ),
 
-                  // Expand icon
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2, left: 8),
-                    child: Icon(
-                      expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                      size: 18,
-                      color: AppColors.textTertiary,
+                  // Expand icon (hidden in selection mode)
+                  if (!selectionMode)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2, left: 8),
+                      child: Icon(
+                        expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                        size: 18,
+                        color: AppColors.textTertiary,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
 
             // ── Expanded Section ──────────────────────────────
-            if (expanded) ...[
+            if (expanded && !selectionMode) ...[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),

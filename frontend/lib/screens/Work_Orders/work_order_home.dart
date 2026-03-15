@@ -25,6 +25,10 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
   int? _expandedIndex;
   bool _showSearch = false;
 
+  // Selection mode
+  bool _selectionMode = false;
+  final Set<String> _selectedIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +39,72 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
     final data = await _service.fetchWorkOrders();
     if (!mounted) return;
     setState(() => _workOrders = data);
+  }
+
+  void _enterSelectionMode(String id) {
+    setState(() {
+      _selectionMode = true;
+      _expandedIndex = null;
+      _selectedIds.add(id);
+    });
+  }
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+        if (_selectedIds.isEmpty) _selectionMode = false;
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    final count = _selectedIds.length;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        title: const Text('Delete Work Orders', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text(
+          'Delete $count work order${count > 1 ? 's' : ''}?',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Delete', style: TextStyle(color: Colors.red.shade400)),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirm || !mounted) return;
+
+    final ids = List<String>.from(_selectedIds);
+    _exitSelectionMode();
+    try {
+      await _service.deleteWorkOrders(ids);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete: $e')),
+      );
+      await _load();
+    }
   }
 
   Future<void> _openAdd() async {
@@ -62,102 +132,111 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
             // ── App Bar ───────────────────────────────────────
             Container(
               color: AppColors.bgSurface,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      if (!_showSearch)
-                        const Expanded(
-                          child: Text(
-                            'Work Orders',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -0.3),
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
+              child: _selectionMode
+                  ? _SelectionBar(
+                      count: _selectedIds.length,
+                      onCancel: _exitSelectionMode,
+                      onDelete: _selectedIds.isNotEmpty ? _deleteSelected : null,
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              if (!_showSearch)
+                                const Expanded(
+                                  child: Text(
+                                    'Work Orders',
+                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -0.3),
+                                  ),
+                                )
+                              else
+                                Expanded(
+                                  child: ClaudeSearchBar(
+                                    controller: _searchCtrl,
+                                    hintText: 'Search job no, title…',
+                                    onChanged: (v) {
+                                      setState(() => _filter.setSearchQuery(v.toLowerCase()));
+                                    },
+                                  ),
+                                ),
+                              const SizedBox(width: 8),
+                              ClaudeIconButton(
+                                icon: _showSearch ? Icons.close_rounded : Icons.search_rounded,
+                                onTap: () {
+                                  setState(() {
+                                    _showSearch = !_showSearch;
+                                    if (!_showSearch) {
+                                      _searchCtrl.clear();
+                                      _filter.setSearchQuery('');
+                                    }
+                                  });
+                                },
+                              ),
+                              const SizedBox(width: 6),
+                              ClaudeIconButton(
+                                icon: Icons.calendar_today_outlined,
+                                onTap: () async {
+                                  if (_filter.selectedDate != null) {
+                                    setState(() => _filter.selectedDate = null);
+                                    return;
+                                  }
+                                  final d = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime.now(),
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (d != null) setState(() => _filter.setDate(d));
+                                },
+                              ),
+                              const SizedBox(width: 6),
+                              ClaudeIconButton(
+                                icon: Icons.person_outline_rounded,
+                                onTap: () async {
+                                  if (_filter.selectedEmployeeId != null) {
+                                    setState(() => _filter.selectedEmployeeId = null);
+                                    return;
+                                  }
+                                  final employees = _workOrders
+                                      .expand((wo) => wo.assignedEmployees)
+                                      .toList();
+                                  final unique = {for (var e in employees) e.id: e}.values.toList();
+                                  final selected = await showModalBottomSheet<String>(
+                                    context: context,
+                                    backgroundColor: AppColors.bgSurface,
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                    ),
+                                    builder: (_) => _EmployeePicker(employees: unique),
+                                  );
+                                  if (selected != null) setState(() => _filter.setEmployee(selected));
+                                },
+                              ),
+                            ],
                           ),
-                        )
-                      else
-                        Expanded(
-                          child: ClaudeSearchBar(
-                            controller: _searchCtrl,
-                            hintText: 'Search job no, title…',
-                            onChanged: (v) {
-                              setState(() => _filter.setSearchQuery(v.toLowerCase()));
-                            },
+
+                          const SizedBox(height: 12),
+
+                          // Status filter chips
+                          FilterChipRow(
+                            filters: const ['All', 'Pending', 'In Progress', 'Closed'],
+                            selected: _filter.statusFilter,
+                            onSelected: (s) => setState(() {
+                              _filter.setStatus(s);
+                              _expandedIndex = null;
+                            }),
                           ),
-                        ),
-                      const SizedBox(width: 8),
-                      ClaudeIconButton(
-                        icon: _showSearch ? Icons.close_rounded : Icons.search_rounded,
-                        onTap: () {
-                          setState(() {
-                            _showSearch = !_showSearch;
-                            if (!_showSearch) {
-                              _searchCtrl.clear();
-                              _filter.setSearchQuery('');
-                            }
-                          });
-                        },
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      ClaudeIconButton(
-                        icon: Icons.calendar_today_outlined,
-                        onTap: () async {
-                          if (_filter.selectedDate != null) {
-                            setState(() => _filter.selectedDate = null);
-                            return;
-                          }
-                          final d = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.now(),
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2100),
-                          );
-                          if (d != null) setState(() => _filter.setDate(d));
-                        },
-                      ),
-                      const SizedBox(width: 6),
-                      ClaudeIconButton(
-                        icon: Icons.person_outline_rounded,
-                        onTap: () async {
-                          if (_filter.selectedEmployeeId != null) {
-                            setState(() => _filter.selectedEmployeeId = null);
-                            return;
-                          }
-                          final employees = _workOrders
-                              .expand((wo) => wo.assignedEmployees)
-                              .toList();
-                          final unique = {for (var e in employees) e.id: e}.values.toList();
-                          final selected = await showModalBottomSheet<String>(
-                            context: context,
-                            backgroundColor: AppColors.bgSurface,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                            ),
-                            builder: (_) => _EmployeePicker(employees: unique),
-                          );
-                          if (selected != null) setState(() => _filter.setEmployee(selected));
-                        },
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Status filter chips
-                  FilterChipRow(
-                    filters: const ['All', 'Pending', 'In Progress', 'Closed'],
-                    selected: _filter.statusFilter,
-                    onSelected: (s) => setState(() {
-                      _filter.setStatus(s);
-                      _expandedIndex = null;
-                    }),
-                  ),
-                ],
-              ),
+                    ),
             ),
 
             // Active filters row
-            if (_filter.selectedDate != null || _filter.selectedEmployeeId != null)
+            if (!_selectionMode && (_filter.selectedDate != null || _filter.selectedEmployeeId != null))
               Container(
                 color: AppColors.bgSurface,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -199,13 +278,24 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                         itemCount: filtered.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (context, i) {
+                          final wo = filtered[i];
                           return WorkOrderCard(
-                            workOrder: filtered[i],
-                            expanded: _expandedIndex == i,
-                            onTap: () => setState(() {
-                              _expandedIndex = _expandedIndex == i ? null : i;
-                            }),
+                            workOrder: wo,
+                            expanded: !_selectionMode && _expandedIndex == i,
+                            selectionMode: _selectionMode,
+                            isSelected: _selectedIds.contains(wo.id),
+                            onLongPress: () => _enterSelectionMode(wo.id),
+                            onTap: () {
+                              if (_selectionMode) {
+                                _toggleSelection(wo.id);
+                              } else {
+                                setState(() {
+                                  _expandedIndex = _expandedIndex == i ? null : i;
+                                });
+                              }
+                            },
                             onEdit: () async {
+                              if (_selectionMode) return;
                               final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -223,7 +313,42 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
           ],
         ),
       ),
-      floatingActionButton: ClaudeFAB(onTap: _openAdd),
+      floatingActionButton: _selectionMode ? null : ClaudeFAB(onTap: _openAdd),
+    );
+  }
+}
+
+// ── Selection bar ─────────────────────────────────────────────────────────────
+
+class _SelectionBar extends StatelessWidget {
+  final int count;
+  final VoidCallback onCancel;
+  final VoidCallback? onDelete;
+
+  const _SelectionBar({required this.count, required this.onCancel, this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textPrimary),
+          onPressed: onCancel,
+          padding: const EdgeInsets.all(8),
+        ),
+        Expanded(
+          child: Text(
+            '$count selected',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          ),
+        ),
+        if (onDelete != null)
+          IconButton(
+            icon: Icon(Icons.delete_outline_rounded, size: 22, color: Colors.red.shade400),
+            onPressed: onDelete,
+            padding: const EdgeInsets.all(8),
+          ),
+      ],
     );
   }
 }
@@ -244,7 +369,7 @@ class _ActiveFilterChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.accentBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accent.withOpacity(0.2), width: 0.5),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.2), width: 0.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
