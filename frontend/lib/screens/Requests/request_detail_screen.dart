@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/request_model.dart';
 import '../../services/request_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/claude_widgets.dart';
+import '../../config.dart';
 import 'add_request_screen.dart';
 
 class RequestDetailScreen extends StatefulWidget {
@@ -23,9 +25,59 @@ class RequestDetailScreen extends StatefulWidget {
 class _RequestDetailScreenState extends State<RequestDetailScreen> {
   final _service = RequestService();
   bool _closing = false;
+  List<Map<String, dynamic>> _attachments = [];
+  String _deletingAttachmentId = '';
 
   String get _email =>
       Supabase.instance.client.auth.currentUser?.email ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAttachments();
+  }
+
+  Future<void> _loadAttachments() async {
+    try {
+      final list = await _service.fetchAttachments(widget.request.id);
+      if (mounted) setState(() => _attachments = list);
+    } catch (_) {}
+  }
+
+  Future<void> _deleteAttachment(String attachmentId) async {
+    setState(() => _deletingAttachmentId = attachmentId);
+    try {
+      await _service.deleteAttachment(
+        requestId: widget.request.id,
+        attachmentId: attachmentId,
+        email: _email,
+      );
+      if (mounted) {
+        setState(() => _attachments.removeWhere((a) => a['id'] == attachmentId));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete: $e'),
+            backgroundColor: AppColors.dangerText,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _deletingAttachmentId = '');
+    }
+  }
+
+  Future<void> _openAttachment(String filePath) async {
+    // filePath is like /files/req_uuid.jpg — prepend the server base without /api
+    final baseWithoutApi = AppConfig.baseUrl.replaceAll('/api', '');
+    final url = Uri.parse('$baseWithoutApi$filePath');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
 
   bool get _canClose =>
       (widget.userRole == 'tech' || widget.userRole == 'admin') &&
@@ -317,6 +369,27 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                       ),
                     ],
 
+                    // Attachments
+                    if (_attachments.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      SectionLabel(text: 'Attachments'),
+                      SurfaceCard(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Column(
+                          children: [
+                            for (int i = 0; i < _attachments.length; i++)
+                              _AttachmentRow(
+                                attachment: _attachments[i],
+                                isDeleting: _deletingAttachmentId == _attachments[i]['id'],
+                                canDelete: _attachments[i]['uploaded_by'] == _email,
+                                onTap: () => _openAttachment(_attachments[i]['file_path'] as String),
+                                onDelete: () => _deleteAttachment(_attachments[i]['id'] as String),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     // Close button (tech/admin only, open requests)
                     if (_canClose) ...[
                       const SizedBox(height: 24),
@@ -447,6 +520,86 @@ class _InfoRow extends StatelessWidget {
         if (showDivider)
           const Divider(height: 0, thickness: 0.5, color: AppColors.border),
       ],
+    );
+  }
+}
+
+class _AttachmentRow extends StatelessWidget {
+  final Map<String, dynamic> attachment;
+  final bool isDeleting;
+  final bool canDelete;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _AttachmentRow({
+    required this.attachment,
+    required this.isDeleting,
+    required this.canDelete,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  bool get _isImage {
+    final ext = (attachment['file_name'] as String? ?? '').split('.').last.toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(ext);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fileName = attachment['file_name'] as String? ?? 'file';
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.bgSurface2,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                _isImage ? Icons.image_outlined : Icons.insert_drive_file_outlined,
+                size: 15,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                fileName,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textPrimary,
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppColors.textTertiary,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (canDelete)
+              isDeleting
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: AppColors.textTertiary,
+                      ),
+                    )
+                  : GestureDetector(
+                      onTap: onDelete,
+                      child: const Icon(
+                        Icons.delete_outline_rounded,
+                        size: 16,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+          ],
+        ),
+      ),
     );
   }
 }

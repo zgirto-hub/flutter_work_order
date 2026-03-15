@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models/request_model.dart';
 import '../config.dart';
@@ -32,7 +33,8 @@ class RequestService {
     return [];
   }
 
-  Future<void> createRequest({
+  /// Creates a request and returns the new request ID.
+  Future<String> createRequest({
     required String title,
     required String description,
     required String createdBy,
@@ -53,6 +55,10 @@ class RequestService {
     if (res.statusCode != 200) {
       throw Exception(jsonDecode(res.body)['detail'] ?? 'Failed to create request');
     }
+    final data = jsonDecode(res.body);
+    final id = data['id'];
+    if (id == null) throw Exception('Request created but ID was not returned');
+    return id.toString();
   }
 
   Future<void> updateRequest({
@@ -106,6 +112,55 @@ class RequestService {
     );
     if (res.statusCode != 200) {
       throw Exception(jsonDecode(res.body)['detail'] ?? 'Failed to close request');
+    }
+  }
+
+  // ── Attachments ─────────────────────────────────────────────────────────────
+
+  Future<void> uploadAttachment({
+    required String requestId,
+    required String uploadedBy,
+    required String fileName,
+    required Uint8List bytes,
+    String? mimeType,
+  }) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/requests/$requestId/attachments');
+    final request = http.MultipartRequest('POST', uri);
+    request.fields['uploaded_by'] = uploadedBy;
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      bytes,
+      filename: fileName,
+    ));
+    final streamed = await request.send();
+    if (streamed.statusCode != 200) {
+      throw Exception('Failed to upload attachment: ${streamed.statusCode}');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAttachments(String requestId) async {
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/requests/$requestId/attachments'),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      return List<Map<String, dynamic>>.from(data['attachments'] as List);
+    }
+    return [];
+  }
+
+  Future<void> deleteAttachment({
+    required String requestId,
+    required String attachmentId,
+    required String email,
+  }) async {
+    final res = await http.delete(
+      Uri.parse(
+        '${AppConfig.baseUrl}/requests/$requestId/attachments/$attachmentId?email=${Uri.encodeComponent(email)}',
+      ),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(jsonDecode(res.body)['detail'] ?? 'Failed to delete attachment');
     }
   }
 }

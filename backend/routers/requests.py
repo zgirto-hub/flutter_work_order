@@ -1,10 +1,14 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+import os
+import uuid
 
 from db import supabase
 from utils.notifications import send_push_notification
+
+UPLOAD_DIR = "uploaded_files"
 
 router = APIRouter()
 
@@ -47,7 +51,7 @@ async def get_requests(email: str = Query(...), user_role: str = Query(...)):
 
 @router.post("/requests")
 async def create_request(body: CreateRequestBody):
-    supabase.table("requests").insert({
+    result = supabase.table("requests").insert({
         "title": body.title,
         "description": body.description,
         "created_by": body.created_by,
@@ -55,11 +59,25 @@ async def create_request(body: CreateRequestBody):
         "location": body.location,
         "status": "Open",
     }).execute()
+
+    # Get the generated id from the insert result
+    if result.data and result.data[0].get("id") is not None:
+        request_id = str(result.data[0]["id"])
+    else:
+        # Fallback: query the most recently created request by this user
+        latest = supabase.table("requests") \
+            .select("id") \
+            .eq("created_by", body.created_by) \
+            .order("created_at", desc=True) \
+            .limit(1) \
+            .execute()
+        request_id = str(latest.data[0]["id"]) if latest.data else None
+
     send_push_notification(
         title="New Request",
         body=f"{body.requester_name}: {body.title}",
     )
-    return {"status": "created"}
+    return {"status": "created", "id": request_id}
 
 
 @router.delete("/requests/{request_id}")
@@ -116,3 +134,70 @@ async def close_request(request_id: str, body: CloseRequestBody):
         "tech_notes": body.tech_notes,
     }).eq("id", request_id).execute()
     return {"status": "closed"}
+
+
+# ── Attachments ───────────────────────────────────────────────────────────────
+
+@router.post("/requests/{request_id}/attachments")
+async def upload_request_attachment(
+    request_id: str,
+    file: UploadFile = File(...),
+    uploaded_by: str = Form(...),
+):
+    file_id = str(uuid.uuid4())
+    extension = file.filename.split(".")[-1].lower() if "." in file.filename else "bin"
+    filename = f"req_{file_id}.{extension}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+
+    public_url = f"/files/{filename}"
+
+    supabase.table("request_attachments").insert({
+        "request_id": request_id,
+        "file_name": file.filename,
+        "file_path": public_url,
+        "mime_type": file.content_type,
+        "uploaded_by": uploaded_by,
+    }).execute()
+
+    return {"status": "uploaded", "file_url": public_url}
+
+
+@router.get("/requests/{request_id}/attachments")
+async def get_request_attachments(request_id: str):
+    result = supabase.table("request_attachments") \
+        .select("*") \
+        .eq("request_id", request_id) \
+        .order("created_at") \
+        .execute()
+    return {"attachments": result.data or []}
+
+
+@router.delete("/requests/{request_id}/attachments/{attachment_id}")
+async def delete_request_attachment(
+    request_id: str,
+    attachment_id: str,
+    email: str = Query(...),
+):
+    result = supabase.table("request_attachments") \
+        .select("uploaded_by, file_path") \
+        .eq("id", attachment_id) \
+        .execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    att = result.data[0]
+    if att["uploaded_by"] != email:
+        raise HTTPException(status_code=403, detail="Not allowed to delete this attachment")
+
+    file_path = att["file_path"]
+    if file_path:
+        fname = os.path.basename(file_path)
+        abs_path = os.path.join(UPLOAD_DIR, fname)
+        if os.path.exists(abs_path):
+            os.remove(abs_path)
+
+    supabase.table("request_attachments").delete().eq("id", attachment_id).execute()
+    return {"status": "deleted"}
