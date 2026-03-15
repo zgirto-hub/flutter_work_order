@@ -98,17 +98,60 @@
   <script src="flutter_bootstrap.js" async></script>
 
   <script>
-    // Check for app updates when tab becomes visible
+    // Reload once when the new service worker takes control
+    let _pwaReloading = false;
     if ('serviceWorker' in navigator) {
-      function checkForUpdate() {
-        navigator.serviceWorker.getRegistration().then(function(reg) {
-          if (reg) reg.update();
-        });
-      }
-      document.addEventListener('visibilitychange', function() {
-        if (document.visibilityState === 'visible') checkForUpdate();
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (!_pwaReloading) {
+          _pwaReloading = true;
+          window.location.reload();
+        }
       });
     }
+
+    // Check for app updates when tab becomes visible
+    if ('serviceWorker' in navigator) {
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+          navigator.serviceWorker.getRegistration().then(function(reg) {
+            if (reg) reg.update();
+          });
+        }
+      });
+    }
+
+    // Called by Flutter's "Update now" button
+    window.applyPWAUpdate = async function() {
+      if (!('serviceWorker' in navigator)) { window.location.reload(); return; }
+      try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) { window.location.reload(); return; }
+
+        // Force the browser to fetch the latest SW file
+        await reg.update();
+
+        if (reg.waiting) {
+          // New SW is waiting — tell it to skip waiting; controllerchange fires → reload
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          return;
+        }
+
+        if (reg.installing) {
+          // New SW still installing — Flutter's SW calls skipWaiting() on its own;
+          // controllerchange listener above will reload when it activates
+          return;
+        }
+
+        // No pending SW — clear all caches and hard reload
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(function(k) { return caches.delete(k); }));
+        }
+        window.location.reload();
+      } catch (_) {
+        window.location.reload();
+      }
+    };
   </script>
 </body>
 </html>

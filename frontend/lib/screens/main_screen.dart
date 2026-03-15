@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:web/web.dart' as web;
+import 'dart:js_interop';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:async';
@@ -18,6 +18,9 @@ import '../screens/Requests/requests_screen.dart';
 import '../config.dart';
 import '../services/request_service.dart';
 import '../services/onesignal_service.dart';
+
+@JS('applyPWAUpdate')
+external void _jsApplyPWAUpdate();
 
 class MainScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -253,7 +256,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _applyUpdate() {
-    if (kIsWeb) web.window.location.reload();
+    if (kIsWeb) _jsApplyPWAUpdate();
   }
 
   Future<void> _showCreateAccountDialog(BuildContext context) async {
