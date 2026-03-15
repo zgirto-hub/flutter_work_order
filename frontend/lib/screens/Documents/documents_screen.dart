@@ -76,6 +76,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     }
   }
 
+  Set<String> _collectDescendantIds(String folderId) {
+    final ids = <String>{folderId};
+    for (final f in _allFolders.where((f) => f.parentId == folderId)) {
+      ids.addAll(_collectDescendantIds(f.id));
+    }
+    return ids;
+  }
+
   List<FolderModel> _childFolders(String? parentId) {
     return _allFolders
         .where((f) => f.parentId == parentId)
@@ -143,11 +151,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       _deleteTotal = ids.length;
     });
 
-    int deleted = 0, blocked = 0;
+    final deletedIds = <String>{};
+    int blocked = 0;
     for (final id in ids) {
       try {
         await _service.deleteDocument(id);
-        deleted++;
+        deletedIds.add(id);
       } catch (_) {
         blocked++;
       }
@@ -160,14 +169,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       _deleteProgress = 0;
       _deleteTotal = 0;
       _selectionMode = false;
+      _allDocuments.removeWhere((d) => deletedIds.contains(d.id));
       _selectedDocs.clear();
     });
-    await _refresh();
-    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(blocked == 0
-          ? '$deleted document(s) deleted'
-          : '$deleted deleted, $blocked skipped (not owner)'),
+          ? '${deletedIds.length} document(s) deleted'
+          : '${deletedIds.length} deleted, $blocked skipped (not owner)'),
       behavior: SnackBarBehavior.floating,
       backgroundColor:
           blocked == 0 ? AppColors.closedText : AppColors.pendingText,
@@ -254,7 +262,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     if (confirm != true) return;
     try {
       await _service.deleteDocument(doc.id);
-      await _refresh();
+      if (!mounted) return;
+      setState(() => _allDocuments.removeWhere((d) => d.id == doc.id));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -281,6 +290,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   void _showCreateFolderDialog({String? parentId}) {
     final ctrl = TextEditingController();
+    bool isPrivate = false;
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
@@ -296,17 +306,47 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             title: const Text('New folder',
                 style: TextStyle(
                     fontSize: 15, fontWeight: FontWeight.w600)),
-            content: TextField(
-              controller: ctrl,
-              autofocus: true,
-              style: const TextStyle(fontSize: 13),
-              onChanged: (_) => setDialogState(() {}),
-              decoration: InputDecoration(
-                labelText: 'Folder name',
-                errorText: duplicate
-                    ? 'A folder with this name already exists'
-                    : null,
-              ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  style: const TextStyle(fontSize: 13),
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: InputDecoration(
+                    labelText: 'Folder name',
+                    errorText: duplicate
+                        ? 'A folder with this name already exists'
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface2,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: AppColors.border, width: 0.5),
+                  ),
+                  child: SwitchListTile(
+                    dense: true,
+                    title: const Text('Private folder',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary)),
+                    subtitle: const Text('Only you can see this',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textTertiary)),
+                    value: isPrivate,
+                    activeThumbColor: AppColors.accent,
+                    onChanged: (v) =>
+                        setDialogState(() => isPrivate = v),
+                  ),
+                ),
+              ],
             ),
             actions: [
               TextButton(
@@ -319,15 +359,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         final n = ctrl.text.trim();
                         if (n.isEmpty) return;
                         try {
-                          await _folderService.createFolder(
-                              name: n, parentId: parentId);
+                          final newFolder = await _folderService.createFolder(
+                              name: n, parentId: parentId, isPrivate: isPrivate);
                           if (!mounted) return;
                           Navigator.pop(context);
-                          if (parentId != null) {
-                            setState(() =>
-                                _expandedFolderIds.add(parentId));
-                          }
-                          _refresh();
+                          setState(() {
+                            _allFolders = [..._allFolders, newFolder];
+                            if (parentId != null) {
+                              _expandedFolderIds.add(parentId);
+                            }
+                          });
                         } catch (e) {
                           if (!mounted) return;
                           ScaffoldMessenger.of(context)
@@ -395,8 +436,25 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     if (confirm != true) return;
     try {
       await _folderService.deleteFolder(folder.id);
-      setState(() => _expandedFolderIds.remove(folder.id));
-      await _refresh();
+      if (!mounted) return;
+      final removedIds = _collectDescendantIds(folder.id);
+      setState(() {
+        _expandedFolderIds.removeAll(removedIds);
+        _allFolders.removeWhere((f) => removedIds.contains(f.id));
+        // Backend orphans docs inside deleted folders back to root
+        _allDocuments = _allDocuments.map((d) {
+          if (d.folderId != null && removedIds.contains(d.folderId)) {
+            return DocumentModel(
+              id: d.id, title: d.title, documentType: d.documentType,
+              fileName: d.fileName, filePath: d.filePath,
+              parsedText: d.parsedText, isPrivate: d.isPrivate,
+              uploadedBy: d.uploadedBy, isShared: d.isShared,
+              folderId: null,
+            );
+          }
+          return d;
+        }).toList();
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(

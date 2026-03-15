@@ -36,6 +36,7 @@ class FolderService {
   Future<FolderModel> createFolder({
     required String name,
     String? parentId,
+    bool isPrivate = false,
   }) async {
     final response = await http.post(
       Uri.parse('${AppConfig.baseUrl}/folders'),
@@ -44,6 +45,7 @@ class FolderService {
         'name': name,
         'parent_id': parentId,
         'created_by': _email,
+        'is_private': isPrivate,
       }),
     );
     if (response.statusCode != 200) {

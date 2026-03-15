@@ -15,6 +15,7 @@ class CreateFolderBody(BaseModel):
     name: str
     parent_id: Optional[str] = None
     created_by: str
+    is_private: bool = False
 
 
 class RenameFolderBody(BaseModel):
@@ -40,6 +41,7 @@ async def list_folders(
     all: bool = Query(False),
 ):
     query = supabase.table("document_folders").select("*")
+    query = query.or_(f"is_private.eq.false,created_by.eq.{user_email}")
     if not all:
         if parent_id:
             query = query.eq("parent_id", parent_id)
@@ -54,6 +56,7 @@ async def create_folder(body: CreateFolderBody):
     data = {
         "name": body.name.strip(),
         "created_by": body.created_by,
+        "is_private": body.is_private,
     }
     if body.parent_id:
         data["parent_id"] = body.parent_id
