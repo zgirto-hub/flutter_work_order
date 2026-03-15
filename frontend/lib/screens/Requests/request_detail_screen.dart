@@ -95,7 +95,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.textPrimary,
+              backgroundColor: AppColors.accent,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -341,7 +341,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600)),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.textPrimary,
+                            backgroundColor: AppColors.accent,
                             foregroundColor: Colors.white,
                             padding:
                                 const EdgeInsets.symmetric(vertical: 14),

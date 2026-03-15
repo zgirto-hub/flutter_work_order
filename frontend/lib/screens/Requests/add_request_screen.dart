@@ -196,7 +196,7 @@ class _AddRequestScreenState extends State<AddRequestScreen> {
                       child: ElevatedButton(
                         onPressed: _loading ? null : _submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.textPrimary,
+                          backgroundColor: AppColors.accent,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
