@@ -31,7 +31,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # OneSignal Config
 # --------------------
 ONESIGNAL_APP_ID = "760f00e5-fb08-4c0c-b898-ea35737bcc21"
-ONESIGNAL_API_KEY = "os_v2_app_oyhqbzp3bbgazoey5i2xg66meef2whjbiiweeg5ayc5ltppsluqhj6se7j5xzbegxah6nfyxjsyz52txm6d2g7rimlgkezkjdbmjy2y"
+ONESIGNAL_API_KEY = os.environ.get("ONESIGNAL_API_KEY", "")
 
 def _send_push_notification(title: str, body: str):
     try:
