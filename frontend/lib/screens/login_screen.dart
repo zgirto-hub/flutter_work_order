@@ -151,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Center(child: Text('Work Order', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -0.4))),
+                  const Center(child: Text('Work Order[3]', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -0.4))),
                   const SizedBox(height: 6),
                   const Center(child: Text('Sign in to your account', style: TextStyle(fontSize: 13, color: AppColors.textSecondary))),
                   const SizedBox(height: 32),
@@ -178,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     onSubmitted: (_) => _signIn(),
                     style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
                     decoration: InputDecoration(
-                      hintText: '••••••••',
+                      hintText: '',
                       suffixIcon: GestureDetector(
                         onTap: () => setState(() => _obscure = !_obscure),
                         child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 16, color: AppColors.textTertiary),

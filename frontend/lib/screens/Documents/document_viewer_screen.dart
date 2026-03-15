@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -122,11 +121,10 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     if (_isPdf) {
       if (kIsWeb) {
         if (_blobUrl == null) return const _ErrorView(message: 'Could not create PDF preview');
-        return PdfWebViewer(blobUrl: _blobUrl!);
-      } else {
-        if (_fileBytes == null) return const _ErrorView(message: 'Could not load PDF bytes');
-        return SfPdfViewer.memory(_fileBytes!);
+        return SizedBox.expand(child: PdfWebViewer(blobUrl: _blobUrl!));
       }
+      if (_fileBytes == null) return const _ErrorView(message: 'Could not load PDF bytes');
+      return SfPdfViewer.memory(_fileBytes!);
     }
 
     if (_isTxt) {
