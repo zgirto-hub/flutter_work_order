@@ -36,7 +36,28 @@ fi
 NEW_VERSION=$(grep '^version:' "$LOCAL_PROJECT/pubspec.yaml" | sed 's/version: //' | cut -d'+' -f1)
 echo "Building Flutter Web (v$NEW_VERSION)..."
 cd "$LOCAL_PROJECT"
-flutter build web
+BUILD_DATE=$(date +%Y-%m-%d_%H-%M)
+flutter build web --dart-define=BUILD_DATE=$BUILD_DATE
+
+# Patch 1: Cache-bust main.dart.js
+# flutter_bootstrap.js uses a fixed "main.dart.js" URL, which browsers cache
+# for 6 months. Adding ?v=BUILD_DATE makes every build a unique URL.
+sed -i "s|\"main\.dart\.js\"|\"main.dart.js?v=$BUILD_DATE\"|g" build/web/flutter_bootstrap.js
+echo "main.dart.js cache-busted with ?v=$BUILD_DATE"
+
+# Patch 2: Replace Flutter's generated SW with a no-op.
+# Flutter's generated SW calls client.navigate() on every activate, causing
+# an infinite reload loop in PWA standalone mode.
+cat > build/web/flutter_service_worker.js << 'SWEOF'
+'use strict';
+// No-op service worker — caching handled by Nginx + cache-busted URLs.
+// No clients.claim() to avoid firing controllerchange on running PWA clients.
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))));
+});
+SWEOF
+echo "Service worker replaced with no-op."
 
 # ── Deploy ────────────────────────────────────────────────────────────────────
 TIMESTAMP=$(date +%F_%H-%M)
