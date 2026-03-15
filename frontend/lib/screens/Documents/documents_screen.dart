@@ -438,7 +438,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       isScrollControlled: true,
                       backgroundColor: AppColors.bgSurface,
                       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-                      builder: (_) => const AddDocumentScreen(),
+                      builder: (_) => AddDocumentScreen(folderId: _currentFolderId),
                     );
                     _refresh();
                   },

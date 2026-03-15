@@ -7,7 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 
 class AddDocumentScreen extends StatefulWidget {
-  const AddDocumentScreen({super.key});
+  final String? folderId;
+  const AddDocumentScreen({super.key, this.folderId});
 
   @override
   State<AddDocumentScreen> createState() => _AddDocumentScreenState();
@@ -132,6 +133,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       request.fields['document_type'] = _typeController.text.trim();
       request.fields['is_private'] = isPrivate ? '1' : '0';
       request.fields['uploaded_by'] = _userEmail;
+      if (widget.folderId != null) request.fields['folder_id'] = widget.folderId!;
 
       final response = await request.send();
 
@@ -198,6 +200,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         request.fields['document_type'] = _typeController.text.trim();
         request.fields['is_private'] = isPrivate ? '1' : '0';
         request.fields['uploaded_by'] = _userEmail;
+        if (widget.folderId != null) request.fields['folder_id'] = widget.folderId!;
 
         final response = await request.send();
         if (response.statusCode == 200) successCount++;
