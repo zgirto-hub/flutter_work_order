@@ -10,6 +10,20 @@
         appId: "760f00e5-fb08-4c0c-b898-ea35737bcc21",
         notifyButton: { enable: false },
         allowLocalhostAsSecureOrigin: true,
+        promptOptions: {
+          slidedown: {
+            prompts: [{
+              type: "push",
+              autoPrompt: true,
+              text: {
+                actionMessage: "Get notified when new requests are submitted.",
+                acceptButton: "Allow",
+                cancelButton: "Later"
+              },
+              delay: { pageViews: 1, timeDelay: 2 }
+            }]
+          }
+        }
       });
     });
 
@@ -19,7 +33,6 @@
           try {
             await OneSignal.login(email);
             await OneSignal.User.addTag("role", role);
-            await OneSignal.Notifications.requestPermission();
             resolve(true);
           } catch(e) { resolve(false); }
         });
