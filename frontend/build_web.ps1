@@ -27,8 +27,13 @@ $swPath = "build/web/flutter_service_worker.js"
 $noopSW = @"
 'use strict';
 // No-op service worker — caching handled by Nginx + cache-busted URLs.
+// No clients.claim() — avoids firing controllerchange on running PWA clients,
+// which causes a white screen in standalone PWA mode on some browsers.
 self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+self.addEventListener('activate', (event) => {
+  // Clean up any leftover caches from a previous caching service worker.
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))));
+});
 "@
 Set-Content -Path $swPath -Value $noopSW
 Write-Host "Service worker replaced with no-op."
