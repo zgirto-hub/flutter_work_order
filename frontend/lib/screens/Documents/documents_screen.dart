@@ -237,11 +237,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     ],
                   ),
 
-                  // Show progress bar in header while deleting, otherwise show search+filters
-                  if (_isDeleting) ...[
-                    const SizedBox(height: 10),
-                    _DeleteProgressBar(current: _deleteProgress, total: _deleteTotal),
-                  ] else ...[
+                  // Show search+filters (hidden while deleting)
+                  if (!_isDeleting) ...[
                     const SizedBox(height: 10),
                     ClaudeSearchBar(
                       controller: _searchCtrl,
@@ -358,41 +355,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   }
 }
 
-// Delete progress bar (shown inside header)
-class _DeleteProgressBar extends StatelessWidget {
-  final int current;
-  final int total;
-  const _DeleteProgressBar({required this.current, required this.total});
 
-  @override
-  Widget build(BuildContext context) {
-    final percent = total == 0 ? 0.0 : current / total;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Deleting $current of $total…',
-                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
-            Text('${(percent * 100).toInt()}%',
-                style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: percent,
-            minHeight: 5,
-            backgroundColor: AppColors.bgSurface3,
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.dangerText),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 // Full screen overlay shown in list area while deleting
 class _DeletingOverlay extends StatelessWidget {
