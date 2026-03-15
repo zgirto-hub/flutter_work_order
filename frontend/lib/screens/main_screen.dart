@@ -208,6 +208,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String updateMessage = '';
   bool checkingUpdate = false;
   bool updateAvailable = false;
+  bool _notificationsEnabled = false;
   Color _selectedColor = AppColors.textPrimary;
 
   static const _colorOptions = [
@@ -222,6 +223,7 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _loadVersion();
     _selectedColor = widget.themeController.color;
+    _notificationsEnabled = OneSignalService.isGranted();
   }
 
   Future<void> _loadVersion() async {
@@ -569,24 +571,42 @@ class _SettingsPageState extends State<SettingsPage> {
                 SurfaceCard(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: SettingsRow(
-                    icon: Icons.notifications_outlined,
-                    label: 'Enable push notifications',
+                    icon: _notificationsEnabled
+                        ? Icons.notifications_active_outlined
+                        : Icons.notifications_outlined,
+                    label: _notificationsEnabled
+                        ? 'Disable push notifications'
+                        : 'Enable push notifications',
                     subtitle: 'Get notified when new requests arrive',
                     showDivider: false,
                     onTap: () async {
                       final messenger = ScaffoldMessenger.of(context);
-                      bool granted = false;
-                      try {
-                        granted = await OneSignalService.requestPermission();
-                      } catch (_) {}
-                      messenger.showSnackBar(SnackBar(
-                        content: Text(granted
-                            ? 'Notifications enabled!'
-                            : 'Notifications blocked — check browser settings'),
-                        backgroundColor: granted ? AppColors.closedText : AppColors.dangerText,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ));
+                      if (_notificationsEnabled) {
+                        try {
+                          await OneSignalService.unsubscribe();
+                        } catch (_) {}
+                        setState(() => _notificationsEnabled = false);
+                        messenger.showSnackBar(SnackBar(
+                          content: const Text('Notifications disabled'),
+                          backgroundColor: AppColors.dangerText,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ));
+                      } else {
+                        bool granted = false;
+                        try {
+                          granted = await OneSignalService.requestPermission();
+                        } catch (_) {}
+                        setState(() => _notificationsEnabled = granted);
+                        messenger.showSnackBar(SnackBar(
+                          content: Text(granted
+                              ? 'Notifications enabled!'
+                              : 'Notifications blocked — check browser settings'),
+                          backgroundColor: granted ? AppColors.closedText : AppColors.dangerText,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ));
+                      }
                     },
                   ),
                 ),

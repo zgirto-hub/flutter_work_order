@@ -49,7 +49,7 @@
     async function oneSignalUnsubscribe() {
       return new Promise((resolve) => {
         OneSignalDeferred.push(async function(OneSignal) {
-          try { await OneSignal.logout(); } catch(e) {}
+          try { await OneSignal.User.PushSubscription.optOut(); } catch(e) {}
           resolve();
         });
       });

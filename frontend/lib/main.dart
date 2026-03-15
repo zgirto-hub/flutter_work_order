@@ -40,6 +40,42 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: AppColors.bgSurface,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Work Order',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.5,
+              ),
+            ),
+            SizedBox(height: 24),
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                color: AppColors.accent,
+                strokeWidth: 2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class AuthWrapper extends StatelessWidget {
   final ThemeController themeController;
   const AuthWrapper({super.key, required this.themeController});
@@ -68,6 +104,9 @@ class AuthWrapper extends StatelessWidget {
             child: StreamBuilder<AuthState>(
               stream: Supabase.instance.client.auth.onAuthStateChange,
               builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const _SplashScreen();
+                }
                 final session = snapshot.data?.session;
                 if (session == null) return const LoginScreen();
                 return MainScreen(themeController: themeController);

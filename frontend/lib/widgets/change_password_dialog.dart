@@ -63,11 +63,13 @@ Future<void> changePassword() async {
             obscureText: true,
             decoration: const InputDecoration(labelText: "Old Password"),
           ),
+          const SizedBox(height: 12),
           TextField(
             controller: newController,
             obscureText: true,
             decoration: const InputDecoration(labelText: "New Password"),
           ),
+          const SizedBox(height: 12),
           TextField(
             controller: confirmController,
             obscureText: true,

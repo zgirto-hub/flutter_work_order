@@ -17,4 +17,9 @@ class OneSignalService {
     if (!kIsWeb) return false;
     return await requestOneSignalPermission();
   }
+
+  static bool isGranted() {
+    if (!kIsWeb) return false;
+    return isNotificationPermissionGranted();
+  }
 }
