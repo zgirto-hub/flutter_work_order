@@ -12,4 +12,9 @@ class OneSignalService {
     if (!kIsWeb) return;
     await unsubscribeFromOneSignal();
   }
+
+  static Future<bool> requestPermission() async {
+    if (!kIsWeb) return false;
+    return await requestOneSignalPermission();
+  }
 }

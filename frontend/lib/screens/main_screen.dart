@@ -563,6 +563,33 @@ class _SettingsPageState extends State<SettingsPage> {
 
               const SizedBox(height: 12),
 
+              // Notifications (admin & tech only)
+              if (widget.userRole != 'requester') ...[
+                SectionLabel(text: 'Notifications'),
+                SurfaceCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: SettingsRow(
+                    icon: Icons.notifications_outlined,
+                    label: 'Enable push notifications',
+                    subtitle: 'Get notified when new requests arrive',
+                    showDivider: false,
+                    onTap: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final granted = await OneSignalService.requestPermission();
+                      messenger.showSnackBar(SnackBar(
+                        content: Text(granted
+                            ? 'Notifications enabled!'
+                            : 'Notifications blocked — check browser settings'),
+                        backgroundColor: granted ? AppColors.closedText : AppColors.dangerText,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ));
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
               // User Management (admin only)
               if (widget.userRole == 'admin') ...[
                 SectionLabel(text: 'User Management'),
