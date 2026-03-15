@@ -45,7 +45,7 @@ def _send_push_notification(title: str, body: str):
             "https://api.onesignal.com/notifications",
             data=data,
             headers={
-                "Authorization": f"Key {ONESIGNAL_API_KEY}",
+                "Authorization": f"Bearer {ONESIGNAL_API_KEY}",
                 "Content-Type": "application/json",
             },
             method="POST",
