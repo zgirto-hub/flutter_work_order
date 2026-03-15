@@ -9,6 +9,7 @@ import json
 import uuid
 import unicodedata
 import urllib.request
+import urllib.error
 from datetime import datetime, timedelta
 from PyPDF2 import PdfReader
 from docx import Document
@@ -51,6 +52,8 @@ def _send_push_notification(title: str, body: str):
         )
         response = urllib.request.urlopen(req, timeout=5)
         print(f"OneSignal response: {response.status} {response.read().decode()}")
+    except urllib.error.HTTPError as e:
+        print(f"OneSignal HTTP {e.code}: {e.read().decode()}")
     except Exception as e:
         print(f"OneSignal error: {e}")
 
