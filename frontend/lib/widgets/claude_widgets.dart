@@ -133,18 +133,18 @@ class FilterChipRow extends StatelessWidget {
               duration: const Duration(milliseconds: 150),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.textPrimary : AppColors.bgSurface2,
+                color: isSelected ? AppColors.accent : AppColors.bgSurface2,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: isSelected ? AppColors.textPrimary : AppColors.border2,
+                  color: isSelected ? AppColors.accent : AppColors.border2,
                   width: 0.5,
                 ),
               ),
               child: Text(
                 filters[i],
                 style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   color: isSelected ? Colors.white : AppColors.textSecondary,
                 ),
               ),
@@ -285,11 +285,11 @@ class ClaudeFAB extends StatelessWidget {
         width: 46,
         height: 46,
         decoration: BoxDecoration(
-          color: AppColors.textPrimary,
+          color: AppColors.accent,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: AppColors.textPrimary.withOpacity(0.2),
+              color: AppColors.accent.withValues(alpha: 0.2),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
