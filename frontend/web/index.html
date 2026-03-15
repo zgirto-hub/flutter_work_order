@@ -72,6 +72,7 @@
     // Set badge when a OneSignal notification arrives (foreground)
     OneSignalDeferred.push(function(OneSignal) {
       OneSignal.Notifications.addEventListener('foregroundWillDisplay', function(event) {
+        event.notification.display(); // required — without this OneSignal suppresses the notification
         if ('setAppBadge' in navigator) {
           navigator.setAppBadge().catch(function() {});
         }
