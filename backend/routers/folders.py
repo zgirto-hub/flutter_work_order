@@ -33,6 +33,12 @@ class MoveDocumentBody(BaseModel):
 # Folder Endpoints
 # --------------------
 
+@router.get("/folders/all")
+async def list_all_folders():
+    result = supabase.table("document_folders").select("*").order("name", desc=False).execute()
+    return {"folders": result.data or []}
+
+
 @router.get("/folders")
 async def list_folders(user_email: str = Query(...), parent_id: Optional[str] = Query(None)):
     query = supabase.table("document_folders").select("*")

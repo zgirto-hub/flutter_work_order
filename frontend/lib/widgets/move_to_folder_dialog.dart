@@ -38,43 +38,39 @@ class MoveToFolderDialog extends StatefulWidget {
 }
 
 class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
-  // null key = root level
-  final Map<String?, List<FolderModel>> _cache = {};
+  List<FolderModel> _allFolders = [];
   final Set<String> _expanded = {};
-  final Set<String> _loading = {};
-
-  // "root" sentinel or a folder id
   String? _selected;
-  bool _initialLoading = true;
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadLevel(null);
+    _load();
   }
 
-  Future<void> _loadLevel(String? parentId) async {
-    if (_cache.containsKey(parentId)) return;
-    setState(() => _loading.add(parentId ?? '_root_'));
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
     try {
-      final folders = await widget.folderService.fetchFolders(parentId: parentId);
+      final folders = await widget.folderService.fetchAllFolders();
       if (!mounted) return;
       setState(() {
-        _cache[parentId] = folders
-            .where((f) => f.id != widget.excludeFolderId)
-            .toList();
-        _loading.remove(parentId ?? '_root_');
-        if (parentId == null) _initialLoading = false;
+        _allFolders = folders.where((f) => f.id != widget.excludeFolderId).toList();
+        _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _cache[parentId] = [];
-        _loading.remove(parentId ?? '_root_');
-        if (parentId == null) _initialLoading = false;
-      });
+      setState(() { _loading = false; _error = e.toString(); });
     }
   }
+
+  /// Returns direct children of [parentId] from the already-fetched list.
+  List<FolderModel> _childrenOf(String? parentId) =>
+      _allFolders.where((f) => f.parentId == parentId).toList();
+
+  bool _hasChildren(String folderId) =>
+      _allFolders.any((f) => f.parentId == folderId);
 
   void _toggleExpand(String folderId) {
     setState(() {
@@ -82,19 +78,18 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
         _expanded.remove(folderId);
       } else {
         _expanded.add(folderId);
-        _loadLevel(folderId);
       }
     });
   }
 
   List<Widget> _buildTree(String? parentId, int depth) {
-    final folders = _cache[parentId] ?? [];
+    final folders = _childrenOf(parentId);
     final rows = <Widget>[];
 
     for (final folder in folders) {
       final isExpanded = _expanded.contains(folder.id);
-      final isLoadingChildren = _loading.contains(folder.id);
       final isSelected = _selected == folder.id;
+      final hasKids = _hasChildren(folder.id);
 
       rows.add(
         InkWell(
@@ -110,22 +105,16 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
             child: Row(
               children: [
                 GestureDetector(
-                  onTap: () => _toggleExpand(folder.id),
+                  onTap: hasKids ? () => _toggleExpand(folder.id) : null,
                   child: Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: isLoadingChildren
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.accent),
-                          )
-                        : Icon(
-                            isExpanded
-                                ? Icons.keyboard_arrow_down_rounded
-                                : Icons.keyboard_arrow_right_rounded,
-                            size: 16,
-                            color: AppColors.textTertiary,
-                          ),
+                    child: Icon(
+                      isExpanded
+                          ? Icons.keyboard_arrow_down_rounded
+                          : Icons.keyboard_arrow_right_rounded,
+                      size: 16,
+                      color: hasKids ? AppColors.textTertiary : Colors.transparent,
+                    ),
                   ),
                 ),
                 const Icon(Icons.folder_outlined, size: 16, color: AppColors.accent),
@@ -148,7 +137,7 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
         ),
       );
 
-      if (isExpanded && _cache.containsKey(folder.id)) {
+      if (isExpanded) {
         rows.addAll(_buildTree(folder.id, depth + 1));
       }
     }
@@ -214,9 +203,19 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
 
             // Folder tree
             Expanded(
-              child: _initialLoading
+              child: _loading
                   ? const Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2))
-                  : (_cache[null] ?? []).isEmpty
+                  : _error != null
+                      ? Center(
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.error_outline, color: AppColors.dangerText, size: 32),
+                            const SizedBox(height: 8),
+                            Text(_error!, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary), textAlign: TextAlign.center),
+                            const SizedBox(height: 10),
+                            TextButton(onPressed: _load, child: const Text('Retry')),
+                          ]),
+                        )
+                  : _allFolders.isEmpty
                       ? const Center(
                           child: Text('No folders yet', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
                         )

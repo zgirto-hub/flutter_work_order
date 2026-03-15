@@ -11,6 +11,10 @@ import '../../widgets/claude_widgets.dart';
 import '../../widgets/document_card.dart';
 import '../../widgets/folder_card.dart';
 import '../../widgets/move_to_folder_dialog.dart';
+import '../../widgets/breadcrumb_row.dart';
+import '../../widgets/confirm_dialog.dart';
+import '../../widgets/deleting_overlay.dart';
+import '../../widgets/folder_tree_view.dart';
 import '../Documents/add_document_screen.dart';
 import '../Documents/document_details_screen.dart';
 
@@ -34,11 +38,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   final Set<String> _selectedDocs = {};
   Timer? _debounce;
   bool _selectionMode = false;
+  bool _treeMode = false;
+  int _folderVersion = 0; // incremented after any folder mutation to force FolderTreeView rebuild
 
   // Delete progress
   bool _isDeleting = false;
   int _deleteProgress = 0;
   int _deleteTotal = 0;
+  bool _fabExpanded = false;
 
   @override
   void initState() {
@@ -70,6 +77,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     setState(() {
       _breadcrumb.add(folder);
       _currentFolderId = folder.id;
+      _treeMode = false; // always switch to list view after navigating into a folder
     });
     _refresh();
   }
@@ -124,7 +132,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   Future<void> _deleteSelected() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => _ConfirmDialog(
+      builder: (_) => ConfirmDialog(
         title: 'Delete ${_selectedDocs.length} document(s)?',
         message: 'This action cannot be undone.',
         confirmLabel: 'Delete',
@@ -230,7 +238,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   Future<void> _deleteDoc(DocumentModel doc) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => _ConfirmDialog(title: 'Delete "${doc.title}"?', message: 'This action cannot be undone.', confirmLabel: 'Delete'),
+      builder: (_) => ConfirmDialog(title: 'Delete "${doc.title}"?', message: 'This action cannot be undone.', confirmLabel: 'Delete'),
     );
     if (confirm != true) return;
     try {
@@ -279,10 +287,27 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             onPressed: () async {
               final name = ctrl.text.trim();
               if (name.isEmpty) return;
-              await _folderService.createFolder(name: name, parentId: _currentFolderId);
-              if (!mounted) return;
-              Navigator.pop(context);
-              _refresh();
+              try {
+                await _folderService.createFolder(name: name, parentId: _currentFolderId);
+                if (!mounted) return;
+                Navigator.pop(context);
+                setState(() => _folderVersion++);
+                _refresh();
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Folder "$name" created'),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: AppColors.closedText,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ));
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Failed to create folder: $e'),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: AppColors.dangerText,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ));
+              }
             },
             child: const Text('Create'),
           ),
@@ -309,6 +334,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               await _folderService.renameFolder(folder.id, name);
               if (!mounted) return;
               Navigator.pop(context);
+              setState(() => _folderVersion++);
               _refresh();
             },
             child: const Text('Save'),
@@ -321,7 +347,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   Future<void> _deleteFolderConfirm(FolderModel folder) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => _ConfirmDialog(
+      builder: (_) => ConfirmDialog(
         title: 'Delete "${folder.name}"?',
         message: 'Documents inside will be moved to root. Sub-folders will be deleted.',
         confirmLabel: 'Delete',
@@ -330,6 +356,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     if (confirm != true) return;
     try {
       await _folderService.deleteFolder(folder.id);
+      setState(() => _folderVersion++);
       await _refresh();
     } catch (e) {
       if (!mounted) return;
@@ -346,11 +373,76 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     if (result == null || !mounted) return;
     try {
       await _folderService.moveFolder(folder.id, newParentId: result == 'root' ? null : result);
+      setState(() => _folderVersion++);
       await _refresh();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), behavior: SnackBarBehavior.floating));
     }
+  }
+
+  // ── Speed-dial FAB ─────────────────────────────────────────────────────────
+
+  Widget _buildSpeedDial() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // Child actions
+        AnimatedOpacity(
+          opacity: _fabExpanded ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 180),
+          child: IgnorePointer(
+            ignoring: !_fabExpanded,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _SpeedDialItem(
+                  icon: Icons.refresh_rounded,
+                  label: 'Refresh',
+                  onTap: () { setState(() => _fabExpanded = false); _refresh(); },
+                ),
+                const SizedBox(height: 10),
+                _SpeedDialItem(
+                  icon: Icons.create_new_folder_outlined,
+                  label: 'New Folder',
+                  onTap: () { setState(() => _fabExpanded = false); _showCreateFolderDialog(); },
+                ),
+                const SizedBox(height: 10),
+                _SpeedDialItem(
+                  icon: Icons.upload_file_outlined,
+                  label: 'Add Document',
+                  onTap: () async {
+                    setState(() => _fabExpanded = false);
+                    await showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: AppColors.bgSurface,
+                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+                      builder: (_) => const AddDocumentScreen(),
+                    );
+                    _refresh();
+                  },
+                ),
+                const SizedBox(height: 14),
+              ],
+            ),
+          ),
+        ),
+        // Main toggle button
+        FloatingActionButton(
+          onPressed: () => setState(() => _fabExpanded = !_fabExpanded),
+          backgroundColor: AppColors.accent,
+          elevation: 4,
+          child: AnimatedRotation(
+            turns: _fabExpanded ? 0.125 : 0.0, // 45° when expanded
+            duration: const Duration(milliseconds: 200),
+            child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+          ),
+        ),
+      ],
+    );
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -399,6 +491,18 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                             icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.dangerText),
                             label: const Text('Delete', style: TextStyle(color: AppColors.dangerText, fontSize: 12)),
                           ),
+                        if (!_selectionMode && !_isDeleting)
+                          IconButton(
+                            onPressed: () => setState(() => _treeMode = !_treeMode),
+                            icon: Icon(
+                              _treeMode ? Icons.list_rounded : Icons.account_tree_outlined,
+                              size: 18,
+                              color: _treeMode ? AppColors.accent : AppColors.textSecondary,
+                            ),
+                            tooltip: _treeMode ? 'List view' : 'Tree view',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
                         TextButton(
                           onPressed: _isDeleting ? null : () => setState(() { _selectionMode = !_selectionMode; _selectedDocs.clear(); }),
                           child: Text(_selectionMode ? 'Cancel' : 'Select',
@@ -433,7 +537,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
               // Breadcrumb (hidden when searching or deleting)
               if (!isSearching && !_isDeleting && _breadcrumb.isNotEmpty)
-                _BreadcrumbRow(
+                BreadcrumbRow(
                   breadcrumb: _breadcrumb,
                   onTapRoot: () => _navigateToLevel(-1),
                   onTapLevel: (i) => _navigateToLevel(i),
@@ -454,7 +558,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               // Body
               Expanded(
                 child: _isDeleting
-                    ? _DeletingOverlay(current: _deleteProgress, total: _deleteTotal)
+                    ? DeletingOverlay(current: _deleteProgress, total: _deleteTotal)
+                    : _treeMode
+                        ? FolderTreeView(
+                            folderService: _folderService,
+                            version: _folderVersion,
+                            onFolderTap: _enterFolder,
+                            onRename: _showRenameFolder,
+                            onDelete: _deleteFolderConfirm,
+                            onMove: _showMoveFolderDialog,
+                          )
                     : (_currentFolders.isEmpty && docs.isEmpty)
                         ? Center(
                             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -532,164 +645,41 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             ],
           ),
         ),
-        floatingActionButton: _isDeleting
-            ? null
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ClaudeFAB(icon: Icons.refresh_rounded, onTap: _refresh),
-                  const SizedBox(height: 10),
-                  ClaudeFAB(icon: Icons.create_new_folder_outlined, onTap: _showCreateFolderDialog),
-                  const SizedBox(height: 10),
-                  ClaudeFAB(
-                    onTap: () async {
-                      await showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: AppColors.bgSurface,
-                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-                        builder: (_) => const AddDocumentScreen(),
-                      );
-                      _refresh();
-                    },
-                  ),
-                ],
-              ),
+        floatingActionButton: _isDeleting ? null : _buildSpeedDial(),
       ),
     );
   }
 }
 
-// ── Breadcrumb row ─────────────────────────────────────────────────────────────
 
-class _BreadcrumbRow extends StatelessWidget {
-  final List<FolderModel> breadcrumb;
-  final VoidCallback onTapRoot;
-  final void Function(int index) onTapLevel;
+class _SpeedDialItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
 
-  const _BreadcrumbRow({
-    required this.breadcrumb,
-    required this.onTapRoot,
-    required this.onTapLevel,
-  });
+  const _SpeedDialItem({required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.bgSurface,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: onTapRoot,
-              child: const Icon(Icons.home_outlined, size: 14, color: AppColors.accent),
-            ),
-            for (int i = 0; i < breadcrumb.length; i++) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(Icons.chevron_right_rounded, size: 14, color: AppColors.textTertiary),
-              ),
-              GestureDetector(
-                onTap: () => onTapLevel(i),
-                child: Text(
-                  breadcrumb[i].name,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: i == breadcrumb.length - 1 ? AppColors.textPrimary : AppColors.accent,
-                    fontWeight: i == breadcrumb.length - 1 ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
-              ),
-            ],
-          ],
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.bgSurface,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 2))],
+          ),
+          child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
         ),
-      ),
-    );
-  }
-}
-
-// ── Deleting overlay ───────────────────────────────────────────────────────────
-
-class _DeletingOverlay extends StatelessWidget {
-  final int current;
-  final int total;
-  const _DeletingOverlay({required this.current, required this.total});
-
-  @override
-  Widget build(BuildContext context) {
-    final percent = total == 0 ? 0.0 : current / total;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: AppColors.dangerBg,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.dangerBorder, width: 0.5),
-              ),
-              child: const Icon(Icons.delete_sweep_outlined, size: 26, color: AppColors.dangerText),
-            ),
-            const SizedBox(height: 20),
-            Text('Deleting $current of $total',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-            const SizedBox(height: 6),
-            const Text('Please wait…',
-                style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
-            const SizedBox(height: 24),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: percent,
-                minHeight: 7,
-                backgroundColor: AppColors.bgSurface3,
-                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.dangerText),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('$current deleted', style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                Text('${(percent * 100).toInt()}%',
-                    style: const TextStyle(fontSize: 11, color: AppColors.textTertiary, fontWeight: FontWeight.w500)),
-                Text('$total total', style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Confirm dialog ─────────────────────────────────────────────────────────────
-
-class _ConfirmDialog extends StatelessWidget {
-  final String title;
-  final String message;
-  final String confirmLabel;
-  const _ConfirmDialog({required this.title, required this.message, required this.confirmLabel});
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppColors.bgSurface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-      content: Text(message, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.dangerText),
-          onPressed: () => Navigator.pop(context, true),
-          child: Text(confirmLabel),
+        const SizedBox(width: 10),
+        FloatingActionButton.small(
+          heroTag: label,
+          onPressed: onTap,
+          backgroundColor: AppColors.bgSurface,
+          elevation: 3,
+          child: Icon(icon, size: 20, color: AppColors.accent),
         ),
       ],
     );

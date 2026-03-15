@@ -9,24 +9,24 @@ class FolderService {
 
   String get _email => _client.auth.currentUser?.email ?? '';
 
-  // ---- Reads: direct Supabase ----
+  // ---- Reads: via FastAPI (uses service-role key, bypasses RLS) ----
 
   Future<List<FolderModel>> fetchFolders({String? parentId}) async {
-    dynamic response;
-    if (parentId == null) {
-      response = await _client
-          .from('document_folders')
-          .select()
-          .isFilter('parent_id', null)
-          .order('name', ascending: true);
-    } else {
-      response = await _client
-          .from('document_folders')
-          .select()
-          .eq('parent_id', parentId)
-          .order('name', ascending: true);
-    }
-    return (response as List).map((f) => FolderModel.fromJson(f)).toList();
+    final uri = parentId == null
+        ? Uri.parse('${AppConfig.baseUrl}/folders?user_email=${Uri.encodeComponent(_email)}')
+        : Uri.parse('${AppConfig.baseUrl}/folders?user_email=${Uri.encodeComponent(_email)}&parent_id=${Uri.encodeComponent(parentId)}');
+    final response = await http.get(uri);
+    if (response.statusCode != 200) throw Exception('Failed to fetch folders');
+    final data = jsonDecode(response.body);
+    return (data['folders'] as List).map((f) => FolderModel.fromJson(f)).toList();
+  }
+
+  /// Fetches every folder (all levels), sorted by name.
+  Future<List<FolderModel>> fetchAllFolders() async {
+    final response = await http.get(Uri.parse('${AppConfig.baseUrl}/folders/all'));
+    if (response.statusCode != 200) throw Exception('Failed to fetch folders');
+    final data = jsonDecode(response.body);
+    return (data['folders'] as List).map((f) => FolderModel.fromJson(f)).toList();
   }
 
   // ---- Writes: via FastAPI ----
