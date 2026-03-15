@@ -46,6 +46,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   int _deleteProgress = 0;
   int _deleteTotal = 0;
   bool _fabExpanded = false;
+  bool _loadingFolder = false;
 
   @override
   void initState() {
@@ -67,6 +68,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     setState(() {
       _allDocuments = docs;
       _currentFolders = folders;
+      _loadingFolder = false;
       _selectedDocs.removeWhere((id) => !_allDocuments.any((d) => d.id == id));
     });
   }
@@ -77,7 +79,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     setState(() {
       _breadcrumb.add(folder);
       _currentFolderId = folder.id;
-      _treeMode = false; // always switch to list view after navigating into a folder
+      _treeMode = false;
+      _currentFolders = [];
+      _loadingFolder = true;
     });
     _refresh();
   }
@@ -92,6 +96,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         _breadcrumb = _breadcrumb.sublist(0, index + 1);
         _currentFolderId = _breadcrumb.last.id;
       }
+      _currentFolders = [];
+      _loadingFolder = true;
     });
     _refresh();
   }
@@ -271,7 +277,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     final ctrl = TextEditingController();
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final name = ctrl.text.trim();
+          final duplicate = _currentFolders.any(
+            (f) => f.name.toLowerCase() == name.toLowerCase(),
+          );
+          return AlertDialog(
         backgroundColor: AppColors.bgSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text('New folder', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
@@ -279,12 +291,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           controller: ctrl,
           autofocus: true,
           style: const TextStyle(fontSize: 13),
-          decoration: const InputDecoration(labelText: 'Folder name'),
+          onChanged: (_) => setDialogState(() {}),
+          decoration: InputDecoration(
+            labelText: 'Folder name',
+            errorText: duplicate ? 'A folder with this name already exists' : null,
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: () async {
+            onPressed: duplicate ? null : () async {
               final name = ctrl.text.trim();
               if (name.isEmpty) return;
               try {
@@ -312,6 +328,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             child: const Text('Create'),
           ),
         ],
+          );
+        },
       ),
     );
   }
@@ -559,6 +577,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               Expanded(
                 child: _isDeleting
                     ? DeletingOverlay(current: _deleteProgress, total: _deleteTotal)
+                    : _loadingFolder
+                        ? const Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2))
                     : _treeMode
                         ? FolderTreeView(
                             folderService: _folderService,

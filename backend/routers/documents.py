@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, Query, HTTPException
+from typing import Optional
 import os
 import uuid
 
@@ -16,11 +17,9 @@ async def upload_file(
     title: str = Form(...),
     document_type: str = Form(...),
     is_private: bool = Form(False),
-    uploaded_by: str = Form(...)
+    uploaded_by: str = Form(...),
+    folder_id: Optional[str] = Form(None),
 ):
-    print("UPLOAD DEBUG -> private:", is_private)
-    print("UPLOAD DEBUG -> uploaded_by:", uploaded_by)
-
     file_id = str(uuid.uuid4())
     extension = file.filename.split(".")[-1].lower()
     filename = f"{file_id}.{extension}"
@@ -33,7 +32,7 @@ async def upload_file(
     public_url = f"/files/{filename}"
     parsed_text = extract_text(file_path, extension)
 
-    supabase.table("documents").insert({
+    record = {
         "title": title,
         "document_type": document_type,
         "file_name": file.filename,
@@ -42,8 +41,12 @@ async def upload_file(
         "file_path": public_url,
         "parsed_text": parsed_text,
         "is_private": is_private,
-        "uploaded_by": uploaded_by
-    }).execute()
+        "uploaded_by": uploaded_by,
+    }
+    if folder_id:
+        record["folder_id"] = folder_id
+
+    supabase.table("documents").insert(record).execute()
 
     return {"status": "success", "file_url": public_url}
 
