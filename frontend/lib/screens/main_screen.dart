@@ -575,7 +575,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     showDivider: false,
                     onTap: () async {
                       final messenger = ScaffoldMessenger.of(context);
-                      final granted = await OneSignalService.requestPermission();
+                      bool granted = false;
+                      try {
+                        granted = await OneSignalService.requestPermission();
+                      } catch (_) {}
                       messenger.showSnackBar(SnackBar(
                         content: Text(granted
                             ? 'Notifications enabled!'

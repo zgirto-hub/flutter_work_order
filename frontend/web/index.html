@@ -17,9 +17,12 @@
       return new Promise((resolve) => {
         OneSignalDeferred.push(async function(OneSignal) {
           try {
-            const result = await OneSignal.Notifications.requestPermission();
-            resolve(result);
-          } catch(e) { resolve(false); }
+            await OneSignal.Notifications.requestPermission();
+            resolve(OneSignal.Notifications.permission);
+          } catch(e) {
+            console.error("OneSignal permission error:", e);
+            resolve(false);
+          }
         });
       });
     }
