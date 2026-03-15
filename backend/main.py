@@ -31,7 +31,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # OneSignal Config
 # --------------------
 ONESIGNAL_APP_ID = "760f00e5-fb08-4c0c-b898-ea35737bcc21"
-ONESIGNAL_API_KEY = "os_v2_app_oyhqbzp3bbgazoey5i2xg66megy2cu7ducfuvdf6xtuyruakckwejdeojxqkghhpe2glvtpi4kgkx5n6wiyntvbnnm7zlkloku6ee4a"
+ONESIGNAL_API_KEY = "os_v2_app_oyhqbzp3bbgazoey5i2xg66meeljesckbtnurnva4c4uo6m25gmmncrqktax4rrdljuii4lio7nvdrlqc6mt2woukmfw72xjperc6si"
 
 def _send_push_notification(title: str, body: str):
     try:
@@ -45,7 +45,7 @@ def _send_push_notification(title: str, body: str):
             "https://api.onesignal.com/notifications",
             data=data,
             headers={
-                "Authorization": f"Bearer {ONESIGNAL_API_KEY}",
+                "Authorization": f"Key {ONESIGNAL_API_KEY}",
                 "Content-Type": "application/json",
             },
             method="POST",
