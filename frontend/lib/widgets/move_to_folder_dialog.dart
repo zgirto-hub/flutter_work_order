@@ -6,7 +6,7 @@ import '../theme/app_theme.dart';
 /// Returns null = cancelled, "root" = move to root, or a folder id string.
 class MoveToFolderDialog extends StatefulWidget {
   final FolderService folderService;
-  final String? excludeFolderId; // exclude this folder and its subtree (when moving a folder)
+  final String? excludeFolderId;
 
   const MoveToFolderDialog({
     super.key,
@@ -51,23 +51,50 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final folders = await widget.folderService.fetchAllFolders();
       if (!mounted) return;
+
+      // Build set of excluded ids (the folder itself + all its descendants)
+      final excludedIds = <String>{};
+      if (widget.excludeFolderId != null) {
+        _collectDescendants(
+            widget.excludeFolderId!, folders, excludedIds);
+      }
+
       setState(() {
-        _allFolders = folders.where((f) => f.id != widget.excludeFolderId).toList();
+        _allFolders =
+            folders.where((f) => !excludedIds.contains(f.id)).toList();
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _loading = false; _error = e.toString(); });
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
     }
   }
 
-  /// Returns direct children of [parentId] from the already-fetched list.
-  List<FolderModel> _childrenOf(String? parentId) =>
-      _allFolders.where((f) => f.parentId == parentId).toList();
+  void _collectDescendants(
+      String id, List<FolderModel> all, Set<String> out) {
+    out.add(id);
+    for (final f in all.where((f) => f.parentId == id)) {
+      _collectDescendants(f.id, all, out);
+    }
+  }
+
+  List<FolderModel> _childrenOf(String? parentId) {
+    return _allFolders
+        .where((f) => f.parentId == parentId)
+        .toList()
+      ..sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  }
 
   bool _hasChildren(String folderId) =>
       _allFolders.any((f) => f.parentId == folderId);
@@ -94,49 +121,77 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
       rows.add(
         InkWell(
           onTap: () => setState(() => _selected = folder.id),
-          child: Container(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
             color: isSelected ? AppColors.accentBg : Colors.transparent,
             padding: EdgeInsets.only(
-              left: 16.0 + depth * 16.0,
+              left: 12.0 + depth * 20.0,
               right: 16,
               top: 10,
               bottom: 10,
             ),
             child: Row(
               children: [
+                // Chevron — tappable independently
                 GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: hasKids ? () => _toggleExpand(folder.id) : null,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Icon(
-                      isExpanded
-                          ? Icons.keyboard_arrow_down_rounded
-                          : Icons.keyboard_arrow_right_rounded,
-                      size: 16,
-                      color: hasKids ? AppColors.textTertiary : Colors.transparent,
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Center(
+                      child: AnimatedRotation(
+                        turns: isExpanded ? 0.25 : 0.0,
+                        duration: const Duration(milliseconds: 150),
+                        child: Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: hasKids
+                              ? AppColors.textSecondary
+                              : Colors.transparent,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-                const Icon(Icons.folder_outlined, size: 16, color: AppColors.accent),
+                const SizedBox(width: 4),
+                // Folder icon
+                Icon(
+                  isExpanded
+                      ? Icons.folder_open_outlined
+                      : Icons.folder_outlined,
+                  size: 17,
+                  color: AppColors.accent,
+                ),
                 const SizedBox(width: 8),
+                // Name
                 Expanded(
                   child: Text(
                     folder.name,
                     style: TextStyle(
                       fontSize: 13,
-                      color: isSelected ? AppColors.accent : AppColors.textPrimary,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: isSelected
+                          ? AppColors.accent
+                          : AppColors.textPrimary,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                // Selected checkmark
+                if (isSelected)
+                  const Icon(Icons.check_rounded,
+                      size: 16, color: AppColors.accent),
               ],
             ),
           ),
         ),
       );
 
+      // Render children inline if expanded
       if (isExpanded) {
         rows.addAll(_buildTree(folder.id, depth + 1));
       }
@@ -162,7 +217,9 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
               margin: const EdgeInsets.symmetric(vertical: 10),
               width: 36,
               height: 4,
-              decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2)),
             ),
 
             // Title
@@ -170,86 +227,137 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
               padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Move to folder', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                child: Text('Move to folder',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary)),
               ),
             ),
 
-            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+            const Divider(
+                height: 0, thickness: 0.5, color: AppColors.border),
 
             // Root option
             InkWell(
               onTap: () => setState(() => _selected = 'root'),
-              child: Container(
-                color: isRootSelected ? AppColors.accentBg : Colors.transparent,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                color: isRootSelected
+                    ? AppColors.accentBg
+                    : Colors.transparent,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
-                    Icon(Icons.home_outlined, size: 16, color: isRootSelected ? AppColors.accent : AppColors.textTertiary),
+                    const SizedBox(width: 28), // align with tree rows
+                    Icon(Icons.home_outlined,
+                        size: 17,
+                        color: isRootSelected
+                            ? AppColors.accent
+                            : AppColors.textTertiary),
                     const SizedBox(width: 8),
-                    Text(
-                      'Root (no folder)',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isRootSelected ? AppColors.accent : AppColors.textPrimary,
-                        fontWeight: isRootSelected ? FontWeight.w600 : FontWeight.w400,
+                    Expanded(
+                      child: Text(
+                        'Root (no folder)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isRootSelected
+                              ? AppColors.accent
+                              : AppColors.textPrimary,
+                          fontWeight: isRootSelected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
                       ),
                     ),
+                    if (isRootSelected)
+                      const Icon(Icons.check_rounded,
+                          size: 16, color: AppColors.accent),
                   ],
                 ),
               ),
             ),
 
-            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+            const Divider(
+                height: 0, thickness: 0.5, color: AppColors.border),
 
             // Folder tree
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2))
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                          color: AppColors.accent, strokeWidth: 2))
                   : _error != null
                       ? Center(
-                          child: Column(mainAxisSize: MainAxisSize.min, children: [
-                            const Icon(Icons.error_outline, color: AppColors.dangerText, size: 32),
-                            const SizedBox(height: 8),
-                            Text(_error!, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary), textAlign: TextAlign.center),
-                            const SizedBox(height: 10),
-                            TextButton(onPressed: _load, child: const Text('Retry')),
-                          ]),
-                        )
-                  : _allFolders.isEmpty
-                      ? const Center(
-                          child: Text('No folders yet', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
-                        )
-                      : ListView(
-                          controller: scrollController,
-                          children: _buildTree(null, 0),
-                        ),
+                          child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                              const Icon(Icons.error_outline,
+                                  color: AppColors.dangerText,
+                                  size: 32),
+                              const SizedBox(height: 8),
+                              Text(_error!,
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textTertiary),
+                                  textAlign: TextAlign.center),
+                              const SizedBox(height: 10),
+                              TextButton(
+                                  onPressed: _load,
+                                  child: const Text('Retry')),
+                            ]))
+                      : _allFolders.isEmpty
+                          ? const Center(
+                              child: Text('No folders yet',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textTertiary)),
+                            )
+                          : ListView(
+                              controller: scrollController,
+                              children: _buildTree(null, 0),
+                            ),
             ),
 
-            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+            const Divider(
+                height: 0, thickness: 0.5, color: AppColors.border),
 
             // Action buttons
             Padding(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+              padding: EdgeInsets.fromLTRB(
+                  16,
+                  12,
+                  16,
+                  MediaQuery.of(context).viewInsets.bottom + 16),
               child: Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context, null),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.border),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        side:
+                            const BorderSide(color: AppColors.border),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
                       ),
-                      child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+                      child: const Text('Cancel',
+                          style: TextStyle(
+                              color: AppColors.textSecondary)),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _selected == null ? null : () => Navigator.pop(context, _selected),
+                      onPressed: _selected == null
+                          ? null
+                          : () =>
+                              Navigator.pop(context, _selected),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.accent,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
                       ),
                       child: const Text('Move here'),
                     ),
