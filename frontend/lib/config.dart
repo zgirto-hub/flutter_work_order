@@ -6,5 +6,5 @@ class AppConfig {
 static const String baseUrl = "https://zorin.taila92fe8.ts.net/api";
   static const String downloadUrl = "https://zorin.taila92fe8.ts.net";
   static const String buildDate =
-      String.fromEnvironment('BUILD_DATE', defaultValue: '15 Mar 2026');
+      String.fromEnvironment('BUILD_DATE', defaultValue: '16 Mar 2026');
 }

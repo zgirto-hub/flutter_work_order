@@ -22,6 +22,9 @@ import '../services/onesignal_service.dart';
 @JS('applyPWAUpdate')
 external void _jsApplyPWAUpdate();
 
+@JS('setAppBadge')
+external void _jsSetAppBadge(int count);
+
 class MainScreen extends StatefulWidget {
   final ThemeController themeController;
   const MainScreen({super.key, required this.themeController});
@@ -78,6 +81,7 @@ class _MainScreenState extends State<MainScreen> {
       if (res.statusCode == 200) {
         final count = jsonDecode(res.body)['count'] as int? ?? 0;
         setState(() => _openRequestCount = count);
+        if (kIsWeb) _jsSetAppBadge(count);
       }
     } catch (_) {}
   }
@@ -92,6 +96,7 @@ class _MainScreenState extends State<MainScreen> {
           if (newCount > _openRequestCount) {
             final diff = newCount - _openRequestCount;
             setState(() => _openRequestCount = newCount);
+            if (kIsWeb) _jsSetAppBadge(newCount);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Row(
@@ -112,6 +117,7 @@ class _MainScreenState extends State<MainScreen> {
             );
           } else {
             setState(() => _openRequestCount = newCount);
+            if (kIsWeb) _jsSetAppBadge(newCount);
           }
         }
       } catch (_) {}

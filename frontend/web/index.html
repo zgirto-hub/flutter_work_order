@@ -54,6 +54,29 @@
         });
       });
     }
+
+    // App icon badge (Web App Badging API — works on installed PWA)
+    function setAppBadge(count) {
+      if (!('setAppBadge' in navigator)) return;
+      if (count > 0) {
+        navigator.setAppBadge(count).catch(function(e) {
+          console.warn('setAppBadge failed:', e);
+        });
+      } else {
+        navigator.clearAppBadge().catch(function(e) {
+          console.warn('clearAppBadge failed:', e);
+        });
+      }
+    }
+
+    // Set badge when a OneSignal notification arrives (foreground)
+    OneSignalDeferred.push(function(OneSignal) {
+      OneSignal.Notifications.addEventListener('foregroundWillDisplay', function(event) {
+        if ('setAppBadge' in navigator) {
+          navigator.setAppBadge().catch(function() {});
+        }
+      });
+    });
   </script>
   <!--
     If you are serving your web app in a path other than the root, change the
