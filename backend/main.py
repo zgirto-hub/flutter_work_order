@@ -49,7 +49,8 @@ def _send_push_notification(title: str, body: str):
             },
             method="POST",
         )
-        urllib.request.urlopen(req, timeout=5)
+        response = urllib.request.urlopen(req, timeout=5)
+        print(f"OneSignal response: {response.status} {response.read().decode()}")
     except Exception as e:
         print(f"OneSignal error: {e}")
 

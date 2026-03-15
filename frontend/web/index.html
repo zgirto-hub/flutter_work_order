@@ -14,19 +14,22 @@
     });
 
     async function oneSignalRequestPermission() {
-      try {
-        const result = await Notification.requestPermission();
-        console.log("Notification permission result:", result);
-        if (result === "granted") {
-          OneSignalDeferred.push(async function(OneSignal) {
-            try { await OneSignal.Notifications.requestPermission(); } catch(e) {}
-          });
-        }
-        return result === "granted";
-      } catch(e) {
-        console.error("Notification permission error:", e);
-        return false;
-      }
+      return new Promise((resolve) => {
+        OneSignalDeferred.push(async function(OneSignal) {
+          try {
+            const result = await Notification.requestPermission();
+            console.log("Notification permission result:", result);
+            if (result === "granted") {
+              await OneSignal.User.PushSubscription.optIn();
+              console.log("OneSignal optIn done, id:", OneSignal.User.PushSubscription.id);
+            }
+            resolve(result === "granted");
+          } catch(e) {
+            console.error("Notification permission error:", e);
+            resolve(false);
+          }
+        });
+      });
     }
 
     async function oneSignalSubscribe(email, role) {
