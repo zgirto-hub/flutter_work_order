@@ -137,16 +137,6 @@ async def get_document_shares(doc_id: str):
         .execute()
 
     if not response.data:
-        # Fallback: also check old document_permissions table during migration
-        old = supabase.table("document_permissions") \
-            .select("user_email") \
-            .eq("document_id", doc_id) \
-            .execute()
-        if old.data:
-            return {
-                "users": [row["user_email"] for row in old.data],
-                "shares": [{"email": row["user_email"], "role": "viewer"} for row in old.data]
-            }
         return {"users": [], "shares": []}
 
     users = [row["user_email"] for row in response.data]
@@ -178,13 +168,6 @@ async def remove_share(
         .delete() \
         .eq("resource_id", document_id) \
         .eq("resource_type", "document") \
-        .eq("user_email", remove_user) \
-        .execute()
-
-    # Also remove from old table if still there (migration period)
-    supabase.table("document_permissions") \
-        .delete() \
-        .eq("document_id", document_id) \
         .eq("user_email", remove_user) \
         .execute()
 

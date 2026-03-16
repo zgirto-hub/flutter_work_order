@@ -10,7 +10,7 @@ class DocumentService {
     final user = _client.auth.currentUser;
     final email = user?.email ?? "";
 
-    // Fetch shared document IDs + roles from new table
+    // Fetch shared document IDs + roles from resource_permissions
     final sharedPerms = await _client
         .from('resource_permissions')
         .select('resource_id, role, user_email')
@@ -24,25 +24,12 @@ class DocumentService {
         .map((row) => row['resource_id'].toString())
         .toList();
 
-    // Also check old document_permissions table (migration compatibility)
-    final oldShared = await _client
-        .from('document_permissions')
-        .select('document_id, user_email');
-
-    final oldSharedIds = (oldShared as List)
-        .where((row) => row['user_email'] == email)
-        .map((row) => row['document_id'].toString())
-        .toList();
-
-    // Combine both sets
-    final allSharedIds = {...sharedIds, ...oldSharedIds}.toList();
-
     String filter;
-    if (allSharedIds.isEmpty) {
+    if (sharedIds.isEmpty) {
       filter = 'is_private.eq.false,uploaded_by.eq.$email';
     } else {
       filter =
-          'is_private.eq.false,uploaded_by.eq.$email,id.in.(${allSharedIds.join(',')})';
+          'is_private.eq.false,uploaded_by.eq.$email,id.in.(${sharedIds.join(',')})';
     }
 
     final response = await _client
@@ -59,12 +46,6 @@ class DocumentService {
     final roleMap = <String, String>{};
     for (final perm in myPerms) {
       roleMap[perm['resource_id'].toString()] = perm['role'] as String;
-    }
-    // Old table entries default to 'viewer'
-    for (final id in oldSharedIds) {
-      if (!roleMap.containsKey(id)) {
-        roleMap[id] = 'viewer';
-      }
     }
 
     // Assign roles and isShared
