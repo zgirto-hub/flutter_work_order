@@ -13,3 +13,11 @@ class PdfWebViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const SizedBox();
 }
+
+class PdfEmbedViewer extends StatelessWidget {
+  final String url;
+  const PdfEmbedViewer({super.key, required this.url});
+
+  @override
+  Widget build(BuildContext context) => const SizedBox();
+}

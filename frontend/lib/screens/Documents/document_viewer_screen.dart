@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../theme/app_theme.dart';
+import '../../services/download_helper.dart' show isIosWeb;
 import 'document_viewer_web.dart' if (dart.library.io) 'document_viewer_stub.dart';
 
 class DocumentViewerScreen extends StatefulWidget {
@@ -61,8 +62,14 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       }
 
       if (_isPdf && kIsWeb) {
-        final url = createBlobUrl(response.bodyBytes, 'application/pdf');
-        setState(() { _blobUrl = url; _state = _ViewState.loaded; });
+        if (isIosWeb) {
+          // iOS WKWebView only renders the first page of blob-URL iframes.
+          // Use the direct URL with <embed> for native multi-page PDF support.
+          setState(() { _blobUrl = widget.fileUrl; _state = _ViewState.loaded; });
+        } else {
+          final url = createBlobUrl(response.bodyBytes, 'application/pdf');
+          setState(() { _blobUrl = url; _state = _ViewState.loaded; });
+        }
         return;
       }
 
@@ -121,6 +128,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     if (_isPdf) {
       if (kIsWeb) {
         if (_blobUrl == null) return const _ErrorView(message: 'Could not create PDF preview');
+        if (isIosWeb) return SizedBox.expand(child: PdfEmbedViewer(url: _blobUrl!));
         return SizedBox.expand(child: PdfWebViewer(blobUrl: _blobUrl!));
       }
       if (_fileBytes == null) return const _ErrorView(message: 'Could not load PDF bytes');
