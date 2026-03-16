@@ -3,12 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../theme/app_theme.dart';
-import '../../services/download_helper.dart' show isIosWeb;
+import '../../services/download_helper.dart';
 import 'document_viewer_web.dart' if (dart.library.io) 'document_viewer_stub.dart';
 
 class DocumentViewerScreen extends StatefulWidget {
   final String fileUrl;
-  const DocumentViewerScreen({super.key, required this.fileUrl});
+  final String? fileName;
+
+  const DocumentViewerScreen({
+    super.key,
+    required this.fileUrl,
+    this.fileName,
+  });
 
   @override
   State<DocumentViewerScreen> createState() => _DocumentViewerScreenState();
@@ -20,17 +26,38 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   Uint8List? _fileBytes;
   String? _textContent;
   String? _blobUrl;
+  bool _downloading = false;
 
-  String get _ext => widget.fileUrl.split('?').first.split('.').last.toLowerCase();
-  bool get _isImage => ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(_ext);
+  final PdfViewerController _pdfController = PdfViewerController();
+
+  String get _ext =>
+      widget.fileUrl.split('?').first.split('.').last.toLowerCase();
+  bool get _isImage =>
+      ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(_ext);
   bool get _isPdf => _ext == 'pdf';
   bool get _isTxt => _ext == 'txt';
+
+  String get _displayName {
+    if (widget.fileName != null && widget.fileName!.isNotEmpty) {
+      return widget.fileName!;
+    }
+    final name = widget.fileUrl.split('/').last.split('?').first;
+    return name.length > 40 ? '${name.substring(0, 40)}…' : name;
+  }
 
   @override
   void initState() {
     super.initState();
     _loadFile();
   }
+
+  @override
+  void dispose() {
+    _pdfController.dispose();
+    super.dispose();
+  }
+
+  // ── Load ───────────────────────────────────────────────────────────────────
 
   Future<void> _loadFile() async {
     setState(() {
@@ -44,7 +71,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     try {
       final response = await http
           .get(Uri.parse(widget.fileUrl))
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 
@@ -57,23 +84,26 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       }
 
       if (_isTxt) {
-        setState(() { _textContent = response.body; _state = _ViewState.loaded; });
+        setState(() {
+          _textContent = response.body;
+          _state = _ViewState.loaded;
+        });
         return;
       }
 
       if (_isPdf && kIsWeb) {
-        if (isIosWeb) {
-          // iOS WKWebView only renders the first page of blob-URL iframes.
-          // Use the direct URL with <embed> for native multi-page PDF support.
-          setState(() { _blobUrl = widget.fileUrl; _state = _ViewState.loaded; });
-        } else {
-          final url = createBlobUrl(response.bodyBytes, 'application/pdf');
-          setState(() { _blobUrl = url; _state = _ViewState.loaded; });
-        }
+        final url = createBlobUrl(response.bodyBytes, 'application/pdf');
+        setState(() {
+          _blobUrl = url;
+          _state = _ViewState.loaded;
+        });
         return;
       }
 
-      setState(() { _fileBytes = response.bodyBytes; _state = _ViewState.loaded; });
+      setState(() {
+        _fileBytes = response.bodyBytes;
+        _state = _ViewState.loaded;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -83,91 +113,310 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     }
   }
 
+  // ── Download ───────────────────────────────────────────────────────────────
+
+  Future<void> _triggerDownload() async {
+    if (_downloading) return;
+    setState(() => _downloading = true);
+    try {
+      await downloadFile(widget.fileUrl, _displayName);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Download failed: $e'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.dangerText,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgSurface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, size: 20, color: AppColors.textSecondary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(_shortName,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, size: 20, color: AppColors.textSecondary),
-            onPressed: _loadFile,
-          ),
-        ],
-      ),
+      appBar: _buildAppBar(),
       body: _buildBody(),
     );
   }
 
-  String get _shortName {
-    final name = widget.fileUrl.split('/').last.split('?').first;
-    return name.length > 36 ? '${name.substring(0, 36)}…' : name;
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.bgSurface,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_rounded,
+            size: 20, color: AppColors.textSecondary),
+        onPressed: () => Navigator.pop(context),
+      ),
+      title: Text(
+        _displayName,
+        style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      actions: [
+        if (_state == _ViewState.loaded || _state == _ViewState.error)
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded,
+                size: 20, color: AppColors.textSecondary),
+            onPressed: _loadFile,
+            tooltip: 'Reload',
+          ),
+        // On mobile: share button in appbar
+        if (_state == _ViewState.loaded && !kIsWeb)
+          _downloading
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: AppColors.textSecondary),
+                  ),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.share_rounded,
+                      size: 20, color: AppColors.textSecondary),
+                  onPressed: _triggerDownload,
+                  tooltip: 'Share / Save',
+                ),
+        const SizedBox(width: 4),
+      ],
+    );
   }
 
   Widget _buildBody() {
     switch (_state) {
       case _ViewState.loading:
-        return _LoadingView(filename: _shortName);
+        return _LoadingView(filename: _displayName);
       case _ViewState.error:
-        return _ErrorView(message: _errorMessage ?? 'Unknown error', onRetry: _loadFile);
+        return _ErrorView(
+            message: _errorMessage ?? 'Unknown error', onRetry: _loadFile);
       case _ViewState.loaded:
         return _buildViewer();
     }
   }
 
   Widget _buildViewer() {
-    if (_isPdf) {
-      if (kIsWeb) {
-        if (_blobUrl == null) return const _ErrorView(message: 'Could not create PDF preview');
-        if (isIosWeb) return SizedBox.expand(child: PdfEmbedViewer(url: _blobUrl!));
-        return SizedBox.expand(child: PdfWebViewer(blobUrl: _blobUrl!));
+    if (_isPdf) return _buildPdfViewer();
+    if (_isTxt) return _buildTextViewer();
+    if (_isImage) return _buildImageViewer();
+    return _UnsupportedView(ext: _ext, onDownload: _triggerDownload);
+  }
+
+  // ── PDF viewer ─────────────────────────────────────────────────────────────
+
+  Widget _buildPdfViewer() {
+    if (kIsWeb) {
+      // Web: iframe + download bar pinned at bottom
+      if (_blobUrl == null) {
+        return const _ErrorView(message: 'Could not create PDF preview');
       }
-      if (_fileBytes == null) return const _ErrorView(message: 'Could not load PDF bytes');
-      return SfPdfViewer.memory(_fileBytes!);
-    }
-
-    if (_isTxt) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: SelectableText(
-            _textContent ?? '',
-            style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, height: 1.7, fontFamily: 'monospace'),
+      return Column(
+        children: [
+          // PDF iframe fills available space
+          Expanded(
+            child: SizedBox.expand(
+              child: PdfWebViewer(blobUrl: _blobUrl!),
+            ),
           ),
-        ),
+          // ── Download bar ──────────────────────────────────────────────────
+          _WebDownloadBar(
+            fileName: _displayName,
+            downloading: _downloading,
+            onDownload: _triggerDownload,
+          ),
+        ],
       );
     }
 
-    if (_isImage) {
-      if (_fileBytes == null) return const _ErrorView(message: 'Could not load image');
-      return Container(
-        color: Colors.black,
-        // InteractiveViewer must fill the screen so the entire area is
-        // a valid pinch target, not just the image bounds.
-        child: InteractiveViewer(
-          minScale: 0.3,
-          maxScale: 8.0,
-          child: Center(
-            child: Image.memory(_fileBytes!, fit: BoxFit.contain),
+    // Mobile / desktop: Syncfusion embedded viewer
+    if (_fileBytes == null) {
+      return const _ErrorView(message: 'Could not load PDF bytes');
+    }
+    return SfPdfViewer.memory(
+      _fileBytes!,
+      controller: _pdfController,
+      canShowScrollHead: true,
+      canShowScrollStatus: true,
+      pageLayoutMode: PdfPageLayoutMode.continuous,
+      onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
+        if (mounted) {
+          setState(() {
+            _state = _ViewState.error;
+            _errorMessage = details.description;
+          });
+        }
+      },
+    );
+  }
+
+  // ── Text viewer ────────────────────────────────────────────────────────────
+
+  Widget _buildTextViewer() {
+    return Column(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                _textContent ?? '',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textPrimary,
+                  height: 1.7,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
           ),
         ),
-      );
-    }
+        if (kIsWeb)
+          _WebDownloadBar(
+            fileName: _displayName,
+            downloading: _downloading,
+            onDownload: _triggerDownload,
+          ),
+      ],
+    );
+  }
 
-    return _UnsupportedView(ext: _ext);
+  // ── Image viewer ───────────────────────────────────────────────────────────
+
+  Widget _buildImageViewer() {
+    if (_fileBytes == null) {
+      return const _ErrorView(message: 'Could not load image');
+    }
+    return Column(
+      children: [
+        Expanded(
+          child: Container(
+            color: Colors.black,
+            child: Center(
+              child: InteractiveViewer(
+                minScale: 0.3,
+                maxScale: 8.0,
+                child: Image.memory(_fileBytes!, fit: BoxFit.contain),
+              ),
+            ),
+          ),
+        ),
+        if (kIsWeb)
+          _WebDownloadBar(
+            fileName: _displayName,
+            downloading: _downloading,
+            onDownload: _triggerDownload,
+          ),
+      ],
+    );
   }
 }
 
+// ── Web download bar ───────────────────────────────────────────────────────
+// Shown at the bottom on web for all file types
+
+class _WebDownloadBar extends StatelessWidget {
+  final String fileName;
+  final bool downloading;
+  final VoidCallback onDownload;
+
+  const _WebDownloadBar({
+    required this.fileName,
+    required this.downloading,
+    required this.onDownload,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.bgSurface,
+        border: Border(
+          top: BorderSide(color: AppColors.border, width: 0.5),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            // File icon
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.accentBg,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Icon(Icons.insert_drive_file_outlined,
+                  size: 17, color: AppColors.accent),
+            ),
+            const SizedBox(width: 10),
+            // File name
+            Expanded(
+              child: Text(
+                fileName,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Download button
+            SizedBox(
+              height: 36,
+              child: ElevatedButton.icon(
+                onPressed: downloading ? null : onDownload,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 0),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9)),
+                  textStyle: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                icon: downloading
+                    ? const SizedBox(
+                        width: 13,
+                        height: 13,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 1.5, color: Colors.white),
+                      )
+                    : const Icon(Icons.download_rounded, size: 15),
+                label: Text(downloading ? 'Opening…' : 'Download'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+
 enum _ViewState { loading, loaded, error }
+
+// ── Loading view ───────────────────────────────────────────────────────────
 
 class _LoadingView extends StatelessWidget {
   final String filename;
@@ -179,21 +428,29 @@ class _LoadingView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.accent),
+          const CircularProgressIndicator(
+              strokeWidth: 2.5, color: AppColors.accent),
           const SizedBox(height: 16),
-          const Text('Loading file…', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+          const Text('Loading file…',
+              style: TextStyle(
+                  fontSize: 14, color: AppColors.textSecondary)),
           const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(filename,
-                style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
-                textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+                style: const TextStyle(
+                    fontSize: 11, color: AppColors.textTertiary),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
     );
   }
 }
+
+// ── Error view ─────────────────────────────────────────────────────────────
 
 class _ErrorView extends StatelessWidget {
   final String message;
@@ -209,21 +466,30 @@ class _ErrorView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 56, height: 56,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
                 color: AppColors.dangerBg,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.dangerBorder, width: 0.5),
+                border: Border.all(
+                    color: AppColors.dangerBorder, width: 0.5),
               ),
-              child: const Icon(Icons.error_outline_rounded, size: 26, color: AppColors.dangerText),
+              child: const Icon(Icons.error_outline_rounded,
+                  size: 26, color: AppColors.dangerText),
             ),
             const SizedBox(height: 16),
             const Text('Could not load file',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary)),
             const SizedBox(height: 6),
             Text(message,
-                style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
-                textAlign: TextAlign.center, maxLines: 4, overflow: TextOverflow.ellipsis),
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textTertiary),
+                textAlign: TextAlign.center,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis),
             if (onRetry != null) ...[
               const SizedBox(height: 20),
               ElevatedButton.icon(
@@ -239,9 +505,13 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
+// ── Unsupported file view ──────────────────────────────────────────────────
+
 class _UnsupportedView extends StatelessWidget {
   final String ext;
-  const _UnsupportedView({required this.ext});
+  final VoidCallback onDownload;
+  const _UnsupportedView(
+      {required this.ext, required this.onDownload});
 
   @override
   Widget build(BuildContext context) {
@@ -252,17 +522,35 @@ class _UnsupportedView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 56, height: 56,
-              decoration: BoxDecoration(color: AppColors.accentBg, borderRadius: BorderRadius.circular(16)),
-              child: const Icon(Icons.insert_drive_file_outlined, size: 26, color: AppColors.accent),
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.accentBg,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(Icons.insert_drive_file_outlined,
+                  size: 30, color: AppColors.accent),
             ),
             const SizedBox(height: 16),
             Text('.${ext.toUpperCase()} cannot be previewed',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary),
                 textAlign: TextAlign.center),
-            const SizedBox(height: 6),
-            const Text('Use the Download button to open this file in an external app.',
-                style: TextStyle(fontSize: 12, color: AppColors.textTertiary), textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            const Text(
+              'Use the button below to open in an external app.',
+              style: TextStyle(
+                  fontSize: 12, color: AppColors.textTertiary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onDownload,
+              icon: const Icon(Icons.download_rounded, size: 16),
+              label: const Text('Download / Open'),
+            ),
           ],
         ),
       ),
