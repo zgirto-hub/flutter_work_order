@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/document.dart';
-import '../Documents/document_viewer_screen.dart';
+import 'document_viewer_screen.dart';   // ← ADD THIS
 import '../../config.dart';
 import '../../services/download_helper.dart';
 import 'package:http/http.dart' as http;
@@ -282,15 +282,19 @@ print("CURRENT USER: ${Supabase.instance.client.auth.currentUser?.email}");
                       child: const Text("Open Attached File"),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        _downloadFile(fileUrl, fileName!);
-                      },
-                      child: const Text("Download File"),
+                  // iOS PWA (WKWebView) cannot open new tabs or trigger
+                  // downloads — hide the button; "Open Attached File" covers it.
+                  if (!isIosWeb) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          _downloadFile(fileUrl, fileName!);
+                        },
+                        child: const Text("Download File"),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             const SizedBox(height: 16),
