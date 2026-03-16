@@ -9,6 +9,17 @@ class WorkOrderService {
   String get _email =>
       Supabase.instance.client.auth.currentUser?.email ?? '';
 
+  /// Extracts a human-readable error message from a non-200 response,
+  /// handling both JSON `{"detail": "..."}` and plain-text bodies.
+  String _errorDetail(http.Response res, String fallback) {
+    try {
+      final body = jsonDecode(res.body);
+      return (body is Map ? body['detail'] : null) ?? fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
   // ── Fetch all work orders ──────────────────────────────────────────────────
 
   Future<List<WorkOrder>> fetchWorkOrders({
@@ -52,8 +63,7 @@ class WorkOrderService {
     );
 
     if (res.statusCode != 200) {
-      final body = jsonDecode(res.body);
-      throw Exception(body['detail'] ?? 'Failed to create work order');
+      throw Exception(_errorDetail(res, 'Failed to create work order'));
     }
 
     final data = jsonDecode(res.body);
@@ -80,8 +90,7 @@ class WorkOrderService {
     );
 
     if (res.statusCode != 200) {
-      final body = jsonDecode(res.body);
-      throw Exception(body['detail'] ?? 'Failed to update work order');
+      throw Exception(_errorDetail(res, 'Failed to update work order'));
     }
   }
 
@@ -102,8 +111,7 @@ class WorkOrderService {
     );
 
     if (res.statusCode != 200) {
-      final body = jsonDecode(res.body);
-      throw Exception(body['detail'] ?? 'Failed to close work order');
+      throw Exception(_errorDetail(res, 'Failed to close work order'));
     }
   }
 
@@ -116,8 +124,7 @@ class WorkOrderService {
     );
 
     if (res.statusCode != 200) {
-      final body = jsonDecode(res.body);
-      throw Exception(body['detail'] ?? 'Failed to delete work order');
+      throw Exception(_errorDetail(res, 'Failed to delete work order'));
     }
   }
 
@@ -130,8 +137,7 @@ class WorkOrderService {
     );
 
     if (res.statusCode != 200) {
-      final body = jsonDecode(res.body);
-      throw Exception(body['detail'] ?? 'Failed to delete work orders');
+      throw Exception(_errorDetail(res, 'Failed to delete work orders'));
     }
   }
 
