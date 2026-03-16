@@ -1,16 +1,23 @@
+// ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
 Future<void> downloadFile(String url, String fileName) async {
-  // iOS Safari (PWA and browser) ignores the `download` attribute.
-  // Open in a new tab so the user gets the native preview / share sheet.
   final ua = html.window.navigator.userAgent.toLowerCase();
   final isIos = ua.contains('iphone') || ua.contains('ipad') || ua.contains('ipod');
 
   if (isIos) {
-    // PWA standalone mode blocks window.open(). Navigate the current window
-    // to the file URL — iOS intercepts it with a native QuickLook preview.
-    // The user taps Done to return to the PWA.
-    html.window.location.href = url;
+    // On iOS PWA/Safari: open the file in a new tab so the user gets the
+    // native QuickLook preview with a "Done" button to return.
+    // We use a temporary <a target="_blank"> because window.open() is
+    // blocked in PWA standalone mode on iOS.
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('target', '_blank')
+      ..setAttribute('rel', 'noopener noreferrer');
+    html.document.body?.append(anchor);
+    anchor.click();
+    // Small delay before removal to ensure the click registers
+    await Future.delayed(const Duration(milliseconds: 100));
+    anchor.remove();
     return;
   }
 
@@ -19,4 +26,3 @@ Future<void> downloadFile(String url, String fileName) async {
     ..setAttribute('download', fileName)
     ..click());
 }
-
