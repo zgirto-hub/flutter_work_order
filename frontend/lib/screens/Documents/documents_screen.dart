@@ -23,6 +23,10 @@ class DocumentsScreen extends StatefulWidget {
 }
 
 class _DocumentsScreenState extends State<DocumentsScreen> {
+  // Static cache — survives route pop/push so the screen doesn't spinner on re-entry
+  static List<DocumentModel>? _docCache;
+  static List<FolderModel>? _folderCache;
+
   List<DocumentModel> _allDocuments = [];
   List<FolderModel> _allFolders = [];
   final Set<String> _expandedFolderIds = {};
@@ -44,7 +48,15 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   @override
   void initState() {
     super.initState();
-    _refresh();
+    if (_docCache != null && _folderCache != null) {
+      // Show cached data immediately, no spinner, then silently refresh
+      _allDocuments = _docCache!;
+      _allFolders = _folderCache!;
+      _loading = false;
+      _refresh(silent: true);
+    } else {
+      _refresh();
+    }
   }
 
   @override
@@ -54,12 +66,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     super.dispose();
   }
 
-  Future<void> _refresh() async {
-    setState(() => _loading = true);
+  Future<void> _refresh({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
     try {
       final docs = await _service.fetchDocuments();
       final folders = await _folderService.fetchAllFolders();
       if (!mounted) return;
+      _docCache = docs;
+      _folderCache = folders;
       setState(() {
         _allDocuments = docs;
         _allFolders = folders;
@@ -68,11 +82,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to load: $e'),
-        behavior: SnackBarBehavior.floating,
-      ));
+      if (!silent) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to load: $e'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     }
   }
 
@@ -923,6 +939,15 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 children: [
                   Row(
                     children: [
+                      if (!_selectionMode && Navigator.canPop(context))
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: const Padding(
+                            padding: EdgeInsets.only(right: 8),
+                            child: Icon(Icons.arrow_back_ios_new_rounded,
+                                size: 18, color: AppColors.textPrimary),
+                          ),
+                        ),
                       if (_selectionMode)
                         Expanded(
                           child: Text(
