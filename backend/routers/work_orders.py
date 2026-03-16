@@ -19,6 +19,7 @@ class CreateWorkOrderBody(BaseModel):
     type: str = "Technical"
     status: str = "Pending"
     created_by: str
+    created_by_email: Optional[str] = ""
     assigned_employee_ids: Optional[List[str]] = []
 
 
@@ -170,8 +171,8 @@ async def create_work_order(body: CreateWorkOrderBody):
     try:
         supabase.table("work_order_comments").insert({
             "work_order_id": work_order_id,
-            "author_email": body.created_by,
-            "author_name": body.created_by.split("@")[0],
+            "author_email": body.created_by_email or body.created_by,
+            "author_name": (body.created_by_email or "").split("@")[0] or body.created_by[:8],
             "body": "Work order created.",
             "type": "system",
             "meta": None,

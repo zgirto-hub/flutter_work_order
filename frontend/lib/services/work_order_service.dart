@@ -9,6 +9,9 @@ class WorkOrderService {
   String get _email =>
       Supabase.instance.client.auth.currentUser?.email ?? '';
 
+  String get _userId =>
+      Supabase.instance.client.auth.currentUser?.id ?? '';
+
   /// Extracts a human-readable error message from a non-200 response,
   /// handling both JSON `{"detail": "..."}` and plain-text bodies.
   String _errorDetail(http.Response res, String fallback) {
@@ -56,7 +59,8 @@ class WorkOrderService {
         'location': workOrder.location,
         'type': workOrder.type,
         'status': workOrder.status,
-        'created_by': _email,
+        'created_by': _userId,
+        'created_by_email': _email,
         'assigned_employee_ids':
             workOrder.assignedEmployees.map((e) => e.id).toList(),
       }),
