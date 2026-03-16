@@ -159,15 +159,18 @@ async def create_work_order(body: CreateWorkOrderBody):
     if body.assigned_employee_ids:
         _sync_assignments(work_order_id, body.assigned_employee_ids)
 
-    # Auto-log creation as a system event
-    supabase.table("work_order_comments").insert({
-        "work_order_id": work_order_id,
-        "author_email": body.created_by,
-        "author_name": body.created_by.split("@")[0],
-        "body": "Work order created.",
-        "type": "system",
-        "meta": None,
-    }).execute()
+    # Auto-log creation as a system event (best-effort)
+    try:
+        supabase.table("work_order_comments").insert({
+            "work_order_id": work_order_id,
+            "author_email": body.created_by,
+            "author_name": body.created_by.split("@")[0],
+            "body": "Work order created.",
+            "type": "system",
+            "meta": None,
+        }).execute()
+    except Exception:
+        pass
 
     return {"work_order": _fetch_full_work_order(work_order_id)}
 
@@ -203,16 +206,19 @@ async def update_work_order(
 
     _sync_assignments(work_order_id, body.assigned_employee_ids or [])
 
-    # Auto-log status change
+    # Auto-log status change (best-effort)
     if existing_status and existing_status != body.status:
-        supabase.table("work_order_comments").insert({
-            "work_order_id": work_order_id,
-            "author_email": user_email,
-            "author_name": user_email.split("@")[0],
-            "body": f"Status changed from {existing_status} to {body.status}",
-            "type": "status_change",
-            "meta": {"from": existing_status, "to": body.status},
-        }).execute()
+        try:
+            supabase.table("work_order_comments").insert({
+                "work_order_id": work_order_id,
+                "author_email": user_email,
+                "author_name": user_email.split("@")[0],
+                "body": f"Status changed from {existing_status} to {body.status}",
+                "type": "status_change",
+                "meta": {"from": existing_status, "to": body.status},
+            }).execute()
+        except Exception:
+            pass
 
     return {"work_order": _fetch_full_work_order(work_order_id)}
 
