@@ -148,7 +148,7 @@ async def create_work_order(body: CreateWorkOrderBody):
         "type": body.type,
         "status": body.status,
         "created_by": body.created_by,
-    }).execute()
+    }).select("*").execute()
 
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create work order")
