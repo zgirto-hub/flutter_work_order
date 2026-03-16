@@ -238,40 +238,6 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
-  void _showEditType(DocumentModel doc) {
-    final ctrl = TextEditingController(text: doc.documentType);
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.bgSurface,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Edit document type',
-            style:
-                TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-        content: TextField(
-            controller: ctrl,
-            style: const TextStyle(fontSize: 13),
-            decoration:
-                const InputDecoration(labelText: 'Document type')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              await _service.updateDocumentType(doc.id, ctrl.text);
-              if (!mounted) return;
-              Navigator.pop(context);
-              _refresh();
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _deleteDoc(DocumentModel doc) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -653,120 +619,238 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   void _showDocActions(DocumentModel doc) {
     final caps = DocumentCapabilities.fromRole(doc.role);
+    final currentUser = Supabase.instance.client.auth.currentUser?.email;
+    final folderName = _allFolders
+        .firstWhereOrNull((f) => f.id == doc.folderId)
+        ?.name ?? 'Root';
+
+    final roleLabel = doc.role ?? 'viewer';
+    Color roleBg, roleFg;
+    switch (doc.role) {
+      case 'owner':
+        roleBg = const Color(0xFFEAF3DE); roleFg = const Color(0xFF3B6D11); break;
+      case 'editor':
+        roleBg = const Color(0xFFE8F0FB); roleFg = const Color(0xFF185FA5); break;
+      default:
+        roleBg = const Color(0xFFF1EFE8); roleFg = const Color(0xFF5F5E5A);
+    }
+
+    final actions = [
+      _DocAction(
+        icon: Icons.visibility_outlined,
+        label: 'Open / Download',
+        desc: 'Always available',
+        enabled: true,
+        danger: false,
+        onTap: () {
+          Navigator.pop(context);
+          _onDocTap(doc);
+        },
+      ),
+      _DocAction(
+        icon: Icons.edit_outlined,
+        label: 'Rename',
+        desc: caps.canRename ? 'You can rename' : 'Requires editor or owner',
+        enabled: caps.canRename,
+        danger: false,
+        onTap: caps.canRename ? () { Navigator.pop(context); _showRename(doc); } : null,
+      ),
+      _DocAction(
+        icon: Icons.drive_file_move_outline,
+        label: 'Move to folder',
+        desc: caps.canMove ? 'You can move' : 'Requires editor or owner',
+        enabled: caps.canMove,
+        danger: false,
+        onTap: caps.canMove ? () { Navigator.pop(context); _showMoveDocDialog(doc); } : null,
+      ),
+      _DocAction(
+        icon: Icons.share_outlined,
+        label: 'Manage access',
+        desc: caps.canShare ? 'Add or change roles' : 'Owner only',
+        enabled: caps.canShare,
+        danger: false,
+        onTap: caps.canShare ? () { Navigator.pop(context); /* open share sheet */ } : null,
+      ),
+      _DocAction(
+        icon: Icons.delete_outline_rounded,
+        label: 'Delete',
+        desc: caps.canDelete ? 'Permanently remove' : 'Owner only',
+        enabled: caps.canDelete,
+        danger: true,
+        onTap: caps.canDelete ? () { Navigator.pop(context); _deleteDoc(doc); } : null,
+      ),
+    ];
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.bgSurface,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.vertical(top: Radius.circular(16))),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        padding: EdgeInsets.fromLTRB(
+            16, 0, 16, MediaQuery.of(context).viewInsets.bottom + 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(doc.title,
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 4),
-            Text(doc.documentType,
-                style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textTertiary)),
-            if (doc.role != null && doc.role != 'owner') ...[
-              const SizedBox(height: 2),
-              Text(
-                'Your access: ${doc.role}',
-                style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
-              ),
-            ],
+
+            // ── Handle ──────────────────────────────────────────
+            Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                  color: AppColors.border2,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+
+            // ── Sheet header row ─────────────────────────────────
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Owner',
+                          style: TextStyle(
+                              fontSize: 11, color: AppColors.textSecondary)),
+                      const SizedBox(height: 2),
+                      Text(
+                        doc.uploadedBy == currentUser
+                            ? 'You'
+                            : (doc.uploadedBy?.split('@').first ?? '—'),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('Your role',
+                        style: TextStyle(
+                            fontSize: 11, color: AppColors.textSecondary)),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                          color: roleBg,
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Text(roleLabel,
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: roleFg)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
             const SizedBox(height: 14),
-            const Divider(height: 0, thickness: 0.5),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.edit_outlined,
-                  size: 18, color: AppColors.textPrimary),
-              title: const Text('Rename',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500)),
-              enabled: caps.canRename,
-              onTap: caps.canRename
-                  ? () {
-                      Navigator.pop(context);
-                      _showRename(doc);
-                    }
-                  : null,
+            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+            const SizedBox(height: 12),
+
+            // ── Folder illustration + meta ───────────────────────
+            Row(
+              children: [
+                Container(
+                  width: 48, height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface2,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(4),
+                      topRight: Radius.circular(10),
+                      bottomLeft: Radius.circular(8),
+                      bottomRight: Radius.circular(8),
+                    ),
+                  ),
+                  child: const Icon(Icons.folder_outlined,
+                      size: 20, color: AppColors.textTertiary),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    folderName,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (doc.fileSize != null)
+                  Text(
+                    doc.fileSize! < 1024 * 1024
+                        ? '${(doc.fileSize! / 1024).toStringAsFixed(0)} KB'
+                        : '${(doc.fileSize! / (1024 * 1024)).toStringAsFixed(1)} MB',
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary),
+                  ),
+              ],
             ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.category_outlined,
-                  size: 18, color: AppColors.textPrimary),
-              title: const Text('Edit document type',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500)),
-              enabled: caps.canEditType,
-              onTap: caps.canEditType
-                  ? () {
-                      Navigator.pop(context);
-                      _showEditType(doc);
-                    }
-                  : null,
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(
-                  Icons.drive_file_move_outline,
-                  size: 18,
-                  color: AppColors.textPrimary),
-              title: const Text('Move to folder',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500)),
-              enabled: caps.canMove,
-              onTap: caps.canMove
-                  ? () {
-                      Navigator.pop(context);
-                      _showMoveDocDialog(doc);
-                    }
-                  : null,
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(
-                  Icons.delete_outline_rounded,
-                  size: 18,
-                  color: AppColors.dangerText),
-              title: const Text('Delete',
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.dangerText,
-                      fontWeight: FontWeight.w500)),
-              enabled: caps.canDelete,
-              onTap: caps.canDelete
-                  ? () {
-                      Navigator.pop(context);
-                      _deleteDoc(doc);
-                    }
-                  : null,
-            ),
-            const Divider(height: 0, thickness: 0.5),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.close_rounded,
-                  size: 18, color: AppColors.textPrimary),
-              title: const Text('Cancel',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500)),
-              onTap: () => Navigator.pop(context),
-            ),
+
+            const SizedBox(height: 16),
+            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+
+            // ── Action rows ──────────────────────────────────────
+            ...actions.map((a) => _buildActionRow(a)),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionRow(_DocAction a) {
+    return Opacity(
+      opacity: a.enabled ? 1.0 : 0.38,
+      child: InkWell(
+        onTap: a.enabled ? a.onTap : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(
+                  color: a.danger
+                      ? const Color(0xFFFEF2F2)
+                      : AppColors.bgSurface2,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(a.icon,
+                    size: 15,
+                    color: a.danger
+                        ? const Color(0xFFDC2626)
+                        : AppColors.textSecondary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(a.label,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: a.danger
+                                ? const Color(0xFFDC2626)
+                                : AppColors.textPrimary)),
+                    Text(a.desc,
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              if (a.enabled && !a.danger)
+                const Icon(Icons.chevron_right_rounded,
+                    size: 16, color: AppColors.textTertiary),
+            ],
+          ),
         ),
       ),
     );
@@ -1787,4 +1871,24 @@ class _SpeedDialItem extends StatelessWidget {
       ],
     );
   }
+}
+
+// ── Doc Action Data ───────────────────────────────────────────────────────────
+
+class _DocAction {
+  final IconData icon;
+  final String label;
+  final String desc;
+  final bool enabled;
+  final bool danger;
+  final VoidCallback? onTap;
+
+  const _DocAction({
+    required this.icon,
+    required this.label,
+    required this.desc,
+    required this.enabled,
+    required this.danger,
+    required this.onTap,
+  });
 }
