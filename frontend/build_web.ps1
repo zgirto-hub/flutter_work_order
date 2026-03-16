@@ -20,22 +20,36 @@ Write-Host "main.dart.js cache-busted with ?v=$BUILD_DATE"
 
 # -----------------------------------------------------------------------
 # Patch 2: Replace Flutter's generated service worker with a no-op.
-# Flutter's generated SW calls client.navigate() on every activate, which
-# causes an infinite reload loop in PWA standalone mode.
+# Flutter's original SW calls clients.navigate() on activate which causes
+# an infinite reload loop. This no-op SW avoids that.
+#
+# clients.claim() IS intentionally included here — without it, a new SW
+# activates but never takes control of the already-open PWA window, so
+# the user stays on the old version until they manually close and reopen.
+# clients.claim() is safe here because we are NOT doing clients.navigate(),
+# so there is no reload loop risk.
 # -----------------------------------------------------------------------
 $swPath = "build/web/flutter_service_worker.js"
 $noopSW = @"
 'use strict';
 // No-op service worker — caching handled by Nginx + cache-busted URLs.
-// No clients.claim() — avoids firing controllerchange on running PWA clients,
-// which causes a white screen in standalone PWA mode on some browsers.
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => {
-  // Clean up any leftover caches from a previous caching service worker.
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))));
+self.addEventListener('install', function() {
+  self.skipWaiting();
+});
+self.addEventListener('activate', function(event) {
+  event.waitUntil(
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+    }).then(function() {
+      // Take control of all open PWA windows immediately.
+      // This fires controllerchange in index.html -> triggers reload -> fresh build loads.
+      // Safe because we never call clients.navigate() so there is no reload loop.
+      return self.clients.claim();
+    })
+  );
 });
 "@
 Set-Content -Path $swPath -Value $noopSW
-Write-Host "Service worker replaced with no-op."
+Write-Host "Service worker replaced with no-op (with clients.claim)."
 
 Write-Host "Build complete."

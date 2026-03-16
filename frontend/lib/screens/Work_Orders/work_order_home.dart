@@ -25,7 +25,6 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
   int? _expandedIndex;
   bool _showSearch = false;
 
-  // Selection mode
   bool _selectionMode = false;
   final Set<String> _selectedIds = {};
 
@@ -70,26 +69,29 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
   Future<void> _deleteSelected() async {
     final count = _selectedIds.length;
     final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgSurface,
-        title: const Text('Delete Work Orders', style: TextStyle(color: AppColors.textPrimary)),
-        content: Text(
-          'Delete $count work order${count > 1 ? 's' : ''}?',
-          style: const TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: AppColors.bgSurface,
+            title: const Text('Delete Work Orders',
+                style: TextStyle(color: AppColors.textPrimary)),
+            content: Text(
+              'Delete $count work order${count > 1 ? 's' : ''}?',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text('Delete',
+                    style: TextStyle(color: Colors.red.shade400)),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete', style: TextStyle(color: Colors.red.shade400)),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
 
     if (!confirm || !mounted) return;
 
@@ -100,9 +102,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete: $e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
       await _load();
     }
   }
@@ -121,7 +122,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = WorkOrderFilterEngine.applyFilters(_workOrders, _filter);
+    final filtered =
+        WorkOrderFilterEngine.applyFilters(_workOrders, _filter);
 
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
@@ -137,7 +139,9 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                   ? _SelectionBar(
                       count: _selectedIds.length,
                       onCancel: _exitSelectionMode,
-                      onDelete: _selectedIds.isNotEmpty ? _deleteSelected : null,
+                      onDelete: _selectedIds.isNotEmpty
+                          ? _deleteSelected
+                          : null,
                     )
                   : Padding(
                       padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
@@ -150,7 +154,11 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                                 const Expanded(
                                   child: Text(
                                     'Work Orders',
-                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -0.3),
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                        letterSpacing: -0.3),
                                   ),
                                 )
                               else
@@ -158,14 +166,16 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                                   child: ClaudeSearchBar(
                                     controller: _searchCtrl,
                                     hintText: 'Search job no, title…',
-                                    onChanged: (v) {
-                                      setState(() => _filter.setSearchQuery(v.toLowerCase()));
-                                    },
+                                    onChanged: (v) => setState(() =>
+                                        _filter.setSearchQuery(
+                                            v.toLowerCase())),
                                   ),
                                 ),
                               const SizedBox(width: 8),
                               ClaudeIconButton(
-                                icon: _showSearch ? Icons.close_rounded : Icons.search_rounded,
+                                icon: _showSearch
+                                    ? Icons.close_rounded
+                                    : Icons.search_rounded,
                                 onTap: () {
                                   setState(() {
                                     _showSearch = !_showSearch;
@@ -181,7 +191,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                                 icon: Icons.calendar_today_outlined,
                                 onTap: () async {
                                   if (_filter.selectedDate != null) {
-                                    setState(() => _filter.selectedDate = null);
+                                    setState(() =>
+                                        _filter.selectedDate = null);
                                     return;
                                   }
                                   final d = await showDatePicker(
@@ -190,7 +201,9 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                                     firstDate: DateTime(2020),
                                     lastDate: DateTime(2100),
                                   );
-                                  if (d != null) setState(() => _filter.setDate(d));
+                                  if (d != null) {
+                                    setState(() => _filter.setDate(d));
+                                  }
                                 },
                               ),
                               const SizedBox(width: 6),
@@ -198,22 +211,31 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                                 icon: Icons.person_outline_rounded,
                                 onTap: () async {
                                   if (_filter.selectedEmployeeId != null) {
-                                    setState(() => _filter.selectedEmployeeId = null);
+                                    setState(() =>
+                                        _filter.selectedEmployeeId = null);
                                     return;
                                   }
                                   final employees = _workOrders
                                       .expand((wo) => wo.assignedEmployees)
                                       .toList();
-                                  final unique = {for (var e in employees) e.id: e}.values.toList();
-                                  final selected = await showModalBottomSheet<String>(
+                                  final unique = {
+                                    for (var e in employees) e.id: e
+                                  }.values.toList();
+                                  final selected =
+                                      await showModalBottomSheet<String>(
                                     context: context,
                                     backgroundColor: AppColors.bgSurface,
                                     shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                      borderRadius: BorderRadius.vertical(
+                                          top: Radius.circular(16)),
                                     ),
-                                    builder: (_) => _EmployeePicker(employees: unique),
+                                    builder: (_) =>
+                                        _EmployeePicker(employees: unique),
                                   );
-                                  if (selected != null) setState(() => _filter.setEmployee(selected));
+                                  if (selected != null) {
+                                    setState(
+                                        () => _filter.setEmployee(selected));
+                                  }
                                 },
                               ),
                             ],
@@ -221,14 +243,33 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
 
                           const SizedBox(height: 12),
 
-                          // Status filter chips
+                          // ── Status + Type filter chips ─────────────────
                           FilterChipRow(
-                            filters: const ['All', 'Pending', 'In Progress', 'Closed'],
-                            selected: _filter.statusFilter,
-                            onSelected: (s) => setState(() {
-                              _filter.setStatus(s);
-                              _expandedIndex = null;
-                            }),
+                            filters: const [
+                              'All',
+                              'Pending',
+                              'In Progress',
+                              'Closed',
+                              'Inspection',
+                            ],
+                            selected: _filter.statusFilter == 'All' &&
+                                    _filter.selectedDocumentType ==
+                                        'Inspection'
+                                ? 'Inspection'
+                                : _filter.statusFilter,
+                            onSelected: (s) {
+                              setState(() {
+                                _expandedIndex = null;
+                                if (s == 'Inspection') {
+                                  // Filter by type instead of status
+                                  _filter.setStatus('All');
+                                  _filter.setDocumentType('Inspection');
+                                } else {
+                                  _filter.setStatus(s);
+                                  _filter.setDocumentType(null);
+                                }
+                              });
+                            },
                           ),
                         ],
                       ),
@@ -236,7 +277,9 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
             ),
 
             // Active filters row
-            if (!_selectionMode && (_filter.selectedDate != null || _filter.selectedEmployeeId != null))
+            if (!_selectionMode &&
+                (_filter.selectedDate != null ||
+                    _filter.selectedEmployeeId != null))
               Container(
                 color: AppColors.bgSurface,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -244,76 +287,100 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                   children: [
                     if (_filter.selectedDate != null)
                       _ActiveFilterChip(
-                        label: '${_filter.selectedDate!.day}/${_filter.selectedDate!.month}/${_filter.selectedDate!.year}',
-                        onRemove: () => setState(() => _filter.selectedDate = null),
+                        label:
+                            '${_filter.selectedDate!.day}/${_filter.selectedDate!.month}/${_filter.selectedDate!.year}',
+                        onRemove: () =>
+                            setState(() => _filter.selectedDate = null),
                       ),
                     if (_filter.selectedEmployeeId != null)
                       _ActiveFilterChip(
                         label: _workOrders
                             .expand((w) => w.assignedEmployees)
-                            .firstWhere((e) => e.id == _filter.selectedEmployeeId,
-                                orElse: () => EmployeeAssignment(id: '', fullName: ''))
+                            .firstWhere(
+                              (e) => e.id == _filter.selectedEmployeeId,
+                              orElse: () =>
+                                  EmployeeAssignment(id: '', fullName: ''),
+                            )
                             .fullName,
-                        onRemove: () => setState(() => _filter.selectedEmployeeId = null),
+                        onRemove: () => setState(
+                            () => _filter.selectedEmployeeId = null),
                       ),
                   ],
                 ),
               ),
 
-            // Thin border
-            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+            const Divider(
+                height: 0, thickness: 0.5, color: AppColors.border),
 
             // ── List ──────────────────────────────────────────
             Expanded(
-              child: filtered.isEmpty
-                  ? _EmptyState(
-                      icon: Icons.work_outline_rounded,
-                      message: _filter.searchQuery.isEmpty ? 'No work orders yet' : 'No results found',
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      color: AppColors.accent,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (context, i) {
-                          final wo = filtered[i];
-                          return WorkOrderCard(
-                            workOrder: wo,
-                            expanded: !_selectionMode && _expandedIndex == i,
-                            selectionMode: _selectionMode,
-                            isSelected: _selectedIds.contains(wo.id),
-                            onLongPress: () => _enterSelectionMode(wo.id),
-                            onTap: () {
-                              if (_selectionMode) {
-                                _toggleSelection(wo.id);
-                              } else {
-                                setState(() {
-                                  _expandedIndex = _expandedIndex == i ? null : i;
-                                });
-                              }
-                            },
-                            onEdit: () async {
-                              if (_selectionMode) return;
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => AddWorkOrderScreen(workOrder: filtered[i]),
-                                ),
-                              );
-                              if (!mounted) return;
-                              if (result == 'updated' || result == 'deleted') await _load();
-                            },
-                          );
-                        },
-                      ),
-                    ),
+              child: _buildList(filtered),
             ),
           ],
         ),
       ),
-      floatingActionButton: _selectionMode ? null : ClaudeFAB(onTap: _openAdd),
+      floatingActionButton:
+          _selectionMode ? null : ClaudeFAB(onTap: _openAdd),
+    );
+  }
+
+  Widget _buildList(List<WorkOrder> filtered) {
+    // Apply inspection type filter locally
+    final items = _filter.selectedDocumentType == 'Inspection'
+        ? filtered.where((wo) => wo.type == 'Inspection').toList()
+        : filtered;
+
+    if (items.isEmpty) {
+      return _EmptyState(
+        icon: _filter.selectedDocumentType == 'Inspection'
+            ? Icons.checklist_rounded
+            : Icons.work_outline_rounded,
+        message: _filter.searchQuery.isEmpty
+            ? (_filter.selectedDocumentType == 'Inspection'
+                ? 'No inspections yet'
+                : 'No work orders yet')
+            : 'No results found',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: AppColors.accent,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, i) {
+          final wo = items[i];
+          return WorkOrderCard(
+            workOrder: wo,
+            expanded: !_selectionMode && _expandedIndex == i,
+            selectionMode: _selectionMode,
+            isSelected: _selectedIds.contains(wo.id),
+            onLongPress: () => _enterSelectionMode(wo.id),
+            onTap: () {
+              if (_selectionMode) {
+                _toggleSelection(wo.id);
+              } else {
+                setState(() {
+                  _expandedIndex = _expandedIndex == i ? null : i;
+                });
+              }
+            },
+            onEdit: () async {
+              if (_selectionMode) return;
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AddWorkOrderScreen(workOrder: items[i]),
+                ),
+              );
+              if (!mounted) return;
+              if (result == 'updated' || result == 'deleted') await _load();
+            },
+          );
+        },
+      ),
     );
   }
 }
@@ -325,26 +392,30 @@ class _SelectionBar extends StatelessWidget {
   final VoidCallback onCancel;
   final VoidCallback? onDelete;
 
-  const _SelectionBar({required this.count, required this.onCancel, this.onDelete});
+  const _SelectionBar(
+      {required this.count, required this.onCancel, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         IconButton(
-          icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textPrimary),
+          icon: const Icon(Icons.close_rounded,
+              size: 20, color: AppColors.textPrimary),
           onPressed: onCancel,
           padding: const EdgeInsets.all(8),
         ),
         Expanded(
-          child: Text(
-            '$count selected',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-          ),
+          child: Text('$count selected',
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary)),
         ),
         if (onDelete != null)
           IconButton(
-            icon: Icon(Icons.delete_outline_rounded, size: 22, color: Colors.red.shade400),
+            icon: Icon(Icons.delete_outline_rounded,
+                size: 22, color: Colors.red.shade400),
             onPressed: onDelete,
             padding: const EdgeInsets.all(8),
           ),
@@ -369,16 +440,22 @@ class _ActiveFilterChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.accentBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.2), width: 0.5),
+        border: Border.all(
+            color: AppColors.accent.withValues(alpha: 0.2), width: 0.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: AppColors.accent, fontWeight: FontWeight.w500)),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.accent,
+                  fontWeight: FontWeight.w500)),
           const SizedBox(width: 4),
           GestureDetector(
             onTap: onRemove,
-            child: const Icon(Icons.close_rounded, size: 12, color: AppColors.accent),
+            child: const Icon(Icons.close_rounded,
+                size: 12, color: AppColors.accent),
           ),
         ],
       ),
@@ -386,7 +463,7 @@ class _ActiveFilterChip extends StatelessWidget {
   }
 }
 
-// ── Employee picker bottom sheet ──────────────────────────────────────────────
+// ── Employee picker ───────────────────────────────────────────────────────────
 
 class _EmployeePicker extends StatelessWidget {
   final List<EmployeeAssignment> employees;
@@ -400,12 +477,19 @@ class _EmployeePicker extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Filter by employee', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          const Text('Filter by employee',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary)),
           const SizedBox(height: 12),
           ...employees.map((emp) => ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: InitialsAvatar(name: emp.fullName, size: 34, large: false),
-                title: Text(emp.fullName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                leading:
+                    InitialsAvatar(name: emp.fullName, size: 34, large: false),
+                title: Text(emp.fullName,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w500)),
                 onTap: () => Navigator.pop(context, emp.id),
               )),
         ],
@@ -429,7 +513,11 @@ class _EmptyState extends StatelessWidget {
         children: [
           Icon(icon, size: 48, color: AppColors.bgSurface3),
           const SizedBox(height: 12),
-          Text(message, style: const TextStyle(fontSize: 14, color: AppColors.textTertiary, fontWeight: FontWeight.w500)),
+          Text(message,
+              style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textTertiary,
+                  fontWeight: FontWeight.w500)),
         ],
       ),
     );
