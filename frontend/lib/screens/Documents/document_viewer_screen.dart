@@ -151,10 +151,12 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       if (_fileBytes == null) return const _ErrorView(message: 'Could not load image');
       return Container(
         color: Colors.black,
-        child: Center(
-          child: InteractiveViewer(
-            minScale: 0.3,
-            maxScale: 8.0,
+        // InteractiveViewer must fill the screen so the entire area is
+        // a valid pinch target, not just the image bounds.
+        child: InteractiveViewer(
+          minScale: 0.3,
+          maxScale: 8.0,
+          child: Center(
             child: Image.memory(_fileBytes!, fit: BoxFit.contain),
           ),
         ),

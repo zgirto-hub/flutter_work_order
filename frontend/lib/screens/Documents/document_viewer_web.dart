@@ -78,6 +78,8 @@ class _PdfEmbedViewerState extends State<PdfEmbedViewer> {
         ..style.width = '100%'
         ..style.height = '100%'
         ..style.display = 'block';
+      // Allow the browser/iOS to handle pinch-to-zoom natively inside the embed.
+      embed.style.setProperty('touch-action', 'auto');
       return embed;
     });
   }
