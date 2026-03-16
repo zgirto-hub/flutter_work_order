@@ -230,6 +230,13 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
               widget.document.fileName ?? '',
               style: const TextStyle(fontWeight: FontWeight.w500),
             ),
+            if (widget.document.fileSize != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                '${(widget.document.fileSize! / (1024 * 1024)).toStringAsFixed(2)} MB',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
             const SizedBox(height: 16),
 
             // ── Open / Download buttons ──────────────────────────────────

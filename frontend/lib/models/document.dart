@@ -10,6 +10,7 @@ class DocumentModel {
   final String? uploadedBy;
   final bool isShared;
   final String? folderId;
+  final int? fileSize;
 
   DocumentModel({
     required this.id,
@@ -22,9 +23,11 @@ class DocumentModel {
     this.uploadedBy,
     this.isShared = false,
     this.folderId,
+    this.fileSize,
   });
 
   factory DocumentModel.fromJson(Map<String, dynamic> json) {
+    print('file_size raw: ${json['file_size']} (${json['file_size'].runtimeType})');
     return DocumentModel(
       id: json['id'].toString(),
       title: json['title'] ?? '',
@@ -35,6 +38,7 @@ class DocumentModel {
       isPrivate: json['is_private'] ?? false,
       uploadedBy: json['uploaded_by'],
       folderId: json['folder_id']?.toString(),
+      fileSize: (json['file_size'] as num?)?.toInt(),
     );
   }
 
@@ -50,6 +54,7 @@ class DocumentModel {
       uploadedBy: uploadedBy,
       isShared: isShared ?? this.isShared,
       folderId: folderId ?? this.folderId,
+      fileSize: fileSize,
     );
   }
 }

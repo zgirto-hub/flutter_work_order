@@ -42,6 +42,7 @@ async def upload_file(
         "parsed_text": parsed_text,
         "is_private": is_private,
         "uploaded_by": uploaded_by,
+        "file_size": len(content),
     }
     if folder_id:
         record["folder_id"] = folder_id

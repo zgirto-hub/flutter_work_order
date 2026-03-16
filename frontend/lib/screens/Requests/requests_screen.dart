@@ -29,7 +29,10 @@ class _RequestsScreenState extends State<RequestsScreen> {
   String get _email =>
       Supabase.instance.client.auth.currentUser?.email ?? '';
 
-  bool get _canDelete => widget.userRole == 'requester';
+  bool get _canDelete =>
+      widget.userRole == 'requester' ||
+      widget.userRole == 'admin' ||
+      widget.userRole == 'tech';
 
   @override
   void initState() {
