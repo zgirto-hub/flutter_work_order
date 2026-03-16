@@ -140,24 +140,30 @@ async def create_work_order(body: CreateWorkOrderBody):
     _validate_type(body.type)
     _validate_status(body.status)
 
-    result = supabase.table("work_orders").insert({
-        "job_no": body.job_no,
-        "title": body.title,
-        "description": body.description,
-        "location": body.location,
-        "type": body.type,
-        "status": body.status,
-        "created_by": body.created_by,
-    }).select("*").execute()
+    try:
+        result = supabase.table("work_orders").insert({
+            "job_no": body.job_no,
+            "title": body.title,
+            "description": body.description,
+            "location": body.location,
+            "type": body.type,
+            "status": body.status,
+            "created_by": body.created_by,
+        }).select("*").execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB insert failed: {e}")
 
     if not result.data:
-        raise HTTPException(status_code=500, detail="Failed to create work order")
+        raise HTTPException(status_code=500, detail="Insert succeeded but returned no data")
 
     work_order_id = result.data[0]["id"]
 
     # Insert employee assignments
     if body.assigned_employee_ids:
-        _sync_assignments(work_order_id, body.assigned_employee_ids)
+        try:
+            _sync_assignments(work_order_id, body.assigned_employee_ids)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Assignment sync failed: {e}")
 
     # Auto-log creation as a system event (best-effort)
     try:
