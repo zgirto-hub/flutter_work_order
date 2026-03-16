@@ -141,7 +141,7 @@ async def create_work_order(body: CreateWorkOrderBody):
     _validate_status(body.status)
 
     try:
-        result = supabase.table("work_orders").insert({
+        supabase.table("work_orders").insert({
             "job_no": body.job_no,
             "title": body.title,
             "description": body.description,
@@ -149,14 +149,15 @@ async def create_work_order(body: CreateWorkOrderBody):
             "type": body.type,
             "status": body.status,
             "created_by": body.created_by,
-        }).select("*").execute()
+        }).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB insert failed: {e}")
 
-    if not result.data:
-        raise HTTPException(status_code=500, detail="Insert succeeded but returned no data")
+    fetch = supabase.table("work_orders").select("id").eq("job_no", body.job_no).single().execute()
+    if not fetch.data:
+        raise HTTPException(status_code=500, detail="Work order created but could not retrieve ID")
 
-    work_order_id = result.data[0]["id"]
+    work_order_id = fetch.data["id"]
 
     # Insert employee assignments
     if body.assigned_employee_ids:
