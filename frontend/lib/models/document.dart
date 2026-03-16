@@ -27,7 +27,6 @@ class DocumentModel {
   });
 
   factory DocumentModel.fromJson(Map<String, dynamic> json) {
-    print('file_size raw: ${json['file_size']} (${json['file_size'].runtimeType})');
     return DocumentModel(
       id: json['id'].toString(),
       title: json['title'] ?? '',
