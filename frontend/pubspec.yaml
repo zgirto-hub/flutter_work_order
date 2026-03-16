@@ -2,7 +2,7 @@ name: work_order
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.8.23+43
+version: 1.8.24+44
 
 environment:
   sdk: ^3.3.0
@@ -27,6 +27,7 @@ dependencies:
   shared_preferences: ^2.2.3
   google_fonts: ^6.2.1
   web: ^1.1.1
+  collection: ^1.18.0
 
 dev_dependencies:
   flutter_test:

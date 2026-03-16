@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:collection/collection.dart';
 import '../../controllers/filter_controller.dart';
 import '../../filters/document_filter_engine.dart';
 import '../../models/document.dart';
@@ -30,7 +31,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   List<DocumentModel> _allDocuments = [];
   List<FolderModel> _allFolders = [];
-  final Set<String> _expandedFolderIds = {};
+
+  // Currently selected folder id. null = "All files" root
+  String? _selectedFolderId;
+
+  // Which folders are expanded in the sidebar
+  final Set<String> _expandedSidebarFolders = {};
 
   final FilterController _filter = FilterController();
   final DocumentService _service = DocumentService();
@@ -52,7 +58,6 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     super.initState();
     _loadUserRole();
     if (_docCache != null && _folderCache != null) {
-      // Show cached data immediately, no spinner, then silently refresh
       _allDocuments = _docCache!;
       _allFolders = _folderCache!;
       _loading = false;
@@ -117,47 +122,37 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   }
 
-  List<DocumentModel> _docsInFolder(String? folderId) {
-    return _allDocuments.where((d) => d.folderId == folderId).toList();
-  }
-
   List<String> get _docTypes {
     final types = _allDocuments.map((d) => d.documentType).toSet().toList()
       ..sort();
     return ['All', ...types];
   }
 
-  Widget _highlight(String text, String query, {int maxLines = 2}) {
-    if (query.isEmpty)
-      return Text(text, maxLines: maxLines, overflow: TextOverflow.ellipsis);
-    final lText = text.toLowerCase(), lQuery = query.toLowerCase();
-    final spans = <TextSpan>[];
-    int start = 0;
-    while (true) {
-      final idx = lText.indexOf(lQuery, start);
-      if (idx == -1) {
-        spans.add(TextSpan(text: text.substring(start)));
-        break;
-      }
-      if (idx > start) spans.add(TextSpan(text: text.substring(start, idx)));
-      spans.add(TextSpan(
-        text: text.substring(idx, idx + query.length),
-        style: const TextStyle(
-            backgroundColor: Color(0xFFFEF08A), fontWeight: FontWeight.w500),
-      ));
-      start = idx + query.length;
-    }
-    return RichText(
-      maxLines: maxLines,
-      overflow: TextOverflow.ellipsis,
-      text: TextSpan(
-          style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-              height: 1.4),
-          children: spans),
-    );
+  // ── New sidebar helpers ────────────────────────────────────────────────────
+
+  Set<String> _descendantIds(String folderId) =>
+      _collectDescendantIds(folderId);
+
+  List<DocumentModel> _docsForSelectedFolder() {
+    if (_selectedFolderId == null) return _allDocuments;
+    final scope = {_selectedFolderId!, ..._descendantIds(_selectedFolderId!)};
+    return _allDocuments.where((d) => scope.contains(d.folderId)).toList();
   }
+
+  List<FolderModel> _breadcrumbPath() {
+    if (_selectedFolderId == null) return [];
+    final path = <FolderModel>[];
+    String? id = _selectedFolderId;
+    while (id != null) {
+      final f = _allFolders.firstWhereOrNull((f) => f.id == id);
+      if (f == null) break;
+      path.insert(0, f);
+      id = f.parentId;
+    }
+    return path;
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
 
   Future<void> _deleteSelected() async {
     final confirm = await showDialog<bool>(
@@ -392,7 +387,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                           setState(() {
                             _allFolders = [..._allFolders, newFolder];
                             if (parentId != null) {
-                              _expandedFolderIds.add(parentId);
+                              _expandedSidebarFolders.add(parentId);
                             }
                           });
                         } catch (e) {
@@ -465,9 +460,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       if (!mounted) return;
       final removedIds = _collectDescendantIds(folder.id);
       setState(() {
-        _expandedFolderIds.removeAll(removedIds);
+        _expandedSidebarFolders.removeAll(removedIds);
+        if (removedIds.contains(_selectedFolderId)) {
+          _selectedFolderId = null;
+        }
         _allFolders.removeWhere((f) => removedIds.contains(f.id));
-        // Backend orphans docs inside deleted folders back to root
         _allDocuments = _allDocuments.map((d) {
           if (d.folderId != null && removedIds.contains(d.folderId)) {
             return DocumentModel(
@@ -504,6 +501,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           behavior: SnackBarBehavior.floating));
     }
   }
+
+  // ── Speed dial ────────────────────────────────────────────────────────────
 
   Widget _buildSpeedDial() {
     return Column(
@@ -575,7 +574,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
-  // ── Build the flat search results view ──────────────────────────────────
+  // ── Search results ────────────────────────────────────────────────────────
 
   Widget _buildSearchResults() {
     final docs = DocumentFilterEngine.applyFilters(_allDocuments, _filter);
@@ -592,7 +591,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 80),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 80),
       itemCount: docs.length + 1,
       separatorBuilder: (_, __) => const SizedBox(height: 6),
       itemBuilder: (context, i) {
@@ -605,15 +604,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           );
         }
         final doc = docs[i - 1];
-        return _DocRow(
+        return _DocCard(
           doc: doc,
-          depth: 0,
-          searchQuery: _filter.searchQuery,
-          highlightBuilder: _highlight,
-          selectionMode: _selectionMode,
-          isSelected: _selectedDocs.contains(doc.id),
           onTap: () => _onDocTap(doc),
           onLongPress: () => _showDocActions(doc),
+          selectionMode: _selectionMode,
+          isSelected: _selectedDocs.contains(doc.id),
           onSelectionChanged: (v) {
             setState(() {
               if (v ?? false) {
@@ -628,59 +624,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
-  // ── Build the tree view ──────────────────────────────────────────────────
-
-  List<Widget> _buildTreeItems(String? parentId, int depth) {
-    final items = <Widget>[];
-    final folders = _childFolders(parentId);
-    final docs = _docsInFolder(parentId);
-
-    for (final folder in folders) {
-      final isExpanded = _expandedFolderIds.contains(folder.id);
-      items.add(_FolderRow(
-        folder: folder,
-        depth: depth,
-        isExpanded: isExpanded,
-        onTap: () {
-          setState(() {
-            if (isExpanded) {
-              _expandedFolderIds.remove(folder.id);
-            } else {
-              _expandedFolderIds.add(folder.id);
-            }
-          });
-        },
-        onLongPress: () => _showFolderActions(folder),
-      ));
-      if (isExpanded) {
-        items.addAll(_buildTreeItems(folder.id, depth + 1));
-      }
-    }
-
-    for (final doc in docs) {
-      items.add(_DocRow(
-        doc: doc,
-        depth: depth,
-        searchQuery: '',
-        highlightBuilder: _highlight,
-        selectionMode: _selectionMode,
-        isSelected: _selectedDocs.contains(doc.id),
-        onTap: () => _onDocTap(doc),
-        onLongPress: () => _showDocActions(doc),
-        onSelectionChanged: (v) {
-          setState(() {
-            if (v ?? false) {
-              _selectedDocs.add(doc.id);
-            } else {
-              _selectedDocs.remove(doc.id);
-            }
-          });
-        },
-      ));
-    }
-
-    return items;
-  }
+  // ── Doc tap ───────────────────────────────────────────────────────────────
 
   void _onDocTap(DocumentModel doc) {
     if (_selectionMode) {
@@ -704,6 +648,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       ),
     );
   }
+
+  // ── Doc actions ───────────────────────────────────────────────────────────
 
   void _showDocActions(DocumentModel doc) {
     final caps = DocumentCapabilities.fromRole(doc.role);
@@ -826,6 +772,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
+  // ── Folder actions ────────────────────────────────────────────────────────
+
   void _showFolderActions(FolderModel folder) {
     final currentUser =
         Supabase.instance.client.auth.currentUser?.email;
@@ -940,6 +888,160 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
+  // ── Permissions overview ──────────────────────────────────────────────────
+
+  void _showPermissionsOverview() {
+    int ownerCount = 0, editorCount = 0, viewerCount = 0;
+    for (final doc in _allDocuments) {
+      switch (doc.role) {
+        case 'owner':  ownerCount++;  break;
+        case 'editor': editorCount++; break;
+        case 'viewer': viewerCount++; break;
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bgSurface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.55,
+        minChildSize: 0.35,
+        maxChildSize: 0.85,
+        builder: (_, scrollCtrl) => Column(
+          children: [
+            Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                  color: AppColors.border2,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text('Permissions overview',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary)),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 26, height: 26,
+                      decoration: BoxDecoration(
+                        color: AppColors.bgSurface2,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.border, width: 0.5),
+                      ),
+                      child: const Icon(Icons.close_rounded,
+                          size: 13, color: AppColors.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+            Expanded(
+              child: ListView(
+                controller: scrollCtrl,
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                children: [
+                  Row(
+                    children: [
+                      _StatCard(label: 'owner',  count: ownerCount),
+                      const SizedBox(width: 8),
+                      _StatCard(label: 'editor', count: editorCount),
+                      const SizedBox(width: 8),
+                      _StatCard(label: 'viewer', count: viewerCount),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('ALL DOCUMENTS',
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textTertiary,
+                          letterSpacing: 0.06)),
+                  const SizedBox(height: 8),
+                  ..._allDocuments
+                      .where((d) => d.role != null)
+                      .map((doc) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 9),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 28, height: 28,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accentBg,
+                                    borderRadius: BorderRadius.circular(7),
+                                  ),
+                                  child: const Icon(
+                                      Icons.insert_drive_file_outlined,
+                                      size: 14,
+                                      color: AppColors.accent),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(doc.title,
+                                          style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                              color: AppColors.textPrimary),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis),
+                                      Text(
+                                        _allFolders
+                                                .firstWhereOrNull(
+                                                    (f) => f.id == doc.folderId)
+                                                ?.name ??
+                                            'Root',
+                                        style: const TextStyle(
+                                            fontSize: 11,
+                                            color: AppColors.textSecondary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                _RolePill(role: doc.role!),
+                              ],
+                            ),
+                          )),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface2,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      'Folder permissions are inherited — editor access on a folder gives you rename & move rights on all documents inside it and its sub-folders.',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          height: 1.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final isSearching = _filter.searchQuery.isNotEmpty;
@@ -949,223 +1051,456 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
-            Container(
-              color: AppColors.bgSurface,
-              padding:
-                  const EdgeInsets.fromLTRB(16, 12, 16, 10),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      if (!_selectionMode && Navigator.canPop(context))
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: const Padding(
-                            padding: EdgeInsets.only(right: 8),
-                            child: Icon(Icons.arrow_back_ios_new_rounded,
-                                size: 18, color: AppColors.textPrimary),
-                          ),
-                        ),
-                      if (_selectionMode)
-                        Expanded(
-                          child: Text(
-                              '${_selectedDocs.length} selected',
-                              style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary)),
-                        )
-                      else
-                        const Expanded(
-                          child: Text('Documents',
-                              style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
-                                  letterSpacing: -0.3)),
-                        ),
-                      if (_selectionMode)
-                        TextButton.icon(
-                          onPressed: (_selectedDocs.isEmpty ||
-                                  _isDeleting)
-                              ? null
-                              : _deleteSelected,
-                          icon: const Icon(
-                              Icons.delete_outline_rounded,
-                              size: 16,
-                              color: AppColors.dangerText),
-                          label: const Text('Delete',
-                              style: TextStyle(
-                                  color: AppColors.dangerText,
-                                  fontSize: 12)),
-                        ),
-                      TextButton(
-                        onPressed: _isDeleting
-                            ? null
-                            : () => setState(() {
-                                  _selectionMode = !_selectionMode;
-                                  _selectedDocs.clear();
-                                }),
-                        child: Text(
-                            _selectionMode ? 'Cancel' : 'Select',
-                            style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary)),
-                      ),
-                    ],
-                  ),
-                  if (!_isDeleting) ...[
-                    const SizedBox(height: 10),
-                    ClaudeSearchBar(
-                      controller: _searchCtrl,
-                      hintText: 'Search documents…',
-                      onChanged: (v) {
-                        _debounce?.cancel();
-                        _debounce = Timer(
-                            const Duration(milliseconds: 350), () {
-                          setState(() =>
-                              _filter.setSearchQuery(v.trim()));
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    FilterChipRow(
-                      filters: _docTypes,
-                      selected:
-                          _filter.selectedDocumentType ?? 'All',
-                      onSelected: (t) => setState(() =>
-                          _filter.setDocumentType(
-                              t == 'All' ? null : t)),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
+            _buildHeader(),
             const Divider(
-                height: 0,
-                thickness: 0.5,
-                color: AppColors.border),
-
+                height: 0, thickness: 0.5, color: AppColors.border),
             Expanded(
               child: _isDeleting
                   ? DeletingOverlay(
-                      current: _deleteProgress,
-                      total: _deleteTotal)
+                      current: _deleteProgress, total: _deleteTotal)
                   : _loading
                       ? const Center(
                           child: CircularProgressIndicator(
-                              color: AppColors.accent,
-                              strokeWidth: 2))
-                      : isSearching
-                          ? _buildSearchResults()
-                          : RefreshIndicator(
-                              onRefresh: _refresh,
-                              color: AppColors.accent,
-                              child: _buildTree(),
+                              color: AppColors.accent, strokeWidth: 2))
+                      : Row(
+                          children: [
+                            _buildFolderSidebar(),
+                            const VerticalDivider(
+                                width: 0.5,
+                                thickness: 0.5,
+                                color: AppColors.border),
+                            Expanded(
+                              child: isSearching
+                                  ? _buildSearchResults()
+                                  : _buildDocsArea(),
                             ),
+                          ],
+                        ),
             ),
           ],
         ),
       ),
-      floatingActionButton:
-          _isDeleting ? null : _buildSpeedDial(),
+      floatingActionButton: _isDeleting ? null : _buildSpeedDial(),
     );
   }
 
-  Widget _buildTree() {
-    final items = _buildTreeItems(null, 0);
-    if (items.isEmpty) {
-      return Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.folder_open_outlined,
-              size: 48, color: AppColors.bgSurface3),
-          const SizedBox(height: 10),
-          const Text('No folders or documents yet',
-              style: TextStyle(
-                  fontSize: 14, color: AppColors.textTertiary)),
-        ]),
-      );
+  Widget _buildHeader() {
+    return Container(
+      color: AppColors.bgSurface,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              if (!_selectionMode && Navigator.canPop(context))
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: Icon(Icons.arrow_back_ios_new_rounded,
+                        size: 18, color: AppColors.textPrimary),
+                  ),
+                ),
+              if (_selectionMode)
+                Expanded(
+                  child: Text(
+                      '${_selectedDocs.length} selected',
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary)),
+                )
+              else
+                const Expanded(
+                  child: Text('Documents',
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.3)),
+                ),
+              if (!_selectionMode) ...[
+                GestureDetector(
+                  onTap: _showPermissionsOverview,
+                  child: Container(
+                    width: 32, height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface2,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.border2, width: 0.5),
+                    ),
+                    child: const Icon(Icons.lock_outline_rounded,
+                        size: 15, color: AppColors.textSecondary),
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              if (_selectionMode)
+                TextButton.icon(
+                  onPressed: (_selectedDocs.isEmpty || _isDeleting)
+                      ? null
+                      : _deleteSelected,
+                  icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      size: 16,
+                      color: AppColors.dangerText),
+                  label: const Text('Delete',
+                      style: TextStyle(
+                          color: AppColors.dangerText,
+                          fontSize: 12)),
+                ),
+              TextButton(
+                onPressed: _isDeleting
+                    ? null
+                    : () => setState(() {
+                          _selectionMode = !_selectionMode;
+                          _selectedDocs.clear();
+                        }),
+                child: Text(
+                    _selectionMode ? 'Cancel' : 'Select',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary)),
+              ),
+            ],
+          ),
+          if (!_isDeleting) ...[
+            const SizedBox(height: 10),
+            ClaudeSearchBar(
+              controller: _searchCtrl,
+              hintText: 'Search documents…',
+              onChanged: (v) {
+                _debounce?.cancel();
+                _debounce = Timer(
+                    const Duration(milliseconds: 350), () {
+                  setState(() =>
+                      _filter.setSearchQuery(v.trim()));
+                });
+              },
+            ),
+            const SizedBox(height: 10),
+            FilterChipRow(
+              filters: _docTypes,
+              selected:
+                  _filter.selectedDocumentType ?? 'All',
+              onSelected: (t) => setState(() =>
+                  _filter.setDocumentType(
+                      t == 'All' ? null : t)),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── Folder sidebar ────────────────────────────────────────────────────────
+
+  Widget _buildFolderSidebar() {
+    return SizedBox(
+      width: 116,
+      child: Container(
+        color: AppColors.bgSurface,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+              child: Text(
+                'FOLDERS',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textTertiary,
+                  letterSpacing: 0.06,
+                ),
+              ),
+            ),
+            _SidebarFolderRow(
+              label: 'All files',
+              depth: 0,
+              isActive: _selectedFolderId == null,
+              isExpanded: false,
+              hasChildren: false,
+              isPrivate: false,
+              isShared: false,
+              onTap: () => setState(() => _selectedFolderId = null),
+              onChevronTap: null,
+            ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: _buildSidebarNodes(null, 0),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildSidebarNodes(String? parentId, int depth) {
+    final items = <Widget>[];
+    for (final folder in _childFolders(parentId)) {
+      final hasKids = _childFolders(folder.id).isNotEmpty;
+      final isExpanded = _expandedSidebarFolders.contains(folder.id);
+      final isActive = _selectedFolderId == folder.id;
+
+      items.add(_SidebarFolderRow(
+        label: folder.name,
+        depth: depth,
+        isActive: isActive,
+        isExpanded: isExpanded,
+        hasChildren: hasKids,
+        isPrivate: folder.isPrivate,
+        isShared: false,
+        onTap: () => setState(() => _selectedFolderId = folder.id),
+        onChevronTap: hasKids
+            ? () => setState(() {
+                  if (isExpanded) {
+                    _expandedSidebarFolders.remove(folder.id);
+                  } else {
+                    _expandedSidebarFolders.add(folder.id);
+                  }
+                })
+            : null,
+        onLongPress: () => _showFolderActions(folder),
+      ));
+
+      if (isExpanded) {
+        items.addAll(_buildSidebarNodes(folder.id, depth + 1));
+      }
     }
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(0, 6, 0, 80),
-      children: items,
+    return items;
+  }
+
+  // ── Docs area ─────────────────────────────────────────────────────────────
+
+  Widget _buildDocsArea() {
+    final crumbs = _breadcrumbPath();
+    final subFolders = _childFolders(_selectedFolderId);
+    final docs = _docsForSelectedFolder();
+
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      color: AppColors.accent,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 80),
+        children: [
+          // ── Breadcrumb ──────────────────────────────────────────────────
+          if (crumbs.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Wrap(
+                children: [
+                  GestureDetector(
+                    onTap: () => setState(() => _selectedFolderId = null),
+                    child: const Text('All files',
+                        style: TextStyle(
+                            fontSize: 11, color: AppColors.textSecondary)),
+                  ),
+                  ...crumbs.map((f) => Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(' › ',
+                          style: TextStyle(
+                              fontSize: 10, color: AppColors.textSecondary)),
+                      GestureDetector(
+                        onTap: () =>
+                            setState(() => _selectedFolderId = f.id),
+                        child: Text(
+                          f.name,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: crumbs.last.id == f.id
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary,
+                            fontWeight: crumbs.last.id == f.id
+                                ? FontWeight.w500
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )),
+                ],
+              ),
+            ),
+
+          // ── Subfolder chips ─────────────────────────────────────────────
+          if (subFolders.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: subFolders.map((f) => GestureDetector(
+                  onTap: () => setState(() {
+                    _selectedFolderId = f.id;
+                    _expandedSidebarFolders.add(f.id);
+                  }),
+                  onLongPress: () => _showFolderActions(f),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface,
+                      borderRadius: BorderRadius.circular(10),
+                      border:
+                          Border.all(color: AppColors.border, width: 0.5),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.folder_outlined,
+                            size: 13, color: AppColors.accent),
+                        const SizedBox(width: 6),
+                        Text(f.name,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textPrimary)),
+                      ],
+                    ),
+                  ),
+                )).toList(),
+              ),
+            ),
+
+          // ── Document cards ──────────────────────────────────────────────
+          if (docs.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 28),
+              child: Center(
+                child: Text('No documents here',
+                    style: TextStyle(
+                        fontSize: 13, color: AppColors.textTertiary)),
+              ),
+            )
+          else
+            ...docs.map((doc) => _DocCard(
+              doc: doc,
+              onTap: () => _onDocTap(doc),
+              onLongPress: () => _showDocActions(doc),
+              selectionMode: _selectionMode,
+              isSelected: _selectedDocs.contains(doc.id),
+              onSelectionChanged: (v) => setState(() {
+                if (v ?? false) {
+                  _selectedDocs.add(doc.id);
+                } else {
+                  _selectedDocs.remove(doc.id);
+                }
+              }),
+            )),
+        ],
+      ),
     );
   }
 }
 
-// ── Folder Row ────────────────────────────────────────────────────────────────
+// ── Sidebar Folder Row ────────────────────────────────────────────────────────
 
-class _FolderRow extends StatelessWidget {
-  final FolderModel folder;
+class _SidebarFolderRow extends StatelessWidget {
+  final String label;
   final int depth;
+  final bool isActive;
   final bool isExpanded;
+  final bool hasChildren;
+  final bool isPrivate;
+  final bool isShared;
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
+  final VoidCallback? onChevronTap;
+  final VoidCallback? onLongPress;
 
-  const _FolderRow({
-    required this.folder,
+  const _SidebarFolderRow({
+    required this.label,
     required this.depth,
+    required this.isActive,
     required this.isExpanded,
+    required this.hasChildren,
+    required this.isPrivate,
+    required this.isShared,
     required this.onTap,
-    required this.onLongPress,
+    required this.onChevronTap,
+    this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final leftPad = 10.0 + depth * 12.0;
+
+    return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
-        padding: EdgeInsets.only(
-          left: 12.0 + depth * 20.0,
-          right: 16,
-          top: 9,
-          bottom: 9,
-        ),
+        height: 34,
         decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-                color: AppColors.border.withOpacity(0.5),
-                width: 0.5),
-          ),
+          color: isActive ? AppColors.bgSurface2 : Colors.transparent,
+          border: isActive
+              ? const Border(
+                  left: BorderSide(color: AppColors.accent, width: 2),
+                )
+              : null,
         ),
+        padding: EdgeInsets.only(left: leftPad, right: 8),
         child: Row(
           children: [
-            // Chevron
-            AnimatedRotation(
-              turns: isExpanded ? 0.25 : 0.0,
-              duration: const Duration(milliseconds: 150),
-              child: Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: AppColors.textTertiary,
+            GestureDetector(
+              onTap: onChevronTap,
+              behavior: HitTestBehavior.opaque,
+              child: SizedBox(
+                width: 14,
+                height: 34,
+                child: hasChildren
+                    ? AnimatedRotation(
+                        turns: isExpanded ? 0.25 : 0.0,
+                        duration: const Duration(milliseconds: 150),
+                        child: const Icon(Icons.chevron_right_rounded,
+                            size: 13, color: AppColors.textTertiary),
+                      )
+                    : const SizedBox(),
               ),
             ),
-            const SizedBox(width: 6),
-            // Folder icon
+            const SizedBox(width: 4),
             Icon(
-              isExpanded
-                  ? Icons.folder_open_outlined
-                  : Icons.folder_outlined,
-              size: 18,
-              color: AppColors.accent,
+              isActive ? Icons.folder_rounded : Icons.folder_outlined,
+              size: 13,
+              color: isPrivate
+                  ? AppColors.accent
+                  : isShared
+                      ? const Color(0xFF378ADD)
+                      : AppColors.textTertiary,
             ),
-            const SizedBox(width: 10),
-            // Name
+            const SizedBox(width: 5),
             Expanded(
               child: Text(
-                folder.name,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isActive
+                      ? AppColors.textPrimary
+                      : AppColors.textSecondary,
+                  fontWeight:
+                      isActive ? FontWeight.w500 : FontWeight.w400,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (isPrivate)
+              Container(
+                width: 6, height: 6,
+                decoration: const BoxDecoration(
+                  color: AppColors.accent,
+                  shape: BoxShape.circle,
+                ),
+              )
+            else if (isShared)
+              Container(
+                width: 6, height: 6,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF378ADD),
+                  shape: BoxShape.circle,
+                ),
+              ),
           ],
         ),
       ),
@@ -1173,82 +1508,90 @@ class _FolderRow extends StatelessWidget {
   }
 }
 
-// ── Document Row ──────────────────────────────────────────────────────────────
+// ── Document Card ─────────────────────────────────────────────────────────────
 
-class _DocRow extends StatelessWidget {
+class _DocCard extends StatelessWidget {
   final DocumentModel doc;
-  final int depth;
-  final String searchQuery;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final bool selectionMode;
   final bool isSelected;
   final ValueChanged<bool?>? onSelectionChanged;
-  final Widget Function(String, String, {int maxLines}) highlightBuilder;
 
-  const _DocRow({
+  const _DocCard({
     required this.doc,
-    required this.depth,
-    required this.searchQuery,
     required this.onTap,
     required this.onLongPress,
     required this.selectionMode,
     required this.isSelected,
     required this.onSelectionChanged,
-    required this.highlightBuilder,
   });
 
   IconData _fileIcon(String? ext) {
     switch ((ext ?? '').toLowerCase()) {
-      case 'pdf':
-        return Icons.picture_as_pdf_outlined;
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-        return Icons.image_outlined;
-      case 'docx':
-      case 'doc':
-        return Icons.description_outlined;
-      default:
-        return Icons.insert_drive_file_outlined;
+      case 'pdf': return Icons.picture_as_pdf_outlined;
+      case 'jpg': case 'jpeg': case 'png': return Icons.image_outlined;
+      case 'docx': case 'doc': return Icons.description_outlined;
+      default: return Icons.insert_drive_file_outlined;
     }
+  }
+
+  Color _iconColor(String? ext) {
+    switch ((ext ?? '').toLowerCase()) {
+      case 'pdf': return AppColors.accent;
+      case 'jpg': case 'jpeg': case 'png': return const Color(0xFF3B6D11);
+      case 'docx': case 'doc': return const Color(0xFF185FA5);
+      default: return AppColors.textTertiary;
+    }
+  }
+
+  Color _iconBg(String? ext) {
+    switch ((ext ?? '').toLowerCase()) {
+      case 'pdf': return AppColors.accentBg;
+      case 'jpg': case 'jpeg': case 'png': return const Color(0xFFEAF3DE);
+      case 'docx': case 'doc': return const Color(0xFFE6F1FB);
+      default: return AppColors.bgSurface2;
+    }
+  }
+
+  String _formatSize(int bytes) {
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    }
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   @override
   Widget build(BuildContext context) {
     final ext = doc.fileName?.split('.').last;
-    return InkWell(
+    final role = doc.role;
+
+    return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
-        color: isSelected
-            ? AppColors.accentBg
-            : Colors.transparent,
-        padding: EdgeInsets.only(
-          left: 12.0 + depth * 20.0,
-          right: 16,
-          top: 8,
-          bottom: 8,
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.accentBg : AppColors.bgSurface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppColors.accent : AppColors.border,
+            width: isSelected ? 1.5 : 0.5,
+          ),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Indent spacer for chevron alignment
-            const SizedBox(width: 24),
-            // File icon
             Container(
-              width: 32,
-              height: 32,
+              width: 34, height: 34,
               decoration: BoxDecoration(
-                color: AppColors.accentBg,
-                borderRadius: BorderRadius.circular(8),
+                color: _iconBg(ext),
+                borderRadius: BorderRadius.circular(9),
               ),
-              child: Icon(_fileIcon(ext),
-                  size: 15, color: AppColors.accent),
+              child: Icon(_fileIcon(ext), size: 16, color: _iconColor(ext)),
             ),
             const SizedBox(width: 10),
-            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1273,72 +1616,42 @@ class _DocRow extends StatelessWidget {
                           onChanged: onSelectionChanged,
                           activeColor: AppColors.accent,
                           side: const BorderSide(
-                              color: AppColors.border2,
-                              width: 0.5),
+                              color: AppColors.border2, width: 0.5),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(doc.documentType,
-                      style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textTertiary)),
-                  if (doc.uploadedBy != null && doc.uploadedBy!.isNotEmpty) ...[
-                    const SizedBox(height: 1),
-                    Text(
-                      doc.uploadedBy ==
-                              Supabase.instance.client.auth.currentUser?.email
-                          ? 'Owner: Me'
-                          : 'Owner: ${doc.uploadedBy}',
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.textTertiary),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
                   const SizedBox(height: 3),
-                  Row(
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 2,
                     children: [
+                      if (role != null)
+                        _RolePill(role: role),
                       if (doc.isPrivate)
-                        _Badge(
-                            label: 'Private',
-                            bg: AppColors.pendingBg,
-                            fg: AppColors.pendingText),
-                      if (doc.isShared) ...[
-                        if (doc.isPrivate)
-                          const SizedBox(width: 4),
-                        _Badge(
-                            label: 'Shared',
+                        const _Pill(
+                            label: 'private',
+                            bg: AppColors.accentBg,
+                            fg: Color(0xFF993C1D)),
+                      if (doc.isShared && role == 'owner')
+                        _Pill(
+                            label: 'shared',
                             bg: AppColors.inProgressBg,
                             fg: AppColors.inProgressText),
-                      ],
-                      if (doc.role != null && doc.role != 'owner' && doc.role!.isNotEmpty) ...[
-                        if (doc.isPrivate || doc.isShared) const SizedBox(width: 4),
-                        _Badge(
-                          label: doc.role == 'editor' ? 'Editor' : 'Viewer',
-                          bg: doc.role == 'editor' ? AppColors.inProgressBg : AppColors.bgSurface2,
-                          fg: doc.role == 'editor' ? AppColors.inProgressText : AppColors.textTertiary,
+                      if (doc.fileSize != null)
+                        Text(
+                          _formatSize(doc.fileSize!),
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary),
                         ),
-                      ],
                     ],
                   ),
-                  if (searchQuery.isNotEmpty &&
-                      doc.parsedText != null &&
-                      doc.parsedText!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    DefaultTextStyle(
-                      style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                          height: 1.4),
-                      child: highlightBuilder(
-                          doc.parsedText!, searchQuery,
-                          maxLines: 2),
-                    ),
-                  ],
                 ],
               ),
             ),
+            if (!selectionMode)
+              const Icon(Icons.chevron_right_rounded,
+                  size: 14, color: AppColors.textTertiary),
           ],
         ),
       ),
@@ -1346,26 +1659,83 @@ class _DocRow extends StatelessWidget {
   }
 }
 
-class _Badge extends StatelessWidget {
+// ── Role Pill ─────────────────────────────────────────────────────────────────
+
+class _RolePill extends StatelessWidget {
+  final String role;
+  const _RolePill({required this.role});
+
+  @override
+  Widget build(BuildContext context) {
+    Color bg, fg;
+    switch (role) {
+      case 'owner':
+        bg = const Color(0xFFEAF3DE);
+        fg = const Color(0xFF3B6D11);
+        break;
+      case 'editor':
+        bg = const Color(0xFFE8F0FB);
+        fg = const Color(0xFF185FA5);
+        break;
+      default:
+        bg = const Color(0xFFF1EFE8);
+        fg = const Color(0xFF5F5E5A);
+    }
+    return _Pill(label: role, bg: bg, fg: fg);
+  }
+}
+
+// ── Pill ──────────────────────────────────────────────────────────────────────
+
+class _Pill extends StatelessWidget {
   final String label;
   final Color bg;
   final Color fg;
-
-  const _Badge(
-      {required this.label, required this.bg, required this.fg});
+  const _Pill({required this.label, required this.bg, required this.fg});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-          color: bg, borderRadius: BorderRadius.circular(10)),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
       child: Text(label,
           style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w500,
-              color: fg)),
+              fontSize: 10, fontWeight: FontWeight.w500, color: fg)),
+    );
+  }
+}
+
+// ── Stat Card ─────────────────────────────────────────────────────────────────
+
+class _StatCard extends StatelessWidget {
+  final String label;
+  final int count;
+  const _StatCard({required this.label, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.bgSurface2,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Text('$count',
+                style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary)),
+            const SizedBox(height: 2),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 10, color: AppColors.textSecondary)),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1395,7 +1765,7 @@ class _SpeedDialItem extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
+                  color: Colors.black.withValues(alpha: 0.12),
                   blurRadius: 6,
                   offset: const Offset(0, 2))
             ],
