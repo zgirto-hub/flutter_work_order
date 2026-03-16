@@ -1,2 +1,2 @@
 export 'platform_ua_stub.dart'
-    if (dart.library.html) 'platform_ua_web.dart';
+    if (dart.library.js_interop) 'platform_ua_web.dart';

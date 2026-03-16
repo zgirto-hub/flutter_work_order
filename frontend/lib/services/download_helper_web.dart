@@ -1,7 +1,4 @@
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
 import 'dart:js_interop';
-import 'dart:typed_data';
 import 'package:web/web.dart' as web;
 
 // ─── JS interop declarations ──────────────────────────────────────────────────
@@ -15,7 +12,7 @@ external JSPromise _share(JSObject shareData);
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
 Future<void> downloadFile(String url, String fileName) async {
-  final ua = html.window.navigator.userAgent.toLowerCase();
+  final ua = web.window.navigator.userAgent.toLowerCase();
   final isIos = ua.contains('iphone') ||
       ua.contains('ipad') ||
       ua.contains('ipod');
@@ -75,11 +72,11 @@ Future<void> _iosShare(String url, String fileName) async {
             errStr.contains('abort')) {
           return;
         }
-        // Other error — fall through to QuickLook fallback
+        // Other error — fall through to new-tab fallback
       }
     }
   } catch (_) {
-    // Fetch or File construction failed — fall through to QuickLook
+    // Fetch or File construction failed — fall through to new-tab
   }
 
   // Fallback: open in new tab (iOS QuickLook preview)
@@ -89,8 +86,6 @@ Future<void> _iosShare(String url, String fileName) async {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 JSObject _buildShareData(JSArray<JSAny> files, String title) {
-  // We build the shareData object via JS eval because Dart's jsify
-  // doesn't easily handle File arrays in a way navigator.share accepts.
   final obj = <String, dynamic>{
     'files': files,
     'title': title,
@@ -98,21 +93,19 @@ JSObject _buildShareData(JSArray<JSAny> files, String title) {
   return obj.jsify()! as JSObject;
 }
 
+void openInNewTab(String url) => _openInNewTab(url);
+
 void _openInNewTab(String url) {
-  final anchor = html.AnchorElement(href: url)
-    ..setAttribute('target', '_blank')
-    ..setAttribute('rel', 'noopener noreferrer');
-  html.document.body?.append(anchor);
-  anchor.click();
-  Future.delayed(const Duration(milliseconds: 150), anchor.remove);
+  web.window.open(url, '_blank');
 }
 
 void _anchorDownload(String url, String fileName) {
-  final anchor = html.AnchorElement(href: url)
-    ..setAttribute('download', fileName);
-  html.document.body?.append(anchor);
+  final anchor = web.document.createElement('a') as web.HTMLAnchorElement
+    ..href = url
+    ..download = fileName;
+  web.document.body?.append(anchor);
   anchor.click();
-  Future.delayed(const Duration(milliseconds: 150), anchor.remove);
+  Future.delayed(const Duration(milliseconds: 150), () => anchor.remove());
 }
 
 String _mimeFromName(String fileName) {
@@ -132,7 +125,3 @@ String _mimeFromName(String fileName) {
   return map[ext] ?? 'application/octet-stream';
 }
 
-// Extension to convert Dart ByteBuffer to Uint8List
-extension on ByteBuffer {
-  Uint8List asUint8List() => Uint8List.view(this);
-}

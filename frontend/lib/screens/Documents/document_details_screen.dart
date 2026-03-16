@@ -239,15 +239,19 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => DocumentViewerScreen(
-                              fileUrl: fileUrl,
-                              fileName: widget.document.fileName,
+                        if (kIsWeb && !isIosWeb) {
+                          openInNewTab(fileUrl);
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DocumentViewerScreen(
+                                fileUrl: fileUrl,
+                                fileName: widget.document.fileName,
+                              ),
                             ),
-                          ),
-                        );
+                          );
+                        }
                       },
                       child: const Text("Open File"),
                     ),

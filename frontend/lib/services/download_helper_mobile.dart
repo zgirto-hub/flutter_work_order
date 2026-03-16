@@ -8,6 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 // Always false on native mobile — only true on web iOS.
 bool get isIosWeb => false;
 
+void openInNewTab(String url) {} // no-op on native
+
 Future<void> downloadFile(String url, String fileName) async {
   // On iOS, launchUrl(externalApplication) leaves the app and breaks back
   // navigation. Download to a temp file and use the share sheet instead.
