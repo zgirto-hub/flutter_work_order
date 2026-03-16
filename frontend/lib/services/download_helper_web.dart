@@ -7,13 +7,16 @@ Future<void> downloadFile(String url, String fileName) async {
   final isIos = ua.contains('iphone') || ua.contains('ipad') || ua.contains('ipod');
 
   if (isIos) {
-    html.window.open(url, '_blank');
+    // PWA standalone mode blocks window.open(). Navigate the current window
+    // to the file URL — iOS intercepts it with a native QuickLook preview.
+    // The user taps Done to return to the PWA.
+    html.window.location.href = url;
     return;
   }
 
   // All other platforms: trigger a normal browser download.
-  final anchor = html.AnchorElement(href: url)
+  (html.AnchorElement(href: url)
     ..setAttribute('download', fileName)
-    ..click();
+    ..click());
 }
 
