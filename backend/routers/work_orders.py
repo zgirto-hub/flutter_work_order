@@ -37,6 +37,14 @@ class CloseWorkOrderBody(BaseModel):
     tech_notes: Optional[str] = None
 
 
+class AddCommentBody(BaseModel):
+    author_email: str
+    author_name: str
+    body: str
+    type: str = "comment"        # 'comment' | 'status_change' | 'system'
+    meta: Optional[dict] = None  # e.g. {"from": "Pending", "to": "In Progress"}
+
+
 # --------------------
 # Helpers
 # --------------------
@@ -151,6 +159,16 @@ async def create_work_order(body: CreateWorkOrderBody):
     if body.assigned_employee_ids:
         _sync_assignments(work_order_id, body.assigned_employee_ids)
 
+    # Auto-log creation as a system event
+    supabase.table("work_order_comments").insert({
+        "work_order_id": work_order_id,
+        "author_email": body.created_by,
+        "author_name": body.created_by.split("@")[0],
+        "body": "Work order created.",
+        "type": "system",
+        "meta": None,
+    }).execute()
+
     return {"work_order": _fetch_full_work_order(work_order_id)}
 
 
@@ -163,13 +181,15 @@ async def update_work_order(
     _validate_type(body.type)
     _validate_status(body.status)
 
-    # Check exists
+    # Check exists and capture current status for change detection
     existing = supabase.table("work_orders") \
-        .select("id, created_by") \
+        .select("id, created_by, status") \
         .eq("id", work_order_id) \
         .execute()
     if not existing.data:
         raise HTTPException(status_code=404, detail="Work order not found")
+
+    existing_status = existing.data[0].get("status")
 
     supabase.table("work_orders").update({
         "job_no": body.job_no,
@@ -182,6 +202,17 @@ async def update_work_order(
     }).eq("id", work_order_id).execute()
 
     _sync_assignments(work_order_id, body.assigned_employee_ids or [])
+
+    # Auto-log status change
+    if existing_status and existing_status != body.status:
+        supabase.table("work_order_comments").insert({
+            "work_order_id": work_order_id,
+            "author_email": user_email,
+            "author_name": user_email.split("@")[0],
+            "body": f"Status changed from {existing_status} to {body.status}",
+            "type": "status_change",
+            "meta": {"from": existing_status, "to": body.status},
+        }).execute()
 
     return {"work_order": _fetch_full_work_order(work_order_id)}
 
@@ -259,3 +290,34 @@ async def delete_work_orders_bulk(
 
     supabase.table("work_orders").delete().in_("id", id_list).execute()
     return {"status": "deleted", "count": len(id_list)}
+
+
+@router.get("/work-orders/{work_order_id}/comments")
+async def get_comments(work_order_id: str):
+    result = supabase.table("work_order_comments") \
+        .select("*") \
+        .eq("work_order_id", work_order_id) \
+        .order("created_at", desc=False) \
+        .execute()
+    return {"comments": result.data or []}
+
+
+@router.post("/work-orders/{work_order_id}/comments")
+async def add_comment(work_order_id: str, body: AddCommentBody):
+    existing = supabase.table("work_orders") \
+        .select("id") \
+        .eq("id", work_order_id) \
+        .execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    record = {
+        "work_order_id": work_order_id,
+        "author_email": body.author_email,
+        "author_name": body.author_name,
+        "body": body.body,
+        "type": body.type,
+        "meta": body.meta,
+    }
+    result = supabase.table("work_order_comments").insert(record).execute()
+    return {"comment": result.data[0] if result.data else {}}

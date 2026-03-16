@@ -1,126 +1,175 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/work_order.dart';
+import '../models/work_order_comment.dart';
+import '../config.dart';
 
 class WorkOrderService {
-  final SupabaseClient _client = Supabase.instance.client;
+  String get _email =>
+      Supabase.instance.client.auth.currentUser?.email ?? '';
 
-  // ✅ FETCH ALL WORK ORDERS
-  Future<List<WorkOrder>> fetchWorkOrders() async {
-    final response = await _client.from('work_orders').select('''
-          *,
-          work_order_assignments (
-            employee_id,
-            employees (
-              id,
-              full_name
-            )
-          )
-        ''').order('created_at', ascending: false);
+  // ── Fetch all work orders ──────────────────────────────────────────────────
 
-    return response.map<WorkOrder>((json) => WorkOrder.fromJson(json)).toList();
+  Future<List<WorkOrder>> fetchWorkOrders({
+    String? status,
+    String? type,
+  }) async {
+    final params = <String, String>{};
+    if (status != null) params['status'] = status;
+    if (type != null) params['type'] = type;
+
+    final uri = Uri.parse('${AppConfig.baseUrl}/work-orders')
+        .replace(queryParameters: params.isNotEmpty ? params : null);
+
+    final res = await http.get(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to fetch work orders');
+    }
+    final data = jsonDecode(res.body);
+    return (data['work_orders'] as List)
+        .map((j) => WorkOrder.fromJson(j))
+        .toList();
   }
 
-  // ✅ ADD WORK ORDER (returns full inserted object)
+  // ── Add work order ─────────────────────────────────────────────────────────
+
   Future<WorkOrder> addWorkOrder(WorkOrder workOrder) async {
-  final user = _client.auth.currentUser;
-
-  if (user == null) {
-    throw Exception("User not authenticated");
-  }
-
-  // 1️⃣ Insert Work Order
-  final workOrderResponse = await _client
-      .from('work_orders')
-      .insert({
+    final res = await http.post(
+      Uri.parse('${AppConfig.baseUrl}/work-orders'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'job_no': workOrder.jobNo,
         'title': workOrder.Title,
         'description': workOrder.description,
-        'status': workOrder.status,
         'location': workOrder.location,
         'type': workOrder.type,
-        'created_by': user.id,
-      })
-      .select()
-      .single();
+        'status': workOrder.status,
+        'created_by': _email,
+        'assigned_employee_ids':
+            workOrder.assignedEmployees.map((e) => e.id).toList(),
+      }),
+    );
 
-  final workOrderId = workOrderResponse['id'];
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body);
+      throw Exception(body['detail'] ?? 'Failed to create work order');
+    }
 
-  // 2️⃣ Insert Employee Assignments
-  if (workOrder.assignedEmployees.isNotEmpty) {
-    final assignments = workOrder.assignedEmployees
-        .map((emp) => {
-              'work_order_id': workOrderId,
-              'employee_id': emp.id,
-            })
-        .toList();
-
-    await _client.from('work_order_assignments').insert(assignments);
+    final data = jsonDecode(res.body);
+    return WorkOrder.fromJson(data['work_order']);
   }
 
-  // 3️⃣ Fetch full object with employees
-  final fullResponse = await _client
-      .from('work_orders')
-      .select('''
-        *,
-        work_order_assignments (
-          employee_id,
-          employees (
-            id,
-            full_name
-          )
-        )
-      ''')
-      .eq('id', workOrderId)
-      .single();
+  // ── Update work order ──────────────────────────────────────────────────────
 
-  return WorkOrder.fromJson(fullResponse);
-}
-
-  // ✅ UPDATE WORK ORDER
   Future<void> updateWorkOrder(WorkOrder workOrder) async {
-  // 1️⃣ Update main work order
-  await _client
-      .from('work_orders')
-      .update(workOrder.toJson())
-      .eq('id', workOrder.id);
+    final res = await http.patch(
+      Uri.parse(
+          '${AppConfig.baseUrl}/work-orders/${workOrder.id}?user_email=${Uri.encodeComponent(_email)}'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'job_no': workOrder.jobNo,
+        'title': workOrder.Title,
+        'description': workOrder.description,
+        'location': workOrder.location,
+        'type': workOrder.type,
+        'status': workOrder.status,
+        'assigned_employee_ids':
+            workOrder.assignedEmployees.map((e) => e.id).toList(),
+      }),
+    );
 
-  // 2️⃣ Remove existing assignments
-  await _client
-      .from('work_order_assignments')
-      .delete()
-      .eq('work_order_id', workOrder.id);
-
-  // 3️⃣ Insert new assignments
-  if (workOrder.assignedEmployees.isNotEmpty) {
-    final assignments = workOrder.assignedEmployees.map((emp) {
-      return {
-        'work_order_id': workOrder.id,
-        'employee_id': emp.id,
-      };
-    }).toList();
-
-    await _client.from('work_order_assignments').insert(assignments);
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body);
+      throw Exception(body['detail'] ?? 'Failed to update work order');
+    }
   }
-}
 
-  // ✅ DELETE WORK ORDER
+  // ── Close work order ───────────────────────────────────────────────────────
+
+  Future<void> closeWorkOrder(
+    String id, {
+    required String closedBy,
+    String? techNotes,
+  }) async {
+    final res = await http.patch(
+      Uri.parse('${AppConfig.baseUrl}/work-orders/$id/close'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'closed_by': closedBy,
+        'tech_notes': techNotes,
+      }),
+    );
+
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body);
+      throw Exception(body['detail'] ?? 'Failed to close work order');
+    }
+  }
+
+  // ── Delete single work order ───────────────────────────────────────────────
+
   Future<void> deleteWorkOrder(String id) async {
-    await _client.from('work_orders').delete().eq('id', id);
+    final res = await http.delete(
+      Uri.parse(
+          '${AppConfig.baseUrl}/work-orders/$id?user_email=${Uri.encodeComponent(_email)}'),
+    );
+
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body);
+      throw Exception(body['detail'] ?? 'Failed to delete work order');
+    }
   }
 
-  // ✅ DELETE MULTIPLE WORK ORDERS
+  // ── Delete multiple work orders ────────────────────────────────────────────
+
   Future<void> deleteWorkOrders(List<String> ids) async {
-    await _client.from('work_orders').delete().inFilter('id', ids);
+    final res = await http.delete(
+      Uri.parse(
+          '${AppConfig.baseUrl}/work-orders?ids=${ids.join(",")}&user_email=${Uri.encodeComponent(_email)}'),
+    );
+
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body);
+      throw Exception(body['detail'] ?? 'Failed to delete work orders');
+    }
   }
 
-  // ✅ REAL-TIME STREAM (optional usage)
-  Stream<List<WorkOrder>> streamWorkOrders() {
-    return _client
-        .from('work_orders')
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false)
-        .map(
-          (data) =>
-              data.map<WorkOrder>((json) => WorkOrder.fromJson(json)).toList(),
-        );
+  // ── Comments ───────────────────────────────────────────────────────────────
+
+  Future<List<WorkOrderComment>> fetchComments(String workOrderId) async {
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/work-orders/$workOrderId/comments'),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      return (data['comments'] as List)
+          .map((j) => WorkOrderComment.fromJson(j))
+          .toList();
+    }
+    return [];
+  }
+
+  Future<WorkOrderComment?> addComment({
+    required String workOrderId,
+    required String authorEmail,
+    required String authorName,
+    required String body,
+  }) async {
+    final res = await http.post(
+      Uri.parse('${AppConfig.baseUrl}/work-orders/$workOrderId/comments'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'author_email': authorEmail,
+        'author_name': authorName,
+        'body': body,
+        'type': 'comment',
+      }),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      return WorkOrderComment.fromJson(data['comment']);
+    }
+    return null;
   }
 }
