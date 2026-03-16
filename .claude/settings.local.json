@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ssh -o StrictHostKeyChecking=no zorin@100.85.73.37 'rm -rf /home/zorin/document_server && echo \"\"Deleted successfully\"\"')"
+      "Bash(ssh -o StrictHostKeyChecking=no zorin@100.85.73.37 'rm -rf /home/zorin/document_server && echo \"\"Deleted successfully\"\"')",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

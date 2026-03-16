@@ -672,7 +672,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 220),
         pageBuilder: (_, __, ___) => DocumentDetailsScreen(
-            document: doc, searchQuery: ''),
+            document: doc, searchQuery: _filter.searchQuery),
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
       ),
@@ -1239,6 +1239,19 @@ class _DocRow extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 11,
                           color: AppColors.textTertiary)),
+                  if (doc.uploadedBy != null && doc.uploadedBy!.isNotEmpty) ...[
+                    const SizedBox(height: 1),
+                    Text(
+                      doc.uploadedBy ==
+                              Supabase.instance.client.auth.currentUser?.email
+                          ? 'Owner: Me'
+                          : 'Owner: ${doc.uploadedBy}',
+                      style: const TextStyle(
+                          fontSize: 11, color: AppColors.textTertiary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                   const SizedBox(height: 3),
                   Row(
                     children: [
@@ -1254,16 +1267,6 @@ class _DocRow extends StatelessWidget {
                             label: 'Shared',
                             bg: AppColors.inProgressBg,
                             fg: AppColors.inProgressText),
-                      ],
-                      if (doc.uploadedBy ==
-                          Supabase.instance.client.auth
-                              .currentUser?.email) ...[
-                        if (doc.isPrivate || doc.isShared)
-                          const SizedBox(width: 4),
-                        _Badge(
-                            label: 'Mine',
-                            bg: AppColors.closedBg,
-                            fg: AppColors.closedText),
                       ],
                     ],
                   ),
