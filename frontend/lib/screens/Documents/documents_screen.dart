@@ -6,6 +6,7 @@ import '../../models/document.dart';
 import '../../models/folder_model.dart';
 import '../../services/document_service.dart';
 import '../../services/folder_service.dart';
+import '../../services/request_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/claude_widgets.dart';
 import '../../widgets/move_to_folder_dialog.dart';
@@ -44,10 +45,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   int _deleteTotal = 0;
   bool _fabExpanded = false;
   bool _loading = true;
+  String _userRole = '';
 
   @override
   void initState() {
     super.initState();
+    _loadUserRole();
     if (_docCache != null && _folderCache != null) {
       // Show cached data immediately, no spinner, then silently refresh
       _allDocuments = _docCache!;
@@ -57,6 +60,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     } else {
       _refresh();
     }
+  }
+
+  Future<void> _loadUserRole() async {
+    final email = Supabase.instance.client.auth.currentUser?.email;
+    if (email == null) return;
+    final role = await RequestService().getUserRole(email);
+    if (mounted) setState(() => _userRole = role);
   }
 
   @override
@@ -696,9 +706,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   }
 
   void _showDocActions(DocumentModel doc) {
-    final currentUser =
-        Supabase.instance.client.auth.currentUser?.email;
-    final isOwner = doc.uploadedBy == currentUser;
+    final caps = DocumentCapabilities.fromRole(doc.role);
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.bgSurface,
@@ -723,6 +731,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textTertiary)),
+            if (doc.role != null && doc.role != 'owner') ...[
+              const SizedBox(height: 2),
+              Text(
+                'Your access: ${doc.role}',
+                style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+              ),
+            ],
             const SizedBox(height: 14),
             const Divider(height: 0, thickness: 0.5),
             ListTile(
@@ -733,8 +748,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500)),
-              enabled: isOwner,
-              onTap: isOwner
+              enabled: caps.canRename,
+              onTap: caps.canRename
                   ? () {
                       Navigator.pop(context);
                       _showRename(doc);
@@ -749,10 +764,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500)),
-              onTap: () {
-                Navigator.pop(context);
-                _showEditType(doc);
-              },
+              enabled: caps.canEditType,
+              onTap: caps.canEditType
+                  ? () {
+                      Navigator.pop(context);
+                      _showEditType(doc);
+                    }
+                  : null,
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -764,8 +782,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500)),
-              enabled: isOwner,
-              onTap: isOwner
+              enabled: caps.canMove,
+              onTap: caps.canMove
                   ? () {
                       Navigator.pop(context);
                       _showMoveDocDialog(doc);
@@ -783,8 +801,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       fontSize: 13,
                       color: AppColors.dangerText,
                       fontWeight: FontWeight.w500)),
-              enabled: isOwner,
-              onTap: isOwner
+              enabled: caps.canDelete,
+              onTap: caps.canDelete
                   ? () {
                       Navigator.pop(context);
                       _deleteDoc(doc);
@@ -812,6 +830,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     final currentUser =
         Supabase.instance.client.auth.currentUser?.email;
     final isOwner = folder.createdBy == currentUser;
+    final canEdit = isOwner || (_userRole == 'admin' && !folder.isPrivate);
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.bgSurface,
@@ -859,8 +878,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500)),
-              enabled: isOwner,
-              onTap: isOwner
+              enabled: canEdit,
+              onTap: canEdit
                   ? () {
                       Navigator.pop(context);
                       _showRenameFolder(folder);
@@ -877,8 +896,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500)),
-              enabled: isOwner,
-              onTap: isOwner
+              enabled: canEdit,
+              onTap: canEdit
                   ? () {
                       Navigator.pop(context);
                       _showMoveFolderDialog(folder);
@@ -896,8 +915,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       fontSize: 13,
                       color: AppColors.dangerText,
                       fontWeight: FontWeight.w500)),
-              enabled: isOwner,
-              onTap: isOwner
+              enabled: canEdit,
+              onTap: canEdit
                   ? () {
                       Navigator.pop(context);
                       _deleteFolderConfirm(folder);
@@ -1292,6 +1311,14 @@ class _DocRow extends StatelessWidget {
                             label: 'Shared',
                             bg: AppColors.inProgressBg,
                             fg: AppColors.inProgressText),
+                      ],
+                      if (doc.role != null && doc.role != 'owner' && doc.role!.isNotEmpty) ...[
+                        if (doc.isPrivate || doc.isShared) const SizedBox(width: 4),
+                        _Badge(
+                          label: doc.role == 'editor' ? 'Editor' : 'Viewer',
+                          bg: doc.role == 'editor' ? AppColors.inProgressBg : AppColors.bgSurface2,
+                          fg: doc.role == 'editor' ? AppColors.inProgressText : AppColors.textTertiary,
+                        ),
                       ],
                     ],
                   ),

@@ -6,126 +6,148 @@ import 'package:http/http.dart' as http;
 class DocumentService {
   final SupabaseClient _client = Supabase.instance.client;
 
-Future<List<DocumentModel>> fetchDocuments() async {
+  Future<List<DocumentModel>> fetchDocuments() async {
+    final user = _client.auth.currentUser;
+    final email = user?.email ?? "";
 
-  final user = _client.auth.currentUser;
-  final email = user?.email ?? "";
+    // Fetch shared document IDs + roles from new table
+    final sharedPerms = await _client
+        .from('resource_permissions')
+        .select('resource_id, role, user_email')
+        .eq('resource_type', 'document');
 
-final shared = await _client
-    .from('document_permissions')
-    .select('document_id,user_email');
+    final myPerms = (sharedPerms as List)
+        .where((row) => row['user_email'] == email)
+        .toList();
 
-final sharedIds = (shared as List)
-    .where((row) => row['user_email'] == email)
-    .map((row) => row['document_id'].toString())
-    .toList();
+    final sharedIds = myPerms
+        .map((row) => row['resource_id'].toString())
+        .toList();
 
-print("SHARED IDS: $sharedIds");
+    // Also check old document_permissions table (migration compatibility)
+    final oldShared = await _client
+        .from('document_permissions')
+        .select('document_id, user_email');
 
-  String filter;
+    final oldSharedIds = (oldShared as List)
+        .where((row) => row['user_email'] == email)
+        .map((row) => row['document_id'].toString())
+        .toList();
 
-  if (sharedIds.isEmpty) {
-    filter = 'is_private.eq.false,uploaded_by.eq.$email';
-  } else {
-    filter =
-        'is_private.eq.false,uploaded_by.eq.$email,id.in.(${sharedIds.join(',')})';
-  }
+    // Combine both sets
+    final allSharedIds = {...sharedIds, ...oldSharedIds}.toList();
 
-  final response = await _client
-      .from('documents')
-      .select()
-      .or(filter)
-      .order('created_at', ascending: false);
-
-  final docs = (response as List)
-      .map((doc) => DocumentModel.fromJson(doc))
-      .toList();
-
-  /// Mark shared documents
-  final result = docs.map((doc) {
-    if (sharedIds.contains(doc.id)) {
-      return doc.copyWith(isShared: true);
+    String filter;
+    if (allSharedIds.isEmpty) {
+      filter = 'is_private.eq.false,uploaded_by.eq.$email';
+    } else {
+      filter =
+          'is_private.eq.false,uploaded_by.eq.$email,id.in.(${allSharedIds.join(',')})';
     }
-    return doc;
-  }).toList();
 
-  return result;
-}
+    final response = await _client
+        .from('documents')
+        .select()
+        .or(filter)
+        .order('created_at', ascending: false);
+
+    final docs = (response as List)
+        .map((doc) => DocumentModel.fromJson(doc))
+        .toList();
+
+    // Build a role map from resource_permissions
+    final roleMap = <String, String>{};
+    for (final perm in myPerms) {
+      roleMap[perm['resource_id'].toString()] = perm['role'] as String;
+    }
+    // Old table entries default to 'viewer'
+    for (final id in oldSharedIds) {
+      if (!roleMap.containsKey(id)) {
+        roleMap[id] = 'viewer';
+      }
+    }
+
+    // Assign roles and isShared
+    final result = docs.map((doc) {
+      if (doc.uploadedBy == email) {
+        return doc.copyWith(role: 'owner');
+      } else if (roleMap.containsKey(doc.id)) {
+        return doc.copyWith(isShared: true, role: roleMap[doc.id]);
+      }
+      return doc;
+    }).toList();
+
+    return result;
+  }
 
   Future<void> insertDocument({
-  required String title,
-  required String documentType,
-  String? parsedText,
-  bool isPrivate = false,
-}) async {
+    required String title,
+    required String documentType,
+    String? parsedText,
+    bool isPrivate = false,
+  }) async {
+    final user = _client.auth.currentUser;
+    final email = user?.email;
 
-  final user = _client.auth.currentUser;
-  final email = user?.email;
-
-  await _client.from('documents').insert({
-    'title': title,
-    'document_type': documentType,
-    'file_name': '',
-    'file_extension': '',
-    'mime_type': '',
-    'file_path': '',
-    'parsed_text': parsedText,
-    'uploaded_by': email,
-    'is_private': isPrivate,
-  });
-}
-
-  /// ✅ FIXED: supports positional search
-Future<List<DocumentModel>> searchDocuments(
-  String? query, {
-  String? documentType,
-}) async {
-
-  final searchQuery = query?.trim();
-
-  var request = _client.from('documents').select();
-
-  // Filter by document type
-  if (documentType != null && documentType != "All") {
-    request = request.eq('document_type', documentType);
+    await _client.from('documents').insert({
+      'title': title,
+      'document_type': documentType,
+      'file_name': '',
+      'file_extension': '',
+      'mime_type': '',
+      'file_path': '',
+      'parsed_text': parsedText,
+      'uploaded_by': email,
+      'is_private': isPrivate,
+    });
   }
 
-  final response = await request.order('created_at', ascending: false);
+  Future<List<DocumentModel>> searchDocuments(
+    String? query, {
+    String? documentType,
+  }) async {
+    final searchQuery = query?.trim();
 
-  final docs = (response as List)
-      .map((doc) => DocumentModel.fromJson(doc))
-      .toList();
+    var request = _client.from('documents').select();
 
-  // Apply search locally (prevents duplicate API results)
-  if (searchQuery != null && searchQuery.isNotEmpty) {
-    return docs.where((doc) {
-      final title = doc.title.toLowerCase();
-      final parsed = (doc.parsedText ?? "").toLowerCase();
-      final q = searchQuery.toLowerCase();
+    if (documentType != null && documentType != "All") {
+      request = request.eq('document_type', documentType);
+    }
 
-      return title.contains(q) || parsed.contains(q);
-    }).toList();
+    final response = await request.order('created_at', ascending: false);
+
+    final docs = (response as List)
+        .map((doc) => DocumentModel.fromJson(doc))
+        .toList();
+
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      return docs.where((doc) {
+        final title = doc.title.toLowerCase();
+        final parsed = (doc.parsedText ?? "").toLowerCase();
+        final q = searchQuery.toLowerCase();
+        return title.contains(q) || parsed.contains(q);
+      }).toList();
+    }
+
+    return docs;
   }
 
-  return docs;
-}
- Future<void> deleteDocument(String id) async {
+  Future<void> deleteDocument(String id) async {
+    final user = _client.auth.currentUser;
+    final email = user?.email ?? "";
 
-  final user = _client.auth.currentUser;
-  final email = user?.email ?? "";
+    final response = await http.delete(
+      Uri.parse('${AppConfig.baseUrl}/delete/$id?user_email=$email'),
+    );
 
-  final response = await http.delete(
-    Uri.parse('${AppConfig.baseUrl}/delete/$id?user_email=$email'),
-  );
+    if (response.statusCode == 403) {
+      throw Exception("You cannot delete this document");
+    }
 
-  if (response.statusCode == 403) {
-    throw Exception("You cannot delete this document");
+    if (response.statusCode != 200) {
+      throw Exception("Failed to delete document");
+    }
   }
-
-  if (response.statusCode != 200) {
-    throw Exception("Failed to delete document");
-  }
-}
 
   Future<void> deleteDocuments(List<String> ids) async {
     for (final id in ids) {

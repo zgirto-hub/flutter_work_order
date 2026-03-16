@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from db import supabase
+from utils.permissions import can
 
 router = APIRouter()
 
@@ -74,7 +75,8 @@ async def rename_folder(folder_id: str, body: RenameFolderBody, user_email: str 
         .execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Folder not found")
-    if result.data[0]["created_by"] != user_email:
+    owner = result.data[0]["created_by"]
+    if not can(user_email, "rename", folder_id, "folder", resource_owner=owner):
         raise HTTPException(status_code=403, detail="Not allowed to rename this folder")
     supabase.table("document_folders") \
         .update({"name": body.name.strip()}) \
@@ -91,7 +93,8 @@ async def delete_folder(folder_id: str, user_email: str = Query(...)):
         .execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Folder not found")
-    if result.data[0]["created_by"] != user_email:
+    owner = result.data[0]["created_by"]
+    if not can(user_email, "delete", folder_id, "folder", resource_owner=owner):
         raise HTTPException(status_code=403, detail="Not allowed to delete this folder")
     # Orphan documents in this folder back to root before deleting
     supabase.table("documents") \
@@ -110,7 +113,8 @@ async def move_folder(folder_id: str, body: MoveFolderBody, user_email: str = Qu
         .execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Folder not found")
-    if result.data[0]["created_by"] != user_email:
+    owner = result.data[0]["created_by"]
+    if not can(user_email, "move", folder_id, "folder", resource_owner=owner):
         raise HTTPException(status_code=403, detail="Not allowed to move this folder")
     if body.parent_id == folder_id:
         raise HTTPException(status_code=400, detail="Cannot move a folder into itself")
@@ -128,12 +132,15 @@ async def move_folder(folder_id: str, body: MoveFolderBody, user_email: str = Qu
 @router.patch("/documents/{doc_id}/move")
 async def move_document(doc_id: str, body: MoveDocumentBody, user_email: str = Query(...)):
     result = supabase.table("documents") \
-        .select("uploaded_by") \
+        .select("uploaded_by, folder_id") \
         .eq("id", doc_id) \
         .execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Document not found")
-    if result.data[0]["uploaded_by"] != user_email:
+    doc = result.data[0]
+    if not can(user_email, "move", doc_id, "document",
+               folder_id=doc.get("folder_id"),
+               resource_owner=doc["uploaded_by"]):
         raise HTTPException(status_code=403, detail="Not allowed to move this document")
     supabase.table("documents") \
         .update({"folder_id": body.folder_id}) \

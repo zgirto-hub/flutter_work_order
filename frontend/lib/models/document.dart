@@ -5,12 +5,12 @@ class DocumentModel {
   final String? fileName;
   final String? filePath;
   final String? parsedText;
-
   final bool isPrivate;
   final String? uploadedBy;
   final bool isShared;
   final String? folderId;
   final int? fileSize;
+  final String? role; // 'owner' | 'editor' | 'viewer' | null
 
   DocumentModel({
     required this.id,
@@ -24,6 +24,7 @@ class DocumentModel {
     this.isShared = false,
     this.folderId,
     this.fileSize,
+    this.role,
   });
 
   factory DocumentModel.fromJson(Map<String, dynamic> json) {
@@ -38,10 +39,15 @@ class DocumentModel {
       uploadedBy: json['uploaded_by'],
       folderId: json['folder_id']?.toString(),
       fileSize: (json['file_size'] as num?)?.toInt(),
+      role: json['role'] as String?,
     );
   }
 
-  DocumentModel copyWith({bool? isShared, String? folderId}) {
+  DocumentModel copyWith({
+    bool? isShared,
+    String? folderId,
+    String? role,
+  }) {
     return DocumentModel(
       id: id,
       title: title,
@@ -54,6 +60,52 @@ class DocumentModel {
       isShared: isShared ?? this.isShared,
       folderId: folderId ?? this.folderId,
       fileSize: fileSize,
+      role: role ?? this.role,
     );
   }
+}
+
+
+/// Derived capabilities from a document's role.
+/// Used to gate UI actions.
+class DocumentCapabilities {
+  final bool canView;
+  final bool canRename;
+  final bool canMove;
+  final bool canDelete;
+  final bool canShare;
+  final bool canEditType;
+
+  const DocumentCapabilities({
+    required this.canView,
+    required this.canRename,
+    required this.canMove,
+    required this.canDelete,
+    required this.canShare,
+    required this.canEditType,
+  });
+
+  factory DocumentCapabilities.fromRole(String? role) {
+    switch (role) {
+      case 'owner':
+        return const DocumentCapabilities(
+          canView: true, canRename: true, canMove: true,
+          canDelete: true, canShare: true, canEditType: true,
+        );
+      case 'editor':
+        return const DocumentCapabilities(
+          canView: true, canRename: true, canMove: true,
+          canDelete: false, canShare: false, canEditType: true,
+        );
+      case 'viewer':
+      default:
+        return const DocumentCapabilities(
+          canView: true, canRename: false, canMove: false,
+          canDelete: false, canShare: false, canEditType: false,
+        );
+    }
+  }
+
+  /// Convenience: returns true if this user is the owner
+  bool get isOwner => canDelete && canShare;
 }

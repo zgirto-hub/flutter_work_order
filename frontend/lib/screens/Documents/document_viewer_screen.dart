@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../theme/app_theme.dart';
 import '../../services/download_helper.dart';
+import 'package:work_order/services/platform_ua.dart';
 import 'document_viewer_web.dart' if (dart.library.io) 'document_viewer_stub.dart';
 
 class DocumentViewerScreen extends StatefulWidget {
@@ -27,8 +29,11 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   String? _textContent;
   String? _blobUrl;
   bool _downloading = false;
+  double? _progress; // null = indeterminate, 0.0–1.0 = known progress
 
   final PdfViewerController _pdfController = PdfViewerController();
+
+  bool get _isIosWeb => kIsWeb && PlatformUA.isIos;
 
   String get _ext =>
       widget.fileUrl.split('?').first.split('.').last.toLowerCase();
@@ -66,44 +71,77 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       _fileBytes = null;
       _textContent = null;
       _blobUrl = null;
+      _progress = null;
     });
 
     try {
-      final response = await http
-          .get(Uri.parse(widget.fileUrl))
-          .timeout(const Duration(seconds: 60));
+      final client = http.Client();
+      try {
+        final streamedResponse = await client
+            .send(http.Request('GET', Uri.parse(widget.fileUrl)))
+            .timeout(const Duration(seconds: 30));
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      if (response.statusCode != 200) {
+        if (streamedResponse.statusCode != 200) {
+          setState(() {
+            _state = _ViewState.error;
+            _errorMessage = 'Server returned ${streamedResponse.statusCode}';
+          });
+          return;
+        }
+
+        final totalBytes = streamedResponse.contentLength ?? 0;
+        final chunks = <List<int>>[];
+        var receivedBytes = 0;
+
+        await for (final chunk in streamedResponse.stream) {
+          chunks.add(chunk);
+          receivedBytes += chunk.length;
+          if (totalBytes > 0 && mounted) {
+            setState(() => _progress = receivedBytes / totalBytes);
+          }
+        }
+
+        if (!mounted) return;
+
+        // Assemble all chunks into a single Uint8List
+        final bodyBytes = Uint8List(receivedBytes);
+        var offset = 0;
+        for (final chunk in chunks) {
+          bodyBytes.setRange(offset, offset + chunk.length, chunk);
+          offset += chunk.length;
+        }
+
+        if (_isTxt) {
+          setState(() {
+            _textContent = utf8.decode(bodyBytes, allowMalformed: true);
+            _state = _ViewState.loaded;
+          });
+          return;
+        }
+
+        if (_isPdf && kIsWeb) {
+          if (_isIosWeb) {
+            // iOS: PdfEmbedViewer uses the original URL (now cached); no blob needed
+            setState(() => _state = _ViewState.loaded);
+            return;
+          }
+          final url = createBlobUrl(bodyBytes, 'application/pdf');
+          setState(() {
+            _blobUrl = url;
+            _state = _ViewState.loaded;
+          });
+          return;
+        }
+
         setState(() {
-          _state = _ViewState.error;
-          _errorMessage = 'Server returned ${response.statusCode}';
-        });
-        return;
-      }
-
-      if (_isTxt) {
-        setState(() {
-          _textContent = response.body;
+          _fileBytes = bodyBytes;
           _state = _ViewState.loaded;
         });
-        return;
+      } finally {
+        client.close();
       }
-
-      if (_isPdf && kIsWeb) {
-        final url = createBlobUrl(response.bodyBytes, 'application/pdf');
-        setState(() {
-          _blobUrl = url;
-          _state = _ViewState.loaded;
-        });
-        return;
-      }
-
-      setState(() {
-        _fileBytes = response.bodyBytes;
-        _state = _ViewState.loaded;
-      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -199,7 +237,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   Widget _buildBody() {
     switch (_state) {
       case _ViewState.loading:
-        return _LoadingView(filename: _displayName);
+        return _LoadingView(filename: _displayName, progress: _progress);
       case _ViewState.error:
         return _ErrorView(
             message: _errorMessage ?? 'Unknown error', onRetry: _loadFile);
@@ -219,19 +257,34 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
 
   Widget _buildPdfViewer() {
     if (kIsWeb) {
-      // Web: iframe + download bar pinned at bottom
+      if (_isIosWeb) {
+        // iOS web: <embed> with direct URL invokes native iOS PDF viewer (all pages)
+        return Column(
+          children: [
+            Expanded(
+              child: SizedBox.expand(
+                child: PdfEmbedViewer(url: widget.fileUrl),
+              ),
+            ),
+            _WebDownloadBar(
+              fileName: _displayName,
+              downloading: _downloading,
+              onDownload: _triggerDownload,
+            ),
+          ],
+        );
+      }
+      // Non-iOS web: iframe + blob URL
       if (_blobUrl == null) {
         return const _ErrorView(message: 'Could not create PDF preview');
       }
       return Column(
         children: [
-          // PDF iframe fills available space
           Expanded(
             child: SizedBox.expand(
               child: PdfWebViewer(blobUrl: _blobUrl!),
             ),
           ),
-          // ── Download bar ──────────────────────────────────────────────────
           _WebDownloadBar(
             fileName: _displayName,
             downloading: _downloading,
@@ -418,26 +471,80 @@ enum _ViewState { loading, loaded, error }
 
 // ── Loading view ───────────────────────────────────────────────────────────
 
-class _LoadingView extends StatelessWidget {
+class _LoadingView extends StatefulWidget {
   final String filename;
-  const _LoadingView({required this.filename});
+  final double? progress;
+  const _LoadingView({required this.filename, this.progress});
+
+  @override
+  State<_LoadingView> createState() => _LoadingViewState();
+}
+
+class _LoadingViewState extends State<_LoadingView>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final List<Animation<double>> _dots;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+
+    _dots = [0.0, 0.33, 0.66].map((offset) {
+      return CurvedAnimation(
+        parent: _ctrl,
+        curve: Interval(offset, offset + 0.34, curve: Curves.easeInOut),
+      );
+    }).toList();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final pct = widget.progress;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(
-              strokeWidth: 2.5, color: AppColors.accent),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: _dots.map((anim) {
+              return AnimatedBuilder(
+                animation: anim,
+                builder: (_, __) => Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.accent.withValues(
+                      alpha: 0.2 + 0.8 * anim.value,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
           const SizedBox(height: 16),
-          const Text('Loading file…',
-              style: TextStyle(
-                  fontSize: 14, color: AppColors.textSecondary)),
+          Text(
+            pct != null
+                ? 'Loading… ${(pct * 100).toStringAsFixed(0)}%'
+                : 'Loading file…',
+            style: const TextStyle(
+                fontSize: 14, color: AppColors.textSecondary),
+          ),
           const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(filename,
+            child: Text(widget.filename,
                 style: const TextStyle(
                     fontSize: 11, color: AppColors.textTertiary),
                 textAlign: TextAlign.center,

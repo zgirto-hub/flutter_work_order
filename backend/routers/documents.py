@@ -5,6 +5,7 @@ import uuid
 
 from db import supabase
 from utils.text_extraction import extract_text
+from utils.permissions import can
 
 router = APIRouter()
 
@@ -54,10 +55,8 @@ async def upload_file(
 
 @router.delete("/delete/{doc_id}")
 async def delete_document(doc_id: str, user_email: str = Query(...)):
-    print("DELETE DEBUG -> user_email:", user_email)
-
     response = supabase.table("documents") \
-        .select("file_path, uploaded_by") \
+        .select("file_path, uploaded_by, folder_id") \
         .eq("id", doc_id) \
         .execute()
 
@@ -65,9 +64,12 @@ async def delete_document(doc_id: str, user_email: str = Query(...)):
         return {"error": "Document not found"}
 
     doc = response.data[0]
-    owner = doc["uploaded_by"]
 
-    if owner != user_email:
+    if not can(
+        user_email, "delete", doc_id, "document",
+        folder_id=doc.get("folder_id"),
+        resource_owner=doc["uploaded_by"]
+    ):
         raise HTTPException(status_code=403, detail="You are not allowed to delete this document")
 
     file_path = doc["file_path"]
@@ -78,6 +80,13 @@ async def delete_document(doc_id: str, user_email: str = Query(...)):
             os.remove(absolute_path)
 
     supabase.table("documents").delete().eq("id", doc_id).execute()
+    # Also clean up any permissions for this document
+    supabase.table("resource_permissions") \
+        .delete() \
+        .eq("resource_id", doc_id) \
+        .eq("resource_type", "document") \
+        .execute()
+
     return {"status": "deleted"}
 
 
@@ -85,8 +94,12 @@ async def delete_document(doc_id: str, user_email: str = Query(...)):
 async def share_document(
     document_id: str = Form(...),
     owner_email: str = Form(...),
-    share_with: str = Form(...)
+    share_with: str = Form(...),
+    role: str = Form("viewer"),   # 'viewer' | 'editor'
 ):
+    if role not in ("viewer", "editor"):
+        raise HTTPException(status_code=400, detail="role must be 'viewer' or 'editor'")
+
     response = supabase.table("documents") \
         .select("uploaded_by") \
         .eq("id", document_id) \
@@ -103,35 +116,42 @@ async def share_document(
     if owner_email == share_with:
         raise HTTPException(status_code=400, detail="You already own this document")
 
-    existing = supabase.table("document_permissions") \
-        .select("id") \
-        .eq("document_id", document_id) \
-        .eq("user_email", share_with) \
-        .execute()
+    # Upsert — update role if already shared
+    supabase.table("resource_permissions").upsert({
+        "resource_id": document_id,
+        "resource_type": "document",
+        "user_email": share_with,
+        "role": role,
+        "granted_by": owner_email,
+    }, on_conflict="resource_id,resource_type,user_email").execute()
 
-    if existing.data:
-        raise HTTPException(status_code=400, detail="Document already shared with this user")
-
-    supabase.table("document_permissions").insert({
-        "document_id": document_id,
-        "user_email": share_with
-    }).execute()
-
-    return {"status": "document shared"}
+    return {"status": "document shared", "role": role}
 
 
 @router.get("/document-shares/{doc_id}")
 async def get_document_shares(doc_id: str):
-    response = supabase.table("document_permissions") \
-        .select("user_email") \
-        .eq("document_id", doc_id) \
+    response = supabase.table("resource_permissions") \
+        .select("user_email, role") \
+        .eq("resource_id", doc_id) \
+        .eq("resource_type", "document") \
         .execute()
 
     if not response.data:
-        return {"users": []}
+        # Fallback: also check old document_permissions table during migration
+        old = supabase.table("document_permissions") \
+            .select("user_email") \
+            .eq("document_id", doc_id) \
+            .execute()
+        if old.data:
+            return {
+                "users": [row["user_email"] for row in old.data],
+                "shares": [{"email": row["user_email"], "role": "viewer"} for row in old.data]
+            }
+        return {"users": [], "shares": []}
 
     users = [row["user_email"] for row in response.data]
-    return {"users": users}
+    shares = [{"email": row["user_email"], "role": row["role"]} for row in response.data]
+    return {"users": users, "shares": shares}
 
 
 @router.delete("/remove-share")
@@ -153,6 +173,15 @@ async def remove_share(
     if owner != owner_email:
         raise HTTPException(status_code=403, detail="Only owner can remove access")
 
+    # Remove from new table
+    supabase.table("resource_permissions") \
+        .delete() \
+        .eq("resource_id", document_id) \
+        .eq("resource_type", "document") \
+        .eq("user_email", remove_user) \
+        .execute()
+
+    # Also remove from old table if still there (migration period)
     supabase.table("document_permissions") \
         .delete() \
         .eq("document_id", document_id) \
@@ -172,3 +201,28 @@ async def list_users():
     users = list({row["uploaded_by"] for row in response.data if row["uploaded_by"]})
     users.sort()
     return {"users": users}
+
+
+@router.get("/documents/{doc_id}/my-role")
+async def get_my_role(doc_id: str, user_email: str = Query(...)):
+    """Returns the calling user's effective role on a document."""
+    doc = supabase.table("documents") \
+        .select("uploaded_by, folder_id") \
+        .eq("id", doc_id) \
+        .execute()
+
+    if not doc.data:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    d = doc.data[0]
+
+    if d["uploaded_by"] == user_email:
+        return {"role": "owner"}
+
+    from utils.permissions import get_effective_role
+    role = get_effective_role(
+        user_email, doc_id, "document",
+        folder_id=d.get("folder_id"),
+        resource_owner=d["uploaded_by"]
+    )
+    return {"role": role or "none"}
