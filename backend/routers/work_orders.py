@@ -1,0 +1,261 @@
+from fastapi import APIRouter, Query, HTTPException
+from pydantic import BaseModel
+from typing import Optional, List
+from datetime import datetime
+
+from db import supabase
+
+router = APIRouter()
+
+# --------------------
+# Pydantic Models
+# --------------------
+
+class CreateWorkOrderBody(BaseModel):
+    job_no: str
+    title: str
+    description: Optional[str] = ""
+    location: str
+    type: str = "Technical"
+    status: str = "Pending"
+    created_by: str
+    assigned_employee_ids: Optional[List[str]] = []
+
+
+class UpdateWorkOrderBody(BaseModel):
+    job_no: str
+    title: str
+    description: Optional[str] = ""
+    location: str
+    type: str
+    status: str
+    assigned_employee_ids: Optional[List[str]] = []
+
+
+class CloseWorkOrderBody(BaseModel):
+    closed_by: str
+    tech_notes: Optional[str] = None
+
+
+# --------------------
+# Helpers
+# --------------------
+
+ALLOWED_TYPES = {"Technical", "Inspection", "Other"}
+ALLOWED_STATUSES = {"Pending", "In Progress", "Closed"}
+
+
+def _validate_type(type: str):
+    if type not in ALLOWED_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid type. Must be one of: {', '.join(ALLOWED_TYPES)}"
+        )
+
+
+def _validate_status(status: str):
+    if status not in ALLOWED_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status. Must be one of: {', '.join(ALLOWED_STATUSES)}"
+        )
+
+
+def _fetch_full_work_order(work_order_id: str):
+    """Fetch a work order with its assigned employees."""
+    result = supabase.table("work_orders").select("""
+        *,
+        work_order_assignments (
+            employee_id,
+            employees (
+                id,
+                full_name
+            )
+        )
+    """).eq("id", work_order_id).single().execute()
+    return result.data
+
+
+def _sync_assignments(work_order_id: str, employee_ids: List[str]):
+    """Delete existing assignments and insert new ones."""
+    supabase.table("work_order_assignments") \
+        .delete() \
+        .eq("work_order_id", work_order_id) \
+        .execute()
+    if employee_ids:
+        assignments = [
+            {"work_order_id": work_order_id, "employee_id": emp_id}
+            for emp_id in employee_ids
+        ]
+        supabase.table("work_order_assignments").insert(assignments).execute()
+
+
+# --------------------
+# Endpoints
+# --------------------
+
+@router.get("/work-orders")
+async def list_work_orders(
+    status: Optional[str] = Query(None),
+    type: Optional[str] = Query(None),
+):
+    query = supabase.table("work_orders").select("""
+        *,
+        work_order_assignments (
+            employee_id,
+            employees (
+                id,
+                full_name
+            )
+        )
+    """).order("created_at", desc=True)
+
+    if status:
+        query = query.eq("status", status)
+    if type:
+        query = query.eq("type", type)
+
+    result = query.execute()
+    return {"work_orders": result.data or []}
+
+
+@router.get("/work-orders/{work_order_id}")
+async def get_work_order(work_order_id: str):
+    data = _fetch_full_work_order(work_order_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Work order not found")
+    return {"work_order": data}
+
+
+@router.post("/work-orders")
+async def create_work_order(body: CreateWorkOrderBody):
+    _validate_type(body.type)
+    _validate_status(body.status)
+
+    result = supabase.table("work_orders").insert({
+        "job_no": body.job_no,
+        "title": body.title,
+        "description": body.description,
+        "location": body.location,
+        "type": body.type,
+        "status": body.status,
+        "created_by": body.created_by,
+    }).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Failed to create work order")
+
+    work_order_id = result.data[0]["id"]
+
+    # Insert employee assignments
+    if body.assigned_employee_ids:
+        _sync_assignments(work_order_id, body.assigned_employee_ids)
+
+    return {"work_order": _fetch_full_work_order(work_order_id)}
+
+
+@router.patch("/work-orders/{work_order_id}")
+async def update_work_order(
+    work_order_id: str,
+    body: UpdateWorkOrderBody,
+    user_email: str = Query(...),
+):
+    _validate_type(body.type)
+    _validate_status(body.status)
+
+    # Check exists
+    existing = supabase.table("work_orders") \
+        .select("id, created_by") \
+        .eq("id", work_order_id) \
+        .execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    supabase.table("work_orders").update({
+        "job_no": body.job_no,
+        "title": body.title,
+        "description": body.description,
+        "location": body.location,
+        "type": body.type,
+        "status": body.status,
+        "updated_at": datetime.utcnow().isoformat(),
+    }).eq("id", work_order_id).execute()
+
+    _sync_assignments(work_order_id, body.assigned_employee_ids or [])
+
+    return {"work_order": _fetch_full_work_order(work_order_id)}
+
+
+@router.patch("/work-orders/{work_order_id}/close")
+async def close_work_order(
+    work_order_id: str,
+    body: CloseWorkOrderBody,
+):
+    existing = supabase.table("work_orders") \
+        .select("id, status, request_id") \
+        .eq("id", work_order_id) \
+        .execute()
+
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    wo = existing.data[0]
+    if wo["status"] == "Closed":
+        raise HTTPException(status_code=400, detail="Work order already closed")
+
+    now = datetime.utcnow().isoformat()
+
+    supabase.table("work_orders").update({
+        "status": "Closed",
+        "closed_by": body.closed_by,
+        "closed_at": now,
+        "tech_notes": body.tech_notes,
+        "updated_at": now,
+    }).eq("id", work_order_id).execute()
+
+    # If linked to a request, close it too
+    request_id = wo.get("request_id")
+    if request_id:
+        req = supabase.table("requests") \
+            .select("status") \
+            .eq("id", request_id) \
+            .execute()
+        if req.data and req.data[0]["status"] != "Closed":
+            supabase.table("requests").update({
+                "status": "Closed",
+                "closed_by": body.closed_by,
+                "closed_at": now,
+                "tech_notes": body.tech_notes,
+            }).eq("id", request_id).execute()
+
+    return {"status": "closed"}
+
+
+@router.delete("/work-orders/{work_order_id}")
+async def delete_work_order(
+    work_order_id: str,
+    user_email: str = Query(...),
+):
+    existing = supabase.table("work_orders") \
+        .select("id") \
+        .eq("id", work_order_id) \
+        .execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    # Assignments deleted by DB cascade
+    supabase.table("work_orders").delete().eq("id", work_order_id).execute()
+    return {"status": "deleted"}
+
+
+@router.delete("/work-orders")
+async def delete_work_orders_bulk(
+    ids: str = Query(..., description="Comma-separated work order IDs"),
+    user_email: str = Query(...),
+):
+    id_list = [i.strip() for i in ids.split(",") if i.strip()]
+    if not id_list:
+        raise HTTPException(status_code=400, detail="No IDs provided")
+
+    supabase.table("work_orders").delete().in_("id", id_list).execute()
+    return {"status": "deleted", "count": len(id_list)}
