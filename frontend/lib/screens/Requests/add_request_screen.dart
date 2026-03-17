@@ -288,14 +288,14 @@ class _AddRequestScreenState extends State<AddRequestScreen> {
                         borderRadius: BorderRadius.circular(9),
                         border: Border.all(color: AppColors.border2, width: 0.5),
                       ),
-                      child: const Icon(Icons.arrow_back_rounded,
+                      child: Icon(Icons.arrow_back_rounded,
                           size: 16, color: AppColors.textSecondary),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Text(
                     _isEditing ? 'Edit Request' : 'New Request',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
@@ -306,7 +306,7 @@ class _AddRequestScreenState extends State<AddRequestScreen> {
               ),
             ),
 
-            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+            Divider(height: 0, thickness: 0.5, color: AppColors.border),
 
             // ── Form ──────────────────────────────────────────────
             Expanded(
@@ -337,7 +337,7 @@ class _AddRequestScreenState extends State<AddRequestScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
                     SectionLabel(text: 'Your info'),
                     SurfaceCard(
@@ -360,12 +360,12 @@ class _AddRequestScreenState extends State<AddRequestScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
                     // ── Attachments ────────────────────────────────
                     _buildAttachmentsSection(),
 
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24),
 
                     SizedBox(
                       width: double.infinity,
@@ -380,7 +380,7 @@ class _AddRequestScreenState extends State<AddRequestScreen> {
                           elevation: 0,
                         ),
                         child: _loading
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 16,
                                 height: 16,
                                 child: CircularProgressIndicator(
@@ -390,7 +390,7 @@ class _AddRequestScreenState extends State<AddRequestScreen> {
                               )
                             : Text(
                                 _isEditing ? 'Save Changes' : 'Submit Request',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 13, fontWeight: FontWeight.w600),
                               ),
                       ),
@@ -437,7 +437,7 @@ class _AddRequestScreenState extends State<AddRequestScreen> {
 
               // Divider before Add button only when items exist
               if (hasItems)
-                const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+                Divider(height: 0, thickness: 0.5, color: AppColors.border),
 
               // Add attachment button
               InkWell(
@@ -505,17 +505,17 @@ class _ExistingAttachmentRow extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Text(
               fileName,
-              style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+              style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           GestureDetector(
             onTap: onRemove,
-            child: const Icon(Icons.close_rounded, size: 16, color: AppColors.textTertiary),
+            child: Icon(Icons.close_rounded, size: 16, color: AppColors.textTertiary),
           ),
         ],
       ),
@@ -548,29 +548,29 @@ class _PendingAttachmentRow extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: attachment.isImage
                 ? Image.memory(attachment.bytes, fit: BoxFit.cover)
-                : const Icon(Icons.insert_drive_file_outlined,
+                : Icon(Icons.insert_drive_file_outlined,
                     size: 15, color: AppColors.textSecondary),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   attachment.name,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   _formatBytes(attachment.bytes.length),
-                  style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                  style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
                 ),
               ],
             ),
           ),
           GestureDetector(
             onTap: onRemove,
-            child: const Icon(Icons.close_rounded, size: 16, color: AppColors.textTertiary),
+            child: Icon(Icons.close_rounded, size: 16, color: AppColors.textTertiary),
           ),
         ],
       ),
@@ -612,10 +612,10 @@ class _PickerOption extends StatelessWidget {
               ),
               child: Icon(icon, size: 18, color: AppColors.textSecondary),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textPrimary,
@@ -652,7 +652,7 @@ class _Field extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w500,
             color: AppColors.textTertiary,
@@ -661,10 +661,10 @@ class _Field extends StatelessWidget {
         TextField(
           controller: controller,
           maxLines: maxLines,
-          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+          style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+            hintStyle: TextStyle(fontSize: 13, color: AppColors.textTertiary),
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
@@ -672,7 +672,7 @@ class _Field extends StatelessWidget {
           ),
         ),
         if (showDivider)
-          const Divider(height: 12, thickness: 0.5, color: AppColors.border),
+          Divider(height: 12, thickness: 0.5, color: AppColors.border),
       ],
     );
   }

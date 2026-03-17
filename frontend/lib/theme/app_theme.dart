@@ -1,132 +1,124 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'app_transitions.dart';
 
 class AppColors {
-  // Backgrounds
-  static const Color bgPrimary = Color(0xFFFAF9F7);
-  static const Color bgSurface = Color(0xFFFFFFFF);
-  static const Color bgSurface2 = Color(0xFFF5F4F0);
-  static const Color bgSurface3 = Color(0xFFECEBE6);
+  // ── Mode flag ──────────────────────────────────────────────────────────────
+  static bool _dark = false;
+  static void setDark(bool v) { _dark = v; }
+  static bool get isDark => _dark;
 
-  // Text
-  static const Color textPrimary = Color(0xFF1A1915);
-  static const Color textSecondary = Color(0xFF6B6860);
-  static const Color textTertiary = Color(0xFF9B9A96);
+  // ── Backgrounds ────────────────────────────────────────────────────────────
+  static Color get bgPrimary  => _dark ? const Color(0xFF1A1917) : const Color(0xFFFAF9F7);
+  static Color get bgSurface  => _dark ? const Color(0xFF212120) : const Color(0xFFFFFFFF);
+  static Color get bgSurface2 => _dark ? const Color(0xFF2A2A28) : const Color(0xFFF5F4F0);
+  static Color get bgSurface3 => _dark ? const Color(0xFF343430) : const Color(0xFFECEBE6);
 
-  // Accent (Claude's terracotta)
+  // ── Text ───────────────────────────────────────────────────────────────────
+  static Color get textPrimary   => _dark ? const Color(0xFFEDEDEA) : const Color(0xFF1A1915);
+  static Color get textSecondary => _dark ? const Color(0xFF9B9A96) : const Color(0xFF6B6860);
+  static Color get textTertiary  => _dark ? const Color(0xFF5E5D5A) : const Color(0xFF9B9A96);
+
+  // ── Accent (terracotta — unchanged across modes) ──────────────────────────
   static const Color accent = Color(0xFFCC785C);
-  static const Color accentBg = Color(0xFFF5EBE6);
+  static Color get accentBg => _dark ? const Color(0xFF2C1F1A) : const Color(0xFFF5EBE6);
 
-  // Borders
-  static const Color border = Color(0x14000000); // 8% black
-  static const Color border2 = Color(0x1F000000); // 12% black
+  // ── Borders ────────────────────────────────────────────────────────────────
+  static Color get border  => _dark ? const Color(0x12FFFFFF) : const Color(0x14000000);
+  static Color get border2 => _dark ? const Color(0x1CFFFFFF) : const Color(0x1F000000);
 
-  // Status colors
-  static const Color pendingText = Color(0xFFB45309);
-  static const Color pendingBg = Color(0xFFFEF3C7);
-  static const Color inProgressText = Color(0xFF1D4ED8);
-  static const Color inProgressBg = Color(0xFFDBEAFE);
-  static const Color closedText = Color(0xFF15803D);
-  static const Color closedBg = Color(0xFFDCFCE7);
+  // ── Status ─────────────────────────────────────────────────────────────────
+  static Color get pendingText    => _dark ? const Color(0xFFD97706) : const Color(0xFFB45309);
+  static Color get pendingBg      => _dark ? const Color(0xFF2A1F07) : const Color(0xFFFEF3C7);
+  static Color get inProgressText => _dark ? const Color(0xFF3B82F6) : const Color(0xFF1D4ED8);
+  static Color get inProgressBg   => _dark ? const Color(0xFF0F1B38) : const Color(0xFFDBEAFE);
+  static Color get closedText     => _dark ? const Color(0xFF22C55E) : const Color(0xFF15803D);
+  static Color get closedBg       => _dark ? const Color(0xFF0A2416) : const Color(0xFFDCFCE7);
 
-  // Danger
-  static const Color dangerText = Color(0xFFDC2626);
-  static const Color dangerBg = Color(0xFFFEF2F2);
-  static const Color dangerBorder = Color(0xFFFECACA);
+  // ── Danger ─────────────────────────────────────────────────────────────────
+  static const Color dangerText   = Color(0xFFDC2626);
+  static Color get dangerBg     => _dark ? const Color(0xFF2A0A0A) : const Color(0xFFFEF2F2);
+  static Color get dangerBorder => _dark ? const Color(0xFF7F1D1D) : const Color(0xFFFECACA);
 }
 
 class AppTheme {
   static TextTheme _buildTextTheme(String fontFamily) {
     final base = switch (fontFamily) {
-      'Roboto'  => GoogleFonts.robotoTextTheme(),
-      'Poppins' => GoogleFonts.poppinsTextTheme(),
-      'Lato'    => GoogleFonts.latoTextTheme(),
-      'Nunito'  => GoogleFonts.nunitoTextTheme(),
-      _         => GoogleFonts.interTextTheme(),
+      'DM Sans'  => GoogleFonts.dmSansTextTheme(),
+      'Roboto'   => GoogleFonts.robotoTextTheme(),
+      'Poppins'  => GoogleFonts.poppinsTextTheme(),
+      'Lato'     => GoogleFonts.latoTextTheme(),
+      'Nunito'   => GoogleFonts.nunitoTextTheme(),
+      'Inter'    => GoogleFonts.interTextTheme(),
+      _          => GoogleFonts.interTextTheme(),
     };
     return base;
   }
 
-  static ThemeData light([Color accent = AppColors.accent, String fontFamily = 'Inter']) {
+  static ThemeData light([Color accent = AppColors.accent, String fontFamily = 'DM Sans']) =>
+      _build(Brightness.light, accent, fontFamily);
+
+  static ThemeData dark([Color accent = AppColors.accent, String fontFamily = 'DM Sans']) =>
+      _build(Brightness.dark, accent, fontFamily);
+
+  static ThemeData _build(Brightness brightness, Color accent, String fontFamily) {
+    final isDark = brightness == Brightness.dark;
     final base = _buildTextTheme(fontFamily);
+
+    final bgPrimary   = isDark ? const Color(0xFF1A1917) : const Color(0xFFFAF9F7);
+    final bgSurface   = isDark ? const Color(0xFF212120) : const Color(0xFFFFFFFF);
+    final bgSurface2  = isDark ? const Color(0xFF2A2A28) : const Color(0xFFF5F4F0);
+    final textPrimary = isDark ? const Color(0xFFEDEDEA) : const Color(0xFF1A1915);
+    final textSec     = isDark ? const Color(0xFF9B9A96) : const Color(0xFF6B6860);
+    final textTert    = isDark ? const Color(0xFF5E5D5A) : const Color(0xFF9B9A96);
+    final border      = isDark ? const Color(0x12FFFFFF) : const Color(0x14000000);
+    final border2     = isDark ? const Color(0x1CFFFFFF) : const Color(0x1F000000);
+
     return ThemeData(
       useMaterial3: true,
-      scaffoldBackgroundColor: AppColors.bgPrimary,
+      brightness: brightness,
+      scaffoldBackgroundColor: bgPrimary,
       colorScheme: ColorScheme.fromSeed(
         seedColor: accent,
-        brightness: Brightness.light,
-        surface: AppColors.bgSurface,
-        background: AppColors.bgPrimary,
+        brightness: brightness,
+        surface: bgSurface,
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: ClaudeTransitionsBuilder(),
+          TargetPlatform.iOS: ClaudeTransitionsBuilder(),
+          TargetPlatform.windows: ClaudeTransitionsBuilder(),
+          TargetPlatform.macOS: ClaudeTransitionsBuilder(),
+          TargetPlatform.linux: ClaudeTransitionsBuilder(),
+        },
       ),
       textTheme: base.copyWith(
-        displayLarge: base.displayLarge?.copyWith(
-          fontSize: 28,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-          letterSpacing: -0.5,
-        ),
-        titleLarge: base.titleLarge?.copyWith(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-          letterSpacing: -0.3,
-        ),
-        titleMedium: base.titleMedium?.copyWith(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-        bodyLarge: base.bodyLarge?.copyWith(
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textPrimary,
-          height: 1.5,
-        ),
-        bodyMedium: base.bodyMedium?.copyWith(
-          fontSize: 13,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textSecondary,
-          height: 1.5,
-        ),
-        bodySmall: base.bodySmall?.copyWith(
-          fontSize: 11,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textTertiary,
-        ),
-        labelSmall: base.labelSmall?.copyWith(
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textTertiary,
-          letterSpacing: 0.06,
-        ),
+        displayLarge: base.displayLarge?.copyWith(fontSize: 28, fontWeight: FontWeight.w600, color: textPrimary, letterSpacing: -0.5),
+        titleLarge:   base.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.w600, color: textPrimary, letterSpacing: -0.3),
+        titleMedium:  base.titleMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w600, color: textPrimary),
+        bodyLarge:    base.bodyLarge?.copyWith(fontSize: 14, fontWeight: FontWeight.w400, color: textPrimary, height: 1.5),
+        bodyMedium:   base.bodyMedium?.copyWith(fontSize: 13, fontWeight: FontWeight.w400, color: textSec, height: 1.5),
+        bodySmall:    base.bodySmall?.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: textTert),
+        labelSmall:   base.labelSmall?.copyWith(fontSize: 10, fontWeight: FontWeight.w500, color: textTert, letterSpacing: 0.06),
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: AppColors.bgSurface,
+        color: bgSurface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: AppColors.border, width: 0.5),
+          side: BorderSide(color: border, width: 0.5),
         ),
         margin: EdgeInsets.zero,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.bgSurface,
+        fillColor: bgSurface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.border2, width: 0.5),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.border2, width: 0.5),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.accent, width: 1),
-        ),
-        hintStyle: const TextStyle(color: AppColors.textTertiary, fontSize: 13),
-        labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: border2, width: 0.5)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: border2, width: 0.5)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.accent, width: 1)),
+        hintStyle: TextStyle(color: textTert, fontSize: 13),
+        labelStyle: TextStyle(color: textSec, fontSize: 11),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -140,58 +132,49 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textPrimary,
-          side: const BorderSide(color: AppColors.border2, width: 0.5),
+          foregroundColor: textPrimary,
+          side: BorderSide(color: border2, width: 0.5),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.bgSurface2,
-        selectedColor: AppColors.textPrimary,
-        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
-        side: const BorderSide(color: AppColors.border2, width: 0.5),
+        backgroundColor: bgSurface2,
+        selectedColor: textPrimary,
+        labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textSec),
+        side: BorderSide(color: border2, width: 0.5),
         shape: const StadiumBorder(),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: AppColors.bgSurface,
+        backgroundColor: bgSurface,
         indicatorColor: accent.withValues(alpha: 0.12),
         iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return IconThemeData(color: accent, size: 22);
-          }
-          return const IconThemeData(color: AppColors.textTertiary, size: 22);
+          if (states.contains(WidgetState.selected)) return IconThemeData(color: accent, size: 22);
+          return IconThemeData(color: textTert, size: 22);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: accent);
-          }
-          return const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textTertiary);
+          if (states.contains(WidgetState.selected)) return TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: accent);
+          return TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: textTert);
         }),
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         height: 64,
       ),
-      dividerTheme: const DividerThemeData(
-        color: AppColors.border,
-        thickness: 0.5,
-        space: 0,
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.bgSurface,
+      dividerTheme: DividerThemeData(color: border, thickness: 0.5, space: 0),
+      appBarTheme: AppBarTheme(
+        backgroundColor: bgSurface,
         elevation: 0,
         scrolledUnderElevation: 0,
-        foregroundColor: AppColors.textPrimary,
-        titleTextStyle: TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-          fontFamily: 'Inter',
-        ),
-        iconTheme: IconThemeData(color: AppColors.textSecondary, size: 20),
+        foregroundColor: textPrimary,
+        titleTextStyle: GoogleFonts.getFont(fontFamily, textStyle: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textPrimary)),
+        iconTheme: IconThemeData(color: textSec, size: 20),
         surfaceTintColor: Colors.transparent,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }

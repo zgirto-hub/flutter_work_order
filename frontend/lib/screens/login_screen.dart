@@ -1,3 +1,4 @@
+import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -12,7 +13,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   String version = '';
   String buildNumber = '';
   bool _obscure = true;
@@ -26,15 +28,35 @@ class _LoginScreenState extends State<LoginScreen> {
   static const _keyEmail = 'saved_email';
   static const _keyRemember = 'remember_me';
 
+  late final AnimationController _entranceCtrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 650),
+  );
+
+  Animation<double> _fadeAt(double start, double end) => CurvedAnimation(
+        parent: _entranceCtrl,
+        curve: Interval(start, end, curve: Curves.easeOut),
+      );
+
+  Animation<Offset> _slideAt(double start, double end) =>
+      Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
+        CurvedAnimation(
+          parent: _entranceCtrl,
+          curve: Interval(start, end, curve: Curves.easeOutCubic),
+        ),
+      );
+
   @override
   void initState() {
     super.initState();
     _loadAppInfo();
     _loadSavedCredentials();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _entranceCtrl.forward());
   }
 
   @override
   void dispose() {
+    _entranceCtrl.dispose();
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
@@ -107,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text('Reset password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text("We'll send a reset link to your email.", style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          Text("We'll send a reset link to your email.", style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           const SizedBox(height: 14),
           TextField(controller: resetCtrl, style: const TextStyle(fontSize: 13), decoration: const InputDecoration(labelText: 'Email address')),
         ]),
@@ -117,9 +139,10 @@ class _LoginScreenState extends State<LoginScreen> {
             onPressed: () async {
               final email = resetCtrl.text.trim();
               if (email.isEmpty) return;
+              final nav = Navigator.of(context);
               await supabase.auth.resetPasswordForEmail(email);
               if (!mounted) return;
-              Navigator.pop(context);
+              nav.pop();
               _showSnack('Reset link sent');
             },
             child: const Text('Send link'),
@@ -143,110 +166,138 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  Center(
-                    child: Container(
-                      width: 52, height: 52,
-                      decoration: BoxDecoration(color: AppColors.textPrimary, borderRadius: BorderRadius.circular(16)),
-                      child: const Icon(Icons.description_rounded, color: Colors.white, size: 26),
+                  // ── Logo + title ───────────────────────────────────────
+                  FadeTransition(
+                    opacity: _fadeAt(0.0, 0.55),
+                    child: SlideTransition(
+                      position: _slideAt(0.0, 0.55),
+                      child: Column(
+                        children: [
+                          const Center(child: _AppLogo()),
+                          const SizedBox(height: 24),
+                          Center(child: Text('Work Order', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -0.4))),
+                          const SizedBox(height: 6),
+                          Center(child: Text('Sign in to your account', style: TextStyle(fontSize: 13, color: AppColors.textSecondary))),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  const Center(child: Text('Work Order [1.2]', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -0.4))),
-                  const SizedBox(height: 6),
-                  const Center(child: Text('Sign in to your account', style: TextStyle(fontSize: 13, color: AppColors.textSecondary))),
                   const SizedBox(height: 32),
 
-                  const _InputLabel(label: 'Email address'),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    autofillHints: const [AutofillHints.email, AutofillHints.username],
-                    textInputAction: TextInputAction.next,
-                    style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-                    decoration: const InputDecoration(hintText: 'you@company.com'),
-                  ),
-                  const SizedBox(height: 14),
+                  // ── Form fields ────────────────────────────────────────
+                  FadeTransition(
+                    opacity: _fadeAt(0.15, 0.7),
+                    child: SlideTransition(
+                      position: _slideAt(0.15, 0.7),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _InputLabel(label: 'Email address'),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            autofillHints: const [AutofillHints.email, AutofillHints.username],
+                            textInputAction: TextInputAction.next,
+                            style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                            decoration: const InputDecoration(hintText: 'you@company.com'),
+                          ),
+                          const SizedBox(height: 14),
 
-                  const _InputLabel(label: 'Password'),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: passwordController,
-                    obscureText: _obscure,
-                    autofillHints: const [AutofillHints.password],
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _signIn(),
-                    style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: '',
-                      suffixIcon: GestureDetector(
-                        onTap: () => setState(() => _obscure = !_obscure),
-                        child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 16, color: AppColors.textTertiary),
+                          const _InputLabel(label: 'Password'),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: passwordController,
+                            obscureText: _obscure,
+                            autofillHints: const [AutofillHints.password],
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => _signIn(),
+                            style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                            decoration: InputDecoration(
+                              hintText: '',
+                              suffixIcon: GestureDetector(
+                                onTap: () => setState(() => _obscure = !_obscure),
+                                child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 16, color: AppColors.textTertiary),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              GestureDetector(
+                                onTap: () => setState(() => _rememberMe = !_rememberMe),
+                                child: Row(children: [
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 150),
+                                    width: 18, height: 18,
+                                    decoration: BoxDecoration(
+                                      color: _rememberMe ? AppColors.textPrimary : AppColors.bgSurface,
+                                      borderRadius: BorderRadius.circular(5),
+                                      border: Border.all(color: _rememberMe ? AppColors.textPrimary : AppColors.border2, width: 0.5),
+                                    ),
+                                    child: _rememberMe ? const Icon(Icons.check_rounded, color: Colors.white, size: 12) : null,
+                                  ),
+                                  const SizedBox(width: 7),
+                                  Text('Remember me', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                                ]),
+                              ),
+                              GestureDetector(
+                                onTap: _showResetPasswordDialog,
+                                child: Text('Forgot password?', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GestureDetector(
-                        onTap: () => setState(() => _rememberMe = !_rememberMe),
-                        child: Row(children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            width: 18, height: 18,
-                            decoration: BoxDecoration(
-                              color: _rememberMe ? AppColors.textPrimary : AppColors.bgSurface,
-                              borderRadius: BorderRadius.circular(5),
-                              border: Border.all(color: _rememberMe ? AppColors.textPrimary : AppColors.border2, width: 0.5),
-                            ),
-                            child: _rememberMe ? const Icon(Icons.check_rounded, color: Colors.white, size: 12) : null,
-                          ),
-                          const SizedBox(width: 7),
-                          const Text('Remember me', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                        ]),
-                      ),
-                      GestureDetector(
-                        onTap: _showResetPasswordDialog,
-                        child: const Text('Forgot password?', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
-                      ),
-                    ],
                   ),
                   const SizedBox(height: 20),
 
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _signIn,
-                      child: _isLoading
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Text('Sign in'),
+                  // ── Buttons + footer ───────────────────────────────────
+                  FadeTransition(
+                    opacity: _fadeAt(0.3, 0.9),
+                    child: SlideTransition(
+                      position: _slideAt(0.3, 0.9),
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _signIn,
+                              child: _isLoading
+                                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : const Text('Sign in'),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: () => _showSnack('Contact Salah to create an account'),
+                              child: const Text('Create account'),
+                            ),
+                          ),
+
+                          const SizedBox(height: 40),
+
+                          Column(children: [
+                            Text('Developed by Salah © 2026', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                            if (version.isNotEmpty) ...[
+                              const SizedBox(height: 3),
+                              Text('Version $version (Build $buildNumber)', style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+                            ],
+                            if (AppConfig.buildDate.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text('Build: ${AppConfig.buildDate}', style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+                            ],
+                          ]),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => _showSnack('Contact Salah to create an account'),
-                      child: const Text('Create account'),
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  Center(child: Column(children: [
-                    const Text('Developed by Salah © 2026', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                    if (version.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text('Version $version (Build $buildNumber)', style: const TextStyle(fontSize: 10, color: AppColors.textTertiary)),
-                    ],
-                    if (AppConfig.buildDate.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text('Build: ${AppConfig.buildDate}', style: const TextStyle(fontSize: 10, color: AppColors.textTertiary)),
-                    ],
-                  ])),
                 ],
               ),
             ),
@@ -263,6 +314,77 @@ class _InputLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary));
+    return Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary));
   }
+}
+
+// ── App Logo ───────────────────────────────────────────────────────────────────
+// Claude.ai-inspired: warm terracotta gradient container with a triskelion mark
+// (3 rounded pills at 120° intervals — the same compositional logic Claude uses).
+
+class _AppLogo extends StatelessWidget {
+  const _AppLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFDA8C6A), Color(0xFFAF5335)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFCC785C).withValues(alpha: 0.38),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: const CustomPaint(painter: _LogoMarkPainter()),
+    );
+  }
+}
+
+class _LogoMarkPainter extends CustomPainter {
+  const _LogoMarkPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.92)
+      ..style = PaintingStyle.fill;
+
+    canvas.save();
+    canvas.translate(w / 2, h / 2);
+
+    // 3 rounded pills at 120° intervals — Claude.ai-inspired triskelion mark
+    for (int i = 0; i < 3; i++) {
+      canvas.save();
+      canvas.rotate(i * (2 * pi / 3));
+
+      final rr = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(0, -(h * 0.135)),
+          width: w * 0.205,
+          height: h * 0.46,
+        ),
+        Radius.circular(w * 0.103),
+      );
+      canvas.drawRRect(rr, paint);
+      canvas.restore();
+    }
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_LogoMarkPainter oldDelegate) => false;
 }

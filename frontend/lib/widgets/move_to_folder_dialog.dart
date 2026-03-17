@@ -163,7 +163,7 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
                           size: 17,
                           color: AppColors.accent,
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             folder.name,
@@ -181,7 +181,7 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
                           ),
                         ),
                         if (isSelected)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(right: 16),
                             child: Icon(Icons.check_rounded,
                                 size: 16, color: AppColors.accent),
@@ -197,7 +197,7 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
       );
 
       // Divider
-      rows.add(const Divider(
+      rows.add(Divider(
           height: 0,
           thickness: 0.5,
           color: AppColors.border,
@@ -236,7 +236,7 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
             ),
 
             // Title
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -248,7 +248,7 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
               ),
             ),
 
-            const Divider(
+            Divider(
                 height: 0, thickness: 0.5, color: AppColors.border),
 
             // Root option
@@ -266,13 +266,13 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
                 child: Row(
                   children: [
                     // Spacer matching chevron width at depth 0
-                    const SizedBox(width: 32),
+                    SizedBox(width: 32),
                     Icon(Icons.home_outlined,
                         size: 17,
                         color: isRootSelected
                             ? AppColors.accent
                             : AppColors.textTertiary),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Root (no folder)',
@@ -288,20 +288,20 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
                       ),
                     ),
                     if (isRootSelected)
-                      const Icon(Icons.check_rounded,
+                      Icon(Icons.check_rounded,
                           size: 16, color: AppColors.accent),
                   ],
                 ),
               ),
             ),
 
-            const Divider(
+            Divider(
                 height: 0, thickness: 0.5, color: AppColors.border),
 
             // Tree
             Expanded(
               child: _loading
-                  ? const Center(
+                  ? Center(
                       child: CircularProgressIndicator(
                           color: AppColors.accent, strokeWidth: 2))
                   : _error != null
@@ -309,23 +309,23 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
                           child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.error_outline,
+                            Icon(Icons.error_outline,
                                 color: AppColors.dangerText,
                                 size: 32),
-                            const SizedBox(height: 8),
+                            SizedBox(height: 8),
                             Text(_error!,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 12,
                                     color: AppColors.textTertiary),
                                 textAlign: TextAlign.center),
-                            const SizedBox(height: 10),
+                            SizedBox(height: 10),
                             TextButton(
                                 onPressed: _load,
-                                child: const Text('Retry')),
+                                child: Text('Retry')),
                           ],
                         ))
                       : _allFolders.isEmpty
-                          ? const Center(
+                          ? Center(
                               child: Text('No folders yet',
                                   style: TextStyle(
                                       fontSize: 13,
@@ -337,7 +337,7 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
                             ),
             ),
 
-            const Divider(
+            Divider(
                 height: 0, thickness: 0.5, color: AppColors.border),
 
             // Buttons
@@ -354,18 +354,18 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
                       onPressed: () =>
                           Navigator.pop(context, null),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(
+                        side: BorderSide(
                             color: AppColors.border),
                         shape: RoundedRectangleBorder(
                             borderRadius:
                                 BorderRadius.circular(10)),
                       ),
-                      child: const Text('Cancel',
+                      child: Text('Cancel',
                           style: TextStyle(
                               color: AppColors.textSecondary)),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: _selected == null
@@ -379,7 +379,7 @@ class _MoveToFolderDialogState extends State<MoveToFolderDialog> {
                             borderRadius:
                                 BorderRadius.circular(10)),
                       ),
-                      child: const Text('Move here'),
+                      child: Text('Move here'),
                     ),
                   ),
                 ],

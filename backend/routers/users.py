@@ -83,3 +83,10 @@ async def log_sign_out(body: SignInBody):
     log_activity(body.user_email, "auth", "signed_out",
         target_label=body.user_email)
     return {"status": "logged"}
+
+
+@router.post("/activity-log/update-check")
+async def log_update_check(body: SignInBody):
+    log_activity(body.user_email, "app", "update_checked",
+        target_label="Check for updates")
+    return {"status": "logged"}

@@ -109,7 +109,7 @@ class DocumentCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           document.title,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -119,7 +119,7 @@ class DocumentCard extends StatelessWidget {
                           value: isSelected,
                           onChanged: onSelectionChanged,
                           activeColor: AppColors.accent,
-                          side: const BorderSide(color: AppColors.border2, width: 0.5),
+                          side: BorderSide(color: AppColors.border2, width: 0.5),
                         ),
                     ],
                   ),
@@ -127,7 +127,7 @@ class DocumentCard extends StatelessWidget {
                   const SizedBox(height: 2),
 
                   // Type
-                  Text(document.documentType, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                  Text(document.documentType, style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
 
                   const SizedBox(height: 4),
 
@@ -150,7 +150,7 @@ class DocumentCard extends StatelessWidget {
                   if (document.parsedText != null && document.parsedText!.isNotEmpty) ...[
                     const SizedBox(height: 5),
                     DefaultTextStyle(
-                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.4),
+                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.4),
                       child: highlightBuilder(document.parsedText!, searchQuery, maxLines: 2),
                     ),
                   ],
@@ -160,7 +160,7 @@ class DocumentCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       'Shared by ${document.uploadedBy}',
-                      style: const TextStyle(fontSize: 10, color: AppColors.textTertiary, fontStyle: FontStyle.italic),
+                      style: TextStyle(fontSize: 10, color: AppColors.textTertiary, fontStyle: FontStyle.italic),
                     ),
                   ],
                 ],
@@ -215,9 +215,9 @@ class _DocActionSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(document.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(document.title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 4),
-          Text(document.documentType, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+          Text(document.documentType, style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
           const SizedBox(height: 14),
           const Divider(height: 0, thickness: 0.5),
           _ActionRow(icon: Icons.edit_outlined, label: 'Rename', enabled: isOwner, onTap: isOwner ? onRename : null),

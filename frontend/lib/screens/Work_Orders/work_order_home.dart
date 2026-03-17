@@ -72,16 +72,16 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
           context: context,
           builder: (ctx) => AlertDialog(
             backgroundColor: AppColors.bgSurface,
-            title: const Text('Delete Work Orders',
+            title: Text('Delete Work Orders',
                 style: TextStyle(color: AppColors.textPrimary)),
             content: Text(
               'Delete $count work order${count > 1 ? 's' : ''}?',
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
+                child: Text('Cancel'),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
@@ -155,7 +155,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                           Row(
                             children: [
                               if (!_showSearch)
-                                const Expanded(
+                                Expanded(
                                   child: Text(
                                     'Work Orders',
                                     style: TextStyle(
@@ -175,7 +175,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                                             v.toLowerCase())),
                                   ),
                                 ),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               ClaudeIconButton(
                                 icon: _showSearch
                                     ? Icons.close_rounded
@@ -190,7 +190,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                                   });
                                 },
                               ),
-                              const SizedBox(width: 6),
+                              SizedBox(width: 6),
                               ClaudeIconButton(
                                 icon: Icons.calendar_today_outlined,
                                 onTap: () async {
@@ -210,7 +210,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                                   }
                                 },
                               ),
-                              const SizedBox(width: 6),
+                              SizedBox(width: 6),
                               ClaudeIconButton(
                                 icon: Icons.person_outline_rounded,
                                 onTap: () async {
@@ -245,7 +245,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                             ],
                           ),
 
-                          const SizedBox(height: 12),
+                          SizedBox(height: 12),
 
                           // ── Status + Type filter chips ─────────────────
                           FilterChipRow(
@@ -313,7 +313,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                 ),
               ),
 
-            const Divider(
+            Divider(
                 height: 0, thickness: 0.5, color: AppColors.border),
 
             // ── List ──────────────────────────────────────────
@@ -353,7 +353,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        separatorBuilder: (_, __) => SizedBox(height: 8),
         itemBuilder: (context, i) {
           final wo = items[i];
           return WorkOrderCard(
@@ -370,6 +370,18 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
                   _expandedIndex = _expandedIndex == i ? null : i;
                 });
               }
+            },
+            onActivity: () async {
+              if (_selectionMode) return;
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AddWorkOrderScreen(
+                      workOrder: items[i], initialTab: 1),
+                ),
+              );
+              if (!mounted) return;
+              if (result == 'updated' || result == 'deleted') await _load();
             },
             onEdit: () async {
               if (_selectionMode) return;
@@ -404,14 +416,14 @@ class _SelectionBar extends StatelessWidget {
     return Row(
       children: [
         IconButton(
-          icon: const Icon(Icons.close_rounded,
+          icon: Icon(Icons.close_rounded,
               size: 20, color: AppColors.textPrimary),
           onPressed: onCancel,
           padding: const EdgeInsets.all(8),
         ),
         Expanded(
           child: Text('$count selected',
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary)),
@@ -451,14 +463,14 @@ class _ActiveFilterChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 11,
                   color: AppColors.accent,
                   fontWeight: FontWeight.w500)),
-          const SizedBox(width: 4),
+          SizedBox(width: 4),
           GestureDetector(
             onTap: onRemove,
-            child: const Icon(Icons.close_rounded,
+            child: Icon(Icons.close_rounded,
                 size: 12, color: AppColors.accent),
           ),
         ],
@@ -481,18 +493,18 @@ class _EmployeePicker extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Filter by employee',
+          Text('Filter by employee',
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary)),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           ...employees.map((emp) => ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading:
                     InitialsAvatar(name: emp.fullName, size: 34, large: false),
                 title: Text(emp.fullName,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w500)),
                 onTap: () => Navigator.pop(context, emp.id),
               )),
@@ -516,9 +528,9 @@ class _EmptyState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 48, color: AppColors.bgSurface3),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Text(message,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 14,
                   color: AppColors.textTertiary,
                   fontWeight: FontWeight.w500)),

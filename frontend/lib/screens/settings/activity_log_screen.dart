@@ -79,12 +79,12 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                             border: Border.all(
                                 color: AppColors.border2, width: 0.5),
                           ),
-                          child: const Icon(Icons.arrow_back_rounded,
+                          child: Icon(Icons.arrow_back_rounded,
                               size: 16, color: AppColors.textSecondary),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      const Text('Activity log',
+                      SizedBox(width: 12),
+                      Text('Activity log',
                           style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -92,7 +92,7 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                               letterSpacing: -0.3)),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   // Filter chips
                   SizedBox(
                     height: 34,
@@ -135,11 +135,11 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                       }).toList(),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                 ],
               ),
             ),
-            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+            Divider(height: 0, thickness: 0.5, color: AppColors.border),
 
             // ── Body ──────────────────────────────────────────────────
             Expanded(
@@ -152,10 +152,10 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.history_rounded,
+                              Icon(Icons.history_rounded,
                                   size: 44, color: AppColors.bgSurface3),
-                              const SizedBox(height: 12),
-                              const Text('No activity found',
+                              SizedBox(height: 12),
+                              Text('No activity found',
                                   style: TextStyle(
                                       fontSize: 14,
                                       color: AppColors.textTertiary)),
@@ -176,7 +176,7 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                                     padding: const EdgeInsets.only(
                                         bottom: 8, top: 4, left: 2),
                                     child: Text(entry.key,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w500,
                                             color: AppColors.textSecondary)),
@@ -186,7 +186,7 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                                         entry: log,
                                         isLast: i == dayLogs.length - 1,
                                       )),
-                                  const SizedBox(height: 8),
+                                  SizedBox(height: 8),
                                 ],
                               );
                             }).toList(),
@@ -315,7 +315,7 @@ class _ActivityLogItem extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
         // Right: content
         Expanded(
           child: Padding(
@@ -340,18 +340,18 @@ class _ActivityLogItem extends StatelessWidget {
                                 color: _avatarFg)),
                       ),
                     ),
-                    const SizedBox(width: 5),
+                    SizedBox(width: 5),
                     Text(entry.userName,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                             color: AppColors.textPrimary)),
-                    const SizedBox(width: 5),
+                    SizedBox(width: 5),
                     Text(entry.formattedTime,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 11,
                             color: AppColors.textSecondary)),
-                    const SizedBox(width: 5),
+                    SizedBox(width: 5),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 5, vertical: 1),
@@ -367,26 +367,26 @@ class _ActivityLogItem extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
+                SizedBox(height: 3),
                 Text(entry.description,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13, color: AppColors.textPrimary)),
                 if (entry.targetLabel != null &&
                     entry.targetLabel!.isNotEmpty) ...[
-                  const SizedBox(height: 1),
+                  SizedBox(height: 1),
                   Text(
                     [
                       entry.targetLabel,
                       if (entry.detail != null && entry.detail!.isNotEmpty)
                         entry.detail,
                     ].join(' · '),
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 11, color: AppColors.textSecondary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
               ],
             ),
           ),

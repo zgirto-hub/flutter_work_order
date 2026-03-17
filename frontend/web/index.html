@@ -97,21 +97,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Work Order management app">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="work_order">
+  <meta name="apple-mobile-web-app-title" content="Work Order">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>work_order</title>
+  <title>Work Order</title>
   <link rel="manifest" href="manifest.json">
 
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #FAF9F7; }
+
     #loading-screen {
       position: fixed;
       inset: 0;
@@ -121,38 +124,67 @@
       align-items: center;
       justify-content: center;
       z-index: 9999;
-      transition: opacity 0.35s ease;
+      opacity: 0;
+      animation: splash-enter 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.08s;
+      transition: opacity 0.4s ease;
     }
     #loading-screen.fade-out {
-      opacity: 0;
+      opacity: 0 !important;
+      animation: none;
       pointer-events: none;
     }
-    #loading-icon {
-      width: 52px;
-      height: 52px;
-      background: #CC785C;
-      border-radius: 13px;
-      margin-bottom: 28px;
+    @keyframes splash-enter {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
+
+    /* ── Logo container ── */
+    #loading-logo-wrap {
+      width: 80px;
+      height: 80px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, #DA8C6A 0%, #AF5335 100%);
+      box-shadow: 0 10px 28px rgba(204, 120, 92, 0.38);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 28px;
+      animation: logo-breathe 2.8s ease-in-out infinite 0.7s;
+    }
+    @keyframes logo-breathe {
+      0%,100% { box-shadow: 0 10px 28px rgba(204,120,92,0.38); transform: scale(1); }
+      50%     { box-shadow: 0 16px 40px rgba(204,120,92,0.52); transform: scale(1.04); }
+    }
+
+    /* ── Text ── */
     #loading-title {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 17px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      font-size: 20px;
       font-weight: 600;
       color: #1A1915;
-      letter-spacing: -0.2px;
-      margin-bottom: 44px;
+      letter-spacing: -0.4px;
+      margin-bottom: 6px;
     }
+    #loading-subtitle {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      font-size: 13px;
+      color: #9A9990;
+      letter-spacing: 0.1px;
+      margin-bottom: 52px;
+    }
+
+    /* ── Progress bar ── */
     #loading-track {
-      width: 160px;
-      height: 3px;
-      background: #ECEBE6;
+      width: 140px;
+      height: 2.5px;
+      background: #E8E7E0;
       border-radius: 2px;
       overflow: hidden;
     }
     #loading-fill {
       height: 100%;
       width: 0%;
-      background: #CC785C;
+      background: linear-gradient(90deg, #CC785C, #DA8C6A);
       border-radius: 2px;
       animation: loading-auto 9s ease-out forwards;
     }
@@ -171,11 +203,28 @@
 </head>
 <body>
   <div id="loading-screen">
-    <div id="loading-icon"></div>
+
+    <!-- Logo: gradient container + triskelion mark (matches login screen) -->
+    <div id="loading-logo-wrap">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g transform="translate(24,24)" fill="white" opacity="0.92">
+          <!-- pill 0° -->
+          <rect x="-4.92" y="-17.52" width="9.84" height="22.08" rx="4.94"/>
+          <!-- pill 120° -->
+          <rect x="-4.92" y="-17.52" width="9.84" height="22.08" rx="4.94" transform="rotate(120)"/>
+          <!-- pill 240° -->
+          <rect x="-4.92" y="-17.52" width="9.84" height="22.08" rx="4.94" transform="rotate(240)"/>
+        </g>
+      </svg>
+    </div>
+
     <div id="loading-title">Work Order</div>
+    <div id="loading-subtitle">Please wait…</div>
+
     <div id="loading-track">
       <div id="loading-fill"></div>
     </div>
+
   </div>
 
   <script>

@@ -189,13 +189,13 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       elevation: 0,
       scrolledUnderElevation: 0,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_rounded,
+        icon: Icon(Icons.arrow_back_rounded,
             size: 20, color: AppColors.textSecondary),
         onPressed: () => Navigator.pop(context),
       ),
       title: Text(
         _displayName,
-        style: const TextStyle(
+        style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
             color: AppColors.textPrimary),
@@ -205,7 +205,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       actions: [
         if (_state == _ViewState.loaded || _state == _ViewState.error)
           IconButton(
-            icon: const Icon(Icons.refresh_rounded,
+            icon: Icon(Icons.refresh_rounded,
                 size: 20, color: AppColors.textSecondary),
             onPressed: _loadFile,
             tooltip: 'Reload',
@@ -213,7 +213,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
         // On mobile: share button in appbar
         if (_state == _ViewState.loaded && !kIsWeb)
           _downloading
-              ? const Padding(
+              ? Padding(
                   padding: EdgeInsets.symmetric(horizontal: 14),
                   child: SizedBox(
                     width: 18,
@@ -224,12 +224,12 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                   ),
                 )
               : IconButton(
-                  icon: const Icon(Icons.share_rounded,
+                  icon: Icon(Icons.share_rounded,
                       size: 20, color: AppColors.textSecondary),
                   onPressed: _triggerDownload,
                   tooltip: 'Share / Save',
                 ),
-        const SizedBox(width: 4),
+        SizedBox(width: 4),
       ],
     );
   }
@@ -326,7 +326,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
             child: SingleChildScrollView(
               child: SelectableText(
                 _textContent ?? '',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   color: AppColors.textPrimary,
                   height: 1.7,
@@ -394,7 +394,7 @@ class _WebDownloadBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.bgSurface,
         border: Border(
           top: BorderSide(color: AppColors.border, width: 0.5),
@@ -413,15 +413,15 @@ class _WebDownloadBar extends StatelessWidget {
                 color: AppColors.accentBg,
                 borderRadius: BorderRadius.circular(9),
               ),
-              child: const Icon(Icons.insert_drive_file_outlined,
+              child: Icon(Icons.insert_drive_file_outlined,
                   size: 17, color: AppColors.accent),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             // File name
             Expanded(
               child: Text(
                 fileName,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,
@@ -430,7 +430,7 @@ class _WebDownloadBar extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             // Download button
             SizedBox(
               height: 36,
@@ -444,17 +444,17 @@ class _WebDownloadBar extends StatelessWidget {
                       horizontal: 14, vertical: 0),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(9)),
-                  textStyle: const TextStyle(
+                  textStyle: TextStyle(
                       fontSize: 12, fontWeight: FontWeight.w600),
                 ),
                 icon: downloading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 13,
                         height: 13,
                         child: CircularProgressIndicator(
                             strokeWidth: 1.5, color: Colors.white),
                       )
-                    : const Icon(Icons.download_rounded, size: 15),
+                    : Icon(Icons.download_rounded, size: 15),
                 label: Text(downloading ? 'Opening…' : 'Download'),
               ),
             ),
@@ -533,19 +533,19 @@ class _LoadingViewState extends State<_LoadingView>
               );
             }).toList(),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text(
             pct != null
                 ? 'Loading… ${(pct * 100).toStringAsFixed(0)}%'
                 : 'Loading file…',
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 14, color: AppColors.textSecondary),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(widget.filename,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 11, color: AppColors.textTertiary),
                 textAlign: TextAlign.center,
                 maxLines: 2,
@@ -581,28 +581,28 @@ class _ErrorView extends StatelessWidget {
                 border: Border.all(
                     color: AppColors.dangerBorder, width: 0.5),
               ),
-              child: const Icon(Icons.error_outline_rounded,
+              child: Icon(Icons.error_outline_rounded,
                   size: 26, color: AppColors.dangerText),
             ),
-            const SizedBox(height: 16),
-            const Text('Could not load file',
+            SizedBox(height: 16),
+            Text('Could not load file',
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary)),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text(message,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12, color: AppColors.textTertiary),
                 textAlign: TextAlign.center,
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis),
             if (onRetry != null) ...[
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text('Try again'),
+                icon: Icon(Icons.refresh_rounded, size: 16),
+                label: Text('Try again'),
               ),
             ],
           ],
@@ -635,28 +635,28 @@ class _UnsupportedView extends StatelessWidget {
                 color: AppColors.accentBg,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(Icons.insert_drive_file_outlined,
+              child: Icon(Icons.insert_drive_file_outlined,
                   size: 30, color: AppColors.accent),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text('.${ext.toUpperCase()} cannot be previewed',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary),
                 textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               'Use the button below to open in an external app.',
               style: TextStyle(
                   fontSize: 12, color: AppColors.textTertiary),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: onDownload,
-              icon: const Icon(Icons.download_rounded, size: 16),
-              label: const Text('Download / Open'),
+              icon: Icon(Icons.download_rounded, size: 16),
+              label: Text('Download / Open'),
             ),
           ],
         ),

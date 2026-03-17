@@ -154,6 +154,42 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
+  Future<void> _moveSelected() async {
+    final result = await MoveToFolderDialog.show(context,
+        folderService: _folderService);
+    if (result == null || !mounted) return;
+
+    final ids = _selectedDocs.toList();
+    int moved = 0;
+    int failed = 0;
+    for (final id in ids) {
+      try {
+        await _folderService.moveDocument(id,
+            folderId: result == 'root' ? null : result);
+        moved++;
+      } catch (_) {
+        failed++;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _selectionMode = false;
+      _selectedDocs.clear();
+    });
+    await _refresh(silent: true);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(failed == 0
+          ? '$moved document(s) moved'
+          : '$moved moved, $failed failed'),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor:
+          failed == 0 ? AppColors.closedText : AppColors.pendingText,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
+  }
+
   Future<void> _deleteSelected() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -213,25 +249,35 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         backgroundColor: AppColors.bgSurface,
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Rename document',
+        title: Text('Rename document',
             style:
                 TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         content: TextField(
             controller: ctrl,
-            style: const TextStyle(fontSize: 13),
-            decoration: const InputDecoration(labelText: 'Title')),
+            style: TextStyle(fontSize: 13),
+            decoration: InputDecoration(labelText: 'Title')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
-              await _service.renameDocument(doc.id, ctrl.text);
+              try {
+                await _service.renameDocument(doc.id, ctrl.text);
+              } catch (_) {
+                if (!mounted) return;
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Failed to rename document'),
+                  behavior: SnackBarBehavior.floating,
+                ));
+                return;
+              }
               if (!mounted) return;
               Navigator.pop(context);
               _refresh();
             },
-            child: const Text('Save'),
+            child: Text('Save'),
           ),
         ],
       ),
@@ -290,7 +336,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             backgroundColor: AppColors.bgSurface,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14)),
-            title: const Text('New folder',
+            title: Text('New folder',
                 style: TextStyle(
                     fontSize: 15, fontWeight: FontWeight.w600)),
             content: Column(
@@ -299,7 +345,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 TextField(
                   controller: ctrl,
                   autofocus: true,
-                  style: const TextStyle(fontSize: 13),
+                  style: TextStyle(fontSize: 13),
                   onChanged: (_) => setDialogState(() {}),
                   decoration: InputDecoration(
                     labelText: 'Folder name',
@@ -308,7 +354,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         : null,
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 Container(
                   decoration: BoxDecoration(
                     color: AppColors.bgSurface2,
@@ -318,12 +364,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   ),
                   child: SwitchListTile(
                     dense: true,
-                    title: const Text('Private folder',
+                    title: Text('Private folder',
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: AppColors.textPrimary)),
-                    subtitle: const Text('Only you can see this',
+                    subtitle: Text('Only you can see this',
                         style: TextStyle(
                             fontSize: 11,
                             color: AppColors.textTertiary)),
@@ -338,7 +384,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel')),
+                  child: Text('Cancel')),
               ElevatedButton(
                 onPressed: duplicate
                     ? null
@@ -365,7 +411,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                           ));
                         }
                       },
-                child: const Text('Create'),
+                child: Text('Create'),
               ),
             ],
           );
@@ -382,28 +428,38 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         backgroundColor: AppColors.bgSurface,
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Rename folder',
+        title: Text('Rename folder',
             style:
                 TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         content: TextField(
             controller: ctrl,
-            style: const TextStyle(fontSize: 13),
+            style: TextStyle(fontSize: 13),
             decoration:
-                const InputDecoration(labelText: 'Folder name')),
+                InputDecoration(labelText: 'Folder name')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
               final n = ctrl.text.trim();
               if (n.isEmpty) return;
-              await _folderService.renameFolder(folder.id, n);
+              try {
+                await _folderService.renameFolder(folder.id, n);
+              } catch (_) {
+                if (!mounted) return;
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Failed to rename folder'),
+                  behavior: SnackBarBehavior.floating,
+                ));
+                return;
+              }
               if (!mounted) return;
               Navigator.pop(context);
               _refresh();
             },
-            child: const Text('Save'),
+            child: Text('Save'),
           ),
         ],
       ),
@@ -492,7 +548,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     _refresh();
                   },
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 _SpeedDialItem(
                   icon: Icons.create_new_folder_outlined,
                   label: 'New Folder',
@@ -501,7 +557,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     _showCreateFolderDialog();
                   },
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 _SpeedDialItem(
                   icon: Icons.upload_file_outlined,
                   label: 'Add Document',
@@ -519,7 +575,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     _refresh();
                   },
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: 14),
               ],
             ),
           ),
@@ -532,7 +588,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           child: AnimatedRotation(
             turns: _fabExpanded ? 0.125 : 0.0,
             duration: const Duration(milliseconds: 200),
-            child: const Icon(Icons.add_rounded,
+            child: Icon(Icons.add_rounded,
                 color: Colors.white, size: 28),
           ),
         ),
@@ -547,10 +603,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     if (docs.isEmpty) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.search_off_rounded,
+          Icon(Icons.search_off_rounded,
               size: 48, color: AppColors.bgSurface3),
-          const SizedBox(height: 10),
-          const Text('No documents found',
+          SizedBox(height: 10),
+          Text('No documents found',
               style: TextStyle(
                   fontSize: 14, color: AppColors.textTertiary)),
         ]),
@@ -559,13 +615,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 80),
       itemCount: docs.length + 1,
-      separatorBuilder: (_, __) => const SizedBox(height: 6),
+      separatorBuilder: (_, __) => SizedBox(height: 6),
       itemBuilder: (context, i) {
         if (i == 0) {
           return Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text('${docs.length} result(s)',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12, color: AppColors.textTertiary)),
           );
         }
@@ -711,15 +767,15 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Owner',
+                      Text('Owner',
                           style: TextStyle(
                               fontSize: 11, color: AppColors.textSecondary)),
-                      const SizedBox(height: 2),
+                      SizedBox(height: 2),
                       Text(
                         doc.uploadedBy == currentUser
                             ? 'You'
                             : (doc.uploadedBy?.split('@').first ?? '—'),
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: AppColors.textPrimary),
@@ -730,10 +786,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const Text('Your role',
+                    Text('Your role',
                         style: TextStyle(
                             fontSize: 11, color: AppColors.textSecondary)),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
@@ -751,9 +807,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               ],
             ),
 
-            const SizedBox(height: 14),
-            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
-            const SizedBox(height: 12),
+            SizedBox(height: 14),
+            Divider(height: 0, thickness: 0.5, color: AppColors.border),
+            SizedBox(height: 12),
 
             // ── Folder illustration + meta ───────────────────────
             Row(
@@ -769,14 +825,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       bottomRight: Radius.circular(8),
                     ),
                   ),
-                  child: const Icon(Icons.folder_outlined,
+                  child: Icon(Icons.folder_outlined,
                       size: 20, color: AppColors.textTertiary),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     folderName,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12, color: AppColors.textSecondary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -787,14 +843,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     doc.fileSize! < 1024 * 1024
                         ? '${(doc.fileSize! / 1024).toStringAsFixed(0)} KB'
                         : '${(doc.fileSize! / (1024 * 1024)).toStringAsFixed(1)} MB',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12, color: AppColors.textSecondary),
                   ),
               ],
             ),
 
-            const SizedBox(height: 16),
-            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+            SizedBox(height: 16),
+            Divider(height: 0, thickness: 0.5, color: AppColors.border),
 
             // ── Action rows ──────────────────────────────────────
             ...actions.map((a) => _buildActionRow(a)),
@@ -827,7 +883,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         ? const Color(0xFFDC2626)
                         : AppColors.textSecondary),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -840,14 +896,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                                 ? const Color(0xFFDC2626)
                                 : AppColors.textPrimary)),
                     Text(a.desc,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 11,
                             color: AppColors.textSecondary)),
                   ],
                 ),
               ),
               if (a.enabled && !a.danger)
-                const Icon(Icons.chevron_right_rounded,
+                Icon(Icons.chevron_right_rounded,
                     size: 16, color: AppColors.textTertiary),
             ],
           ),
@@ -876,24 +932,24 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(folder.name,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 4),
-            const Text('Folder',
+            SizedBox(height: 4),
+            Text('Folder',
                 style: TextStyle(
                     fontSize: 12,
                     color: AppColors.textTertiary)),
-            const SizedBox(height: 14),
-            const Divider(height: 0, thickness: 0.5),
+            SizedBox(height: 14),
+            Divider(height: 0, thickness: 0.5),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.create_new_folder_outlined,
+              leading: Icon(Icons.create_new_folder_outlined,
                   size: 18, color: AppColors.textPrimary),
-              title: const Text('New subfolder',
+              title: Text('New subfolder',
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500)),
@@ -904,9 +960,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.edit_outlined,
+              leading: Icon(Icons.edit_outlined,
                   size: 18, color: AppColors.textPrimary),
-              title: const Text('Rename',
+              title: Text('Rename',
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500)),
@@ -920,11 +976,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(
+              leading: Icon(
                   Icons.drive_file_move_outline,
                   size: 18,
                   color: AppColors.textPrimary),
-              title: const Text('Move folder',
+              title: Text('Move folder',
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500)),
@@ -938,11 +994,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(
+              leading: Icon(
                   Icons.delete_outline_rounded,
                   size: 18,
                   color: AppColors.dangerText),
-              title: const Text('Delete',
+              title: Text('Delete',
                   style: TextStyle(
                       fontSize: 13,
                       color: AppColors.dangerText,
@@ -955,12 +1011,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     }
                   : null,
             ),
-            const Divider(height: 0, thickness: 0.5),
+            Divider(height: 0, thickness: 0.5),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.close_rounded,
+              leading: Icon(Icons.close_rounded,
                   size: 18, color: AppColors.textPrimary),
-              title: const Text('Cancel',
+              title: Text('Cancel',
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500)),
@@ -1008,7 +1064,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text('Permissions overview',
                         style: TextStyle(
                             fontSize: 15,
@@ -1024,14 +1080,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: AppColors.border, width: 0.5),
                       ),
-                      child: const Icon(Icons.close_rounded,
+                      child: Icon(Icons.close_rounded,
                           size: 13, color: AppColors.textSecondary),
                     ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+            Divider(height: 0, thickness: 0.5, color: AppColors.border),
             Expanded(
               child: ListView(
                 controller: scrollCtrl,
@@ -1040,20 +1096,20 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   Row(
                     children: [
                       _StatCard(label: 'owner',  count: ownerCount),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       _StatCard(label: 'editor', count: editorCount),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       _StatCard(label: 'viewer', count: viewerCount),
                     ],
                   ),
-                  const SizedBox(height: 14),
-                  const Text('ALL DOCUMENTS',
+                  SizedBox(height: 14),
+                  Text('ALL DOCUMENTS',
                       style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
                           color: AppColors.textTertiary,
                           letterSpacing: 0.06)),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   ..._allDocuments
                       .where((d) => d.role != null)
                       .map((doc) => Padding(
@@ -1066,18 +1122,18 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                                     color: AppColors.accentBg,
                                     borderRadius: BorderRadius.circular(7),
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                       Icons.insert_drive_file_outlined,
                                       size: 14,
                                       color: AppColors.accent),
                                 ),
-                                const SizedBox(width: 10),
+                                SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(doc.title,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w500,
                                               color: AppColors.textPrimary),
@@ -1089,7 +1145,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                                                     (f) => f.id == doc.folderId)
                                                 ?.name ??
                                             'Root',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             fontSize: 11,
                                             color: AppColors.textSecondary),
                                       ),
@@ -1100,14 +1156,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                               ],
                             ),
                           )),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: AppColors.bgSurface2,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Folder permissions are inherited — editor access on a folder gives you rename & move rights on all documents inside it and its sub-folders.',
                       style: TextStyle(
                           fontSize: 12,
@@ -1136,20 +1192,20 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         child: Column(
           children: [
             _buildHeader(),
-            const Divider(
+            Divider(
                 height: 0, thickness: 0.5, color: AppColors.border),
             Expanded(
               child: _isDeleting
                   ? DeletingOverlay(
                       current: _deleteProgress, total: _deleteTotal)
                   : _loading
-                      ? const Center(
+                      ? Center(
                           child: CircularProgressIndicator(
                               color: AppColors.accent, strokeWidth: 2))
                       : Row(
                           children: [
                             _buildFolderSidebar(),
-                            const VerticalDivider(
+                            VerticalDivider(
                                 width: 0.5,
                                 thickness: 0.5,
                                 color: AppColors.border),
@@ -1179,23 +1235,29 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               if (!_selectionMode && Navigator.canPop(context))
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
-                  child: const Padding(
-                    padding: EdgeInsets.only(right: 8),
-                    child: Icon(Icons.arrow_back_ios_new_rounded,
-                        size: 18, color: AppColors.textPrimary),
+                  child: Container(
+                    width: 34, height: 34,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface2,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: AppColors.border2, width: 0.5),
+                    ),
+                    child: Icon(Icons.arrow_back_rounded,
+                        size: 16, color: AppColors.textSecondary),
                   ),
                 ),
               if (_selectionMode)
                 Expanded(
                   child: Text(
                       '${_selectedDocs.length} selected',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary)),
                 )
               else
-                const Expanded(
+                Expanded(
                   child: Text('Documents',
                       style: TextStyle(
                           fontSize: 20,
@@ -1213,26 +1275,40 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: AppColors.border2, width: 0.5),
                     ),
-                    child: const Icon(Icons.lock_outline_rounded,
+                    child: Icon(Icons.lock_outline_rounded,
                         size: 15, color: AppColors.textSecondary),
                   ),
                 ),
-                const SizedBox(width: 6),
+                SizedBox(width: 6),
               ],
-              if (_selectionMode)
+              if (_selectionMode) ...[
+                TextButton.icon(
+                  onPressed: (_selectedDocs.isEmpty || _isDeleting)
+                      ? null
+                      : _moveSelected,
+                  icon: Icon(
+                      Icons.drive_file_move_outline,
+                      size: 16,
+                      color: AppColors.accent),
+                  label: Text('Move',
+                      style: TextStyle(
+                          color: AppColors.accent,
+                          fontSize: 12)),
+                ),
                 TextButton.icon(
                   onPressed: (_selectedDocs.isEmpty || _isDeleting)
                       ? null
                       : _deleteSelected,
-                  icon: const Icon(
+                  icon: Icon(
                       Icons.delete_outline_rounded,
                       size: 16,
                       color: AppColors.dangerText),
-                  label: const Text('Delete',
+                  label: Text('Delete',
                       style: TextStyle(
                           color: AppColors.dangerText,
                           fontSize: 12)),
                 ),
+              ],
               TextButton(
                 onPressed: _isDeleting
                     ? null
@@ -1242,14 +1318,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         }),
                 child: Text(
                     _selectionMode ? 'Cancel' : 'Select',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary)),
               ),
             ],
           ),
           if (!_isDeleting) ...[
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             ClaudeSearchBar(
               controller: _searchCtrl,
               hintText: 'Search documents…',
@@ -1262,7 +1338,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 });
               },
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             FilterChipRow(
               filters: _docTypes,
               selected:
@@ -1291,7 +1367,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
               child: Text(
                 'FOLDERS',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textTertiary,
@@ -1365,7 +1441,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     final docs = _docsForSelectedFolder();
 
     return RefreshIndicator(
-      onRefresh: _refresh,
+      onRefresh: () => _refresh(silent: true),
       color: AppColors.accent,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(10, 10, 10, 80),
@@ -1378,14 +1454,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => setState(() => _selectedFolderId = null),
-                    child: const Text('All files',
+                    child: Text('All files',
                         style: TextStyle(
                             fontSize: 11, color: AppColors.textSecondary)),
                   ),
                   ...crumbs.map((f) => Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(' › ',
+                      Text(' › ',
                           style: TextStyle(
                               fontSize: 10, color: AppColors.textSecondary)),
                       GestureDetector(
@@ -1435,11 +1511,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.folder_outlined,
+                        Icon(Icons.folder_outlined,
                             size: 13, color: AppColors.accent),
-                        const SizedBox(width: 6),
+                        SizedBox(width: 6),
                         Text(f.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 12,
                                 color: AppColors.textPrimary)),
                       ],
@@ -1451,7 +1527,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
           // ── Document cards ──────────────────────────────────────────────
           if (docs.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 28),
               child: Center(
                 child: Text('No documents here',
@@ -1537,13 +1613,13 @@ class _SidebarFolderRow extends StatelessWidget {
                     ? AnimatedRotation(
                         turns: isExpanded ? 0.25 : 0.0,
                         duration: const Duration(milliseconds: 150),
-                        child: const Icon(Icons.chevron_right_rounded,
+                        child: Icon(Icons.chevron_right_rounded,
                             size: 13, color: AppColors.textTertiary),
                       )
-                    : const SizedBox(),
+                    : SizedBox(),
               ),
             ),
-            const SizedBox(width: 4),
+            SizedBox(width: 4),
             Icon(
               isActive ? Icons.folder_rounded : Icons.folder_outlined,
               size: 13,
@@ -1553,7 +1629,7 @@ class _SidebarFolderRow extends StatelessWidget {
                       ? const Color(0xFF378ADD)
                       : AppColors.textTertiary,
             ),
-            const SizedBox(width: 5),
+            SizedBox(width: 5),
             Expanded(
               child: Text(
                 label,
@@ -1572,7 +1648,7 @@ class _SidebarFolderRow extends StatelessWidget {
             if (isPrivate)
               Container(
                 width: 6, height: 6,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppColors.accent,
                   shape: BoxShape.circle,
                 ),
@@ -1580,7 +1656,7 @@ class _SidebarFolderRow extends StatelessWidget {
             else if (isShared)
               Container(
                 width: 6, height: 6,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: Color(0xFF378ADD),
                   shape: BoxShape.circle,
                 ),
@@ -1675,7 +1751,7 @@ class _DocCard extends StatelessWidget {
               ),
               child: Icon(_fileIcon(ext), size: 16, color: _iconColor(ext)),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1685,7 +1761,7 @@ class _DocCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           doc.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: AppColors.textPrimary,
@@ -1699,12 +1775,12 @@ class _DocCard extends StatelessWidget {
                           value: isSelected,
                           onChanged: onSelectionChanged,
                           activeColor: AppColors.accent,
-                          side: const BorderSide(
+                          side: BorderSide(
                               color: AppColors.border2, width: 0.5),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 3),
+                  SizedBox(height: 3),
                   Wrap(
                     spacing: 4,
                     runSpacing: 2,
@@ -1712,7 +1788,7 @@ class _DocCard extends StatelessWidget {
                       if (role != null)
                         _RolePill(role: role),
                       if (doc.isPrivate)
-                        const _Pill(
+                        _Pill(
                             label: 'private',
                             bg: AppColors.accentBg,
                             fg: Color(0xFF993C1D)),
@@ -1724,7 +1800,7 @@ class _DocCard extends StatelessWidget {
                       if (doc.fileSize != null)
                         Text(
                           _formatSize(doc.fileSize!),
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 11,
                               color: AppColors.textSecondary),
                         ),
@@ -1734,7 +1810,7 @@ class _DocCard extends StatelessWidget {
               ),
             ),
             if (!selectionMode)
-              const Icon(Icons.chevron_right_rounded,
+              Icon(Icons.chevron_right_rounded,
                   size: 14, color: AppColors.textTertiary),
           ],
         ),
@@ -1775,7 +1851,7 @@ class _Pill extends StatelessWidget {
   final String label;
   final Color bg;
   final Color fg;
-  const _Pill({required this.label, required this.bg, required this.fg});
+  _Pill({required this.label, required this.bg, required this.fg});
 
   @override
   Widget build(BuildContext context) {
@@ -1809,13 +1885,13 @@ class _StatCard extends StatelessWidget {
         child: Column(
           children: [
             Text('$count',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary)),
-            const SizedBox(height: 2),
+            SizedBox(height: 2),
             Text(label,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 10, color: AppColors.textSecondary)),
           ],
         ),
@@ -1843,30 +1919,30 @@ class _SpeedDialItem extends StatelessWidget {
       children: [
         Container(
           padding: const EdgeInsets.symmetric(
-              horizontal: 10, vertical: 6),
+              horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
-            color: AppColors.bgSurface,
-            borderRadius: BorderRadius.circular(8),
+            color: AppColors.textPrimary,
+            borderRadius: BorderRadius.circular(9),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2))
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3))
             ],
           ),
           child: Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary)),
+                  color: Colors.white)),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
         FloatingActionButton.small(
           heroTag: label,
           onPressed: onTap,
-          backgroundColor: AppColors.bgSurface,
-          elevation: 3,
-          child: Icon(icon, size: 20, color: AppColors.accent),
+          backgroundColor: AppColors.textPrimary,
+          elevation: 4,
+          child: Icon(icon, size: 20, color: Colors.white),
         ),
       ],
     );

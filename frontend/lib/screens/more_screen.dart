@@ -32,7 +32,7 @@ class MoreScreen extends StatelessWidget {
             Container(
               color: AppColors.bgSurface,
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-              child: const Row(
+              child: Row(
                 children: [
                   Text(
                     'More',
@@ -47,7 +47,7 @@ class MoreScreen extends StatelessWidget {
               ),
             ),
 
-            const Divider(
+            Divider(
                 height: 0, thickness: 0.5, color: AppColors.border),
 
             // ── Grid ──────────────────────────────────────
@@ -64,19 +64,19 @@ class MoreScreen extends StatelessWidget {
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 1.6,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 3.6,
                       ),
                       itemCount: items.length,
                       itemBuilder: (context, i) => _MoreCard(item: items[i]),
                     ),
 
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24),
 
                     // Settings section at bottom
                     SectionLabel(text: 'Account[1.0] & Settings'),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     _SettingsTile(
                       themeController: themeController,
                       userRole: userRole,
@@ -207,70 +207,72 @@ class _MoreCard extends StatelessWidget {
     return GestureDetector(
       onTap: item.onTap,
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: AppColors.bgSurface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.border, width: 0.5),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Row(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Icon container
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: item.bgColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(item.icon, size: 18, color: item.color),
-                ),
-                // Coming soon badge
-                if (item.comingSoon)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgSurface2,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'Soon',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ),
-              ],
+            // Icon
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: item.bgColor,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(item.icon, size: 16, color: item.color),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+            SizedBox(width: 10),
+            // Text
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    item.title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  SizedBox(height: 1),
+                  Text(
+                    item.subtitle,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textTertiary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            // Coming soon badge
+            if (item.comingSoon)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.bgSurface2,
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  item.subtitle,
-                  style: const TextStyle(
-                    fontSize: 11,
+                child: Text(
+                  'Soon',
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w500,
                     color: AppColors.textTertiary,
                   ),
                 ),
-              ],
-            ),
+              ),
           ],
         ),
       ),
@@ -317,11 +319,11 @@ class _SettingsTile extends StatelessWidget {
                 color: AppColors.bgSurface2,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.settings_outlined,
+              child: Icon(Icons.settings_outlined,
                   size: 18, color: AppColors.textSecondary),
             ),
-            const SizedBox(width: 12),
-            const Expanded(
+            SizedBox(width: 12),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -344,7 +346,7 @@ class _SettingsTile extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded,
+            Icon(Icons.chevron_right_rounded,
                 size: 16, color: AppColors.textTertiary),
           ],
         ),

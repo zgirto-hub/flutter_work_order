@@ -19,7 +19,7 @@ class ConfirmDialog extends StatelessWidget {
       backgroundColor: AppColors.bgSurface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-      content: Text(message, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+      content: Text(message, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
         ElevatedButton(

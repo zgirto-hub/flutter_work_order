@@ -103,12 +103,12 @@ class _MainScreenState extends State<MainScreen> {
               SnackBar(
                 content: Row(
                   children: [
-                    const Icon(Icons.inbox_rounded,
+                    Icon(Icons.inbox_rounded,
                         color: Colors.white, size: 18),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     Text(
                       '$diff new request${diff > 1 ? 's' : ''} received',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 13,
                           color: Colors.white,
                           fontWeight: FontWeight.w500),
@@ -133,7 +133,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     if (!_roleLoaded) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: AppColors.bgPrimary,
         body: Center(
           child: CircularProgressIndicator(
@@ -155,7 +155,7 @@ class _MainScreenState extends State<MainScreen> {
       ];
 
       return Scaffold(
-        body: IndexedStack(index: _index, children: pages),
+        body: _AnimatedTabBody(index: _index, children: pages),
         bottomNavigationBar: _BottomNav(
           selectedIndex: _index,
           onDestinationSelected: (i) => setState(() => _index = i),
@@ -164,14 +164,14 @@ class _MainScreenState extends State<MainScreen> {
               icon: Badge(
                 isLabelVisible: _openRequestCount > 0,
                 label: Text('$_openRequestCount',
-                    style: const TextStyle(fontSize: 10)),
-                child: const Icon(Icons.inbox_outlined),
+                    style: TextStyle(fontSize: 10)),
+                child: Icon(Icons.inbox_outlined),
               ),
               selectedIcon: Badge(
                 isLabelVisible: _openRequestCount > 0,
                 label: Text('$_openRequestCount',
-                    style: const TextStyle(fontSize: 10)),
-                child: const Icon(Icons.inbox_rounded),
+                    style: TextStyle(fontSize: 10)),
+                child: Icon(Icons.inbox_rounded),
               ),
               label: 'Requests',
             ),
@@ -190,14 +190,14 @@ class _MainScreenState extends State<MainScreen> {
       icon: Badge(
         isLabelVisible: _openRequestCount > 0,
         label: Text('$_openRequestCount',
-            style: const TextStyle(fontSize: 10)),
-        child: const Icon(Icons.inbox_outlined),
+            style: TextStyle(fontSize: 10)),
+        child: Icon(Icons.inbox_outlined),
       ),
       selectedIcon: Badge(
         isLabelVisible: _openRequestCount > 0,
         label: Text('$_openRequestCount',
-            style: const TextStyle(fontSize: 10)),
-        child: const Icon(Icons.inbox_rounded),
+            style: TextStyle(fontSize: 10)),
+        child: Icon(Icons.inbox_rounded),
       ),
       label: 'Requests',
     );
@@ -222,7 +222,7 @@ class _MainScreenState extends State<MainScreen> {
     ];
 
     return Scaffold(
-      body: IndexedStack(index: _index, children: pages),
+      body: _AnimatedTabBody(index: _index, children: pages),
       bottomNavigationBar: _BottomNav(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
@@ -265,7 +265,7 @@ class _BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.bgSurface,
         border:
             Border(top: BorderSide(color: AppColors.border, width: 0.5)),
@@ -279,6 +279,68 @@ class _BottomNav extends StatelessWidget {
         height: 60,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: destinations,
+      ),
+    );
+  }
+}
+
+// ── Animated Tab Body ─────────────────────────────────────────────────────────
+// Keeps all tabs mounted (like IndexedStack) and animates the newly-shown tab
+// with a subtle fade + slide-up — matching Claude.ai's navigation feel.
+
+class _AnimatedTabBody extends StatefulWidget {
+  final int index;
+  final List<Widget> children;
+
+  const _AnimatedTabBody({required this.index, required this.children});
+
+  @override
+  State<_AnimatedTabBody> createState() => _AnimatedTabBodyState();
+}
+
+class _AnimatedTabBodyState extends State<_AnimatedTabBody>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+  );
+  late final Animation<double> _fade =
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+  late final Animation<Offset> _slide = Tween<Offset>(
+    begin: const Offset(0, 0.025),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl.value = 1.0;
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedTabBody old) {
+    super.didUpdateWidget(old);
+    if (old.index != widget.index) {
+      _ctrl.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: IndexedStack(
+          index: widget.index,
+          children: widget.children,
+        ),
       ),
     );
   }

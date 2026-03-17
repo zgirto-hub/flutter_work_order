@@ -57,7 +57,7 @@ class SectionLabel extends StatelessWidget {
       padding: padding,
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w600,
           color: AppColors.textTertiary,
@@ -124,7 +124,7 @@ class FilterChipRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        separatorBuilder: (_, __) => SizedBox(width: 6),
         itemBuilder: (context, i) {
           final isSelected = filters[i] == selected;
           return GestureDetector(
@@ -182,11 +182,11 @@ class ClaudeSearchBar extends StatelessWidget {
       child: TextField(
         controller: controller,
         onChanged: onChanged,
-        style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+        style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
-          prefixIcon: const Icon(Icons.search_rounded, size: 16, color: AppColors.textTertiary),
+          hintStyle: TextStyle(fontSize: 13, color: AppColors.textTertiary),
+          prefixIcon: Icon(Icons.search_rounded, size: 16, color: AppColors.textTertiary),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
@@ -341,26 +341,26 @@ class SettingsRow extends StatelessWidget {
                   ),
                   child: Icon(icon, size: 15, color: AppColors.textSecondary),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                      Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
                       if (subtitle != null) ...[
-                        const SizedBox(height: 1),
-                        Text(subtitle!, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                        SizedBox(height: 1),
+                        Text(subtitle!, style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
                       ],
                     ],
                   ),
                 ),
-                trailing ?? const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.textTertiary),
+                trailing ?? Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.textTertiary),
               ],
             ),
           ),
         ),
         if (showDivider)
-          const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+          Divider(height: 0, thickness: 0.5, color: AppColors.border),
       ],
     );
   }

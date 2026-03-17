@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 import '../../models/document.dart';
 import 'document_viewer_screen.dart';
 import '../../config.dart';
@@ -59,7 +60,14 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
-              title: const Text("Share Document"),
+              backgroundColor: AppColors.bgSurface,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: Text('Share Document',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary)),
               content: SizedBox(
                 width: double.maxFinite,
                 child: Column(
@@ -69,36 +77,45 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                     // Role selector
                     Row(
                       children: [
-                        const Text("Access level: ",
-                            style: TextStyle(fontWeight: FontWeight.w500)),
-                        const SizedBox(width: 8),
-                        DropdownButton<String>(
-                          value: selectedRole,
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'viewer',
-                              child: Text('Viewer'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'editor',
-                              child: Text('Editor'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setStateDialog(() => selectedRole = value);
-                            }
-                          },
+                        Text('Access level',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondary)),
+                        SizedBox(width: 10),
+                        DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedRole,
+                            borderRadius: BorderRadius.circular(12),
+                            dropdownColor: AppColors.bgSurface,
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary),
+                            items: const [
+                              DropdownMenuItem(
+                                  value: 'viewer', child: Text('Viewer')),
+                              DropdownMenuItem(
+                                  value: 'editor', child: Text('Editor')),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                setStateDialog(() => selectedRole = value);
+                              }
+                            },
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     // User list
                     if (availableUsers.isEmpty)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Text("No users to share with.",
-                            style: TextStyle(color: Colors.grey)),
+                        child: Text('No users to share with.',
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textTertiary)),
                       )
                     else
                       ConstrainedBox(
@@ -107,8 +124,12 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                           shrinkWrap: true,
                           children: availableUsers.map((user) {
                             return CheckboxListTile(
-                              title: Text(user),
+                              title: Text(user,
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textPrimary)),
                               value: selectedUsers.contains(user),
+                              activeColor: AppColors.accent,
                               onChanged: (checked) {
                                 setStateDialog(() {
                                   if (checked == true) {
@@ -128,7 +149,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text("Cancel"),
+                  child: Text('Cancel'),
                 ),
                 ElevatedButton(
                   onPressed: selectedUsers.isEmpty
@@ -140,7 +161,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                           }
                           await loadSharedUsers();
                         },
-                  child: const Text("Share"),
+                  child: Text('Share'),
                 ),
               ],
             );
@@ -244,7 +265,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
       }
       spans.add(TextSpan(
         text: text.substring(index, index + query.length),
-        style: const TextStyle(
+        style: TextStyle(
           backgroundColor: Colors.yellow,
           fontWeight: FontWeight.bold,
         ),
@@ -254,7 +275,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
 
     return RichText(
       text: TextSpan(
-        style: const TextStyle(color: Colors.black, fontSize: 14),
+        style: TextStyle(color: Colors.black, fontSize: 14),
         children: spans,
       ),
     );
@@ -280,21 +301,21 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
           children: [
             Text(
               widget.document.documentType,
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+              style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               widget.document.fileName ?? '',
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: TextStyle(fontWeight: FontWeight.w500),
             ),
             if (widget.document.fileSize != null) ...[
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               Text(
                 '${(widget.document.fileSize! / (1024 * 1024)).toStringAsFixed(2)} MB',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
 
             // ── Open / Download buttons ──────────────────────────────────
             if (fileUrl != null)
@@ -317,10 +338,10 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                           );
                         }
                       },
-                      child: const Text("Open File"),
+                      child: Text("Open File"),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () => _downloadFile(fileUrl, fileName),
@@ -330,26 +351,26 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                 ],
               ),
 
-            const SizedBox(height: 16),
-            const Divider(),
+            SizedBox(height: 16),
+            Divider(),
 
             // ── Shared users ─────────────────────────────────────────────
             if (_shares.isNotEmpty) ...[
-              const Text(
+              Text(
                 "Shared with:",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               for (final share in _shares)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Row(
                     children: [
                       Expanded(child: Text("• ${share['email']}",overflow: TextOverflow.ellipsis)),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       _RoleBadge(role: share['role'] ?? 'viewer'),
                       if (isOwner) ...[
-                        const SizedBox(width: 4),
+                        SizedBox(width: 4),
                         TextButton(
                           onPressed: () => removeAccess(share['email']!),
                           style: TextButton.styleFrom(
@@ -357,7 +378,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          child: const Text("Remove",
+                          child: Text("Remove",
                               style: TextStyle(color: Colors.red, fontSize: 12)),
                         ),
                       ],
@@ -366,22 +387,22 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                 ),
             ],
 
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
 
             // ── Share with user button (owner only) ──────────────────────
             if (isOwner)
               ElevatedButton.icon(
                 onPressed: showShareDialog,
-                icon: const Icon(Icons.person_add),
-                label: const Text("Share with user"),
+                icon: Icon(Icons.person_add),
+                label: Text("Share with user"),
               ),
 
-            const SizedBox(height: 16),
-            const Text(
+            SizedBox(height: 16),
+            Text(
               "Document Content",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
 
             // ── Parsed text ──────────────────────────────────────────────
             Expanded(

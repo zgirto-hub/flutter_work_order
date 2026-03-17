@@ -136,14 +136,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         Text(
                           '$greeting,',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             color: AppColors.textTertiary,
                           ),
                         ),
                         Text(
                           _firstName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textPrimary,
@@ -164,7 +164,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       child: Text(
                         _formatDate(DateTime.now()),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: AppColors.textSecondary,
@@ -174,11 +174,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
 
                 // ── Stats row ──────────────────────────────────
                 if (_loading)
-                  const Center(
+                  Center(
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
                       child: CircularProgressIndicator(
@@ -198,7 +198,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           onTap: () => widget.onNavigate(2),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      SizedBox(width: 10),
                       Expanded(
                         child: _StatCard(
                           label: 'Active Orders',
@@ -211,7 +211,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(
@@ -224,7 +224,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           onTap: () => widget.onNavigate(1),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      SizedBox(width: 10),
                       Expanded(
                         child: _StatCard(
                           label: 'Inspections',
@@ -238,11 +238,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
 
                   // ── Quick actions ──────────────────────────
                   SectionLabel(text: 'Quick Actions'),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Row(
                     children: [
                       Expanded(
@@ -253,7 +253,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           onTap: () => widget.onNavigate(1),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      SizedBox(width: 10),
                       Expanded(
                         child: _QuickAction(
                           label: 'New Request',
@@ -265,14 +265,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
 
                   // ── Recent work orders ─────────────────────
                   Row(
                     mainAxisAlignment:
                         MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Recent Work Orders',
                         style: TextStyle(
                           fontSize: 13,
@@ -283,7 +283,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       GestureDetector(
                         onTap: () => widget.onNavigate(1),
-                        child: const Text(
+                        child: Text(
                           'See all',
                           style: TextStyle(
                             fontSize: 12,
@@ -294,7 +294,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
 
                   if (_recentActivity.isEmpty)
                     Container(
@@ -305,7 +305,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         border: Border.all(
                             color: AppColors.border, width: 0.5),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
                           'No recent work orders',
                           style: TextStyle(
@@ -336,7 +336,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             children: [
                               _RecentActivityRow(item: item),
                               if (!isLast)
-                                const Divider(
+                                Divider(
                                   height: 0,
                                   thickness: 0.5,
                                   color: AppColors.border,
@@ -422,10 +422,10 @@ class _StatCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textSecondary,
@@ -467,11 +467,11 @@ class _QuickAction extends StatelessWidget {
         child: Row(
           children: [
             Icon(icon, size: 18, color: color),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,
@@ -546,11 +546,11 @@ class _RecentActivityRow extends StatelessWidget {
             child: Icon(_typeIcon(type),
                 size: 15, color: AppColors.textSecondary),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Text(
               item['title'] as String? ?? '',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textPrimary,
@@ -559,7 +559,7 @@ class _RecentActivityRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Container(
             padding:
                 const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

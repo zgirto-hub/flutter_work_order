@@ -90,15 +90,15 @@ class _RequestsScreenState extends State<RequestsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
-        title: const Text('Delete Requests', style: TextStyle(color: AppColors.textPrimary)),
+        title: Text('Delete Requests', style: TextStyle(color: AppColors.textPrimary)),
         content: Text(
           'Delete $count request${count > 1 ? 's' : ''}?',
-          style: const TextStyle(color: AppColors.textSecondary),
+          style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -129,15 +129,15 @@ class _RequestsScreenState extends State<RequestsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
-        title: const Text('Delete Request', style: TextStyle(color: AppColors.textPrimary)),
-        content: const Text(
+        title: Text('Delete Request', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text(
           'Are you sure you want to delete this request?',
           style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -202,7 +202,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Requests',
                             style: TextStyle(
                               fontSize: 20,
@@ -211,7 +211,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
                               letterSpacing: -0.3,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: 12),
                           FilterChipRow(
                             filters: const ['All', 'Open', 'Closed'],
                             selected: _statusFilter,
@@ -222,7 +222,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
                     ),
             ),
 
-            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+            Divider(height: 0, thickness: 0.5, color: AppColors.border),
 
             // ── List ────────────────────────────────────────────
             Expanded(
@@ -238,17 +238,17 @@ class _RequestsScreenState extends State<RequestsScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.inbox_outlined,
                                 size: 48,
                                 color: AppColors.bgSurface3,
                               ),
-                              const SizedBox(height: 12),
+                              SizedBox(height: 12),
                               Text(
                                 _statusFilter == 'All'
                                     ? 'No requests yet'
                                     : 'No $_statusFilter requests',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
                                   color: AppColors.textTertiary,
                                   fontWeight: FontWeight.w500,
@@ -263,7 +263,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
                           child: ListView.separated(
                             padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
                             itemCount: _filtered.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 8),
+                            separatorBuilder: (_, __) => SizedBox(height: 8),
                             itemBuilder: (_, i) {
                               final req = _filtered[i];
 
@@ -320,14 +320,14 @@ class _SelectionBar extends StatelessWidget {
     return Row(
       children: [
         IconButton(
-          icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textPrimary),
+          icon: Icon(Icons.close_rounded, size: 20, color: AppColors.textPrimary),
           onPressed: onCancel,
           padding: const EdgeInsets.all(8),
         ),
         Expanded(
           child: Text(
             '$count selected',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
           ),
         ),
         if (onDelete != null)
@@ -421,7 +421,7 @@ class _SwipeRevealCardState extends State<_SwipeRevealCard>
                         color: Colors.red.shade600,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.delete_outline_rounded,
                         color: Colors.white,
                         size: 22,
@@ -489,7 +489,7 @@ class _RequestCard extends StatelessWidget {
                         activeColor: AppColors.accent,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         visualDensity: VisualDensity.compact,
-                        side: const BorderSide(color: AppColors.border2, width: 1.5),
+                        side: BorderSide(color: AppColors.border2, width: 1.5),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                       ),
                     ),
@@ -497,54 +497,54 @@ class _RequestCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     request.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 _StatusBadge(status: request.status),
               ],
             ),
 
             if (request.description.isNotEmpty) ...[
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               Text(
                 request.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   color: AppColors.textSecondary,
                 ),
               ),
             ],
 
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
 
             Row(
               children: [
                 if (request.location.isNotEmpty) ...[
-                  const Icon(Icons.location_on_outlined,
+                  Icon(Icons.location_on_outlined,
                       size: 12, color: AppColors.textTertiary),
-                  const SizedBox(width: 3),
+                  SizedBox(width: 3),
                   Text(
                     request.location,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       color: AppColors.textTertiary,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                 ],
-                const Icon(Icons.person_outline_rounded,
+                Icon(Icons.person_outline_rounded,
                     size: 12, color: AppColors.textTertiary),
-                const SizedBox(width: 3),
+                SizedBox(width: 3),
                 Text(
                   request.requesterName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     color: AppColors.textTertiary,
                   ),
@@ -552,7 +552,7 @@ class _RequestCard extends StatelessWidget {
                 const Spacer(),
                 Text(
                   _formatDate(request.createdAt),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     color: AppColors.textTertiary,
                   ),

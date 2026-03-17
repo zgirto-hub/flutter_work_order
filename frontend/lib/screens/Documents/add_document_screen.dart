@@ -256,44 +256,44 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 ),
               ),
 
-              const Center(
+              Center(
                 child: Text('Upload Document',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // ── Title ────────────────────────────────────
               _Label('Title'),
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               TextFormField(
                 controller: _titleController,
-                style: const TextStyle(fontSize: 13),
+                style: TextStyle(fontSize: 13),
                 decoration: InputDecoration(
                   hintText: _isMultiMode ? 'Optional prefix for all files' : 'Document title',
-                  prefixIcon: const Icon(Icons.title_rounded, size: 16),
+                  prefixIcon: Icon(Icons.title_rounded, size: 16),
                 ),
                 validator: _isMultiMode
                     ? null // title optional in multi mode
                     : (v) => v == null || v.isEmpty ? 'Enter a title' : null,
               ),
 
-              const SizedBox(height: 14),
+              SizedBox(height: 14),
 
               // ── Document type ────────────────────────────
               _Label('Document type'),
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               TextFormField(
                 controller: _typeController,
-                style: const TextStyle(fontSize: 13),
-                decoration: const InputDecoration(
+                style: TextStyle(fontSize: 13),
+                decoration: InputDecoration(
                   hintText: 'e.g. Invoice, Report, Drawing…',
                   prefixIcon: Icon(Icons.category_outlined, size: 16),
                 ),
                 validator: (v) => v == null || v.isEmpty ? 'Enter a document type' : null,
               ),
 
-              const SizedBox(height: 14),
+              SizedBox(height: 14),
 
               // ── Private toggle ───────────────────────────
               Container(
@@ -304,19 +304,19 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 ),
                 child: SwitchListTile(
                   dense: true,
-                  title: const Text('Private document', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
-                  subtitle: const Text('Only you can see this', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                  title: Text('Private document', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                  subtitle: Text('Only you can see this', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
                   value: isPrivate,
                   activeColor: AppColors.accent,
                   onChanged: (v) => setState(() => isPrivate = v),
                 ),
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // ── File selection area ───────────────────────
               _Label('File'),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
 
               // Single file picker
               GestureDetector(
@@ -346,7 +346,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                             ? AppColors.closedText
                             : AppColors.textSecondary,
                       ),
-                      const SizedBox(width: 10),
+                      SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _selectedFile != null && !_isMultiMode
@@ -366,7 +366,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 ),
               ),
 
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
 
               // Multi file picker
               GestureDetector(
@@ -394,7 +394,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                             ? AppColors.inProgressText
                             : AppColors.textSecondary,
                       ),
-                      const SizedBox(width: 10),
+                      SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _isMultiMode && _selectedFiles.isNotEmpty
@@ -411,7 +411,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                       if (_isMultiMode && _selectedFiles.isNotEmpty)
                         GestureDetector(
                           onTap: () => setState(() { _selectedFiles = []; _isMultiMode = false; }),
-                          child: const Icon(Icons.close_rounded, size: 16, color: AppColors.inProgressText),
+                          child: Icon(Icons.close_rounded, size: 16, color: AppColors.inProgressText),
                         ),
                     ],
                   ),
@@ -420,7 +420,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
               // Show selected file names in multi mode
               if (_isMultiMode && _selectedFiles.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
@@ -434,9 +434,9 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       child: Row(
                         children: [
-                          const Icon(Icons.insert_drive_file_outlined, size: 12, color: AppColors.textTertiary),
-                          const SizedBox(width: 6),
-                          Expanded(child: Text(f.name, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis)),
+                          Icon(Icons.insert_drive_file_outlined, size: 12, color: AppColors.textTertiary),
+                          SizedBox(width: 6),
+                          Expanded(child: Text(f.name, style: TextStyle(fontSize: 11, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis)),
                         ],
                       ),
                     )).toList(),
@@ -446,7 +446,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
               // Upload progress
               if (_isLoading && _totalUploads > 0) ...[
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
@@ -455,18 +455,18 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                         child: LinearProgressIndicator(
                           value: _uploadIndex / _totalUploads,
                           backgroundColor: AppColors.bgSurface3,
-                          valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                          valueColor: AlwaysStoppedAnimation(AppColors.accent),
                           minHeight: 4,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Text('$_uploadIndex / $_totalUploads', style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                    SizedBox(width: 10),
+                    Text('$_uploadIndex / $_totalUploads', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
                   ],
                 ),
               ],
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // ── Upload buttons ───────────────────────────
               if (!_isMultiMode) ...[
@@ -475,8 +475,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                   child: ElevatedButton.icon(
                     onPressed: _isLoading ? null : _uploadSingle,
                     icon: _isLoading
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.upload_rounded, size: 16),
+                        ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Icon(Icons.upload_rounded, size: 16),
                     label: Text(_isLoading ? 'Uploading…' : 'Upload document'),
                   ),
                 ),
@@ -486,8 +486,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                   child: ElevatedButton.icon(
                     onPressed: _isLoading ? null : _uploadMultiple,
                     icon: _isLoading
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.upload_rounded, size: 16),
+                        ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Icon(Icons.upload_rounded, size: 16),
                     label: Text(_isLoading
                         ? 'Uploading $_uploadIndex of $_totalUploads…'
                         : 'Upload ${_selectedFiles.length} file(s)'),
@@ -495,7 +495,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 ),
               ],
 
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
 
             ],
           ),
@@ -511,6 +511,6 @@ class _Label extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary));
+    return Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary));
   }
 }

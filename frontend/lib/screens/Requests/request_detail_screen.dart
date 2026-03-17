@@ -142,7 +142,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text(
+        title: Text(
           'Close Request',
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
@@ -150,11 +150,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Mark this request as resolved?',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
                 color: AppColors.bgSurface2,
@@ -164,9 +164,9 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               child: TextField(
                 controller: notesCtrl,
                 maxLines: 3,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 13, color: AppColors.textPrimary),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Add a note (optional)',
                   hintStyle: TextStyle(
                       fontSize: 13, color: AppColors.textTertiary),
@@ -180,7 +180,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -191,7 +191,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Close Request',
+            child: Text('Close Request',
                 style: TextStyle(fontSize: 13)),
           ),
         ],
@@ -252,12 +252,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                         border: Border.all(
                             color: AppColors.border2, width: 0.5),
                       ),
-                      child: const Icon(Icons.arrow_back_rounded,
+                      child: Icon(Icons.arrow_back_rounded,
                           size: 16, color: AppColors.textSecondary),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Expanded(
+                  SizedBox(width: 12),
+                  Expanded(
                     child: Text(
                       'Request Detail',
                       style: TextStyle(
@@ -279,18 +279,18 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                           borderRadius: BorderRadius.circular(9),
                           border: Border.all(color: AppColors.border2, width: 0.5),
                         ),
-                        child: const Icon(Icons.edit_outlined,
+                        child: Icon(Icons.edit_outlined,
                             size: 16, color: AppColors.textSecondary),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                   ],
                   _StatusPill(status: req.status),
                 ],
               ),
             ),
 
-            const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+            Divider(height: 0, thickness: 0.5, color: AppColors.border),
 
             // ── Content ─────────────────────────────────────────
             Expanded(
@@ -306,17 +306,17 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                         children: [
                           Text(
                             req.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textPrimary,
                             ),
                           ),
                           if (req.description.isNotEmpty) ...[
-                            const SizedBox(height: 8),
+                            SizedBox(height: 8),
                             Text(
                               req.description,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
                                 color: AppColors.textSecondary,
                                 height: 1.5,
@@ -327,7 +327,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
                     // Meta info
                     SectionLabel(text: 'Requester info'),
@@ -358,7 +358,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
                     SectionLabel(text: 'Timeline'),
                     SurfaceCard(
@@ -393,12 +393,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                     // Tech notes (if closed)
                     if (!isOpen && req.techNotes != null &&
                         req.techNotes!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
                       SectionLabel(text: 'Tech notes'),
                       SurfaceCard(
                         child: Text(
                           req.techNotes!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             color: AppColors.textSecondary,
                             height: 1.5,
@@ -409,7 +409,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
                     // Attachments
                     if (_attachments.isNotEmpty) ...[
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
                       SectionLabel(text: 'Attachments'),
                       SurfaceCard(
                         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -430,19 +430,19 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
                     // Convert to Work Order button (tech/admin only, open requests)
                     if (_canConvert) ...[
-                      const SizedBox(height: 24),
+                      SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: _convertToWorkOrder,
-                          icon: const Icon(Icons.assignment_add, size: 16),
-                          label: const Text(
+                          icon: Icon(Icons.assignment_add, size: 16),
+                          label: Text(
                             'Convert to Work Order',
                             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                           ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.accent,
-                            side: const BorderSide(color: AppColors.accent, width: 0.5),
+                            side: BorderSide(color: AppColors.accent, width: 0.5),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10)),
@@ -453,13 +453,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
                     // Close button (tech/admin only, open requests)
                     if (_canClose) ...[
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: _closing ? null : _closeRequest,
                           icon: _closing
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 14,
                                   height: 14,
                                   child: CircularProgressIndicator(
@@ -467,10 +467,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Icon(
+                              : Icon(
                                   Icons.check_circle_outline_rounded,
                                   size: 16),
-                          label: const Text('Close Request',
+                          label: Text('Close Request',
                               style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600)),
@@ -557,11 +557,11 @@ class _InfoRow extends StatelessWidget {
                 ),
                 child: Icon(icon, size: 15, color: AppColors.textSecondary),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary,
@@ -570,7 +570,7 @@ class _InfoRow extends StatelessWidget {
               ),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   color: AppColors.textSecondary,
                 ),
@@ -579,7 +579,7 @@ class _InfoRow extends StatelessWidget {
           ),
         ),
         if (showDivider)
-          const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+          Divider(height: 0, thickness: 0.5, color: AppColors.border),
       ],
     );
   }
@@ -627,11 +627,11 @@ class _AttachmentRow extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(
               child: Text(
                 fileName,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   color: AppColors.textPrimary,
                   decoration: TextDecoration.underline,
@@ -642,7 +642,7 @@ class _AttachmentRow extends StatelessWidget {
             ),
             if (canDelete)
               isDeleting
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 14,
                       height: 14,
                       child: CircularProgressIndicator(
@@ -652,7 +652,7 @@ class _AttachmentRow extends StatelessWidget {
                     )
                   : GestureDetector(
                       onTap: onDelete,
-                      child: const Icon(
+                      child: Icon(
                         Icons.delete_outline_rounded,
                         size: 16,
                         color: AppColors.textTertiary,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
 import '../../../../models/employee.dart';
 import '../../../../models/workorder_report.dart';
 import '../../../../services/pdf/work_order_pdf_service.dart';
@@ -74,15 +75,30 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
 
   Future<void> _exportPdf() async {
     final themeColor = Theme.of(context).colorScheme.primary;
-    await WorkOrderPdfService.exportReport(
-      employeeName: _selectedEmployeeName,
-      startDate: _startDate!,
-      endDate: _endDate!,
-      results: _results,
-      primaryColor: PdfColor(
-        themeColor.red / 255,
-        themeColor.green / 255,
-        themeColor.blue / 255,
+    final primaryColor = PdfColor(
+      themeColor.red / 255,
+      themeColor.green / 255,
+      themeColor.blue / 255,
+    );
+    final employeeName = _selectedEmployeeName;
+    final startDate = _startDate!;
+    final endDate = _endDate!;
+    final results = List.of(_results);
+
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _PdfPreviewScreen(
+          title: 'Report – $employeeName',
+          buildPdf: () => WorkOrderPdfService.buildReport(
+            employeeName: employeeName,
+            startDate: startDate,
+            endDate: endDate,
+            results: results,
+            primaryColor: primaryColor,
+          ),
+        ),
       ),
     );
   }
@@ -115,13 +131,35 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
   Future<void> _pickDate({required bool isStart}) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: isStart
+          ? (_startDate ?? DateTime.now())
+          : (_endDate ?? DateTime.now()),
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
       builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: Theme.of(context).colorScheme.copyWith(
-            primary: AppColors.textPrimary,
+        data: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.light(
+            primary: AppColors.accent,
+            onPrimary: Colors.white,
+            surface: AppColors.bgSurface,
+            onSurface: AppColors.textPrimary,
+            secondaryContainer: AppColors.accentBg,
+            onSecondaryContainer: AppColors.accent,
+            outline: AppColors.border2,
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.accent,
+              textStyle: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+          dialogTheme: DialogThemeData(
+            backgroundColor: AppColors.bgSurface,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16)),
+            elevation: 4,
           ),
         ),
         child: child!,
@@ -142,7 +180,22 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
       backgroundColor: AppColors.bgPrimary,
       appBar: AppBar(
         backgroundColor: AppColors.bgSurface,
-        title: const Text('Work order reports'),
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Center(
+            child: Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(
+                color: AppColors.bgSurface2,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: AppColors.border2, width: 0.5),
+              ),
+              child: Icon(Icons.arrow_back_rounded,
+                  size: 16, color: AppColors.textSecondary),
+            ),
+          ),
+        ),
+        title: Text('Work order reports'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(0.5),
           child: Container(height: 0.5, color: AppColors.border),
@@ -161,7 +214,7 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
 
                 // Employee dropdown
                 const _FieldLabel('Employee'),
-                const SizedBox(height: 5),
+                SizedBox(height: 5),
                 _employeesLoading
                     ? const _LoadingInput()
                     : _EmployeeDropdown(
@@ -170,7 +223,7 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
                         onChanged: (v) => setState(() => _employeeId = v),
                       ),
 
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
 
                 // Date row
                 Row(
@@ -180,7 +233,7 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const _FieldLabel('Start date'),
-                          const SizedBox(height: 5),
+                          SizedBox(height: 5),
                           _DateButton(
                             label: _startDate != null
                                 ? _formatDate(_startDate!)
@@ -190,13 +243,13 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const _FieldLabel('End date'),
-                          const SizedBox(height: 5),
+                          SizedBox(height: 5),
                           _DateButton(
                             label: _endDate != null
                                 ? _formatDate(_endDate!)
@@ -209,7 +262,7 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
 
                 // Generate button
                 SizedBox(
@@ -217,23 +270,23 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
                   child: ElevatedButton(
                     onPressed: _loading ? null : _generateReport,
                     child: _loading
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16, height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
-                        : const Text('Generate report'),
+                        : Text('Generate report'),
                   ),
                 ),
               ],
             ),
           ),
 
-          const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+          Divider(height: 0, thickness: 0.5, color: AppColors.border),
 
           // ── Results area ──────────────────────────────────
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2))
+                ? Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2))
                 : _results.isEmpty
                     ? _EmptyState(hasFilters: _employeeId != null)
                     : _ResultsView(
@@ -295,16 +348,16 @@ class _ResultsViewState extends State<_ResultsView> {
                   children: [
                     Text(
                       widget.employeeName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: 2),
                     Text(
                       '${widget.formatDate(widget.startDate)} – ${widget.formatDate(widget.endDate)}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                      style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
                     ),
                   ],
                 ),
@@ -323,14 +376,14 @@ class _ResultsViewState extends State<_ResultsView> {
                   children: [
                     Text(
                       '${widget.results.length}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    const Text(
+                    SizedBox(width: 4),
+                    Text(
                       'closed',
                       style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
                     ),
@@ -338,7 +391,7 @@ class _ResultsViewState extends State<_ResultsView> {
                 ),
               ),
 
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
 
               // Export button
               GestureDetector(
@@ -350,7 +403,7 @@ class _ResultsViewState extends State<_ResultsView> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: AppColors.border2, width: 0.5),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.picture_as_pdf_outlined, size: 14, color: AppColors.textSecondary),
@@ -364,7 +417,7 @@ class _ResultsViewState extends State<_ResultsView> {
           ),
         ),
 
-        const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+        Divider(height: 0, thickness: 0.5, color: AppColors.border),
 
         // ── Table ─────────────────────────────────────────
         Expanded(
@@ -385,22 +438,22 @@ class _ResultsViewState extends State<_ResultsView> {
                     // Header row
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppColors.bgSurface2,
                         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
                           Expanded(child: _ColHeader('Title')),
                           SizedBox(width: 8),
                           SizedBox(width: 110, child: _ColHeader('Location')),
                           SizedBox(width: 8),
-                          SizedBox(width: 70, child: _ColHeader('Closed')),
+                          SizedBox(width: 90, child: _ColHeader('Closed')),
                         ],
                       ),
                     ),
 
-                    const Divider(height: 0, thickness: 0.5, color: AppColors.border),
+                    Divider(height: 0, thickness: 0.5, color: AppColors.border),
 
                     // Data rows
                     ...widget.results.asMap().entries.map((entry) {
@@ -416,43 +469,48 @@ class _ResultsViewState extends State<_ResultsView> {
                               if (isExpanded) _expanded.remove(i); else _expanded.add(i);
                             }),
                             behavior: HitTestBehavior.opaque,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      item.title,
-                                      style: const TextStyle(fontSize: 12, color: AppColors.textPrimary, height: 1.4),
-                                      maxLines: isExpanded ? null : 1,
-                                      overflow: isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+                            child: AnimatedSize(
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeInOutCubic,
+                              alignment: Alignment.topCenter,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item.title,
+                                        style: TextStyle(fontSize: 12, color: AppColors.textPrimary, height: 1.4),
+                                        maxLines: isExpanded ? null : 1,
+                                        overflow: isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  SizedBox(
-                                    width: 110,
-                                    child: Text(
-                                      item.location,
-                                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                    SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 110,
+                                      child: Text(
+                                        item.location,
+                                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  SizedBox(
-                                    width: 70,
-                                    child: Text(
-                                      item.modifiedDate.toString().split(' ')[0],
-                                      style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                                    SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 90,
+                                      child: Text(
+                                        item.modifiedDate.toString().split(' ')[0],
+                                        style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                           if (!isLast)
-                            const Divider(height: 0, thickness: 0.5, color: AppColors.border, indent: 12, endIndent: 12),
+                            Divider(height: 0, thickness: 0.5, color: AppColors.border, indent: 12, endIndent: 12),
                         ],
                       );
                     }),
@@ -477,7 +535,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
+      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
     );
   }
 }
@@ -490,7 +548,7 @@ class _ColHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textTertiary, letterSpacing: 0.04),
+      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textTertiary, letterSpacing: 0.04),
     );
   }
 }
@@ -515,9 +573,9 @@ class _DateButton extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.calendar_today_outlined, size: 13, color: AppColors.textTertiary),
-            const SizedBox(width: 7),
-            Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textPrimary)),
+            Icon(Icons.calendar_today_outlined, size: 13, color: AppColors.textTertiary),
+            SizedBox(width: 7),
+            Text(label, style: TextStyle(fontSize: 12, color: AppColors.textPrimary)),
           ],
         ),
       ),
@@ -549,14 +607,14 @@ class _EmployeeDropdown extends StatelessWidget {
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
-          hint: const Text('Select employee', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
-          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textTertiary),
+          hint: Text('Select employee', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
+          style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+          icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textTertiary),
           dropdownColor: AppColors.bgSurface,
           borderRadius: BorderRadius.circular(10),
           items: employees.map((emp) => DropdownMenuItem(
             value: emp.id,
-            child: Text(emp.fullName, style: const TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+            child: Text(emp.fullName, style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
           )).toList(),
           onChanged: onChanged,
         ),
@@ -577,10 +635,53 @@ class _LoadingInput extends StatelessWidget {
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: AppColors.border2, width: 0.5),
       ),
-      child: const Center(
+      child: Center(
         child: SizedBox(
           width: 16, height: 16,
           child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.textTertiary),
+        ),
+      ),
+    );
+  }
+}
+
+// ── PDF Preview Screen ────────────────────────────────────────────────────────
+
+class _PdfPreviewScreen extends StatelessWidget {
+  final String title;
+  final Future<dynamic> Function() buildPdf;
+
+  const _PdfPreviewScreen({required this.title, required this.buildPdf});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bgPrimary,
+      appBar: AppBar(
+        backgroundColor: AppColors.bgSurface,
+        title: Text(title,
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary)),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded,
+              size: 18, color: AppColors.textSecondary),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: PdfPreview(
+        build: (format) async {
+          final bytes = await buildPdf();
+          return bytes as dynamic;
+        },
+        canChangePageFormat: false,
+        canDebug: false,
+        pdfFileName: '${title.replaceAll(' ', '_')}.pdf',
+        actionBarTheme: PdfActionBarTheme(
+          backgroundColor: AppColors.bgSurface,
+          iconColor: AppColors.textSecondary,
+          textStyle: TextStyle(color: AppColors.textSecondary, fontSize: 12),
         ),
       ),
     );
@@ -602,10 +703,10 @@ class _EmptyState extends StatelessWidget {
             size: 44,
             color: AppColors.bgSurface3,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Text(
             hasFilters ? 'No closed work orders found' : 'Select filters and generate a report',
-            style: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+            style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
             textAlign: TextAlign.center,
           ),
         ],

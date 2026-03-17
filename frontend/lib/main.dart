@@ -32,6 +32,8 @@ class MyApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             title: 'Work Order',
             theme: AppTheme.light(themeController.color, themeController.fontFamily),
+            darkTheme: AppTheme.dark(themeController.color, themeController.fontFamily),
+            themeMode: themeController.mode,
             home: AuthWrapper(themeController: themeController),
           ),
         );
@@ -45,7 +47,7 @@ class _SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.bgSurface,
       body: Center(
         child: Column(
@@ -108,8 +110,17 @@ class AuthWrapper extends StatelessWidget {
                   return const _SplashScreen();
                 }
                 final session = snapshot.data?.session;
-                if (session == null) return const LoginScreen();
-                return MainScreen(themeController: themeController);
+                final child = session == null
+                    ? const LoginScreen(key: ValueKey('login'))
+                    : MainScreen(key: const ValueKey('main'), themeController: themeController);
+                return AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 350),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+                    child: child,
+                  ),
+                  child: child,
+                );
               },
             ),
           ),

@@ -25,7 +25,7 @@ class FolderService {
   Future<List<FolderModel>> fetchAllFolders() async {
     final response = await http.get(
       Uri.parse('${AppConfig.baseUrl}/folders?user_email=${Uri.encodeComponent(_email)}&all=true'),
-    );
+    ).timeout(const Duration(seconds: 15), onTimeout: () => throw Exception('Request timed out'));
     if (response.statusCode != 200) throw Exception('Failed to fetch folders');
     final data = jsonDecode(response.body);
     return (data['folders'] as List).map((f) => FolderModel.fromJson(f)).toList();
