@@ -64,6 +64,7 @@ class ActivityLogEntry {
       case 'shared':          return 'Shared';
       case 'closed':          return 'Closed';
       case 'signed_in':       return 'Signed in';
+      case 'signed_out':      return 'Signed out';
       case 'account_created': return 'Account created';
       default:                return action;
     }
@@ -78,8 +79,9 @@ class ActivityLogEntry {
       case 'uploaded':  return 'Uploaded document';
       case 'shared':    return 'Shared document';
       case 'closed':    return 'Closed $category'.replaceAll('_', ' ');
-      case 'signed_in': return 'Signed in';
-      default:          return actionLabel;
+      case 'signed_in':  return 'Signed in';
+      case 'signed_out': return 'Signed out';
+      default:           return actionLabel;
     }
   }
 }

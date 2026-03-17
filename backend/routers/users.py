@@ -76,3 +76,10 @@ async def log_sign_in(body: SignInBody):
     log_activity(body.user_email, "auth", "signed_in",
         target_label=body.user_email)
     return {"status": "logged"}
+
+
+@router.post("/activity-log/sign-out")
+async def log_sign_out(body: SignInBody):
+    log_activity(body.user_email, "auth", "signed_out",
+        target_label=body.user_email)
+    return {"status": "logged"}

@@ -13,6 +13,7 @@ import '../widgets/claude_widgets.dart';
 import '../widgets/change_password_dialog.dart';
 import '../config.dart';
 import '../services/onesignal_service.dart';
+import '../services/activity_log_service.dart';
 import 'settings/activity_log_screen.dart';
 
 
@@ -328,6 +329,12 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
     if (confirm == true) {
+      final email = Supabase.instance.client.auth.currentUser?.email;
+      if (email != null) {
+        try {
+          await ActivityLogService().logSignOut(email);
+        } catch (_) {}
+      }
       await Supabase.instance.client.auth.signOut();
       if (mounted) {
         Navigator.of(context, rootNavigator: true)

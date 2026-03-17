@@ -39,4 +39,14 @@ class ActivityLogService {
       );
     } catch (_) {}
   }
+
+  Future<void> logSignOut(String email) async {
+    try {
+      await http.post(
+        Uri.parse('${AppConfig.baseUrl}/activity-log/sign-out'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_email': email}),
+      );
+    } catch (_) {}
+  }
 }

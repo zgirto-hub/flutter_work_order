@@ -215,7 +215,8 @@ class _ActivityLogItem extends StatelessWidget {
       case 'uploaded':  return Icons.upload_file_outlined;
       case 'shared':    return Icons.share_outlined;
       case 'closed':    return Icons.check_circle_outline_rounded;
-      case 'signed_in': return Icons.login_rounded;
+      case 'signed_in':  return Icons.login_rounded;
+      case 'signed_out': return Icons.logout_rounded;
       case 'created':   return Icons.add_circle_outline_rounded;
       default:          return Icons.edit_outlined;
     }
@@ -227,7 +228,8 @@ class _ActivityLogItem extends StatelessWidget {
       case 'uploaded':  return AppColors.accentBg;
       case 'shared':    return const Color(0xFFE8F0FB);
       case 'closed':    return const Color(0xFFDCFCE7);
-      case 'signed_in': return AppColors.bgSurface2;
+      case 'signed_in':  return AppColors.bgSurface2;
+      case 'signed_out': return AppColors.bgSurface2;
       case 'created':   return const Color(0xFFEAF3DE);
       default:          return const Color(0xFFE8F0FB);
     }
@@ -239,7 +241,8 @@ class _ActivityLogItem extends StatelessWidget {
       case 'uploaded':  return AppColors.accent;
       case 'shared':    return const Color(0xFF185FA5);
       case 'closed':    return AppColors.closedText;
-      case 'signed_in': return AppColors.textSecondary;
+      case 'signed_in':  return AppColors.textSecondary;
+      case 'signed_out': return AppColors.textSecondary;
       case 'created':   return const Color(0xFF3B6D11);
       default:          return const Color(0xFF185FA5);
     }
