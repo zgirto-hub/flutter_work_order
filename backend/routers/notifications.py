@@ -178,11 +178,22 @@ async def debug_work_order_notification_recipients(
     work_order_id: str,
     commenter_email: str = Query(""),
 ):
-    resolved = resolve_comment_recipients(work_order_id, commenter_email)
+    try:
+        resolved = resolve_comment_recipients(work_order_id, commenter_email)
+        recipients_raw = resolved.get("recipients", set())
+        recipients = sorted(list(recipients_raw)) if recipients_raw else []
+    except Exception as e:
+        return {
+            "work_order_id": work_order_id,
+            "job_no": "",
+            "title": "",
+            "recipients": [],
+            "debug": {"error": str(e)},
+        }
     return {
         "work_order_id": work_order_id,
         "job_no": resolved.get("job_no", ""),
         "title": resolved.get("title", ""),
-        "recipients": sorted(list(resolved.get("recipients", set()))),
+        "recipients": recipients,
         "debug": resolved.get("debug", {}),
     }

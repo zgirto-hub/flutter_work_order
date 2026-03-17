@@ -95,75 +95,84 @@ def _resolve_watcher_emails(work_order_id: str) -> Set[str]:
 
 
 def resolve_comment_recipients(work_order_id: str, commenter_email: str) -> dict:
-    commenter = _norm(commenter_email)
+    try:
+        commenter = _norm(commenter_email)
 
-    wo_res = supabase.table("work_orders") \
-        .select("id, job_no, title, request_id, created_by_email") \
-        .eq("id", work_order_id) \
-        .limit(1) \
-        .execute()
-    if not wo_res.data:
-        return {"job_no": "", "title": "", "recipients": set()}
+        wo_res = supabase.table("work_orders") \
+            .select("id, job_no, title, request_id, created_by_email") \
+            .eq("id", work_order_id) \
+            .limit(1) \
+            .execute()
+        if not wo_res.data:
+            return {"job_no": "", "title": "", "recipients": set(), "debug": {"error": "work_order_not_found"}}
 
-    wo = wo_res.data[0]
-    recipients: Set[str] = set()
-    sources = {
-        "creator": [],
-        "requester": [],
-        "assignees": [],
-        "watchers": [],
-    }
+        wo = wo_res.data[0]
+        recipients: Set[str] = set()
+        sources = {
+            "creator": [],
+            "requester": [],
+            "assignees": [],
+            "watchers": [],
+        }
 
-    creator_email = _norm(wo.get("created_by_email") or "")
-    if _is_valid(creator_email):
-        recipients.add(creator_email)
-        sources["creator"].append(creator_email)
+        creator_email = _norm(wo.get("created_by_email") or "")
+        if _is_valid(creator_email):
+            recipients.add(creator_email)
+            sources["creator"].append(creator_email)
 
-    request_id = wo.get("request_id")
-    if request_id:
+        request_id = wo.get("request_id")
+        if request_id:
+            try:
+                req_res = supabase.table("requests") \
+                    .select("created_by") \
+                    .eq("id", request_id) \
+                    .limit(1) \
+                    .execute()
+                if req_res.data:
+                    requester = _norm(req_res.data[0].get("created_by") or "")
+                    if _is_valid(requester):
+                        recipients.add(requester)
+                        sources["requester"].append(requester)
+            except Exception as e:
+                print(f"Notification recipient resolve (requester) failed: {e}")
+
         try:
-            req_res = supabase.table("requests") \
-                .select("created_by") \
-                .eq("id", request_id) \
-                .limit(1) \
-                .execute()
-            if req_res.data:
-                requester = _norm(req_res.data[0].get("created_by") or "")
-                if _is_valid(requester):
-                    recipients.add(requester)
-                    sources["requester"].append(requester)
+            assignees = _resolve_assigned_emails(work_order_id)
+            recipients |= assignees
+            sources["assignees"] = sorted(assignees)
         except Exception as e:
-            print(f"Notification recipient resolve (requester) failed: {e}")
+            print(f"Notification recipient resolve (assignees) failed: {e}")
 
-    try:
-        assignees = _resolve_assigned_emails(work_order_id)
-        recipients |= assignees
-        sources["assignees"] = sorted(assignees)
+        try:
+            watchers = _resolve_watcher_emails(work_order_id)
+            recipients |= watchers
+            sources["watchers"] = sorted(watchers)
+        except Exception as e:
+            print(f"Notification recipient resolve (watchers) failed: {e}")
+
+        before_exclusion = sorted(recipients)
+        if _is_valid(commenter):
+            recipients.discard(commenter)
+
+        return {
+            "job_no": wo.get("job_no") or "",
+            "title": wo.get("title") or "",
+            "recipients": recipients,
+            "debug": {
+                "sources": sources,
+                "before_exclusion": before_exclusion,
+                "commenter": commenter,
+                "after_exclusion": sorted(recipients),
+            },
+        }
     except Exception as e:
-        print(f"Notification recipient resolve (assignees) failed: {e}")
-
-    try:
-        watchers = _resolve_watcher_emails(work_order_id)
-        recipients |= watchers
-        sources["watchers"] = sorted(watchers)
-    except Exception as e:
-        print(f"Notification recipient resolve (watchers) failed: {e}")
-
-    before_exclusion = sorted(recipients)
-    if _is_valid(commenter):
-        recipients.discard(commenter)
-
-    return {
-        "job_no": wo.get("job_no") or "",
-        "title": wo.get("title") or "",
-        "recipients": recipients,
-        "debug": {
-            "sources": sources,
-            "before_exclusion": before_exclusion,
-            "commenter": commenter,
-            "after_exclusion": sorted(recipients),
-        },
-    }
+        print(f"Notification recipient resolve (fatal) failed: {e}")
+        return {
+            "job_no": "",
+            "title": "",
+            "recipients": set(),
+            "debug": {"error": str(e)},
+        }
 
 
 def _insert_notifications(
