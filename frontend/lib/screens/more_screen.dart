@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/claude_widgets.dart';
+import '../services/notification_service.dart';
 import '../screens/Documents/documents_screen.dart';
 import '../screens/reports/workorder_report_screen.dart';
 import '../screens/settings_page.dart';
 import '../screens/settings/activity_log_screen.dart';
+import '../screens/notifications_screen.dart';
 
-class MoreScreen extends StatelessWidget {
+class MoreScreen extends StatefulWidget {
   final ThemeController themeController;
   final String userRole;
 
@@ -16,6 +18,34 @@ class MoreScreen extends StatelessWidget {
     required this.themeController,
     required this.userRole,
   });
+
+  @override
+  State<MoreScreen> createState() => _MoreScreenState();
+}
+
+class _MoreScreenState extends State<MoreScreen> {
+  final _notificationService = NotificationService();
+  int _unreadCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    final count = await _notificationService.unreadCount();
+    if (!mounted) return;
+    setState(() => _unreadCount = count);
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+    );
+    await _loadUnreadCount();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,13 +64,57 @@ class MoreScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               child: Row(
                 children: [
-                  Text(
-                    'More',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.3,
+                  Expanded(
+                    child: Text(
+                      'More',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _openNotifications,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: AppColors.bgSurface2,
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(color: AppColors.border2, width: 0.5),
+                          ),
+                          child: Icon(
+                            Icons.notifications_outlined,
+                            size: 17,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        if (_unreadCount > 0)
+                          Positioned(
+                            top: -5,
+                            right: -5,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.accent,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                _unreadCount > 99 ? '99+' : '$_unreadCount',
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -78,8 +152,8 @@ class MoreScreen extends StatelessWidget {
                     SectionLabel(text: 'Account[1.0] & Settings'),
                     SizedBox(height: 8),
                     _SettingsTile(
-                      themeController: themeController,
-                      userRole: userRole,
+                      themeController: widget.themeController,
+                      userRole: widget.userRole,
                     ),
                   ],
                 ),
@@ -137,14 +211,13 @@ class MoreScreen extends StatelessWidget {
       ),
       _MoreItem(
         title: 'Notifications',
-        subtitle: 'Alerts & updates',
+        subtitle: _unreadCount > 0 ? '$_unreadCount unread' : 'Alerts & updates',
         icon: Icons.notifications_outlined,
         color: const Color(0xFFB45309),
         bgColor: const Color(0xFFFEF3C7),
-        onTap: () => _comingSoon(context, 'Notifications'),
-        comingSoon: true,
+        onTap: _openNotifications,
       ),
-      if (userRole == 'admin')
+      if (widget.userRole == 'admin')
         _MoreItem(
           title: 'Activity Log',
           subtitle: 'User actions',
@@ -163,11 +236,10 @@ class MoreScreen extends StatelessWidget {
 
   void _comingSoon(BuildContext context, String name) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('$name — coming soon'),
+      content: Text('$name - coming soon'),
       behavior: SnackBarBehavior.floating,
       backgroundColor: AppColors.textPrimary,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       duration: const Duration(seconds: 2),
     ));
   }

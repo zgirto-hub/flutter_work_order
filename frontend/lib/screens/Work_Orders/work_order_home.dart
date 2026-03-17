@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../models/app_notification.dart';
 import '../../models/work_order.dart';
+import '../../services/notification_service.dart';
 import '../../widgets/claude_widgets.dart';
 import '../../widgets/work_order_card.dart';
 import '../../services/work_order_service.dart';
@@ -16,14 +21,22 @@ class WorkOrderHome extends StatefulWidget {
   State<WorkOrderHome> createState() => _WorkOrderHomeState();
 }
 
-class _WorkOrderHomeState extends State<WorkOrderHome> {
+class _WorkOrderHomeState extends State<WorkOrderHome>
+    with WidgetsBindingObserver {
+  final NotificationService _notificationService = NotificationService();
   final FilterController _filter = FilterController();
   final WorkOrderService _service = WorkOrderService();
   final TextEditingController _searchCtrl = TextEditingController();
 
   List<WorkOrder> _workOrders = [];
+  List<AppNotification> _unreadNotifications = [];
+  Map<String, int> _unreadByWorkOrderId = {};
   int? _expandedIndex;
   bool _showSearch = false;
+  Timer? _notifPollTimer;
+  int _lastUnreadTotal = 0;
+  bool _soundPrimed = false;
+  bool _isForeground = true;
 
   bool _selectionMode = false;
   final Set<String> _selectedIds = {};
@@ -31,13 +44,77 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+    _startNotificationPolling();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _isForeground = state == AppLifecycleState.resumed;
   }
 
   Future<void> _load() async {
     final data = await _service.fetchWorkOrders();
+    await _refreshUnreadNotifications(playSoundIfIncreased: false);
     if (!mounted) return;
     setState(() => _workOrders = data);
+  }
+
+  Future<void> _refreshUnreadNotifications({
+    bool playSoundIfIncreased = true,
+  }) async {
+    final unread = await _notificationService.fetchNotifications(
+      unreadOnly: true,
+      limit: 200,
+    );
+
+    final byWorkOrder = <String, int>{};
+    for (final n in unread) {
+      final woId = (n.data['work_order_id'] ?? '').toString();
+      if (woId.isEmpty) continue;
+      byWorkOrder[woId] = (byWorkOrder[woId] ?? 0) + 1;
+    }
+
+    final total = unread.length;
+    if (_soundPrimed && playSoundIfIncreased && _isForeground && total > _lastUnreadTotal) {
+      try {
+        SystemSound.play(SystemSoundType.alert);
+      } catch (_) {}
+    }
+    _soundPrimed = true;
+    _lastUnreadTotal = total;
+
+    if (!mounted) return;
+    setState(() {
+      _unreadNotifications = unread;
+      _unreadByWorkOrderId = byWorkOrder;
+    });
+  }
+
+  void _startNotificationPolling() {
+    _notifPollTimer?.cancel();
+    _notifPollTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      _refreshUnreadNotifications();
+    });
+  }
+
+  Future<void> _markWorkOrderNotificationsRead(String workOrderId) async {
+    final ids = _unreadNotifications
+        .where((n) => (n.data['work_order_id'] ?? '').toString() == workOrderId)
+        .map((n) => n.id)
+        .toList();
+    if (ids.isEmpty) return;
+    await Future.wait(ids.map(_notificationService.markRead));
+    await _refreshUnreadNotifications(playSoundIfIncreased: false);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _notifPollTimer?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   void _enterSelectionMode(String id) {
@@ -358,6 +435,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
           final wo = items[i];
           return WorkOrderCard(
             workOrder: wo,
+            unreadActivityCount: _unreadByWorkOrderId[wo.id] ?? 0,
             expanded: !_selectionMode && _expandedIndex == i,
             selectionMode: _selectionMode,
             isSelected: _selectedIds.contains(wo.id),
@@ -373,6 +451,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
             },
             onActivity: () async {
               if (_selectionMode) return;
+              await _markWorkOrderNotificationsRead(wo.id);
+              if (!context.mounted) return;
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -382,6 +462,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
               );
               if (!mounted) return;
               if (result == 'updated' || result == 'deleted') await _load();
+              await _refreshUnreadNotifications(playSoundIfIncreased: false);
             },
             onEdit: () async {
               if (_selectionMode) return;
@@ -393,6 +474,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome> {
               );
               if (!mounted) return;
               if (result == 'updated' || result == 'deleted') await _load();
+              await _refreshUnreadNotifications(playSoundIfIncreased: false);
             },
           );
         },

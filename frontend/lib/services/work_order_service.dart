@@ -150,6 +150,19 @@ class WorkOrderService {
 
   // ── Comments ───────────────────────────────────────────────────────────────
 
+  Future<WorkOrder?> fetchWorkOrderById(String id) async {
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/work-orders/$id'),
+    );
+    if (res.statusCode != 200) {
+      return null;
+    }
+    final data = jsonDecode(res.body);
+    final wo = data['work_order'];
+    if (wo is! Map<String, dynamic>) return null;
+    return WorkOrder.fromJson(wo);
+  }
+
   Future<List<WorkOrderComment>> fetchComments(String workOrderId) async {
     final res = await http.get(
       Uri.parse('${AppConfig.baseUrl}/work-orders/$workOrderId/comments'),

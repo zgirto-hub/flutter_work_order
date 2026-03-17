@@ -6,6 +6,7 @@ import 'claude_widgets.dart';
 class WorkOrderCard extends StatefulWidget {
   final WorkOrder workOrder;
   final bool expanded;
+  final int unreadActivityCount;
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback? onActivity;
@@ -17,6 +18,7 @@ class WorkOrderCard extends StatefulWidget {
     super.key,
     required this.workOrder,
     required this.expanded,
+    this.unreadActivityCount = 0,
     required this.onTap,
     required this.onEdit,
     this.onActivity,
@@ -145,6 +147,10 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                             if (_isInspection) ...[
                               SizedBox(width: 6),
                               _InspectionBadge(),
+                            ],
+                            if (widget.unreadActivityCount > 0) ...[
+                              SizedBox(width: 6),
+                              _UnreadBadge(count: widget.unreadActivityCount),
                             ],
                             const Spacer(),
                             StatusBadge(status: widget.workOrder.status),
@@ -341,6 +347,10 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                                               fontSize: 12,
                                               color: AppColors.textSecondary,
                                               fontWeight: FontWeight.w500)),
+                                      if (widget.unreadActivityCount > 0) ...[
+                                        SizedBox(width: 6),
+                                        _UnreadBadge(count: widget.unreadActivityCount),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -382,6 +392,31 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UnreadBadge extends StatelessWidget {
+  final int count;
+  const _UnreadBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count > 99 ? '99+' : '$count';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppColors.accent,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

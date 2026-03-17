@@ -9,8 +9,12 @@ create table if not exists public.notification_preferences (
   comment_notifications boolean not null default true,
   status_notifications boolean not null default true,
   system_notifications boolean not null default true,
+  admin_all_workorder_comments boolean not null default false,
   updated_at timestamptz not null default now()
 );
+
+alter table if exists public.notification_preferences
+  add column if not exists admin_all_workorder_comments boolean not null default false;
 
 create or replace function public.set_notification_preferences_updated_at()
 returns trigger

@@ -12,6 +12,7 @@ DEFAULT_PREFS = {
     "comment_notifications": True,
     "status_notifications": True,
     "system_notifications": True,
+    "admin_all_workorder_comments": False,
 }
 
 
@@ -33,6 +34,29 @@ def _get_preferences(emails: List[str]) -> Dict[str, dict]:
         .execute()
     by_email = {_norm(r.get("user_email", "")): r for r in (res.data or [])}
     return by_email
+
+
+def _resolve_admin_opt_in_emails() -> Set[str]:
+    admins_res = supabase.table("user_profiles") \
+        .select("email") \
+        .eq("user_type", "admin") \
+        .execute()
+    admin_emails = {
+        _norm(r.get("email", "")) for r in (admins_res.data or [])
+        if _is_valid(_norm(r.get("email", "")))
+    }
+    if not admin_emails:
+        return set()
+
+    prefs_res = supabase.table("notification_preferences") \
+        .select("user_email") \
+        .eq("admin_all_workorder_comments", True) \
+        .in_("user_email", sorted(admin_emails)) \
+        .execute()
+    return {
+        _norm(r.get("user_email", "")) for r in (prefs_res.data or [])
+        if _is_valid(_norm(r.get("user_email", "")))
+    }
 
 
 def _prefs_allow(row: dict, event_type: str) -> bool:
@@ -255,7 +279,17 @@ def dispatch_work_order_comment_notification(
     author_name: str,
 ):
     resolved = resolve_comment_recipients(work_order_id, author_email)
-    recipients = sorted(resolved["recipients"])
+    recipients_set = set(resolved["recipients"])
+    try:
+        recipients_set |= _resolve_admin_opt_in_emails()
+    except Exception as e:
+        print(f"Notification recipient resolve (admin-opt-in) failed: {e}")
+
+    commenter = _norm(author_email)
+    if _is_valid(commenter):
+        recipients_set.discard(commenter)
+
+    recipients = sorted(recipients_set)
     if not recipients:
         return
 

@@ -16,6 +16,7 @@ DEFAULT_PREFS = {
     "comment_notifications": True,
     "status_notifications": True,
     "system_notifications": True,
+    "admin_all_workorder_comments": False,
 }
 
 
@@ -31,6 +32,7 @@ class NotificationPreferencesPatchBody(BaseModel):
     comment_notifications: Optional[bool] = None
     status_notifications: Optional[bool] = None
     system_notifications: Optional[bool] = None
+    admin_all_workorder_comments: Optional[bool] = None
 
 
 class WatcherBody(BaseModel):
@@ -65,6 +67,7 @@ async def patch_notification_preferences(body: NotificationPreferencesPatchBody)
         "comment_notifications",
         "status_notifications",
         "system_notifications",
+        "admin_all_workorder_comments",
     ):
         value = getattr(body, key)
         if value is not None:
