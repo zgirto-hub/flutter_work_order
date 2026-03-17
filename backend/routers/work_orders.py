@@ -5,6 +5,7 @@ from datetime import datetime
 
 from db import supabase
 from utils.activity import log_activity
+from utils.notification_service import dispatch_work_order_comment_notification
 
 router = APIRouter()
 
@@ -384,11 +385,25 @@ async def add_comment(work_order_id: str, body: AddCommentBody):
 
     record = {
         "work_order_id": work_order_id,
-        "author_email": body.author_email,
+        "author_email": body.author_email.strip().lower(),
         "author_name": body.author_name,
         "body": body.body,
         "type": body.type,
         "meta": body.meta,
     }
     result = supabase.table("work_order_comments").insert(record).execute()
-    return {"comment": result.data[0] if result.data else {}}
+    comment = result.data[0] if result.data else {}
+
+    if body.type == "comment" and comment.get("id"):
+        try:
+            dispatch_work_order_comment_notification(
+                work_order_id=work_order_id,
+                comment_id=str(comment.get("id")),
+                comment_text=body.body,
+                author_email=body.author_email,
+                author_name=body.author_name,
+            )
+        except Exception as e:
+            print(f"Notification dispatch failed: {e}")
+
+    return {"comment": comment}

@@ -69,10 +69,8 @@ class _MainScreenState extends State<MainScreen> {
     if (role != 'requester') {
       _refreshRequestCount();
       _startPolling();
-      OneSignalService.subscribe(email, role);
-    } else {
-      OneSignalService.unsubscribe();
     }
+    OneSignalService.subscribe(email, role);
   }
 
   Future<void> _refreshRequestCount() async {
