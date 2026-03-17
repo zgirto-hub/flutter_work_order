@@ -56,6 +56,28 @@ ALLOWED_TYPES = {"Technical", "Inspection", "Other"}
 ALLOWED_STATUSES = {"Pending", "In Progress", "Closed"}
 
 
+def _get_user_role(email: str) -> str:
+    normalized = email.strip().lower()
+    if not normalized:
+        return "admin"
+    result = supabase.table("user_profiles") \
+        .select("user_type") \
+        .eq("email", normalized) \
+        .limit(1) \
+        .execute()
+    if not result.data:
+        return "admin"
+    return (result.data[0].get("user_type") or "admin").strip().lower()
+
+
+def _ensure_not_requester(email: str):
+    if _get_user_role(email) == "requester":
+        raise HTTPException(
+            status_code=403,
+            detail="Requester is not allowed to modify or delete work orders",
+        )
+
+
 def _validate_type(type: str):
     if type not in ALLOWED_TYPES:
         raise HTTPException(
@@ -211,6 +233,7 @@ async def update_work_order(
     body: UpdateWorkOrderBody,
     user_email: str = Query(...),
 ):
+    _ensure_not_requester(user_email)
     _validate_type(body.type)
     _validate_status(body.status)
 
@@ -262,6 +285,7 @@ async def close_work_order(
     work_order_id: str,
     body: CloseWorkOrderBody,
 ):
+    _ensure_not_requester(body.closed_by)
     existing = supabase.table("work_orders") \
         .select("id, status, request_id") \
         .eq("id", work_order_id) \
@@ -310,6 +334,7 @@ async def delete_work_order(
     work_order_id: str,
     user_email: str = Query(...),
 ):
+    _ensure_not_requester(user_email)
     existing = supabase.table("work_orders") \
         .select("id") \
         .eq("id", work_order_id) \
@@ -329,6 +354,7 @@ async def delete_work_orders_bulk(
     ids: str = Query(..., description="Comma-separated work order IDs"),
     user_email: str = Query(...),
 ):
+    _ensure_not_requester(user_email)
     id_list = [i.strip() for i in ids.split(",") if i.strip()]
     if not id_list:
         raise HTTPException(status_code=400, detail="No IDs provided")
