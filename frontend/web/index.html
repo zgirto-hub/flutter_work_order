@@ -103,29 +103,44 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Work Order">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+  <link rel="alternate icon" type="image/png" href="favicon.png"/>
 
   <title>Work Order</title>
   <link rel="manifest" href="manifest.json">
 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #FAF9F7; }
 
+    :root {
+      --bg-color: #f6f4ef;
+      --highlight: #cd7f58;
+      --text-dark: #2e1d14;
+      --ticket-bg: #f6f2ea;
+      --border-color: #cfbeaf;
+    }
+
+    body { background: var(--bg-color); }
+
+    /* ── Screen ── */
     #loading-screen {
       position: fixed;
       inset: 0;
-      background: #FAF9F7;
+      background: var(--bg-color);
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
+      padding: 20px;
       z-index: 9999;
       opacity: 0;
-      animation: splash-enter 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.08s;
+      animation: splash-enter 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.08s;
       transition: opacity 0.4s ease;
     }
     #loading-screen.fade-out {
@@ -134,57 +149,102 @@
       pointer-events: none;
     }
     @keyframes splash-enter {
-      from { opacity: 0; transform: translateY(10px); }
+      from { opacity: 0; transform: translateY(16px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ── Logo container ── */
-    #loading-logo-wrap {
-      width: 80px;
-      height: 80px;
-      border-radius: 24px;
-      background: linear-gradient(135deg, #DA8C6A 0%, #AF5335 100%);
-      box-shadow: 0 10px 28px rgba(204, 120, 92, 0.38);
+    /* ── Ticket ── */
+    #ticket-wrap {
+      position: relative;
+      width: min(100%, 880px);
+      margin: 0 auto;
+      padding: 26px;
+      border-radius: 30px;
+      background: rgba(255, 255, 255, 0.55);
+    }
+    .ticket {
+      position: relative;
+      background: var(--ticket-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      box-shadow: 0 8px 22px rgba(76, 49, 31, 0.1);
+    }
+    .ticket-content {
+      padding: 20px 34px 18px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border-color);
+      margin: 12px;
+      gap: 18px;
+      position: relative;
+      border-radius: 8px;
+      background-image: radial-gradient(circle at 20% 25%, rgba(255,255,255,0.5), rgba(255,255,255,0) 42%), radial-gradient(circle at 80% 75%, rgba(255,255,255,0.4), rgba(255,255,255,0) 38%);
+    }
+    .ticket-edge {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+      font-weight: 800;
+      color: #8e6f5d;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .ticket-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .ticket-brand {
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 28px;
-      animation: logo-breathe 2.8s ease-in-out infinite 0.7s;
+      gap: 12px;
     }
-    @keyframes logo-breathe {
-      0%,100% { box-shadow: 0 10px 28px rgba(204,120,92,0.38); transform: scale(1); }
-      50%     { box-shadow: 0 16px 40px rgba(204,120,92,0.52); transform: scale(1.04); }
+    .logo { color: var(--highlight); font-size: clamp(44px, 8vw, 66px); margin-bottom: 0; line-height: 1; }
+    .ticket-title {
+      font-family: 'Inter', sans-serif;
+      font-size: clamp(40px, 7vw, 4.6rem);
+      font-weight: 800;
+      color: var(--text-dark);
+      margin: 0;
+      letter-spacing: -1.2px;
     }
-
-    /* ── Text ── */
-    #loading-title {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-      font-size: 20px;
-      font-weight: 600;
-      color: #1A1915;
-      letter-spacing: -0.4px;
-      margin-bottom: 6px;
+    .ticket-subtitle {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: clamp(22px, 3.1vw, 2.5rem);
+      color: #7a5744;
+      margin-top: 2px;
     }
-    #loading-subtitle {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-      font-size: 13px;
-      color: #9A9990;
-      letter-spacing: 0.1px;
-      margin-bottom: 52px;
+    .ticket-icon { font-size: clamp(42px, 7vw, 62px); text-align: center; line-height: 1; }
+    .side-label {
+      position: absolute;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      letter-spacing: 2px;
+      font-weight: 800;
+      color: #8e6f5d;
+      top: 50%;
+      text-transform: uppercase;
+      white-space: nowrap;
     }
+    .side-label.left  { left: -48px;  transform: translateY(-50%) rotate(-90deg); }
+    .side-label.right { right: -48px; transform: translateY(-50%) rotate(90deg); }
 
     /* ── Progress bar ── */
     #loading-track {
-      width: 140px;
-      height: 2.5px;
-      background: #E8E7E0;
+      width: min(320px, 65%);
+      margin: 4px auto 2px;
+      height: 3px;
+      background: #d6c4b5;
       border-radius: 2px;
       overflow: hidden;
     }
     #loading-fill {
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, #CC785C, #DA8C6A);
+      background: linear-gradient(90deg, #d79a79, #c97f59);
       border-radius: 2px;
       animation: loading-auto 9s ease-out forwards;
     }
@@ -199,30 +259,41 @@
       60%  { width: 75%; }
       100% { width: 88%; }
     }
+
+    @media (max-width: 680px) {
+      #ticket-wrap { padding: 10px; }
+      .ticket-content { padding: 14px 14px 12px; gap: 10px; }
+      .ticket-edge { font-size: 0.62rem; letter-spacing: 1.3px; }
+      .side-label { display: none; }
+      #loading-track { width: min(300px, 86%); }
+    }
   </style>
 </head>
 <body>
   <div id="loading-screen">
+    <div id="ticket-wrap">
+      <div class="ticket">
+        <div class="ticket-content">
+          <div class="ticket-edge top">Please wait &nbsp;•&nbsp; now loading: WORK ORDER SYSTEM</div>
 
-    <!-- Logo: gradient container + triskelion mark (matches login screen) -->
-    <div id="loading-logo-wrap">
-      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <g transform="translate(24,24)" fill="white" opacity="0.92">
-          <!-- pill 0° -->
-          <rect x="-4.92" y="-17.52" width="9.84" height="22.08" rx="4.94"/>
-          <!-- pill 120° -->
-          <rect x="-4.92" y="-17.52" width="9.84" height="22.08" rx="4.94" transform="rotate(120)"/>
-          <!-- pill 240° -->
-          <rect x="-4.92" y="-17.52" width="9.84" height="22.08" rx="4.94" transform="rotate(240)"/>
-        </g>
-      </svg>
-    </div>
+          <div class="ticket-center">
+            <div class="ticket-brand">
+              <div class="logo">✱</div>
+              <h2 class="ticket-title">Work Order</h2>
+            </div>
+            <p class="ticket-subtitle">Immediate workflow access</p>
+          </div>
 
-    <div id="loading-title">Work Order</div>
-    <div id="loading-subtitle">Please wait…</div>
+          <div class="ticket-icon">💼</div>
 
-    <div id="loading-track">
-      <div id="loading-fill"></div>
+          <div id="loading-track"><div id="loading-fill"></div></div>
+
+          <div class="ticket-edge bottom">Please wait &nbsp;•&nbsp; now Loading: WORK ORDER SYSTEM</div>
+
+          <div class="side-label left">0000001 · CLICK HERE</div>
+          <div class="side-label right">CLICK HERE · 0000001</div>
+        </div>
+      </div>
     </div>
 
   </div>

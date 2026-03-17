@@ -28,10 +28,12 @@ class WorkOrderService {
   Future<List<WorkOrder>> fetchWorkOrders({
     String? status,
     String? type,
+    String? requestId,
   }) async {
     final params = <String, String>{};
     if (status != null) params['status'] = status;
     if (type != null) params['type'] = type;
+    if (requestId != null) params['request_id'] = requestId;
 
     final uri = Uri.parse('${AppConfig.baseUrl}/work-orders')
         .replace(queryParameters: params.isNotEmpty ? params : null);

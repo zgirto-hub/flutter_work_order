@@ -9,6 +9,7 @@ import '../../config.dart';
 import 'add_request_screen.dart';
 import '../Work_Orders/add_work_order.dart';
 import '../../models/work_order.dart';
+import '../../services/work_order_service.dart';
 
 class RequestDetailScreen extends StatefulWidget {
   final RequestModel request;
@@ -26,9 +27,11 @@ class RequestDetailScreen extends StatefulWidget {
 
 class _RequestDetailScreenState extends State<RequestDetailScreen> {
   final _service = RequestService();
+  final _woService = WorkOrderService();
   bool _closing = false;
   List<Map<String, dynamic>> _attachments = [];
   String _deletingAttachmentId = '';
+  String? _linkedByEmail;
 
   String get _email =>
       Supabase.instance.client.auth.currentUser?.email ?? '';
@@ -37,6 +40,16 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   void initState() {
     super.initState();
     _loadAttachments();
+    _loadLinkedWorkOrder();
+  }
+
+  Future<void> _loadLinkedWorkOrder() async {
+    try {
+      final results = await _woService.fetchWorkOrders(requestId: widget.request.id);
+      if (mounted && results.isNotEmpty) {
+        setState(() => _linkedByEmail = results.first.createdByEmail ?? results.first.createdBy ?? 'someone');
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadAttachments() async {
@@ -434,15 +447,23 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: _convertToWorkOrder,
-                          icon: Icon(Icons.assignment_add, size: 16),
+                          onPressed: _linkedByEmail != null ? null : _convertToWorkOrder,
+                          icon: Icon(
+                            _linkedByEmail != null ? Icons.engineering_outlined : Icons.assignment_add,
+                            size: 16,
+                          ),
                           label: Text(
-                            'Convert to Work Order',
+                            _linkedByEmail != null
+                                ? 'Working on it by ${_linkedByEmail!.split('@').first}'
+                                : 'Convert to Work Order',
                             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                           ),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.accent,
-                            side: BorderSide(color: AppColors.accent, width: 0.5),
+                            foregroundColor: _linkedByEmail != null ? AppColors.textTertiary : AppColors.accent,
+                            side: BorderSide(
+                              color: _linkedByEmail != null ? AppColors.border : AppColors.accent,
+                              width: 0.5,
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10)),

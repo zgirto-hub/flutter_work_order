@@ -109,6 +109,7 @@ def _sync_assignments(work_order_id: str, employee_ids: List[str]):
 async def list_work_orders(
     status: Optional[str] = Query(None),
     type: Optional[str] = Query(None),
+    request_id: Optional[str] = Query(None),
 ):
     query = supabase.table("work_orders").select("""
         *,
@@ -125,6 +126,8 @@ async def list_work_orders(
         query = query.eq("status", status)
     if type:
         query = query.eq("type", type)
+    if request_id:
+        query = query.eq("request_id", request_id)
 
     result = query.execute()
     return {"work_orders": result.data or []}

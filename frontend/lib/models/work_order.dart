@@ -12,6 +12,7 @@ class WorkOrder {
   final String? closedAt;
   final String id;
   final String? createdBy;
+  final String? createdByEmail;
   final List<EmployeeAssignment> assignedEmployees;
 
   const WorkOrder({
@@ -26,6 +27,7 @@ class WorkOrder {
     required this.dateModified,
     this.closedAt,
     this.createdBy,
+    this.createdByEmail,
     this.assignedEmployees = const [],
   });
 
@@ -42,6 +44,7 @@ class WorkOrder {
       dateModified: json['updated_at']?.toString() ?? '',
       closedAt: json['closed_at']?.toString(),
       createdBy: json['created_by'],
+      createdByEmail: json['created_by_email'] as String?,
       assignedEmployees: (json['work_order_assignments'] as List<dynamic>?)
               ?.map((assignment) => EmployeeAssignment.fromJson(assignment))
               .where((emp) => emp.id.isNotEmpty)

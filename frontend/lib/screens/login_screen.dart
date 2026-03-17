@@ -174,9 +174,9 @@ class _LoginScreenState extends State<LoginScreen>
                       child: Column(
                         children: [
                           const Center(child: _AppLogo()),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 20),
                           Center(child: Text('Work Order', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -0.4))),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 5),
                           Center(child: Text('Sign in to your account', style: TextStyle(fontSize: 13, color: AppColors.textSecondary))),
                         ],
                       ),
@@ -319,8 +319,8 @@ class _InputLabel extends StatelessWidget {
 }
 
 // ── App Logo ───────────────────────────────────────────────────────────────────
-// Claude.ai-inspired: warm terracotta gradient container with a triskelion mark
-// (3 rounded pills at 120° intervals — the same compositional logic Claude uses).
+// Claude.ai-inspired: warm terracotta gradient rounded square with a
+// triskelion mark (3 rounded pills at 120° intervals).
 
 class _AppLogo extends StatelessWidget {
   const _AppLogo();
@@ -365,20 +365,20 @@ class _LogoMarkPainter extends CustomPainter {
     canvas.save();
     canvas.translate(w / 2, h / 2);
 
-    // 3 rounded pills at 120° intervals — Claude.ai-inspired triskelion mark
     for (int i = 0; i < 3; i++) {
       canvas.save();
       canvas.rotate(i * (2 * pi / 3));
-
-      final rr = RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(0, -(h * 0.135)),
-          width: w * 0.205,
-          height: h * 0.46,
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: Offset(0, -(h * 0.135)),
+            width: w * 0.205,
+            height: h * 0.46,
+          ),
+          Radius.circular(w * 0.103),
         ),
-        Radius.circular(w * 0.103),
+        paint,
       );
-      canvas.drawRRect(rr, paint);
       canvas.restore();
     }
 
