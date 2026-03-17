@@ -7,6 +7,7 @@ import uuid
 
 from db import supabase
 from utils.notifications import send_push_notification
+from utils.activity import log_activity
 
 UPLOAD_DIR = "uploaded_files"
 
@@ -77,6 +78,8 @@ async def create_request(body: CreateRequestBody):
         title="New Request",
         body=f"{body.requester_name}: {body.title}",
     )
+    log_activity(body.created_by, "request", "created",
+        target_label=body.title, target_id=request_id or "")
     return {"status": "created", "id": request_id}
 
 
@@ -92,6 +95,8 @@ async def delete_request(request_id: str, email: str = Query(...)):
     if row["created_by"] != email:
         raise HTTPException(status_code=403, detail="Not allowed to delete this request")
     supabase.table("requests").delete().eq("id", request_id).execute()
+    log_activity(email, "request", "deleted",
+        target_label=request_id, target_id=request_id)
     return {"status": "deleted"}
 
 
@@ -133,6 +138,8 @@ async def close_request(request_id: str, body: CloseRequestBody):
         "closed_at": datetime.utcnow().isoformat(),
         "tech_notes": body.tech_notes,
     }).eq("id", request_id).execute()
+    log_activity(body.closed_by, "request", "closed",
+        target_label=request_id, target_id=request_id)
     return {"status": "closed"}
 
 

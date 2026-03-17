@@ -13,6 +13,7 @@ import '../widgets/claude_widgets.dart';
 import '../widgets/change_password_dialog.dart';
 import '../config.dart';
 import '../services/onesignal_service.dart';
+import 'settings/activity_log_screen.dart';
 
 
 class SettingsPage extends StatefulWidget {
@@ -551,6 +552,23 @@ class _SettingsPageState extends State<SettingsPage> {
                     subtitle: 'Add a tech or requester user',
                     showDivider: false,
                     onTap: () => _showCreateAccountDialog(context),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SectionLabel(text: 'System'),
+                SurfaceCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: SettingsRow(
+                    icon: Icons.history_rounded,
+                    label: 'Activity log',
+                    subtitle: 'View all user actions',
+                    showDivider: false,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ActivityLogScreen(),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),

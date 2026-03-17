@@ -4,6 +4,7 @@ from typing import Optional
 
 from db import supabase
 from utils.permissions import can
+from utils.activity import log_activity
 
 router = APIRouter()
 
@@ -64,6 +65,8 @@ async def create_folder(body: CreateFolderBody):
     result = supabase.table("document_folders").insert(data).execute()
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create folder")
+    log_activity(body.created_by, "folder", "created",
+        target_label=body.name, target_id=result.data[0]["id"])
     return {"folder": result.data[0]}
 
 
@@ -82,6 +85,8 @@ async def rename_folder(folder_id: str, body: RenameFolderBody, user_email: str 
         .update({"name": body.name.strip()}) \
         .eq("id", folder_id) \
         .execute()
+    log_activity(user_email, "folder", "updated",
+        target_label=body.name, target_id=folder_id, detail="renamed")
     return {"status": "renamed"}
 
 
@@ -102,6 +107,8 @@ async def delete_folder(folder_id: str, user_email: str = Query(...)):
         .eq("folder_id", folder_id) \
         .execute()
     supabase.table("document_folders").delete().eq("id", folder_id).execute()
+    log_activity(user_email, "folder", "deleted",
+        target_label=folder_id, target_id=folder_id)
     return {"status": "deleted"}
 
 

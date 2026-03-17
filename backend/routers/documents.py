@@ -6,6 +6,7 @@ import uuid
 from db import supabase
 from utils.text_extraction import extract_text
 from utils.permissions import can
+from utils.activity import log_activity
 
 router = APIRouter()
 
@@ -50,6 +51,9 @@ async def upload_file(
 
     supabase.table("documents").insert(record).execute()
 
+    log_activity(uploaded_by, "document", "uploaded",
+        target_label=title, target_id=file_id, detail=document_type)
+
     return {"status": "success", "file_url": public_url}
 
 
@@ -80,6 +84,8 @@ async def delete_document(doc_id: str, user_email: str = Query(...)):
             os.remove(absolute_path)
 
     supabase.table("documents").delete().eq("id", doc_id).execute()
+    log_activity(user_email, "document", "deleted",
+        target_label=doc.get("title", ""), target_id=doc_id)
     # Also clean up any permissions for this document
     supabase.table("resource_permissions") \
         .delete() \
@@ -124,6 +130,10 @@ async def share_document(
         "role": role,
         "granted_by": owner_email,
     }, on_conflict="resource_id,resource_type,user_email").execute()
+
+    log_activity(owner_email, "document", "shared",
+        target_label=document_id, target_id=document_id,
+        detail=f"with {share_with} as {role}")
 
     return {"status": "document shared", "role": role}
 

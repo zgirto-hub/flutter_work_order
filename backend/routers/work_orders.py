@@ -4,6 +4,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from db import supabase
+from utils.activity import log_activity
 
 router = APIRouter()
 
@@ -180,6 +181,10 @@ async def create_work_order(body: CreateWorkOrderBody):
     except Exception:
         pass
 
+    log_activity(body.created_by_email or body.created_by, "work_order", "created",
+        target_label=body.title, target_id=work_order_id,
+        detail=body.job_no)
+
     return {"work_order": _fetch_full_work_order(work_order_id)}
 
 
@@ -228,6 +233,10 @@ async def update_work_order(
         except Exception:
             pass
 
+    log_activity(user_email, "work_order", "updated",
+        target_label=body.title, target_id=work_order_id,
+        detail=f"status: {body.status}")
+
     return {"work_order": _fetch_full_work_order(work_order_id)}
 
 
@@ -273,6 +282,9 @@ async def close_work_order(
                 "tech_notes": body.tech_notes,
             }).eq("id", request_id).execute()
 
+    log_activity(body.closed_by, "work_order", "closed",
+        target_label=work_order_id, target_id=work_order_id)
+
     return {"status": "closed"}
 
 
@@ -290,6 +302,8 @@ async def delete_work_order(
 
     # Assignments deleted by DB cascade
     supabase.table("work_orders").delete().eq("id", work_order_id).execute()
+    log_activity(user_email, "work_order", "deleted",
+        target_label=work_order_id, target_id=work_order_id)
     return {"status": "deleted"}
 
 

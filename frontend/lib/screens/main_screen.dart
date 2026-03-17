@@ -18,6 +18,7 @@ import '../screens/more_screen.dart';
 import '../config.dart';
 import '../services/request_service.dart';
 import '../services/onesignal_service.dart';
+import '../services/activity_log_service.dart';
 import '../screens/settings_page.dart';
 
 
@@ -61,6 +62,10 @@ class _MainScreenState extends State<MainScreen> {
       _index = 0;
       _roleLoaded = true;
     });
+    try {
+      await ActivityLogService().logSignIn(email);
+    } catch (_) {}
+
     if (role != 'requester') {
       _refreshRequestCount();
       _startPolling();
