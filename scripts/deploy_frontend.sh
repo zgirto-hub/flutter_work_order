@@ -69,8 +69,8 @@ ssh $SERVER "mkdir -p $NEW_RELEASE"
 echo "Uploading build..."
 scp -r build/web/* $SERVER:$NEW_RELEASE/
 
-echo "Uploading version.json..."
-scp "$SCRIPT_DIR/../backend/version.json" $SERVER:/home/zorin/Development/flutter_work_order/backend/version.json
+# Keep server git working tree clean: do not scp tracked repo files
+# (for example backend/version.json) into /home/zorin/Development/flutter_work_order.
 
 echo "Switching to new release..."
 ssh $SERVER "ln -sfn $NEW_RELEASE $CURRENT_LINK"
