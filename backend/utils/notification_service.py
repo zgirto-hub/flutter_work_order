@@ -107,10 +107,17 @@ def resolve_comment_recipients(work_order_id: str, commenter_email: str) -> dict
 
     wo = wo_res.data[0]
     recipients: Set[str] = set()
+    sources = {
+        "creator": [],
+        "requester": [],
+        "assignees": [],
+        "watchers": [],
+    }
 
     creator_email = _norm(wo.get("created_by_email") or "")
     if _is_valid(creator_email):
         recipients.add(creator_email)
+        sources["creator"].append(creator_email)
 
     request_id = wo.get("request_id")
     if request_id:
@@ -124,19 +131,25 @@ def resolve_comment_recipients(work_order_id: str, commenter_email: str) -> dict
                 requester = _norm(req_res.data[0].get("created_by") or "")
                 if _is_valid(requester):
                     recipients.add(requester)
+                    sources["requester"].append(requester)
         except Exception as e:
             print(f"Notification recipient resolve (requester) failed: {e}")
 
     try:
-        recipients |= _resolve_assigned_emails(work_order_id)
+        assignees = _resolve_assigned_emails(work_order_id)
+        recipients |= assignees
+        sources["assignees"] = sorted(assignees)
     except Exception as e:
         print(f"Notification recipient resolve (assignees) failed: {e}")
 
     try:
-        recipients |= _resolve_watcher_emails(work_order_id)
+        watchers = _resolve_watcher_emails(work_order_id)
+        recipients |= watchers
+        sources["watchers"] = sorted(watchers)
     except Exception as e:
         print(f"Notification recipient resolve (watchers) failed: {e}")
 
+    before_exclusion = sorted(recipients)
     if _is_valid(commenter):
         recipients.discard(commenter)
 
@@ -144,6 +157,12 @@ def resolve_comment_recipients(work_order_id: str, commenter_email: str) -> dict
         "job_no": wo.get("job_no") or "",
         "title": wo.get("title") or "",
         "recipients": recipients,
+        "debug": {
+            "sources": sources,
+            "before_exclusion": before_exclusion,
+            "commenter": commenter,
+            "after_exclusion": sorted(recipients),
+        },
     }
 
 

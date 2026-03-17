@@ -4,6 +4,7 @@ from typing import Optional
 from datetime import datetime
 
 from db import supabase
+from utils.notification_service import resolve_comment_recipients
 
 router = APIRouter()
 
@@ -170,3 +171,18 @@ async def mark_all_notifications_read(email: str = Query(...)):
         .is_("read_at", "null") \
         .execute()
     return {"status": "read_all"}
+
+
+@router.get("/work-orders/{work_order_id}/notification-debug")
+async def debug_work_order_notification_recipients(
+    work_order_id: str,
+    commenter_email: str = Query(""),
+):
+    resolved = resolve_comment_recipients(work_order_id, commenter_email)
+    return {
+        "work_order_id": work_order_id,
+        "job_no": resolved.get("job_no", ""),
+        "title": resolved.get("title", ""),
+        "recipients": sorted(list(resolved.get("recipients", set()))),
+        "debug": resolved.get("debug", {}),
+    }
