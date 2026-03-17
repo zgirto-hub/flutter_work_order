@@ -5,6 +5,7 @@ import '../widgets/claude_widgets.dart';
 import '../screens/Documents/documents_screen.dart';
 import '../screens/reports/workorder_report_screen.dart';
 import '../screens/settings_page.dart';
+import '../screens/settings/activity_log_screen.dart';
 
 class MoreScreen extends StatelessWidget {
   final ThemeController themeController;
@@ -150,8 +151,10 @@ class MoreScreen extends StatelessWidget {
           icon: Icons.history_rounded,
           color: const Color(0xFF6B6860),
           bgColor: const Color(0xFFF5F4F0),
-          onTap: () => _comingSoon(context, 'Activity Log'),
-          comingSoon: true,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ActivityLogScreen()),
+          ),
         ),
     ];
 
