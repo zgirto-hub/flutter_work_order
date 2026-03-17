@@ -88,9 +88,10 @@ class RequestService {
   Future<void> deleteRequest({
     required String id,
     required String email,
+    String userRole = '',
   }) async {
     final res = await http.delete(
-      Uri.parse('${AppConfig.baseUrl}/requests/$id?email=${Uri.encodeComponent(email)}'),
+      Uri.parse('${AppConfig.baseUrl}/requests/$id?email=${Uri.encodeComponent(email)}&user_role=${Uri.encodeComponent(userRole)}'),
     );
     if (res.statusCode != 200) {
       throw Exception(jsonDecode(res.body)['detail'] ?? 'Failed to delete request');

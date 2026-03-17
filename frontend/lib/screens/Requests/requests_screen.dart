@@ -115,8 +115,43 @@ class _RequestsScreenState extends State<RequestsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       for (final id in ids) {
-        await _service.deleteRequest(id: id, email: _email);
+        await _service.deleteRequest(id: id, email: _email, userRole: widget.userRole);
       }
+      await _load();
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+      if (mounted) await _load();
+    }
+  }
+
+  Future<void> _deleteSingleRequest(RequestModel req) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        title: const Text('Delete Request', style: TextStyle(color: AppColors.textPrimary)),
+        content: const Text(
+          'Are you sure you want to delete this request?',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Delete', style: TextStyle(color: Colors.red.shade400)),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirm || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _service.deleteRequest(id: req.id, email: _email, userRole: widget.userRole);
       await _load();
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
@@ -250,72 +285,12 @@ class _RequestsScreenState extends State<RequestsScreen> {
                                 );
                               }
 
-                              // Requester: swipe to delete + long press for multi-select
-                              return Dismissible(
-                                key: ValueKey(req.id),
-                                direction: DismissDirection.endToStart,
-                                background: Container(
-                                  alignment: Alignment.centerRight,
-                                  padding: const EdgeInsets.only(right: 20),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.shade700,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.white,
-                                    size: 26,
-                                  ),
-                                ),
-                                confirmDismiss: (_) async {
-                                  return await showDialog<bool>(
-                                    context: context,
-                                    builder: (ctx) => AlertDialog(
-                                      backgroundColor: AppColors.bgSurface,
-                                      title: const Text(
-                                        'Delete Request',
-                                        style: TextStyle(color: AppColors.textPrimary),
-                                      ),
-                                      content: const Text(
-                                        'Are you sure you want to delete this request?',
-                                        style: TextStyle(color: AppColors.textSecondary),
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(ctx, false),
-                                          child: const Text('Cancel'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(ctx, true),
-                                          child: Text(
-                                            'Delete',
-                                            style: TextStyle(color: Colors.red.shade400),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ) ?? false;
-                                },
-                                onDismissed: (_) async {
-                                  final messenger = ScaffoldMessenger.of(context);
-                                  try {
-                                    await _service.deleteRequest(
-                                      id: req.id,
-                                      email: _email,
-                                    );
-                                    await _load();
-                                  } catch (e) {
-                                    messenger.showSnackBar(
-                                      SnackBar(content: Text('Failed to delete: $e')),
-                                    );
-                                    if (mounted) await _load();
-                                  }
-                                },
-                                child: _RequestCard(
-                                  request: req,
-                                  onTap: () => _openDetail(req),
-                                  onLongPress: () => _enterSelectionMode(req.id),
-                                ),
+                              // Requester: swipe to reveal delete + long press for multi-select
+                              return _SwipeRevealCard(
+                                onTap: () => _openDetail(req),
+                                onLongPress: () => _enterSelectionMode(req.id),
+                                onDelete: () => _deleteSingleRequest(req),
+                                child: _RequestCard(request: req),
                               );
                             },
                           ),
@@ -366,19 +341,119 @@ class _SelectionBar extends StatelessWidget {
   }
 }
 
+// ── Swipe Reveal Card ─────────────────────────────────────────────────────────
+
+class _SwipeRevealCard extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final VoidCallback onDelete;
+
+  const _SwipeRevealCard({
+    required this.child,
+    this.onTap,
+    this.onLongPress,
+    required this.onDelete,
+  });
+
+  @override
+  State<_SwipeRevealCard> createState() => _SwipeRevealCardState();
+}
+
+class _SwipeRevealCardState extends State<_SwipeRevealCard>
+    with SingleTickerProviderStateMixin {
+  static const double _actionWidth = 72.0;
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  bool get _isOpen => _ctrl.value > 0.3;
+
+  void _close() => _ctrl.animateTo(0, curve: Curves.easeOut);
+  void _open() => _ctrl.animateTo(1, curve: Curves.easeOut);
+
+  void _handleDragUpdate(DragUpdateDetails d) {
+    _ctrl.value = (_ctrl.value - d.delta.dx / _actionWidth).clamp(0.0, 1.0);
+  }
+
+  void _handleDragEnd(DragEndDetails d) {
+    if (_ctrl.value > 0.5 || (d.primaryVelocity ?? 0) < -300) {
+      _open();
+    } else {
+      _close();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _isOpen ? _close() : widget.onTap?.call(),
+      onLongPress: () { if (!_isOpen) widget.onLongPress?.call(); },
+      onHorizontalDragUpdate: _handleDragUpdate,
+      onHorizontalDragEnd: _handleDragEnd,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedBuilder(
+          animation: _ctrl,
+          builder: (_, child) => Stack(
+            children: [
+              Positioned.fill(
+                child: Container(
+                  color: AppColors.bgPrimary,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 10),
+                  child: GestureDetector(
+                    onTap: () { _close(); widget.onDelete(); },
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade600,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Transform.translate(
+                offset: Offset(-_ctrl.value * _actionWidth, 0),
+                child: child,
+              ),
+            ],
+          ),
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
 // ── Request Card ──────────────────────────────────────────────────────────────
 
 class _RequestCard extends StatelessWidget {
   final RequestModel request;
-  final VoidCallback onTap;
-  final VoidCallback? onLongPress;
+  final VoidCallback? onTap;
   final bool selectionMode;
   final bool isSelected;
 
   const _RequestCard({
     required this.request,
-    required this.onTap,
-    this.onLongPress,
+    this.onTap,
     this.selectionMode = false,
     this.isSelected = false,
   });
@@ -387,7 +462,6 @@ class _RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      onLongPress: onLongPress,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -411,7 +485,7 @@ class _RequestCard extends StatelessWidget {
                       height: 18,
                       child: Checkbox(
                         value: isSelected,
-                        onChanged: (_) => onTap(),
+                        onChanged: (_) => onTap?.call(),
                         activeColor: AppColors.accent,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         visualDensity: VisualDensity.compact,

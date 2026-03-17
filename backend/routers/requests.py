@@ -84,7 +84,7 @@ async def create_request(body: CreateRequestBody):
 
 
 @router.delete("/requests/{request_id}")
-async def delete_request(request_id: str, email: str = Query(...)):
+async def delete_request(request_id: str, email: str = Query(...), user_role: str = Query(default="")):
     result = supabase.table("requests") \
         .select("created_by") \
         .eq("id", request_id) \
@@ -92,7 +92,7 @@ async def delete_request(request_id: str, email: str = Query(...)):
     if not result.data:
         raise HTTPException(status_code=404, detail="Request not found")
     row = result.data[0]
-    if row["created_by"] != email:
+    if user_role != "admin" and row["created_by"] != email:
         raise HTTPException(status_code=403, detail="Not allowed to delete this request")
     supabase.table("requests").delete().eq("id", request_id).execute()
     log_activity(email, "request", "deleted",

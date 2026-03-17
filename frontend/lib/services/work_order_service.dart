@@ -48,7 +48,7 @@ class WorkOrderService {
 
   // ── Add work order ─────────────────────────────────────────────────────────
 
-  Future<WorkOrder> addWorkOrder(WorkOrder workOrder) async {
+  Future<WorkOrder> addWorkOrder(WorkOrder workOrder, {String? sourceRequestId}) async {
     final res = await http.post(
       Uri.parse('${AppConfig.baseUrl}/work-orders'),
       headers: {'Content-Type': 'application/json'},
@@ -63,6 +63,7 @@ class WorkOrderService {
         'created_by_email': _email,
         'assigned_employee_ids':
             workOrder.assignedEmployees.map((e) => e.id).toList(),
+        'source_request_id': sourceRequestId,
       }),
     );
 

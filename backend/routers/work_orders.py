@@ -22,6 +22,7 @@ class CreateWorkOrderBody(BaseModel):
     created_by: str
     created_by_email: Optional[str] = ""
     assigned_employee_ids: Optional[List[str]] = []
+    source_request_id: Optional[str] = None
 
 
 class UpdateWorkOrderBody(BaseModel):
@@ -151,6 +152,7 @@ async def create_work_order(body: CreateWorkOrderBody):
             "type": body.type,
             "status": body.status,
             "created_by": body.created_by,
+            "request_id": body.source_request_id,
         }).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB insert failed: {e}")
