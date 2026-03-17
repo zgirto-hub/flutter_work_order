@@ -86,6 +86,24 @@ def _resolve_assigned_emails(work_order_id: str) -> Set[str]:
     return out
 
 
+def _resolve_user_id_to_email(user_id: str) -> str:
+    uid = (user_id or "").strip()
+    if not uid:
+        return ""
+    if "@" in uid:
+        return _norm(uid)
+    try:
+        user_resp = supabase.auth.admin.get_user_by_id(uid)
+        user_obj = getattr(user_resp, "user", None)
+        if user_obj is None and isinstance(user_resp, dict):
+            user_obj = user_resp.get("user")
+        if isinstance(user_obj, dict):
+            return _norm(user_obj.get("email") or "")
+        return _norm(getattr(user_obj, "email", "") or "")
+    except Exception:
+        return ""
+
+
 def _resolve_watcher_emails(work_order_id: str) -> Set[str]:
     res = supabase.table("work_order_watchers") \
         .select("user_email") \
@@ -99,7 +117,7 @@ def resolve_comment_recipients(work_order_id: str, commenter_email: str) -> dict
         commenter = _norm(commenter_email)
 
         wo_res = supabase.table("work_orders") \
-            .select("id, job_no, title, request_id, created_by_email") \
+            .select("id, job_no, title, request_id, created_by") \
             .eq("id", work_order_id) \
             .limit(1) \
             .execute()
@@ -115,7 +133,7 @@ def resolve_comment_recipients(work_order_id: str, commenter_email: str) -> dict
             "watchers": [],
         }
 
-        creator_email = _norm(wo.get("created_by_email") or "")
+        creator_email = _resolve_user_id_to_email(wo.get("created_by") or "")
         if _is_valid(creator_email):
             recipients.add(creator_email)
             sources["creator"].append(creator_email)
