@@ -114,18 +114,28 @@ def resolve_comment_recipients(work_order_id: str, commenter_email: str) -> dict
 
     request_id = wo.get("request_id")
     if request_id:
-        req_res = supabase.table("requests") \
-            .select("created_by") \
-            .eq("id", request_id) \
-            .limit(1) \
-            .execute()
-        if req_res.data:
-            requester = _norm(req_res.data[0].get("created_by") or "")
-            if _is_valid(requester):
-                recipients.add(requester)
+        try:
+            req_res = supabase.table("requests") \
+                .select("created_by") \
+                .eq("id", request_id) \
+                .limit(1) \
+                .execute()
+            if req_res.data:
+                requester = _norm(req_res.data[0].get("created_by") or "")
+                if _is_valid(requester):
+                    recipients.add(requester)
+        except Exception as e:
+            print(f"Notification recipient resolve (requester) failed: {e}")
 
-    recipients |= _resolve_assigned_emails(work_order_id)
-    recipients |= _resolve_watcher_emails(work_order_id)
+    try:
+        recipients |= _resolve_assigned_emails(work_order_id)
+    except Exception as e:
+        print(f"Notification recipient resolve (assignees) failed: {e}")
+
+    try:
+        recipients |= _resolve_watcher_emails(work_order_id)
+    except Exception as e:
+        print(f"Notification recipient resolve (watchers) failed: {e}")
 
     if _is_valid(commenter):
         recipients.discard(commenter)
@@ -231,18 +241,23 @@ def dispatch_work_order_comment_notification(
         "job_no": resolved.get("job_no") or "",
     }
 
-    inserted = _insert_notifications(
-        recipients=in_app_recipients,
-        kind="work_order_comment",
-        title=title,
-        body=body,
-        source_type="work_order_comment",
-        source_id=comment_id,
-        data=payload,
-    )
-    notification_id_by_email = {
-        _norm(r.get("user_email") or ""): r.get("id") for r in inserted
-    }
+    notification_id_by_email = {}
+    if in_app_recipients:
+        try:
+            inserted = _insert_notifications(
+                recipients=in_app_recipients,
+                kind="work_order_comment",
+                title=title,
+                body=body,
+                source_type="work_order_comment",
+                source_id=comment_id,
+                data=payload,
+            )
+            notification_id_by_email = {
+                _norm(r.get("user_email") or ""): r.get("id") for r in inserted
+            }
+        except Exception as e:
+            print(f"Notification insert failed: {e}")
 
     if push_recipients:
         push_result = send_push_to_external_ids(
