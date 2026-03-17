@@ -146,6 +146,18 @@ async def create_work_order(body: CreateWorkOrderBody):
     _validate_type(body.type)
     _validate_status(body.status)
 
+    if body.source_request_id:
+        existing = supabase.table("work_orders") \
+            .select("id") \
+            .eq("request_id", body.source_request_id) \
+            .limit(1) \
+            .execute()
+        if existing.data:
+            raise HTTPException(
+                status_code=409,
+                detail="Request already linked to a work order",
+            )
+
     try:
         supabase.table("work_orders").insert({
             "job_no": body.job_no,
