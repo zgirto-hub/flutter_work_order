@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/request_model.dart';
+import '../../models/work_order.dart';
 import '../../services/request_service.dart';
+import '../../services/work_order_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/claude_widgets.dart';
+import '../Work_Orders/add_work_order.dart';
 import 'add_request_screen.dart';
 import 'request_detail_screen.dart';
 
@@ -18,9 +21,12 @@ class RequestsScreen extends StatefulWidget {
 
 class _RequestsScreenState extends State<RequestsScreen> {
   final _service = RequestService();
+  final _woService = WorkOrderService();
   List<RequestModel> _requests = [];
+  Map<String, WorkOrder> _linkedByRequestId = {};
   String _statusFilter = 'All';
   bool _loading = true;
+  String? _expandedRequestId;
 
   // Selection mode (requester only)
   bool _selectionMode = false;
@@ -46,9 +52,22 @@ class _RequestsScreenState extends State<RequestsScreen> {
       email: _email,
       userRole: widget.userRole,
     );
+    final workOrders = await _woService.fetchWorkOrders();
+    final linked = <String, WorkOrder>{};
+    for (final wo in workOrders) {
+      final reqId = wo.requestId;
+      if (reqId != null && reqId.isNotEmpty) {
+        linked[reqId] = wo;
+      }
+    }
     if (!mounted) return;
     setState(() {
       _requests = data;
+      _linkedByRequestId = linked;
+      if (_expandedRequestId != null &&
+          !_requests.any((r) => r.id == _expandedRequestId)) {
+        _expandedRequestId = null;
+      }
       _loading = false;
     });
     widget.onChanged?.call();
@@ -62,6 +81,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
   void _enterSelectionMode(String id) {
     setState(() {
       _selectionMode = true;
+      _expandedRequestId = null;
       _selectedIds.add(id);
     });
   }
@@ -81,6 +101,12 @@ class _RequestsScreenState extends State<RequestsScreen> {
     setState(() {
       _selectionMode = false;
       _selectedIds.clear();
+    });
+  }
+
+  void _toggleExpanded(String requestId) {
+    setState(() {
+      _expandedRequestId = _expandedRequestId == requestId ? null : requestId;
     });
   }
 
@@ -180,6 +206,19 @@ class _RequestsScreenState extends State<RequestsScreen> {
     if (updated == true) await _load();
   }
 
+  Future<void> _openLinkedActivity(WorkOrder workOrder) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddWorkOrderScreen(workOrder: workOrder, initialTab: 1),
+      ),
+    );
+    if (!mounted) return;
+    if (result == 'updated' || result == 'deleted') {
+      await _load();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -266,11 +305,15 @@ class _RequestsScreenState extends State<RequestsScreen> {
                             separatorBuilder: (_, __) => SizedBox(height: 8),
                             itemBuilder: (_, i) {
                               final req = _filtered[i];
+                              final linkedWorkOrder = _linkedByRequestId[req.id];
+                              final expanded = !_selectionMode && _expandedRequestId == req.id;
 
                               // Selection mode: show checkboxes, no swipe
                               if (_selectionMode) {
                                 return _RequestCard(
                                   request: req,
+                                  expanded: expanded,
+                                  linkedWorkOrder: linkedWorkOrder,
                                   selectionMode: true,
                                   isSelected: _selectedIds.contains(req.id),
                                   onTap: () => _toggleSelection(req.id),
@@ -281,16 +324,30 @@ class _RequestsScreenState extends State<RequestsScreen> {
                               if (!_canDelete) {
                                 return _RequestCard(
                                   request: req,
-                                  onTap: () => _openDetail(req),
+                                  expanded: expanded,
+                                  linkedWorkOrder: linkedWorkOrder,
+                                  onTap: () => _toggleExpanded(req.id),
+                                  onDetails: () => _openDetail(req),
+                                  onActivity: linkedWorkOrder != null
+                                      ? () => _openLinkedActivity(linkedWorkOrder)
+                                      : null,
                                 );
                               }
 
                               // Requester: swipe to reveal delete + long press for multi-select
                               return _SwipeRevealCard(
-                                onTap: () => _openDetail(req),
+                                onTap: () => _toggleExpanded(req.id),
                                 onLongPress: () => _enterSelectionMode(req.id),
                                 onDelete: () => _deleteSingleRequest(req),
-                                child: _RequestCard(request: req),
+                                child: _RequestCard(
+                                  request: req,
+                                  expanded: expanded,
+                                  linkedWorkOrder: linkedWorkOrder,
+                                  onDetails: () => _openDetail(req),
+                                  onActivity: linkedWorkOrder != null
+                                      ? () => _openLinkedActivity(linkedWorkOrder)
+                                      : null,
+                                ),
                               );
                             },
                           ),
@@ -448,12 +505,20 @@ class _SwipeRevealCardState extends State<_SwipeRevealCard>
 class _RequestCard extends StatelessWidget {
   final RequestModel request;
   final VoidCallback? onTap;
+  final VoidCallback? onDetails;
+  final VoidCallback? onActivity;
+  final WorkOrder? linkedWorkOrder;
+  final bool expanded;
   final bool selectionMode;
   final bool isSelected;
 
   const _RequestCard({
     required this.request,
     this.onTap,
+    this.onDetails,
+    this.onActivity,
+    this.linkedWorkOrder,
+    this.expanded = false,
     this.selectionMode = false,
     this.isSelected = false,
   });
@@ -468,7 +533,9 @@ class _RequestCard extends StatelessWidget {
           color: isSelected ? AppColors.accentBg : AppColors.bgSurface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppColors.accent : AppColors.border,
+            color: isSelected
+                ? AppColors.accent
+                : (expanded ? AppColors.border2 : AppColors.border),
             width: isSelected ? 1.5 : 0.5,
           ),
         ),
@@ -506,6 +573,16 @@ class _RequestCard extends StatelessWidget {
                 ),
                 SizedBox(width: 8),
                 _StatusBadge(status: request.status),
+                if (!selectionMode) ...[
+                  SizedBox(width: 6),
+                  Icon(
+                    expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 18,
+                    color: AppColors.textTertiary,
+                  ),
+                ],
               ],
             ),
 
@@ -559,6 +636,77 @@ class _RequestCard extends StatelessWidget {
                 ),
               ],
             ),
+
+            if (!selectionMode)
+              AnimatedCrossFade(
+                firstChild: const SizedBox.shrink(),
+                secondChild: Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (linkedWorkOrder != null && onActivity != null)
+                        GestureDetector(
+                          onTap: onActivity,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSurface2,
+                              borderRadius: BorderRadius.circular(9),
+                              border: Border.all(color: AppColors.border2, width: 0.5),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.history_rounded, size: 13, color: AppColors.textSecondary),
+                                SizedBox(width: 5),
+                                Text(
+                                  'Activity',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (linkedWorkOrder != null && onActivity != null)
+                        SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: onDetails,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: AppColors.bgSurface2,
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(color: AppColors.border2, width: 0.5),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.open_in_new_rounded, size: 13, color: AppColors.textSecondary),
+                              SizedBox(width: 5),
+                              Text(
+                                'Details',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                crossFadeState:
+                    expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                duration: const Duration(milliseconds: 190),
+              ),
           ],
         ),
       ),
