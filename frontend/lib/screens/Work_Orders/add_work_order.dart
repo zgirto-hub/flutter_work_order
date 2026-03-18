@@ -558,87 +558,82 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
     return SafeArea(
       top: false,
-      child: AnimatedPadding(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-        child: Container(
-          color: AppColors.bgSurface,
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // Avatar
-              Container(
-                width: 28,
-                height: 28,
+      child: Container(
+        color: AppColors.bgSurface,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            // Avatar
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.accentBg,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(abbr,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.accent)),
+              ),
+            ),
+            SizedBox(width: 10),
+            // Input
+            Expanded(
+              child: Container(
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
-                  color: AppColors.accentBg,
+                  color: AppColors.bgSurface2,
+                  borderRadius: BorderRadius.circular(20),
+                  border:
+                      Border.all(color: AppColors.border, width: 0.5),
+                ),
+                child: TextField(
+                  controller: _commentCtrl,
+                  maxLines: null,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  style: TextStyle(
+                      fontSize: 13, color: AppColors.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: 'Add a comment…',
+                    hintStyle: TextStyle(
+                        fontSize: 13, color: AppColors.textTertiary),
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: 10),
+            // Send button
+            GestureDetector(
+              onTap: _sending ? null : _sendComment,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
                   shape: BoxShape.circle,
                 ),
-                child: Center(
-                  child: Text(abbr,
-                      style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.accent)),
-                ),
+                child: _sending
+                    ? Padding(
+                        padding: EdgeInsets.all(10),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 1.5, color: Colors.white),
+                      )
+                    : Icon(Icons.send_rounded,
+                        size: 18, color: Colors.white),
               ),
-              SizedBox(width: 8),
-              // Input
-              Expanded(
-                child: Container(
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: AppColors.bgSurface2,
-                    borderRadius: BorderRadius.circular(20),
-                    border:
-                        Border.all(color: AppColors.border, width: 0.5),
-                  ),
-                  child: TextField(
-                    controller: _commentCtrl,
-                    maxLines: null,
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    style: TextStyle(
-                        fontSize: 13, color: AppColors.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: 'Add a comment…',
-                      hintStyle: TextStyle(
-                          fontSize: 13, color: AppColors.textTertiary),
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: 8),
-              // Send button
-              GestureDetector(
-                onTap: _sending ? null : _sendComment,
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: AppColors.accent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: _sending
-                      ? Padding(
-                          padding: EdgeInsets.all(9),
-                          child: CircularProgressIndicator(
-                              strokeWidth: 1.5, color: Colors.white),
-                        )
-                      : Icon(Icons.send_rounded,
-                          size: 15, color: Colors.white),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
