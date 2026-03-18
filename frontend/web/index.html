@@ -377,22 +377,78 @@
   </script>
 
   <script>
+    // Keyframes for loading dots animation
+    (function() {
+      var style = document.createElement('style');
+      style.textContent = [
+        '@keyframes pwa-dot-bounce {',
+        '  0%, 100% { opacity: 0.25; transform: scale(1); }',
+        '  50% { opacity: 1; transform: scale(1.2); }',
+        '}',
+      ].join('\n');
+      document.head.appendChild(style);
+    })();
+
     // Called by Flutter's "Update now" button.
     // Unregisters Flutter service workers and reloads once.
     window.applyPWAUpdate = async function() {
       var overlay = document.createElement('div');
-      overlay.style.position = 'fixed';
-      overlay.style.inset = '0';
-      overlay.style.background = 'rgba(246, 244, 239, 0.92)';
-      overlay.style.display = 'flex';
-      overlay.style.alignItems = 'center';
-      overlay.style.justifyContent = 'center';
-      overlay.style.fontFamily = "'Inter', sans-serif";
-      overlay.style.fontSize = '15px';
-      overlay.style.fontWeight = '600';
-      overlay.style.color = '#2e1d14';
-      overlay.style.zIndex = '10000';
-      overlay.textContent = 'Applying update...';
+      overlay.style.cssText = [
+        'position: fixed;',
+        'inset: 0;',
+        'background: rgba(246, 244, 239, 0.92);',
+        'display: flex;',
+        'flex-direction: column;',
+        'align-items: center;',
+        'justify-content: center;',
+        'z-index: 10000;',
+      ].join(' ');
+
+      // Container for dots and text
+      var container = document.createElement('div');
+      container.style.cssText = [
+        'display: flex;',
+        'flex-direction: column;',
+        'align-items: center;',
+        'gap: 16px;',
+      ].join(' ');
+
+      // Dots container
+      var dotsContainer = document.createElement('div');
+      dotsContainer.style.cssText = [
+        'display: flex;',
+        'align-items: center;',
+        'gap: 8px;',
+      ].join(' ');
+
+      // Create 3 animated dots with staggered delays
+      for (var i = 0; i < 3; i++) {
+        var dot = document.createElement('div');
+        dot.style.cssText = [
+          'width: 8px;',
+          'height: 8px;',
+          'border-radius: 50%;',
+          'background: #CC785C;',
+          'animation: pwa-dot-bounce 1.2s ease-in-out infinite;',
+          'animation-delay: ' + (i * 0.4) + 's;',
+        ].join(' ');
+        dotsContainer.appendChild(dot);
+      }
+
+      // Text with percentage
+      var text = document.createElement('div');
+      text.style.cssText = [
+        'font-family: Inter, sans-serif;',
+        'font-size: 14px;',
+        'font-weight: 500;',
+        'color: #2e1d14;',
+        'letter-spacing: -0.01em;',
+      ].join(' ');
+      text.textContent = 'Applying update\u2026 0%';
+
+      container.appendChild(dotsContainer);
+      container.appendChild(text);
+      overlay.appendChild(container);
       document.body.appendChild(overlay);
 
       try {
@@ -408,10 +464,12 @@
           await Promise.all(flutterRegistrations.map(function(reg) {
             return reg.unregister();
           }));
+          text.textContent = 'Applying update\u2026 50%';
         }
       } catch (_) {
         // Fall through to reload.
       }
+      text.textContent = 'Applying update\u2026 100%';
       const finalTs = Date.now();
       const finalUrl = new URL(window.location.href);
       finalUrl.searchParams.set('refresh', String(finalTs));
