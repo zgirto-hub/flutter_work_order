@@ -612,7 +612,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: SettingsRow(
                   icon: Icons.system_update_outlined,
                   label: 'Check for updates',
-                  subtitle: version.isNotEmpty ? 'v$version' : null,
+                  subtitle: version.isNotEmpty ? 'v$version (Build $buildNumber)' : null,
                   showDivider: false,
                   onTap: checkingUpdate ? null : _checkUpdates,
                   trailing: checkingUpdate
