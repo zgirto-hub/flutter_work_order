@@ -56,3 +56,10 @@ __pycache__/
 # Flutter
 frontend/build/
 frontend/.dart_tool/
+
+# Auto-generated plugin registrants (platform-specific, regenerated on flutter pub get)
+**/linux/flutter/generated_plugin_registrant.cc
+**/linux/flutter/generated_plugins.cmake
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+**/windows/flutter/generated_plugin_registrant.cc
+**/windows/flutter/generated_plugins.cmake
