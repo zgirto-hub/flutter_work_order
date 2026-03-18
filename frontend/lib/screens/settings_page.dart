@@ -16,20 +16,19 @@ import '../services/onesignal_service.dart';
 import '../services/activity_log_service.dart';
 import 'settings/activity_log_screen.dart';
 
-
 class SettingsPage extends StatefulWidget {
   final ThemeController themeController;
   final String userRole;
   const SettingsPage(
-      {super.key,
-      required this.themeController,
-      this.userRole = 'admin'});
+      {super.key, required this.themeController, this.userRole = 'admin'});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  static const String _currentReleaseId =
+      String.fromEnvironment('RELEASE_ID', defaultValue: '');
   String version = '';
   String buildNumber = '';
   String updateMessage = '';
@@ -70,7 +69,8 @@ class _SettingsPageState extends State<SettingsPage> {
       );
       if (res.statusCode != 200 || !mounted) return;
       final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final prefs = (data['preferences'] as Map?)?.cast<String, dynamic>() ?? {};
+      final prefs =
+          (data['preferences'] as Map?)?.cast<String, dynamic>() ?? {};
       setState(() {
         _adminAllWorkOrderComments =
             prefs['admin_all_workorder_comments'] as bool? ?? false;
@@ -118,12 +118,40 @@ class _SettingsPageState extends State<SettingsPage> {
       ActivityLogService().logUpdateCheck(email);
     }
     try {
-      final res =
-          await http.get(Uri.parse('${AppConfig.baseUrl}/version'));
+      if (kIsWeb) {
+        final releaseRes = await http.get(
+          Uri.parse(
+            '${Uri.base.origin}/release.json?ts=${DateTime.now().millisecondsSinceEpoch}',
+          ),
+        );
+        if (releaseRes.statusCode == 200) {
+          final data = jsonDecode(releaseRes.body) as Map<String, dynamic>;
+          final latest = (data['version'] as String?)?.trim() ?? '';
+          final latestReleaseId = (data['release_id'] as String?)?.trim() ?? '';
+          final hasUpdate =
+              latestReleaseId.isNotEmpty && _currentReleaseId.isNotEmpty
+                  ? latestReleaseId != _currentReleaseId
+                  : latest.isNotEmpty && latest != version.split('+')[0];
+          setState(() {
+            updateAvailable = hasUpdate;
+            updateMessage = hasUpdate
+                ? 'Update available: ${latest.isNotEmpty ? latest : 'new release'}'
+                : 'You are on the latest version';
+          });
+          setState(() => checkingUpdate = false);
+          return;
+        }
+      }
+
+      final res = await http.get(Uri.parse('${AppConfig.baseUrl}/version'));
       if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final latest = data['version'] as String;
-        final hasUpdate = latest != version.split('+')[0];
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final latest = (data['version'] as String?)?.trim() ?? '';
+        final latestReleaseId = (data['release_id'] as String?)?.trim() ?? '';
+        final hasUpdate =
+            latestReleaseId.isNotEmpty && _currentReleaseId.isNotEmpty
+                ? latestReleaseId != _currentReleaseId
+                : latest != version.split('+')[0];
         setState(() {
           updateAvailable = hasUpdate;
           updateMessage = hasUpdate
@@ -155,11 +183,10 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
           backgroundColor: AppColors.bgSurface,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           title: Text('Create Account',
-              style: TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w600)),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,21 +201,19 @@ class _SettingsPageState extends State<SettingsPage> {
                 decoration: BoxDecoration(
                   color: AppColors.bgSurface2,
                   borderRadius: BorderRadius.circular(10),
-                  border:
-                      Border.all(color: AppColors.border, width: 0.5),
+                  border: Border.all(color: AppColors.border, width: 0.5),
                 ),
                 child: TextField(
                   controller: emailCtrl,
                   keyboardType: TextInputType.emailAddress,
-                  style: TextStyle(
-                      fontSize: 13, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'user@company.com',
-                    hintStyle: TextStyle(
-                        fontSize: 13, color: AppColors.textTertiary),
+                    hintStyle:
+                        TextStyle(fontSize: 13, color: AppColors.textTertiary),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   ),
                 ),
               ),
@@ -203,21 +228,19 @@ class _SettingsPageState extends State<SettingsPage> {
                 decoration: BoxDecoration(
                   color: AppColors.bgSurface2,
                   borderRadius: BorderRadius.circular(10),
-                  border:
-                      Border.all(color: AppColors.border, width: 0.5),
+                  border: Border.all(color: AppColors.border, width: 0.5),
                 ),
                 child: TextField(
                   controller: passCtrl,
                   obscureText: true,
-                  style: TextStyle(
-                      fontSize: 13, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
                   decoration: InputDecoration(
                     hintText: '••••••••',
-                    hintStyle: TextStyle(
-                        fontSize: 13, color: AppColors.textTertiary),
+                    hintStyle:
+                        TextStyle(fontSize: 13, color: AppColors.textTertiary),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   ),
                 ),
               ),
@@ -233,14 +256,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   final isSel = selectedRole == role;
                   return Expanded(
                     child: GestureDetector(
-                      onTap: () =>
-                          setDlg(() => selectedRole = role),
+                      onTap: () => setDlg(() => selectedRole = role),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
-                        margin: EdgeInsets.only(
-                            right: role == 'requester' ? 6 : 0),
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 10),
+                        margin:
+                            EdgeInsets.only(right: role == 'requester' ? 6 : 0),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           color: isSel
                               ? AppColors.textPrimary
@@ -287,11 +308,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       setDlg(() => loading = true);
                       try {
                         final res = await http.post(
-                          Uri.parse(
-                              '${AppConfig.baseUrl}/admin/create-user'),
-                          headers: {
-                            'Content-Type': 'application/json'
-                          },
+                          Uri.parse('${AppConfig.baseUrl}/admin/create-user'),
+                          headers: {'Content-Type': 'application/json'},
                           body: jsonEncode({
                             'email': email,
                             'password': password,
@@ -301,28 +319,24 @@ class _SettingsPageState extends State<SettingsPage> {
                         if (!ctx.mounted) return;
                         if (res.statusCode == 200) {
                           Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(
-                            content:
-                                Text('Account created for $email'),
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('Account created for $email'),
                             backgroundColor: AppColors.closedText,
                             behavior: SnackBarBehavior.floating,
                           ));
                         } else {
                           final body = jsonDecode(res.body);
                           setDlg(() => loading = false);
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(
-                            content: Text(body['detail'] ??
-                                'Failed to create account'),
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(
+                                body['detail'] ?? 'Failed to create account'),
                             backgroundColor: AppColors.dangerText,
                             behavior: SnackBarBehavior.floating,
                           ));
                         }
                       } catch (e) {
                         setDlg(() => loading = false);
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                           content: Text('Error: $e'),
                           backgroundColor: AppColors.dangerText,
                           behavior: SnackBarBehavior.floating,
@@ -343,8 +357,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: CircularProgressIndicator(
                           strokeWidth: 1.5, color: Colors.white),
                     )
-                  : Text('Create',
-                      style: TextStyle(fontSize: 13)),
+                  : Text('Create', style: TextStyle(fontSize: 13)),
             ),
           ],
         ),
@@ -357,14 +370,11 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: Text('Sign out',
-            style:
-                TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         content: Text('Are you sure you want to sign out?',
-            style: TextStyle(
-                fontSize: 13, color: AppColors.textSecondary)),
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -411,13 +421,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
                       child: Container(
-                        width: 34, height: 34,
+                        width: 34,
+                        height: 34,
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
                           color: AppColors.bgSurface2,
                           borderRadius: BorderRadius.circular(9),
-                          border: Border.all(
-                              color: AppColors.border2, width: 0.5),
+                          border:
+                              Border.all(color: AppColors.border2, width: 0.5),
                         ),
                         child: Icon(Icons.arrow_back_rounded,
                             size: 16, color: AppColors.textSecondary),
@@ -432,7 +443,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
               SizedBox(height: 16),
-
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -440,8 +450,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     borderRadius: BorderRadius.circular(14)),
                 child: Row(
                   children: [
-                    InitialsAvatar(
-                        name: nameInitials, size: 42, large: true),
+                    InitialsAvatar(name: nameInitials, size: 42, large: true),
                     SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -455,17 +464,14 @@ class _SettingsPageState extends State<SettingsPage> {
                           SizedBox(height: 2),
                           Text(email,
                               style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textTertiary)),
+                                  fontSize: 11, color: AppColors.textTertiary)),
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-
               SizedBox(height: 12),
-
               SectionLabel(text: 'Account'),
               SurfaceCard(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -478,9 +484,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       builder: (_) => const ChangePasswordDialog()),
                 ),
               ),
-
               SizedBox(height: 12),
-
               SectionLabel(text: 'Appearance'),
               SurfaceCard(
                 padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
@@ -504,8 +508,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               widget.themeController.changeColor(c);
                             },
                             child: AnimatedContainer(
-                              duration:
-                                  const Duration(milliseconds: 150),
+                              duration: const Duration(milliseconds: 150),
                               width: isSel ? 22 : 18,
                               height: isSel ? 22 : 18,
                               margin: const EdgeInsets.only(left: 6),
@@ -514,11 +517,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                 shape: BoxShape.circle,
                                 border: isSel
                                     ? Border.all(
-                                        color: AppColors.textPrimary,
-                                        width: 2)
+                                        color: AppColors.textPrimary, width: 2)
                                     : Border.all(
-                                        color: AppColors.border2,
-                                        width: 0.5),
+                                        color: AppColors.border2, width: 0.5),
                               ),
                               child: isSel
                                   ? Icon(Icons.check_rounded,
@@ -529,10 +530,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         }).toList(),
                       ),
                     ),
-                    Divider(
-                        height: 0,
-                        thickness: 0.5,
-                        color: AppColors.border),
+                    Divider(height: 0, thickness: 0.5, color: AppColors.border),
                     _FontSizeRow(
                       currentScale: currentScale,
                       scales: _fontScales,
@@ -540,10 +538,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       onChanged: (scale) =>
                           widget.themeController.setFontScale(scale),
                     ),
-                    Divider(
-                        height: 0,
-                        thickness: 0.5,
-                        color: AppColors.border),
+                    Divider(height: 0, thickness: 0.5, color: AppColors.border),
                     _FontTypeRow(
                       currentFamily: widget.themeController.fontFamily,
                       onChanged: (family) =>
@@ -552,9 +547,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ],
                 ),
               ),
-
               SizedBox(height: 12),
-
               SectionLabel(text: 'Notifications'),
               SurfaceCard(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -628,7 +621,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               SizedBox(height: 12),
-
               if (widget.userRole == 'admin') ...[
                 SectionLabel(text: 'User Management'),
                 SurfaceCard(
@@ -660,7 +652,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 SizedBox(height: 12),
               ],
-
               SectionLabel(text: 'Application'),
               SurfaceCard(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -675,13 +666,11 @@ class _SettingsPageState extends State<SettingsPage> {
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              color: AppColors.textTertiary))
+                              strokeWidth: 1.5, color: AppColors.textTertiary))
                       : Icon(Icons.chevron_right_rounded,
                           size: 16, color: AppColors.textTertiary),
                 ),
               ),
-
               if (updateMessage.isNotEmpty) ...[
                 SizedBox(height: 8),
                 Padding(
@@ -690,8 +679,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     children: [
                       Text(updateMessage,
                           style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textTertiary)),
+                              fontSize: 12, color: AppColors.textTertiary)),
                       if (updateAvailable) ...[
                         SizedBox(width: 10),
                         GestureDetector(
@@ -707,30 +695,25 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
               ],
-
               SizedBox(height: 20),
-
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: _signOut,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.dangerText,
-                    side: BorderSide(
-                        color: AppColors.dangerBorder, width: 0.5),
+                    side: BorderSide(color: AppColors.dangerBorder, width: 0.5),
                     backgroundColor: AppColors.dangerBg,
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),
                   child: Text('Sign out',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w500)),
+                      style:
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                 ),
               ),
-
               SizedBox(height: 24),
-
               Center(
                 child: Column(
                   children: [
@@ -743,13 +726,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     if (version.isNotEmpty)
                       Text('Version $version · Build $buildNumber',
                           style: TextStyle(
-                              fontSize: 10,
-                              color: AppColors.textTertiary)),
+                              fontSize: 10, color: AppColors.textTertiary)),
                     SizedBox(height: 2),
                     Text('Developed by Salah · 2026',
                         style: TextStyle(
-                            fontSize: 10,
-                            color: AppColors.textTertiary)),
+                            fontSize: 10, color: AppColors.textTertiary)),
                   ],
                 ),
               ),
@@ -770,9 +751,9 @@ class _DarkModeRow extends StatelessWidget {
   const _DarkModeRow({required this.mode, required this.onChanged});
 
   static const _options = [
-    (ThemeMode.light,  Icons.wb_sunny_rounded,       'Light'),
+    (ThemeMode.light, Icons.wb_sunny_rounded, 'Light'),
     (ThemeMode.system, Icons.brightness_auto_rounded, 'System'),
-    (ThemeMode.dark,   Icons.nightlight_round,        'Dark'),
+    (ThemeMode.dark, Icons.nightlight_round, 'Dark'),
   ];
 
   @override
@@ -824,9 +805,11 @@ class _DarkModeRow extends StatelessWidget {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     curve: Curves.easeOutCubic,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.bgSurface : Colors.transparent,
+                      color:
+                          isSelected ? AppColors.bgSurface : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: isSelected
                           ? [
@@ -853,9 +836,8 @@ class _DarkModeRow extends StatelessWidget {
                           label,
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.w400,
                             color: isSelected
                                 ? AppColors.textPrimary
                                 : AppColors.textTertiary,
@@ -880,21 +862,16 @@ class _FontTypeRow extends StatelessWidget {
   final String currentFamily;
   final ValueChanged<String> onChanged;
 
-  const _FontTypeRow(
-      {required this.currentFamily, required this.onChanged});
+  const _FontTypeRow({required this.currentFamily, required this.onChanged});
 
   static TextStyle _previewStyle(String family) {
     return switch (family) {
-      'Roboto' =>
-        GoogleFonts.roboto(fontSize: 13, fontWeight: FontWeight.w500),
+      'Roboto' => GoogleFonts.roboto(fontSize: 13, fontWeight: FontWeight.w500),
       'Poppins' =>
         GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500),
-      'Lato' =>
-        GoogleFonts.lato(fontSize: 13, fontWeight: FontWeight.w500),
-      'Nunito' =>
-        GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w500),
-      _ =>
-        GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+      'Lato' => GoogleFonts.lato(fontSize: 13, fontWeight: FontWeight.w500),
+      'Nunito' => GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w500),
+      _ => GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
     };
   }
 
@@ -925,8 +902,7 @@ class _FontTypeRow extends StatelessWidget {
                         color: AppColors.textPrimary)),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                     color: AppColors.accentBg,
                     borderRadius: BorderRadius.circular(10)),
@@ -948,26 +924,21 @@ class _FontTypeRow extends StatelessWidget {
                 onTap: () => onChanged(family),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.accent
-                        : AppColors.bgSurface2,
+                    color: isSelected ? AppColors.accent : AppColors.bgSurface2,
                     borderRadius: BorderRadius.circular(9),
                     border: Border.all(
-                      color: isSelected
-                          ? AppColors.accent
-                          : AppColors.border2,
+                      color: isSelected ? AppColors.accent : AppColors.border2,
                       width: 0.5,
                     ),
                   ),
                   child: Text(
                     family,
                     style: _previewStyle(family).copyWith(
-                      color: isSelected
-                          ? Colors.white
-                          : AppColors.textSecondary,
+                      color:
+                          isSelected ? Colors.white : AppColors.textSecondary,
                     ),
                   ),
                 ),
@@ -1022,15 +993,13 @@ class _FontSizeRow extends StatelessWidget {
                         color: AppColors.textPrimary)),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                     color: AppColors.accentBg,
                     borderRadius: BorderRadius.circular(10)),
                 child: Text(
                   labels[scales
-                      .indexWhere(
-                          (s) => (s - currentScale).abs() < 0.01)
+                      .indexWhere((s) => (s - currentScale).abs() < 0.01)
                       .clamp(0, labels.length - 1)],
                   style: TextStyle(
                       fontSize: 11,
@@ -1043,26 +1012,22 @@ class _FontSizeRow extends StatelessWidget {
           SizedBox(height: 10),
           Row(
             children: List.generate(scales.length, (i) {
-              final isSelected =
-                  (currentScale - scales[i]).abs() < 0.01;
+              final isSelected = (currentScale - scales[i]).abs() < 0.01;
               return Expanded(
                 child: GestureDetector(
                   onTap: () => onChanged(scales[i]),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    margin: EdgeInsets.only(
-                        right: i < scales.length - 1 ? 6 : 0),
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 9),
+                    margin:
+                        EdgeInsets.only(right: i < scales.length - 1 ? 6 : 0),
+                    padding: const EdgeInsets.symmetric(vertical: 9),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.accent
-                          : AppColors.bgSurface2,
+                      color:
+                          isSelected ? AppColors.accent : AppColors.bgSurface2,
                       borderRadius: BorderRadius.circular(9),
                       border: Border.all(
-                        color: isSelected
-                            ? AppColors.accent
-                            : AppColors.border2,
+                        color:
+                            isSelected ? AppColors.accent : AppColors.border2,
                         width: 0.5,
                       ),
                     ),

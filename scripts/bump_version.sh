@@ -43,6 +43,7 @@ esac
 
 NEW_VERSION="$MAJOR.$MINOR.$PATCH"
 BUILD_DATE=$(date '+%-d %b %Y' 2>/dev/null || date '+%d %b %Y')
+RELEASE_ID=$(date +%Y%m%d%H%M%S)
 
 # ── Update pubspec.yaml ──────────────────────────────────────────────────────
 sed -i "s/^version: .*/version: $NEW_VERSION+$BUILD/" "$PUBSPEC"
@@ -51,7 +52,8 @@ sed -i "s/^version: .*/version: $NEW_VERSION+$BUILD/" "$PUBSPEC"
 cat > "$VERSION_JSON" <<EOF
 {
   "version": "$NEW_VERSION",
-  "build_date": "$BUILD_DATE"
+  "build_date": "$BUILD_DATE",
+  "release_id": "$RELEASE_ID"
 }
 EOF
 

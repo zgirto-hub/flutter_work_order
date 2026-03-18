@@ -33,31 +33,30 @@ if [[ "$BUMP" != "--no-bump" ]]; then
 fi
 
 # ── Build ─────────────────────────────────────────────────────────────────────
-NEW_VERSION=$(grep '^version:' "$LOCAL_PROJECT/pubspec.yaml" | sed 's/version: //' | cut -d'+' -f1)
-echo "Building Flutter Web (v$NEW_VERSION)..."
+PUBSPEC_VERSION=$(grep '^version:' "$LOCAL_PROJECT/pubspec.yaml" | sed 's/version: //')
+NEW_VERSION=$(echo "$PUBSPEC_VERSION" | cut -d'+' -f1)
+BUILD_NUMBER=$(echo "$PUBSPEC_VERSION" | cut -d'+' -f2)
+BUILD_DATE=$(date +%Y-%m-%d_%H-%M-%S)
+RELEASE_ID=$(date +%Y%m%d%H%M%S)
+
+echo "Building Flutter Web (v$NEW_VERSION+$BUILD_NUMBER, release $RELEASE_ID)..."
 cd "$LOCAL_PROJECT"
-BUILD_DATE=$(date +%Y-%m-%d_%H-%M)
-flutter build web --dart-define=BUILD_DATE=$BUILD_DATE
+flutter build web --pwa-strategy=offline-first --dart-define=BUILD_DATE=$BUILD_DATE --dart-define=RELEASE_ID=$RELEASE_ID
 
-# Patch 1: Cache-bust main.dart.js
-# flutter_bootstrap.js uses a fixed "main.dart.js" URL, which browsers cache
-# for 6 months. Adding ?v=BUILD_DATE makes every build a unique URL.
-sed -i "s|\"main\.dart\.js\"|\"main.dart.js?v=$BUILD_DATE\"|g" build/web/flutter_bootstrap.js
-echo "main.dart.js cache-busted with ?v=$BUILD_DATE"
+cat > build/web/release.json <<EOF
+{
+  "version": "$NEW_VERSION",
+  "build": "$BUILD_NUMBER",
+  "release_id": "$RELEASE_ID",
+  "build_date": "$BUILD_DATE"
+}
+EOF
+echo "Wrote build/web/release.json (release_id=$RELEASE_ID)."
 
-# Patch 2: Replace Flutter's generated SW with a no-op.
-# Flutter's generated SW calls client.navigate() on every activate, causing
-# an infinite reload loop in PWA standalone mode.
-cat > build/web/flutter_service_worker.js << 'SWEOF'
-'use strict';
-// No-op service worker — caching handled by Nginx + cache-busted URLs.
-// No clients.claim() to avoid firing controllerchange on running PWA clients.
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))));
-});
-SWEOF
-echo "Service worker replaced with no-op."
+if [[ ! -f build/web/release.json ]]; then
+  echo "ERROR: release.json was not generated. Aborting deploy."
+  exit 1
+fi
 
 # ── Deploy ────────────────────────────────────────────────────────────────────
 TIMESTAMP=$(date +%F_%H-%M)
@@ -74,6 +73,9 @@ scp -r build/web/* $SERVER:$NEW_RELEASE/
 
 echo "Switching to new release..."
 ssh $SERVER "ln -sfn $NEW_RELEASE $CURRENT_LINK"
+
+echo "Verifying deployed release metadata..."
+ssh $SERVER "test -f $CURRENT_LINK/release.json"
 
 echo "Cleaning old releases (keep last 10)..."
 ssh $SERVER "ls -dt $RELEASE_DIR/release_* 2>/dev/null | tail -n +11 | xargs -r rm -rf"
