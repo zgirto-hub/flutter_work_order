@@ -28,7 +28,6 @@ class RequestDetailScreen extends StatefulWidget {
 class _RequestDetailScreenState extends State<RequestDetailScreen> {
   final _service = RequestService();
   final _woService = WorkOrderService();
-  bool _closing = false;
   bool _loadingLinkedWo = true;
   List<Map<String, dynamic>> _attachments = [];
   String _deletingAttachmentId = '';
@@ -114,10 +113,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     }
   }
 
-  bool get _canClose =>
-      (widget.userRole == 'tech' || widget.userRole == 'admin') &&
-      widget.request.status == 'Open';
-
   bool get _canConvert =>
       (widget.userRole == 'tech' || widget.userRole == 'admin') &&
       widget.request.status == 'Open';
@@ -164,97 +159,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       );
       if (!mounted) return;
       Navigator.pop(context, true);
-    }
-  }
-
-  Future<void> _closeRequest() async {
-    final notesCtrl = TextEditingController();
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: Text(
-          'Close Request',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Mark this request as resolved?',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-            ),
-            SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.bgSurface2,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border, width: 0.5),
-              ),
-              child: TextField(
-                controller: notesCtrl,
-                maxLines: 3,
-                style: TextStyle(
-                    fontSize: 13, color: AppColors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Add a note (optional)',
-                  hintStyle: TextStyle(
-                      fontSize: 13, color: AppColors.textTertiary),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(10),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            child: Text('Close Request',
-                style: TextStyle(fontSize: 13)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _closing = true);
-    try {
-      await _service.closeRequest(
-        id: widget.request.id,
-        closedBy: _email,
-        techNotes: notesCtrl.text.trim().isEmpty
-            ? null
-            : notesCtrl.text.trim(),
-      );
-      if (!mounted) return;
-      Navigator.pop(context, true);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to close: $e'),
-          backgroundColor: AppColors.dangerText,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _closing = false);
     }
   }
 
@@ -491,42 +395,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10)),
-                          ),
-                        ),
-                      ),
-                    ],
-
-                    // Close button (tech/admin only, open requests)
-                    if (_canClose) ...[
-                      SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _closing ? null : _closeRequest,
-                          icon: _closing
-                              ? SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 1.5,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Icon(
-                                  Icons.check_circle_outline_rounded,
-                                  size: 16),
-                          label: Text('Close Request',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.accent,
-                            foregroundColor: Colors.white,
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                            elevation: 0,
                           ),
                         ),
                       ),
