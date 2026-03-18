@@ -527,6 +527,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   // ── Speed dial ────────────────────────────────────────────────────────────
 
   Widget _buildSpeedDial() {
+    final fabColor =
+        Theme.of(context).floatingActionButtonTheme.backgroundColor ??
+            AppColors.accent;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -543,6 +547,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 _SpeedDialItem(
                   icon: Icons.refresh_rounded,
                   label: 'Refresh',
+                  color: fabColor,
                   onTap: () {
                     setState(() => _fabExpanded = false);
                     _refresh();
@@ -552,6 +557,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 _SpeedDialItem(
                   icon: Icons.create_new_folder_outlined,
                   label: 'New Folder',
+                  color: fabColor,
                   onTap: () {
                     setState(() => _fabExpanded = false);
                     _showCreateFolderDialog();
@@ -561,6 +567,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 _SpeedDialItem(
                   icon: Icons.upload_file_outlined,
                   label: 'Add Document',
+                  color: fabColor,
                   onTap: () async {
                     setState(() => _fabExpanded = false);
                     await showModalBottomSheet(
@@ -583,7 +590,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         FloatingActionButton(
           onPressed: () =>
               setState(() => _fabExpanded = !_fabExpanded),
-          backgroundColor: AppColors.accent,
+          backgroundColor: fabColor,
           elevation: 4,
           child: AnimatedRotation(
             turns: _fabExpanded ? 0.125 : 0.0,
@@ -1905,11 +1912,13 @@ class _StatCard extends StatelessWidget {
 class _SpeedDialItem extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color color;
   final VoidCallback onTap;
 
   const _SpeedDialItem(
       {required this.icon,
       required this.label,
+      required this.color,
       required this.onTap});
 
   @override
@@ -1921,7 +1930,7 @@ class _SpeedDialItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(
               horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
-            color: AppColors.textPrimary,
+            color: color,
             borderRadius: BorderRadius.circular(9),
             boxShadow: [
               BoxShadow(
@@ -1940,7 +1949,7 @@ class _SpeedDialItem extends StatelessWidget {
         FloatingActionButton.small(
           heroTag: label,
           onPressed: onTap,
-          backgroundColor: AppColors.textPrimary,
+          backgroundColor: color,
           elevation: 4,
           child: Icon(icon, size: 20, color: Colors.white),
         ),

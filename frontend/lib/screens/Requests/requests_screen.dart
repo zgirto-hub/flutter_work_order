@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/app_notification.dart';
 import '../../models/request_model.dart';
 import '../../models/work_order.dart';
+import '../../services/notification_service.dart';
 import '../../services/request_service.dart';
 import '../../services/work_order_service.dart';
 import '../../theme/app_theme.dart';
@@ -22,8 +24,11 @@ class RequestsScreen extends StatefulWidget {
 class _RequestsScreenState extends State<RequestsScreen> {
   final _service = RequestService();
   final _woService = WorkOrderService();
+  final _notificationService = NotificationService();
   List<RequestModel> _requests = [];
   Map<String, WorkOrder> _linkedByRequestId = {};
+  List<AppNotification> _unreadNotifications = [];
+  Map<String, int> _unreadByRequestId = {};
   String _statusFilter = 'All';
   bool _loading = true;
   String? _expandedRequestId;
@@ -53,6 +58,10 @@ class _RequestsScreenState extends State<RequestsScreen> {
       userRole: widget.userRole,
     );
     final workOrders = await _woService.fetchWorkOrders();
+    final unread = await _notificationService.fetchNotifications(
+      unreadOnly: true,
+      limit: 300,
+    );
     final linked = <String, WorkOrder>{};
     for (final wo in workOrders) {
       final reqId = wo.requestId;
@@ -60,10 +69,13 @@ class _RequestsScreenState extends State<RequestsScreen> {
         linked[reqId] = wo;
       }
     }
+    final unreadByRequest = _computeUnreadByRequest(unread, linked);
     if (!mounted) return;
     setState(() {
       _requests = data;
       _linkedByRequestId = linked;
+      _unreadNotifications = unread;
+      _unreadByRequestId = unreadByRequest;
       if (_expandedRequestId != null &&
           !_requests.any((r) => r.id == _expandedRequestId)) {
         _expandedRequestId = null;
@@ -71,6 +83,44 @@ class _RequestsScreenState extends State<RequestsScreen> {
       _loading = false;
     });
     widget.onChanged?.call();
+  }
+
+  Map<String, int> _computeUnreadByRequest(
+    List<AppNotification> unread,
+    Map<String, WorkOrder> linked,
+  ) {
+    final unreadByWorkOrder = <String, int>{};
+    for (final n in unread) {
+      final workOrderId = (n.data['work_order_id'] ?? '').toString();
+      if (workOrderId.isEmpty) continue;
+      unreadByWorkOrder[workOrderId] = (unreadByWorkOrder[workOrderId] ?? 0) + 1;
+    }
+
+    final unreadByRequest = <String, int>{};
+    linked.forEach((requestId, workOrder) {
+      final count = unreadByWorkOrder[workOrder.id] ?? 0;
+      if (count > 0) unreadByRequest[requestId] = count;
+    });
+    return unreadByRequest;
+  }
+
+  Future<void> _markLinkedWorkOrderNotificationsRead(String workOrderId) async {
+    final ids = _unreadNotifications
+        .where((n) => (n.data['work_order_id'] ?? '').toString() == workOrderId)
+        .map((n) => n.id)
+        .toList();
+    if (ids.isEmpty) return;
+
+    await Future.wait(ids.map(_notificationService.markRead));
+    if (!mounted) return;
+
+    final remaining = _unreadNotifications
+        .where((n) => (n.data['work_order_id'] ?? '').toString() != workOrderId)
+        .toList();
+    setState(() {
+      _unreadNotifications = remaining;
+      _unreadByRequestId = _computeUnreadByRequest(remaining, _linkedByRequestId);
+    });
   }
 
   List<RequestModel> get _filtered {
@@ -207,6 +257,8 @@ class _RequestsScreenState extends State<RequestsScreen> {
   }
 
   Future<void> _openLinkedActivity(WorkOrder workOrder) async {
+    await _markLinkedWorkOrderNotificationsRead(workOrder.id);
+    if (!mounted) return;
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -314,6 +366,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
                                   request: req,
                                   expanded: expanded,
                                   linkedWorkOrder: linkedWorkOrder,
+                                  unreadCount: _unreadByRequestId[req.id] ?? 0,
                                   selectionMode: true,
                                   isSelected: _selectedIds.contains(req.id),
                                   onTap: () => _toggleSelection(req.id),
@@ -326,6 +379,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
                                   request: req,
                                   expanded: expanded,
                                   linkedWorkOrder: linkedWorkOrder,
+                                  unreadCount: _unreadByRequestId[req.id] ?? 0,
                                   onTap: () => _toggleExpanded(req.id),
                                   onDetails: () => _openDetail(req),
                                   onActivity: linkedWorkOrder != null
@@ -343,6 +397,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
                                   request: req,
                                   expanded: expanded,
                                   linkedWorkOrder: linkedWorkOrder,
+                                  unreadCount: _unreadByRequestId[req.id] ?? 0,
                                   onDetails: () => _openDetail(req),
                                   onActivity: linkedWorkOrder != null
                                       ? () => _openLinkedActivity(linkedWorkOrder)
@@ -508,6 +563,7 @@ class _RequestCard extends StatelessWidget {
   final VoidCallback? onDetails;
   final VoidCallback? onActivity;
   final WorkOrder? linkedWorkOrder;
+  final int unreadCount;
   final bool expanded;
   final bool selectionMode;
   final bool isSelected;
@@ -518,6 +574,7 @@ class _RequestCard extends StatelessWidget {
     this.onDetails,
     this.onActivity,
     this.linkedWorkOrder,
+    this.unreadCount = 0,
     this.expanded = false,
     this.selectionMode = false,
     this.isSelected = false,
@@ -571,6 +628,10 @@ class _RequestCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (unreadCount > 0) ...[
+                  SizedBox(width: 6),
+                  _UnreadBadge(count: unreadCount),
+                ],
                 SizedBox(width: 8),
                 _StatusBadge(status: request.status),
                 if (!selectionMode) ...[
@@ -668,6 +729,10 @@ class _RequestCard extends StatelessWidget {
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
+                                if (unreadCount > 0) ...[
+                                  SizedBox(width: 6),
+                                  _UnreadBadge(count: unreadCount),
+                                ],
                               ],
                             ),
                           ),
@@ -739,6 +804,31 @@ class _StatusBadge extends StatelessWidget {
           fontSize: 10,
           fontWeight: FontWeight.w500,
           color: isOpen ? AppColors.pendingText : AppColors.closedText,
+        ),
+      ),
+    );
+  }
+}
+
+class _UnreadBadge extends StatelessWidget {
+  final int count;
+  const _UnreadBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count > 99 ? '99+' : '$count';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppColors.accent,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
         ),
       ),
     );
