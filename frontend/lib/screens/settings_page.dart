@@ -37,15 +37,6 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = false;
   bool _adminAllWorkOrderComments = false;
   bool _savingAdminNotifPref = false;
-  Color _selectedColor = AppColors.textPrimary;
-
-  static const _colorOptions = [
-    Color(0xFF1A1915),
-    Color(0xFFCC785C),
-    Color(0xFF15803D),
-    Color(0xFF1D4ED8),
-    Color(0xFF7C3AED),
-  ];
   static const _fontScales = [0.85, 1.0, 1.15, 1.3];
   static const _fontLabels = ['Small', 'Default', 'Large', 'X-Large'];
 
@@ -53,7 +44,6 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _loadVersion();
-    _selectedColor = widget.themeController.color;
     _notificationsEnabled = OneSignalService.isGranted();
     _loadNotificationPreferences();
   }
@@ -493,42 +483,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     _DarkModeRow(
                       mode: widget.themeController.mode,
                       onChanged: widget.themeController.setThemeMode,
-                    ),
-                    Divider(height: 0, thickness: 0.5, color: AppColors.border),
-                    SettingsRow(
-                      icon: Icons.palette_outlined,
-                      label: 'Theme color',
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: _colorOptions.map((c) {
-                          final isSel = _selectedColor == c;
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() => _selectedColor = c);
-                              widget.themeController.changeColor(c);
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              width: isSel ? 22 : 18,
-                              height: isSel ? 22 : 18,
-                              margin: const EdgeInsets.only(left: 6),
-                              decoration: BoxDecoration(
-                                color: c,
-                                shape: BoxShape.circle,
-                                border: isSel
-                                    ? Border.all(
-                                        color: AppColors.textPrimary, width: 2)
-                                    : Border.all(
-                                        color: AppColors.border2, width: 0.5),
-                              ),
-                              child: isSel
-                                  ? Icon(Icons.check_rounded,
-                                      color: Colors.white, size: 11)
-                                  : null,
-                            ),
-                          );
-                        }).toList(),
-                      ),
                     ),
                     Divider(height: 0, thickness: 0.5, color: AppColors.border),
                     _FontSizeRow(
