@@ -53,6 +53,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   int _tabIndex = 0;
   List<WorkOrderComment> _comments = [];
   bool _commentsLoading = false;
+  bool _refreshing = false;
   bool _sending = false;
   bool _roleLoaded = false;
   String _userRole = 'admin';
@@ -136,6 +137,18 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(AddWorkOrderScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_tabIndex == 1 && oldWidget.initialTab != 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_activityScrollCtrl.hasClients) {
+          _activityScrollCtrl.jumpTo(0);
+        }
+      });
+    }
+  }
+
   Future<void> _loadEmployees() async {
     final data = await _employeeService.fetchEmployees();
     setState(() {
@@ -149,12 +162,24 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
   Future<void> _loadComments() async {
     if (widget.workOrder == null) return;
-    setState(() => _commentsLoading = true);
+    if (!_refreshing) {
+      setState(() => _commentsLoading = true);
+    }
     try {
       final comments = await _service.fetchComments(widget.workOrder!.id);
-      if (mounted) setState(() => _comments = comments);
+      if (mounted) {
+        setState(() => _comments = comments);
+        if (_refreshing && _activityScrollCtrl.hasClients) {
+          _activityScrollCtrl.jumpTo(0);
+        }
+      }
     } catch (_) {}
-    if (mounted) setState(() => _commentsLoading = false);
+    if (mounted) {
+      setState(() {
+        _commentsLoading = false;
+        _refreshing = false;
+      });
+    }
   }
 
   Future<void> _sendComment() async {
@@ -530,21 +555,29 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       );
     }
 
-    return ListView.builder(
-      controller: _activityScrollCtrl,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      itemCount: _comments.length,
-      itemBuilder: (context, i) {
-        final comment = _comments[i];
-        final isLast = i == _comments.length - 1;
-        return _ActivityItem(
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() => _refreshing = true);
+        await _loadComments();
+      },
+      color: AppColors.accent,
+      child: ListView.builder(
+        controller: _activityScrollCtrl,
+        physics: const AlwaysScrollableScrollPhysics(),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        itemCount: _comments.length,
+        itemBuilder: (context, i) {
+          final comment = _comments[i];
+          final isLast = i == _comments.length - 1;
+          return _ActivityItem(
           comment: comment,
           isLast: isLast,
           currentUserEmail:
               Supabase.instance.client.auth.currentUser?.email ?? '',
         );
       },
+      ),
     );
   }
 
