@@ -122,18 +122,18 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: AppColors.bgSurface,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(28),
                 border: Border.all(color: AppColors.border, width: 0.6),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.14),
-                    blurRadius: 26,
-                    offset: const Offset(0, 12),
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,26 +150,26 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Choose PDF theme',
+                      'Choose report style',
                       style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Each version keeps the same report data but changes the visual direction.',
+                      'Same data, different visual tone. Minimal first, then softer alternatives.',
                       style: TextStyle(
                         fontSize: 12,
                         height: 1.45,
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
                     ...options.map(
                       (theme) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.only(bottom: 8),
                         child: _PdfThemeTile(
                           theme: theme,
                           selected: theme == _selectedPdfTheme,
@@ -807,146 +807,68 @@ class _PdfThemeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final swatch = _themeSwatch(theme);
-    final preview = _themePreview(theme);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         child: Ink(
           decoration: BoxDecoration(
-            color: selected ? AppColors.accentBg : AppColors.bgSurface2,
-            borderRadius: BorderRadius.circular(18),
+            color: selected ? AppColors.accentBg : AppColors.bgPrimary,
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: selected ? AppColors.accent : AppColors.border2,
-              width: selected ? 1.0 : 0.6,
+              width: selected ? 1.1 : 0.7,
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 82,
-                  height: 108,
-                  padding: const EdgeInsets.all(7),
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: preview.paper,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: preview.frame, width: 0.8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
+                    color: swatch.last.withValues(alpha: 0.55),
                     borderRadius: BorderRadius.circular(14),
-                    child: Stack(
+                    border: Border.all(
+                      color: swatch[1].withValues(alpha: 0.22),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Row(
                       children: [
-                        Container(color: preview.paper),
-                        Container(
-                          height: 28,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: swatch.take(2).toList(),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: -8,
-                          right: -10,
+                        Expanded(
                           child: Container(
-                            width: 34,
-                            height: 34,
                             decoration: BoxDecoration(
-                              color: preview.glow,
-                              shape: BoxShape.circle,
+                              color: swatch.first,
+                              borderRadius: BorderRadius.circular(99),
                             ),
                           ),
                         ),
-                        Positioned(
-                          top: 7,
-                          left: 8,
-                          right: 8,
+                        const SizedBox(width: 4),
+                        Expanded(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 18,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.88),
-                                  borderRadius: BorderRadius.circular(99),
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              Container(
-                                width: 30,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: preview.heroText,
-                                  borderRadius: BorderRadius.circular(99),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Positioned(
-                          top: 34,
-                          left: 8,
-                          right: 8,
-                          child: Row(
                             children: [
                               Expanded(
                                 child: Container(
-                                  height: 24,
                                   decoration: BoxDecoration(
-                                    color: preview.cardDark,
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: swatch[1],
+                                    borderRadius: BorderRadius.circular(99),
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 5),
-                              Container(
-                                width: 18,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  color: preview.cardAccent,
-                                  borderRadius: BorderRadius.circular(8),
+                              const SizedBox(height: 4),
+                              Expanded(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: swatch.last,
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Positioned(
-                          left: 8,
-                          right: 8,
-                          bottom: 10,
-                          child: Column(
-                            children: [
-                              _previewRow(
-                                preview.barAccent,
-                                preview.lineDark,
-                                0.78,
-                              ),
-                              const SizedBox(height: 5),
-                              _previewRow(
-                                preview.barAccentMuted,
-                                preview.lineSoft,
-                                0.58,
-                              ),
-                              const SizedBox(height: 5),
-                              _previewRow(
-                                preview.barBase,
-                                preview.lineSoft,
-                                0.42,
                               ),
                             ],
                           ),
@@ -955,7 +877,7 @@ class _PdfThemeTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -966,73 +888,52 @@ class _PdfThemeTile extends StatelessWidget {
                             child: Text(
                               theme.label,
                               style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
                                 color: AppColors.textPrimary,
                               ),
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(colors: swatch),
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                            child: const Text(
-                              'Preview',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
+                          Text(
+                            _themeTag(theme),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textTertiary,
+                              letterSpacing: 0.2,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Text(
                         theme.description,
                         style: TextStyle(
                           fontSize: 11.5,
-                          height: 1.35,
+                          height: 1.4,
                           color: AppColors.textSecondary,
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          _themeChip('Hero', swatch.first),
-                          _themeChip('Metrics', swatch[1]),
-                          _themeChip('Ledger', swatch.last),
-                        ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: selected ? AppColors.accent : Colors.transparent,
-                      border: Border.all(
-                        color: selected ? AppColors.accent : AppColors.border2,
-                        width: 1,
-                      ),
+                const SizedBox(width: 10),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: selected ? AppColors.accent : Colors.transparent,
+                    border: Border.all(
+                      color: selected ? AppColors.accent : AppColors.border2,
+                      width: 1,
                     ),
-                    child: selected
-                        ? const Icon(Icons.check_rounded,
-                            size: 14, color: Colors.white)
-                        : null,
                   ),
+                  child: selected
+                      ? const Icon(Icons.check_rounded,
+                          size: 13, color: Colors.white)
+                      : null,
                 ),
               ],
             ),
@@ -1042,161 +943,27 @@ class _PdfThemeTile extends StatelessWidget {
     );
   }
 
-  Widget _previewRow(Color barColor, Color lineColor, double widthFactor) {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 6,
-            decoration: BoxDecoration(
-              color: lineColor,
-              borderRadius: BorderRadius.circular(99),
-            ),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: FractionallySizedBox(
-                widthFactor: widthFactor,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: barColor,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Container(
-          width: 10,
-          height: 4,
-          decoration: BoxDecoration(
-            color: lineColor,
-            borderRadius: BorderRadius.circular(99),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _themeChip(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.28), width: 0.8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  _ThemePreviewColors _themePreview(WorkOrderPdfTheme theme) {
+  String _themeTag(WorkOrderPdfTheme theme) {
     switch (theme) {
       case WorkOrderPdfTheme.copperNight:
-        return const _ThemePreviewColors(
-          paper: Color(0xFFF4E8D6),
-          frame: Color(0xFFE0C7A6),
-          glow: Color(0x33D49A6B),
-          heroText: Color(0xFFFCEAD4),
-          cardDark: Color(0xFF222833),
-          cardAccent: Color(0xFFB97E54),
-          barAccent: Color(0xFFC88D63),
-          barAccentMuted: Color(0xFFDEB086),
-          barBase: Color(0xFFD6C4AF),
-          lineDark: Color(0xFF4A3729),
-          lineSoft: Color(0xFFE0D0BD),
-        );
+        return 'Default';
       case WorkOrderPdfTheme.forestLedger:
-        return const _ThemePreviewColors(
-          paper: Color(0xFFEDE7D3),
-          frame: Color(0xFFC8CFB8),
-          glow: Color(0x336A8B63),
-          heroText: Color(0xFFEFF5EA),
-          cardDark: Color(0xFF2E3B31),
-          cardAccent: Color(0xFF6B8767),
-          barAccent: Color(0xFF698667),
-          barAccentMuted: Color(0xFF9EB095),
-          barBase: Color(0xFFCDD5C3),
-          lineDark: Color(0xFF415040),
-          lineSoft: Color(0xFFD5DCCB),
-        );
+        return 'Soft';
       case WorkOrderPdfTheme.signalOrange:
-        return const _ThemePreviewColors(
-          paper: Color(0xFFF3E5CA),
-          frame: Color(0xFFD5C2A5),
-          glow: Color(0x33F08947),
-          heroText: Color(0xFFFDF3E3),
-          cardDark: Color(0xFF2B3640),
-          cardAccent: Color(0xFFE56E2E),
-          barAccent: Color(0xFFEA7A37),
-          barAccentMuted: Color(0xFFF1A56F),
-          barBase: Color(0xFFDBCCB2),
-          lineDark: Color(0xFF48555E),
-          lineSoft: Color(0xFFE5D7BE),
-        );
+        return 'Bold';
     }
   }
 
   List<Color> _themeSwatch(WorkOrderPdfTheme theme) {
     switch (theme) {
       case WorkOrderPdfTheme.copperNight:
-        return const [Color(0xFF131821), Color(0xFFBF8457), Color(0xFFF1E4D2)];
+        return const [Color(0xFF3A2E24), Color(0xFFCC785C), Color(0xFFFAF6EF)];
       case WorkOrderPdfTheme.forestLedger:
-        return const [Color(0xFF2A372A), Color(0xFF667D5D), Color(0xFFEDE9D6)];
+        return const [Color(0xFF334235), Color(0xFF6F866E), Color(0xFFF0EBDD)];
       case WorkOrderPdfTheme.signalOrange:
-        return const [Color(0xFF1F2933), Color(0xFFE56E2E), Color(0xFFF3E5CA)];
+        return const [Color(0xFF24303A), Color(0xFFE17336), Color(0xFFF4E7D2)];
     }
   }
-}
-
-class _ThemePreviewColors {
-  final Color paper;
-  final Color frame;
-  final Color glow;
-  final Color heroText;
-  final Color cardDark;
-  final Color cardAccent;
-  final Color barAccent;
-  final Color barAccentMuted;
-  final Color barBase;
-  final Color lineDark;
-  final Color lineSoft;
-
-  const _ThemePreviewColors({
-    required this.paper,
-    required this.frame,
-    required this.glow,
-    required this.heroText,
-    required this.cardDark,
-    required this.cardAccent,
-    required this.barAccent,
-    required this.barAccentMuted,
-    required this.barBase,
-    required this.lineDark,
-    required this.lineSoft,
-  });
 }
 
 // ── PDF Preview Screen ────────────────────────────────────────────────────────
