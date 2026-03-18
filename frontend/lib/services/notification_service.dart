@@ -62,4 +62,13 @@ class NotificationService {
       ),
     );
   }
+
+  Future<void> clearAll() async {
+    if (_email.isEmpty) return;
+    await http.delete(
+      Uri.parse(
+        '${AppConfig.baseUrl}/notifications?email=${Uri.encodeComponent(_email)}',
+      ),
+    );
+  }
 }

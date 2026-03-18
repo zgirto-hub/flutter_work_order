@@ -19,6 +19,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   bool _loading = true;
   bool _markingAll = false;
+  bool _clearingAll = false;
   List<AppNotification> _items = [];
 
   @override
@@ -59,6 +60,46 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 )
               : n)
           .toList();
+    });
+  }
+
+  Future<void> _clearAll() async {
+    if (_items.isEmpty || _clearingAll) return;
+    final confirm = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            backgroundColor: AppColors.bgSurface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            title: const Text('Clear all notifications'),
+            content: Text(
+              'This will remove all notifications from your inbox.',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(
+                  'Clear all',
+                  style: TextStyle(color: AppColors.dangerText),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirm) return;
+
+    setState(() => _clearingAll = true);
+    await _service.clearAll();
+    if (!mounted) return;
+    setState(() {
+      _items = [];
+      _clearingAll = false;
+      _markingAll = false;
     });
   }
 
@@ -152,7 +193,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                   if (unreadCount > 0)
                     TextButton(
-                      onPressed: _markingAll ? null : _markAllRead,
+                      onPressed: _markingAll || _clearingAll ? null : _markAllRead,
                       child: _markingAll
                           ? SizedBox(
                               width: 14,
@@ -163,6 +204,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               ),
                             )
                           : const Text('Mark all read'),
+                    ),
+                  if (_items.isNotEmpty)
+                    TextButton(
+                      onPressed: _clearingAll || _markingAll ? null : _clearAll,
+                      child: _clearingAll
+                          ? SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                color: AppColors.textSecondary,
+                              ),
+                            )
+                          : Text(
+                              'Clear all',
+                              style: TextStyle(color: AppColors.dangerText),
+                            ),
                     ),
                 ],
               ),

@@ -176,6 +176,24 @@ async def mark_all_notifications_read(email: str = Query(...)):
     return {"status": "read_all"}
 
 
+@router.delete("/notifications")
+async def clear_all_notifications(email: str = Query(...)):
+    normalized = _norm(email)
+    existing = supabase.table("notifications") \
+        .select("id") \
+        .eq("user_email", normalized) \
+        .execute()
+    count = len(existing.data or [])
+    if count == 0:
+        return {"status": "cleared", "count": 0}
+
+    supabase.table("notifications") \
+        .delete() \
+        .eq("user_email", normalized) \
+        .execute()
+    return {"status": "cleared", "count": count}
+
+
 @router.get("/work-orders/{work_order_id}/notification-debug")
 async def debug_work_order_notification_recipients(
     work_order_id: str,
