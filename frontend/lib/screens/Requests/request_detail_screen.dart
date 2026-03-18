@@ -29,6 +29,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   final _service = RequestService();
   final _woService = WorkOrderService();
   bool _closing = false;
+  bool _loadingLinkedWo = true;
   List<Map<String, dynamic>> _attachments = [];
   String _deletingAttachmentId = '';
   WorkOrder? _linkedWorkOrder;
@@ -47,8 +48,14 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     try {
       final results = await _woService.fetchWorkOrders(requestId: widget.request.id);
       if (!mounted) return;
-      setState(() => _linkedWorkOrder = results.isNotEmpty ? results.first : null);
-    } catch (_) {}
+      setState(() {
+        _linkedWorkOrder = results.isNotEmpty ? results.first : null;
+        _loadingLinkedWo = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingLinkedWo = false);
+    }
   }
 
   Future<void> _openLinkedWorkOrder() async {
@@ -455,7 +462,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                     ],
 
                     // Convert to Work Order button (tech/admin only, open requests)
-                    if (_canConvert) ...[
+                    if (_canConvert && !_loadingLinkedWo) ...[
                       SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
