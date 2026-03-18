@@ -40,6 +40,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
 
   bool _selectionMode = false;
   final Set<String> _selectedIds = {};
+  bool _navigatingToActivity = false;
+  bool _navigatingToEdit = false;
 
   @override
   void initState() {
@@ -451,30 +453,42 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
             },
             onActivity: () async {
               if (_selectionMode) return;
-              await _markWorkOrderNotificationsRead(wo.id);
-              if (!context.mounted) return;
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AddWorkOrderScreen(
-                      workOrder: items[i], initialTab: 1),
-                ),
-              );
-              if (!mounted) return;
-              if (result == 'updated' || result == 'deleted') await _load();
-              await _refreshUnreadNotifications(playSoundIfIncreased: false);
+              if (_navigatingToActivity) return;
+              _navigatingToActivity = true;
+              try {
+                await _markWorkOrderNotificationsRead(wo.id);
+                if (!context.mounted) return;
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AddWorkOrderScreen(
+                        workOrder: items[i], initialTab: 1),
+                  ),
+                );
+                if (!mounted) return;
+                if (result == 'updated' || result == 'deleted') await _load();
+                await _refreshUnreadNotifications(playSoundIfIncreased: false);
+              } finally {
+                _navigatingToActivity = false;
+              }
             },
             onEdit: () async {
               if (_selectionMode) return;
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AddWorkOrderScreen(workOrder: items[i]),
-                ),
-              );
-              if (!mounted) return;
-              if (result == 'updated' || result == 'deleted') await _load();
-              await _refreshUnreadNotifications(playSoundIfIncreased: false);
+              if (_navigatingToEdit) return;
+              _navigatingToEdit = true;
+              try {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AddWorkOrderScreen(workOrder: items[i]),
+                  ),
+                );
+                if (!mounted) return;
+                if (result == 'updated' || result == 'deleted') await _load();
+                await _refreshUnreadNotifications(playSoundIfIncreased: false);
+              } finally {
+                _navigatingToEdit = false;
+              }
             },
           );
         },
