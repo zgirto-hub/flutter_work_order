@@ -13,7 +13,8 @@ class WorkOrder {
   final String id;
   final String? createdBy;
   final String? createdByEmail;
-  final String? requestId;
+  final String department;
+  final String? mobileNumber;
   final List<EmployeeAssignment> assignedEmployees;
 
   const WorkOrder({
@@ -29,7 +30,8 @@ class WorkOrder {
     this.closedAt,
     this.createdBy,
     this.createdByEmail,
-    this.requestId,
+    this.department = 'General',
+    this.mobileNumber,
     this.assignedEmployees = const [],
   });
 
@@ -47,7 +49,8 @@ class WorkOrder {
       closedAt: json['closed_at']?.toString(),
       createdBy: json['created_by'],
       createdByEmail: json['created_by_email'] as String?,
-      requestId: json['request_id']?.toString(),
+      department: json['department'] ?? 'General',
+      mobileNumber: json['mobile_number'],
       assignedEmployees: (json['work_order_assignments'] as List<dynamic>?)
               ?.map((assignment) => EmployeeAssignment.fromJson(assignment))
               .where((emp) => emp.id.isNotEmpty)
@@ -63,6 +66,8 @@ class WorkOrder {
       'status': status,
       'location': location,
       'type': type,
+      'department': department,
+      'mobile_number': mobileNumber,
     };
   }
 }

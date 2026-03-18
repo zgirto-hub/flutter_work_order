@@ -1,4 +1,4 @@
-print("=== THIS MAIN.PY IS RUNNING v1.9.4 ===")
+print("=== THIS MAIN.PY IS RUNNING v1.10.0 ===")
 
 import json
 import os
@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from routers import documents, folders, notifications, requests, users, work_orders
+from routers import documents, folders, notifications, users, work_orders
 
 app = FastAPI()
 
@@ -25,7 +25,6 @@ app.add_middleware(
 
 app.include_router(documents.router, prefix="/api")
 app.include_router(folders.router, prefix="/api")
-app.include_router(requests.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(work_orders.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")

@@ -17,6 +17,7 @@ class AddWorkOrderScreen extends StatefulWidget {
   final String? prefillLocation;
   final String? sourceRequestId;
   final int initialTab;
+  final String userRole;
 
   const AddWorkOrderScreen({
     super.key,
@@ -26,6 +27,7 @@ class AddWorkOrderScreen extends StatefulWidget {
     this.prefillLocation,
     this.sourceRequestId,
     this.initialTab = 0,
+    this.userRole = 'admin',
   });
 
   @override
@@ -245,10 +247,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       );
 
       if (widget.workOrder == null) {
-        final createdOrder = await _service.addWorkOrder(
-          newWorkOrder,
-          sourceRequestId: widget.sourceRequestId,
-        );
+        final createdOrder = await _service.addWorkOrder(newWorkOrder);
         if (!mounted) return;
         Navigator.pop(context, createdOrder);
       } else {

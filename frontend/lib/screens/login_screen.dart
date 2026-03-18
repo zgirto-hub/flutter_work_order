@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../config.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -276,7 +277,10 @@ class _LoginScreenState extends State<LoginScreen>
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton(
-                              onPressed: () => _showSnack('Contact Salah to create an account'),
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                              ),
                               child: const Text('Create account'),
                             ),
                           ),

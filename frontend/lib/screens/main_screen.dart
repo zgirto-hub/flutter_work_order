@@ -10,13 +10,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../widgets/claude_widgets.dart';
 import '../widgets/change_password_dialog.dart';
 import '../screens/Work_Orders/work_order_home.dart';
+import '../screens/Work_Orders/add_work_order.dart';
 import '../screens/Documents/documents_screen.dart';
 import '../screens/reports/workorder_report_screen.dart';
-import '../screens/Requests/requests_screen.dart';
-import '../screens/dashboard_screen.dart';
 import '../screens/more_screen.dart';
+import '../screens/dashboard_screen.dart';
 import '../config.dart';
-import '../services/request_service.dart';
+import '../services/work_order_service.dart';
 import '../services/onesignal_service.dart';
 import '../services/activity_log_service.dart';
 import '../screens/settings_page.dart';
@@ -34,7 +34,7 @@ class _MainScreenState extends State<MainScreen> {
   int _index = 0;
   String _userRole = 'admin';
   bool _roleLoaded = false;
-  int _openRequestCount = 0;
+  int _openWOCount = 0;
   Timer? _pollTimer;
 
   @override
@@ -55,10 +55,19 @@ class _MainScreenState extends State<MainScreen> {
       if (mounted) setState(() => _roleLoaded = true);
       return;
     }
-    final role = await RequestService().getUserRole(email);
+    try {
+      final res = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/user-role?email=${Uri.encodeComponent(email)}'),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        _userRole = data['user_type'] ?? 'admin';
+      }
+    } catch (_) {
+      _userRole = 'admin';
+    }
     if (!mounted) return;
     setState(() {
-      _userRole = role;
       _index = 0;
       _roleLoaded = true;
     });
@@ -66,62 +75,60 @@ class _MainScreenState extends State<MainScreen> {
       await ActivityLogService().logSignIn(email);
     } catch (_) {}
 
-    if (role != 'requester') {
-      _refreshRequestCount();
-      _startPolling();
-    }
-    OneSignalService.subscribe(email, role);
+    _refreshWOCount();
+    _startPolling();
+    OneSignalService.subscribe(email, _userRole);
   }
 
-  Future<void> _refreshRequestCount() async {
+  Future<void> _refreshWOCount() async {
     try {
-      final res = await http
-          .get(Uri.parse('${AppConfig.baseUrl}/requests/count-open'));
+      final res = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/work-orders?email=&user_role=admin'),
+      );
       if (!mounted) return;
       if (res.statusCode == 200) {
-        final count = jsonDecode(res.body)['count'] as int? ?? 0;
-        setState(() => _openRequestCount = count);
+        final data = jsonDecode(res.body);
+        final workOrders = data['work_orders'] as List? ?? [];
+        final openCount = workOrders.where((wo) => wo['status'] != 'Closed').length;
+        setState(() => _openWOCount = openCount);
       }
     } catch (_) {}
   }
 
   void _startPolling() {
-    _pollTimer =
-        Timer.periodic(const Duration(seconds: 20), (_) async {
+    _pollTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
       try {
-        final res = await http
-            .get(Uri.parse('${AppConfig.baseUrl}/requests/count-open'));
+        final res = await http.get(
+          Uri.parse('${AppConfig.baseUrl}/work-orders?email=&user_role=admin'),
+        );
         if (!mounted) return;
         if (res.statusCode == 200) {
-          final newCount = jsonDecode(res.body)['count'] as int? ?? 0;
-          if (newCount > _openRequestCount) {
-            final diff = newCount - _openRequestCount;
-            setState(() => _openRequestCount = newCount);
+          final data = jsonDecode(res.body);
+          final workOrders = data['work_orders'] as List? ?? [];
+          final newCount = workOrders.where((wo) => wo['status'] != 'Closed').length;
+          if (newCount > _openWOCount) {
+            final diff = newCount - _openWOCount;
+            setState(() => _openWOCount = newCount);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Row(
                   children: [
-                    Icon(Icons.inbox_rounded,
-                        color: Colors.white, size: 18),
+                    Icon(Icons.work_outline_rounded, color: Colors.white, size: 18),
                     SizedBox(width: 10),
                     Text(
-                      '$diff new request${diff > 1 ? 's' : ''} received',
-                      style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500),
+                      '$diff new work order${diff > 1 ? 's' : ''}',
+                      style: TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
                 duration: const Duration(seconds: 6),
                 behavior: SnackBarBehavior.floating,
                 backgroundColor: AppColors.textPrimary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             );
           } else {
-            setState(() => _openRequestCount = newCount);
+            setState(() => _openWOCount = newCount);
           }
         }
       } catch (_) {}
@@ -134,44 +141,45 @@ class _MainScreenState extends State<MainScreen> {
       return Scaffold(
         backgroundColor: AppColors.bgPrimary,
         body: Center(
-          child: CircularProgressIndicator(
-              color: AppColors.accent, strokeWidth: 1.5),
+          child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 1.5),
         ),
       );
     }
 
     final isRequester = _userRole == 'requester';
 
-    // ── Requester layout: simple 2 tabs ───────────────────────────────────
     if (isRequester) {
       final pages = [
-        RequestsScreen(
-            userRole: _userRole, onChanged: _refreshRequestCount),
-        SettingsPage(
-            themeController: widget.themeController,
-            userRole: _userRole),
+        WorkOrderHome(userRole: _userRole, isRequesterView: true),
+        SettingsPage(themeController: widget.themeController, userRole: _userRole),
       ];
 
       return Scaffold(
         body: _AnimatedTabBody(index: _index, children: pages),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => AddWorkOrderScreen(userRole: _userRole)),
+          ),
+          backgroundColor: AppColors.accent,
+          child: Icon(Icons.add, color: Colors.white),
+        ),
         bottomNavigationBar: _BottomNav(
           selectedIndex: _index,
           onDestinationSelected: (i) => setState(() => _index = i),
           destinations: [
             NavigationDestination(
               icon: Badge(
-                isLabelVisible: _openRequestCount > 0,
-                label: Text('$_openRequestCount',
-                    style: TextStyle(fontSize: 10)),
-                child: Icon(Icons.inbox_outlined),
+                isLabelVisible: _openWOCount > 0,
+                label: Text('$_openWOCount', style: TextStyle(fontSize: 10)),
+                child: Icon(Icons.report_outlined),
               ),
               selectedIcon: Badge(
-                isLabelVisible: _openRequestCount > 0,
-                label: Text('$_openRequestCount',
-                    style: TextStyle(fontSize: 10)),
-                child: Icon(Icons.inbox_rounded),
+                isLabelVisible: _openWOCount > 0,
+                label: Text('$_openWOCount', style: TextStyle(fontSize: 10)),
+                child: Icon(Icons.report_rounded),
               ),
-              label: 'Requests',
+              label: 'Report Issue',
             ),
             const NavigationDestination(
               icon: Icon(Icons.person_outline_rounded),
@@ -183,40 +191,14 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    // ── Admin / Tech layout: Plan C (Dashboard, Orders, Requests, More) ──
-    final requestsDestination = NavigationDestination(
-      icon: Badge(
-        isLabelVisible: _openRequestCount > 0,
-        label: Text('$_openRequestCount',
-            style: TextStyle(fontSize: 10)),
-        child: Icon(Icons.inbox_outlined),
-      ),
-      selectedIcon: Badge(
-        isLabelVisible: _openRequestCount > 0,
-        label: Text('$_openRequestCount',
-            style: TextStyle(fontSize: 10)),
-        child: Icon(Icons.inbox_rounded),
-      ),
-      label: 'Requests',
-    );
-
     final pages = [
-      // Tab 0: Dashboard
       DashboardScreen(
         userRole: _userRole,
-        openRequestCount: _openRequestCount,
+        openRequestCount: _openWOCount,
         onNavigate: (index) => setState(() => _index = index),
       ),
-      // Tab 1: Work Orders
       const WorkOrderHome(),
-      // Tab 2: Requests
-      RequestsScreen(
-          userRole: _userRole, onChanged: _refreshRequestCount),
-      // Tab 3: More
-      MoreScreen(
-        themeController: widget.themeController,
-        userRole: _userRole,
-      ),
+      MoreScreen(themeController: widget.themeController, userRole: _userRole),
     ];
 
     return Scaffold(
@@ -230,12 +212,19 @@ class _MainScreenState extends State<MainScreen> {
             selectedIcon: Icon(Icons.dashboard_rounded),
             label: 'Dashboard',
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.work_outline_rounded),
-            selectedIcon: Icon(Icons.work_rounded),
+          NavigationDestination(
+            icon: Badge(
+              isLabelVisible: _openWOCount > 0,
+              label: Text('$_openWOCount', style: TextStyle(fontSize: 10)),
+              child: Icon(Icons.work_outline_rounded),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: _openWOCount > 0,
+              label: Text('$_openWOCount', style: TextStyle(fontSize: 10)),
+              child: Icon(Icons.work_rounded),
+            ),
             label: 'Orders',
           ),
-          requestsDestination,
           const NavigationDestination(
             icon: Icon(Icons.grid_view_outlined),
             selectedIcon: Icon(Icons.grid_view_rounded),
@@ -246,8 +235,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 }
-
-// ── Bottom Nav wrapper ────────────────────────────────────────────────────────
 
 class _BottomNav extends StatelessWidget {
   final int selectedIndex;
@@ -265,8 +252,7 @@ class _BottomNav extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.bgSurface,
-        border:
-            Border(top: BorderSide(color: AppColors.border, width: 0.5)),
+        border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
       ),
       child: NavigationBar(
         selectedIndex: selectedIndex,
@@ -281,10 +267,6 @@ class _BottomNav extends StatelessWidget {
     );
   }
 }
-
-// ── Animated Tab Body ─────────────────────────────────────────────────────────
-// Keeps all tabs mounted (like IndexedStack) and animates the newly-shown tab
-// with a subtle fade + slide-up — matching Claude.ai's navigation feel.
 
 class _AnimatedTabBody extends StatefulWidget {
   final int index;
@@ -302,8 +284,7 @@ class _AnimatedTabBodyState extends State<_AnimatedTabBody>
     vsync: this,
     duration: const Duration(milliseconds: 260),
   );
-  late final Animation<double> _fade =
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+  late final Animation<double> _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
   late final Animation<Offset> _slide = Tween<Offset>(
     begin: const Offset(0, 0.025),
     end: Offset.zero,
@@ -335,14 +316,8 @@ class _AnimatedTabBodyState extends State<_AnimatedTabBody>
       opacity: _fade,
       child: SlideTransition(
         position: _slide,
-        child: IndexedStack(
-          index: widget.index,
-          children: widget.children,
-        ),
+        child: IndexedStack(index: widget.index, children: widget.children),
       ),
     );
   }
 }
-
-// ── Settings Page ─────────────────────────────────────────────────────────────
-// Kept here since it's used by both MoreScreen and requester layout

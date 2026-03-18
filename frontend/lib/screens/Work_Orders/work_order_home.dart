@@ -15,7 +15,14 @@ import '../../theme/app_theme.dart';
 import 'add_work_order.dart';
 
 class WorkOrderHome extends StatefulWidget {
-  const WorkOrderHome({super.key});
+  final String userRole;
+  final bool isRequesterView;
+
+  const WorkOrderHome({
+    super.key,
+    this.userRole = 'admin',
+    this.isRequesterView = false,
+  });
 
   @override
   State<WorkOrderHome> createState() => _WorkOrderHomeState();

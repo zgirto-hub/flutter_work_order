@@ -12,8 +12,6 @@ class WorkOrderService {
   String get _userId =>
       Supabase.instance.client.auth.currentUser?.id ?? '';
 
-  /// Extracts a human-readable error message from a non-200 response,
-  /// handling both JSON `{"detail": "..."}` and plain-text bodies.
   String _errorDetail(http.Response res, String fallback) {
     try {
       final body = jsonDecode(res.body);
@@ -23,20 +21,22 @@ class WorkOrderService {
     }
   }
 
-  // ── Fetch all work orders ──────────────────────────────────────────────────
-
   Future<List<WorkOrder>> fetchWorkOrders({
     String? status,
     String? type,
-    String? requestId,
+    String? department,
+    String? userRole,
   }) async {
-    final params = <String, String>{};
+    final params = <String, String>{
+      'email': _email,
+      'user_role': userRole ?? '',
+    };
     if (status != null) params['status'] = status;
     if (type != null) params['type'] = type;
-    if (requestId != null) params['request_id'] = requestId;
+    if (department != null) params['department'] = department;
 
     final uri = Uri.parse('${AppConfig.baseUrl}/work-orders')
-        .replace(queryParameters: params.isNotEmpty ? params : null);
+        .replace(queryParameters: params);
 
     final res = await http.get(uri);
     if (res.statusCode != 200) {
@@ -48,9 +48,7 @@ class WorkOrderService {
         .toList();
   }
 
-  // ── Add work order ─────────────────────────────────────────────────────────
-
-  Future<WorkOrder> addWorkOrder(WorkOrder workOrder, {String? sourceRequestId}) async {
+  Future<WorkOrder> addWorkOrder(WorkOrder workOrder) async {
     final res = await http.post(
       Uri.parse('${AppConfig.baseUrl}/work-orders'),
       headers: {'Content-Type': 'application/json'},
@@ -59,13 +57,14 @@ class WorkOrderService {
         'title': workOrder.Title,
         'description': workOrder.description,
         'location': workOrder.location,
+        'mobile_number': workOrder.mobileNumber,
+        'department': workOrder.department,
         'type': workOrder.type,
         'status': workOrder.status,
         'created_by': _userId,
         'created_by_email': _email,
         'assigned_employee_ids':
             workOrder.assignedEmployees.map((e) => e.id).toList(),
-        'source_request_id': sourceRequestId,
       }),
     );
 
@@ -77,8 +76,6 @@ class WorkOrderService {
     return WorkOrder.fromJson(data['work_order']);
   }
 
-  // ── Update work order ──────────────────────────────────────────────────────
-
   Future<void> updateWorkOrder(WorkOrder workOrder) async {
     final res = await http.patch(
       Uri.parse(
@@ -89,6 +86,8 @@ class WorkOrderService {
         'title': workOrder.Title,
         'description': workOrder.description,
         'location': workOrder.location,
+        'mobile_number': workOrder.mobileNumber,
+        'department': workOrder.department,
         'type': workOrder.type,
         'status': workOrder.status,
         'assigned_employee_ids':
@@ -100,8 +99,6 @@ class WorkOrderService {
       throw Exception(_errorDetail(res, 'Failed to update work order'));
     }
   }
-
-  // ── Close work order ───────────────────────────────────────────────────────
 
   Future<void> closeWorkOrder(
     String id, {
@@ -122,8 +119,6 @@ class WorkOrderService {
     }
   }
 
-  // ── Delete single work order ───────────────────────────────────────────────
-
   Future<void> deleteWorkOrder(String id) async {
     final res = await http.delete(
       Uri.parse(
@@ -135,8 +130,6 @@ class WorkOrderService {
     }
   }
 
-  // ── Delete multiple work orders ────────────────────────────────────────────
-
   Future<void> deleteWorkOrders(List<String> ids) async {
     final res = await http.delete(
       Uri.parse(
@@ -147,8 +140,6 @@ class WorkOrderService {
       throw Exception(_errorDetail(res, 'Failed to delete work orders'));
     }
   }
-
-  // ── Comments ───────────────────────────────────────────────────────────────
 
   Future<WorkOrder?> fetchWorkOrderById(String id) async {
     final res = await http.get(
@@ -195,6 +186,17 @@ class WorkOrderService {
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
       return WorkOrderComment.fromJson(data['comment']);
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> getEmployeeProfile() async {
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/employee-profile?email=${Uri.encodeComponent(_email)}'),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      return data['employee'];
     }
     return null;
   }
