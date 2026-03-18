@@ -64,11 +64,14 @@ class NotificationService {
   }
 
   Future<void> clearAll() async {
-    if (_email.isEmpty) return;
-    await http.delete(
+    if (_email.isEmpty) throw Exception('No user email');
+    final res = await http.delete(
       Uri.parse(
         '${AppConfig.baseUrl}/notifications?email=${Uri.encodeComponent(_email)}',
       ),
     );
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('Failed to clear notifications: ${res.statusCode}');
+    }
   }
 }

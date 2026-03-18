@@ -94,7 +94,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (!confirm) return;
 
     setState(() => _clearingAll = true);
-    await _service.clearAll();
+    try {
+      await _service.clearAll();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to clear notifications: $e'),
+          backgroundColor: AppColors.dangerText,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      setState(() => _clearingAll = false);
+      return;
+    }
     if (!mounted) return;
     setState(() {
       _items = [];
