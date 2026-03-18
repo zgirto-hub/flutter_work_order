@@ -304,7 +304,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
                           ),
                           SizedBox(height: 12),
                           FilterChipRow(
-                            filters: const ['All', 'Open', 'Closed'],
+                            filters: const ['All', 'Pending', 'In Progress', 'Closed'],
                             selected: _statusFilter,
                             onSelected: (s) => setState(() => _statusFilter = s),
                           ),
@@ -791,11 +791,22 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOpen = status == 'Open';
+    Color bg;
+    Color text;
+    if (status == 'Pending') {
+      bg = AppColors.pendingBg;
+      text = AppColors.pendingText;
+    } else if (status == 'In Progress') {
+      bg = AppColors.inProgressBg;
+      text = AppColors.inProgressText;
+    } else {
+      bg = AppColors.closedBg;
+      text = AppColors.closedText;
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isOpen ? AppColors.pendingBg : AppColors.closedBg,
+        color: bg,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -803,7 +814,7 @@ class _StatusBadge extends StatelessWidget {
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w500,
-          color: isOpen ? AppColors.pendingText : AppColors.closedText,
+          color: text,
         ),
       ),
     );

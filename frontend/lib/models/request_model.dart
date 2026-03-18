@@ -2,7 +2,7 @@ class RequestModel {
   final String id;
   final String title;
   final String description;
-  final String status; // 'Open' | 'Closed'
+  final String status; // 'Pending' | 'In Progress' | 'Closed'
   final String createdBy; // email
   final String requesterName;
   final String location;
@@ -29,7 +29,7 @@ class RequestModel {
         id: json['id'] as String,
         title: json['title'] as String,
         description: json['description'] as String? ?? '',
-        status: json['status'] as String? ?? 'Open',
+        status: json['status'] as String? ?? 'Pending',
         createdBy: json['created_by'] as String,
         requesterName: json['requester_name'] as String? ?? '',
         location: json['location'] as String? ?? '',
