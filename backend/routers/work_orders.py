@@ -260,28 +260,32 @@ async def update_work_order(
 
     _sync_assignments(work_order_id, body.assigned_employee_ids or [])
 
-    # Cascade status change to linked request (bidirectional)
-    wo = supabase.table("work_orders") \
-        .select("id, request_id, status, closed_by, closed_at, tech_notes") \
-        .eq("id", work_order_id) \
-        .execute()
-    if wo.data:
-        wo_data = wo.data[0]
-        request_id = wo_data.get("request_id")
-        if request_id:
-            req = supabase.table("requests") \
-                .select("id, status") \
-                .eq("id", request_id) \
-                .execute()
-            if req.data:
-                current_req_status = req.data[0].get("status")
-                if current_req_status != wo_data["status"]:
-                    supabase.table("requests").update({
-                        "status": wo_data["status"],
-                        "closed_by": wo_data.get("closed_by") if wo_data["status"] == "Closed" else None,
-                        "closed_at": wo_data.get("closed_at") if wo_data["status"] == "Closed" else None,
-                        "tech_notes": wo_data.get("tech_notes") if wo_data["status"] == "Closed" else None,
-                    }).eq("id", request_id).execute()
+    # Cascade status change to linked request (best-effort)
+    try:
+        wo = supabase.table("work_orders") \
+            .select("id, request_id, status, closed_by, closed_at, tech_notes") \
+            .eq("id", work_order_id) \
+            .execute()
+        if wo.data:
+            wo_data = wo.data[0]
+            request_id = wo_data.get("request_id")
+            status = wo_data.get("status")
+            if request_id and status:
+                req = supabase.table("requests") \
+                    .select("id, status") \
+                    .eq("id", request_id) \
+                    .execute()
+                if req.data:
+                    current_req_status = req.data[0].get("status")
+                    if current_req_status != status:
+                        supabase.table("requests").update({
+                            "status": status,
+                            "closed_by": wo_data.get("closed_by") if status == "Closed" else None,
+                            "closed_at": wo_data.get("closed_at") if status == "Closed" else None,
+                            "tech_notes": wo_data.get("tech_notes") if status == "Closed" else None,
+                        }).eq("id", request_id).execute()
+    except Exception:
+        pass
 
     # Auto-log status change (best-effort)
     if existing_status and existing_status != body.status:
