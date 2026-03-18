@@ -368,38 +368,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     icon: Icons.system_update_outlined,
                     color: AppColors.accent,
                     onTap: _checkingUpdate ? null : _checkUpdates,
-                  ),
-                  if (_updateMessage.isNotEmpty) ...[
-                    SizedBox(height: 6),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Row(
-                        children: [
-                          Text(
-                            _updateMessage,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
-                          if (_updateAvailable) ...[
-                            SizedBox(width: 8),
-                            GestureDetector(
-                              onTap: _applyUpdate,
-                              child: Text(
-                                'Update now',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.accent,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+                    trailing: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: _checkingUpdate
+                          ? SizedBox(
+                              key: ValueKey('spinner'),
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 1.5, color: AppColors.textTertiary))
+                          : Icon(Icons.chevron_right_rounded,
+                              key: ValueKey('chevron'),
+                              size: 16, color: AppColors.textTertiary),
                     ),
-                  ],
+                  ),
+                  AnimatedOpacity(
+                    opacity: _updateMessage.isNotEmpty ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 250),
+                    child: _updateMessage.isNotEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 8, left: 4),
+                            child: Row(
+                              children: [
+                                Text(
+                                  _updateMessage,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textTertiary,
+                                  ),
+                                ),
+                                if (_updateAvailable) ...[
+                                  SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: _applyUpdate,
+                                    child: Text(
+                                      'Update now',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.accent,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          )
+                        : SizedBox.shrink(),
+                  ),
 
                   SizedBox(height: 24),
 
@@ -582,6 +598,7 @@ class _QuickAction extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback? onTap;
+  final Widget? trailing;
 
   const _QuickAction({
     required this.label,
@@ -589,6 +606,7 @@ class _QuickAction extends StatelessWidget {
     required this.icon,
     required this.color,
     this.onTap,
+    this.trailing,
   });
 
   @override
@@ -631,6 +649,10 @@ class _QuickAction extends StatelessWidget {
                 ],
               ),
             ),
+            if (trailing != null) ...[
+              SizedBox(width: 8),
+              trailing!,
+            ],
           ],
         ),
       ),

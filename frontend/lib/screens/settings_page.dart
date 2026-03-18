@@ -615,40 +615,48 @@ class _SettingsPageState extends State<SettingsPage> {
                   subtitle: version.isNotEmpty ? 'v$version (Build $buildNumber)' : null,
                   showDivider: false,
                   onTap: checkingUpdate ? null : _checkUpdates,
-                  trailing: checkingUpdate
-                      ? SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 1.5, color: AppColors.textTertiary))
-                      : Icon(Icons.chevron_right_rounded,
-                          size: 16, color: AppColors.textTertiary),
-                ),
-              ),
-              if (updateMessage.isNotEmpty) ...[
-                SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Row(
-                    children: [
-                      Text(updateMessage,
-                          style: TextStyle(
-                              fontSize: 12, color: AppColors.textTertiary)),
-                      if (updateAvailable) ...[
-                        SizedBox(width: 10),
-                        GestureDetector(
-                          onTap: _applyUpdate,
-                          child: Text('Update now',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.accent,
-                                  fontWeight: FontWeight.w600)),
-                        ),
-                      ],
-                    ],
+                  trailing: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: checkingUpdate
+                        ? SizedBox(
+                            key: ValueKey('spinner'),
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 1.5, color: AppColors.textTertiary))
+                        : Icon(Icons.chevron_right_rounded,
+                            key: ValueKey('chevron'),
+                            size: 16, color: AppColors.textTertiary),
                   ),
                 ),
-              ],
+              ),
+              AnimatedOpacity(
+                opacity: updateMessage.isNotEmpty ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 250),
+                child: updateMessage.isNotEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 8, left: 4),
+                        child: Row(
+                          children: [
+                            Text(updateMessage,
+                                style: TextStyle(
+                                    fontSize: 12, color: AppColors.textTertiary)),
+                            if (updateAvailable) ...[
+                              SizedBox(width: 10),
+                              GestureDetector(
+                                onTap: _applyUpdate,
+                                child: Text('Update now',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.accent,
+                                        fontWeight: FontWeight.w600)),
+                              ),
+                            ],
+                          ],
+                        ),
+                      )
+                    : SizedBox.shrink(),
+              ),
               SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
