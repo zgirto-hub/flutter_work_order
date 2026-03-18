@@ -20,6 +20,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _loading = true;
   bool _markingAll = false;
   bool _clearingAll = false;
+  bool _navigatingToWorkOrder = false;
   List<AppNotification> _items = [];
 
   @override
@@ -117,52 +118,59 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _openNotification(AppNotification n) async {
-    if (n.isUnread) {
-      await _service.markRead(n.id);
-      if (mounted) {
-        setState(() {
-          _items = _items
-              .map((x) => x.id == n.id
-                  ? AppNotification(
-                      id: x.id,
-                      userEmail: x.userEmail,
-                      kind: x.kind,
-                      title: x.title,
-                      body: x.body,
-                      data: x.data,
-                      sourceType: x.sourceType,
-                      sourceId: x.sourceId,
-                      readAt: DateTime.now(),
-                      createdAt: x.createdAt,
-                    )
-                  : x)
-              .toList();
-        });
+    if (_navigatingToWorkOrder) return;
+    _navigatingToWorkOrder = true;
+
+    try {
+      if (n.isUnread) {
+        await _service.markRead(n.id);
+        if (mounted) {
+          setState(() {
+            _items = _items
+                .map((x) => x.id == n.id
+                    ? AppNotification(
+                        id: x.id,
+                        userEmail: x.userEmail,
+                        kind: x.kind,
+                        title: x.title,
+                        body: x.body,
+                        data: x.data,
+                        sourceType: x.sourceType,
+                        sourceId: x.sourceId,
+                        readAt: DateTime.now(),
+                        createdAt: x.createdAt,
+                      )
+                    : x)
+                .toList();
+          });
+        }
       }
-    }
 
-    final workOrderId = (n.data['work_order_id'] ?? '').toString();
-    if (workOrderId.isEmpty) return;
+      final workOrderId = (n.data['work_order_id'] ?? '').toString();
+      if (workOrderId.isEmpty) return;
 
-    final wo = await _woService.fetchWorkOrderById(workOrderId);
-    if (!mounted) return;
-    if (wo == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Related work order not found'),
-          backgroundColor: AppColors.dangerText,
-          behavior: SnackBarBehavior.floating,
+      final wo = await _woService.fetchWorkOrderById(workOrderId);
+      if (!mounted) return;
+      if (wo == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Related work order not found'),
+            backgroundColor: AppColors.dangerText,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AddWorkOrderScreen(workOrder: wo, initialTab: 1),
         ),
       );
-      return;
+    } finally {
+      _navigatingToWorkOrder = false;
     }
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AddWorkOrderScreen(workOrder: wo, initialTab: 1),
-      ),
-    );
   }
 
   @override
