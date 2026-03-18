@@ -41,7 +41,7 @@ RELEASE_ID=$(date +%Y%m%d%H%M%S)
 
 echo "Building Flutter Web (v$NEW_VERSION+$BUILD_NUMBER, release $RELEASE_ID)..."
 cd "$LOCAL_PROJECT"
-flutter build web --pwa-strategy=offline-first --dart-define=BUILD_DATE=$BUILD_DATE --dart-define=RELEASE_ID=$RELEASE_ID
+flutter build web --dart-define=BUILD_DATE=$BUILD_DATE --dart-define=RELEASE_ID=$RELEASE_ID
 
 cat > build/web/release.json <<EOF
 {
