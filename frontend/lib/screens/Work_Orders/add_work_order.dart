@@ -137,18 +137,6 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     super.dispose();
   }
 
-  @override
-  void didUpdateWidget(AddWorkOrderScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (_tabIndex == 1 && oldWidget.initialTab != 1) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_activityScrollCtrl.hasClients) {
-          _activityScrollCtrl.jumpTo(0);
-        }
-      });
-    }
-  }
-
   Future<void> _loadEmployees() async {
     final data = await _employeeService.fetchEmployees();
     setState(() {
@@ -169,9 +157,15 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       final comments = await _service.fetchComments(widget.workOrder!.id);
       if (mounted) {
         setState(() => _comments = comments);
-        if (_refreshing && _activityScrollCtrl.hasClients) {
-          _activityScrollCtrl.jumpTo(0);
-        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_activityScrollCtrl.hasClients) {
+            _activityScrollCtrl.animateTo(
+              _activityScrollCtrl.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
       }
     } catch (_) {}
     if (mounted) {
