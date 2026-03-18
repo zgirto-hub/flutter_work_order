@@ -266,7 +266,7 @@ async def update_work_order(
     try:
         import sys
         wo = supabase.table("work_orders") \
-            .select("id, request_id, status, closed_by, closed_at, tech_notes") \
+            .select("id, request_id, status, closed_at, tech_notes") \
             .eq("id", work_order_id) \
             .execute()
         print(f"[CASCADE DEBUG] WO fetch result: {wo.data}", file=sys.stderr)
@@ -286,12 +286,11 @@ async def update_work_order(
                     print(f"[CASCADE DEBUG] Current request status: {current_req_status}, WO status: {status}", file=sys.stderr)
                     if current_req_status != status:
                         print(f"[CASCADE DEBUG] Updating request {request_id} to status {status}", file=sys.stderr)
-                        supabase.table("requests").update({
-                            "status": status,
-                            "closed_by": wo_data.get("closed_by") if status == "Closed" else None,
-                            "closed_at": wo_data.get("closed_at") if status == "Closed" else None,
-                            "tech_notes": wo_data.get("tech_notes") if status == "Closed" else None,
-                        }).eq("id", request_id).execute()
+                        update_data = {"status": status}
+                        if status == "Closed":
+                            update_data["closed_at"] = wo_data.get("closed_at")
+                            update_data["tech_notes"] = wo_data.get("tech_notes")
+                        supabase.table("requests").update(update_data).eq("id", request_id).execute()
                         print(f"[CASCADE DEBUG] Request update completed", file=sys.stderr)
                     else:
                         print(f"[CASCADE DEBUG] Skipped - statuses already match", file=sys.stderr)
