@@ -24,6 +24,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _loading = true;
+  bool _refreshing = false;
   int _openWorkOrders = 0;
   int _pendingWorkOrders = 0;
   int _inProgressWorkOrders = 0;
@@ -43,14 +44,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    if (!_refreshing) {
+      setState(() => _loading = true);
+    }
     try {
       await Future.wait([
         _loadWorkOrderStats(),
         _loadRecentActivity(),
       ]);
     } catch (_) {}
-    if (mounted) setState(() => _loading = false);
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _refreshing = false;
+      });
+    }
   }
 
   Future<void> _loadWorkOrderStats() async {
@@ -118,7 +126,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: AppColors.bgPrimary,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _load,
+          onRefresh: () async {
+            setState(() => _refreshing = true);
+            await _load();
+          },
           color: AppColors.accent,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
