@@ -234,6 +234,8 @@ async def update_work_order(
     body: UpdateWorkOrderBody,
     user_email: str = Query(...),
 ):
+    import sys
+    print(f"[CASCADE DEBUG] update_work_order called for {work_order_id}, status={body.status}", file=sys.stderr)
     _ensure_not_requester(user_email)
     _validate_type(body.type)
     _validate_status(body.status)
@@ -262,30 +264,39 @@ async def update_work_order(
 
     # Cascade status change to linked request (best-effort)
     try:
+        import sys
         wo = supabase.table("work_orders") \
             .select("id, request_id, status, closed_by, closed_at, tech_notes") \
             .eq("id", work_order_id) \
             .execute()
+        print(f"[CASCADE DEBUG] WO fetch result: {wo.data}", file=sys.stderr)
         if wo.data:
             wo_data = wo.data[0]
             request_id = wo_data.get("request_id")
             status = wo_data.get("status")
+            print(f"[CASCADE DEBUG] WO data: request_id={request_id}, status={status}", file=sys.stderr)
             if request_id and status:
                 req = supabase.table("requests") \
                     .select("id, status") \
                     .eq("id", request_id) \
                     .execute()
+                print(f"[CASCADE DEBUG] Request fetch result: {req.data}", file=sys.stderr)
                 if req.data:
                     current_req_status = req.data[0].get("status")
+                    print(f"[CASCADE DEBUG] Current request status: {current_req_status}, WO status: {status}", file=sys.stderr)
                     if current_req_status != status:
+                        print(f"[CASCADE DEBUG] Updating request {request_id} to status {status}", file=sys.stderr)
                         supabase.table("requests").update({
                             "status": status,
                             "closed_by": wo_data.get("closed_by") if status == "Closed" else None,
                             "closed_at": wo_data.get("closed_at") if status == "Closed" else None,
                             "tech_notes": wo_data.get("tech_notes") if status == "Closed" else None,
                         }).eq("id", request_id).execute()
-    except Exception:
-        pass
+                        print(f"[CASCADE DEBUG] Request update completed", file=sys.stderr)
+                    else:
+                        print(f"[CASCADE DEBUG] Skipped - statuses already match", file=sys.stderr)
+    except Exception as e:
+        print(f"[CASCADE ERROR] {e}", file=sys.stderr)
 
     # Auto-log status change (best-effort)
     if existing_status and existing_status != body.status:
