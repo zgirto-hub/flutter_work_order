@@ -5,6 +5,7 @@
 #   ./deploy_frontend.sh minor     → bumps minor and deploys
 #   ./deploy_frontend.sh major     → bumps major and deploys
 #   ./deploy_frontend.sh 2.1.0     → sets exact version and deploys
+#   ./deploy_frontend.sh --build   → bumps only build number and deploys
 #   ./deploy_frontend.sh --no-bump → deploys without changing version
 set -e
 

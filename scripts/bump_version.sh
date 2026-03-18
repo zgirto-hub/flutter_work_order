@@ -5,6 +5,7 @@
 #   ./bump_version.sh minor    → bumps minor  (1.7.1 → 1.8.0)
 #   ./bump_version.sh major    → bumps major  (1.7.1 → 2.0.0)
 #   ./bump_version.sh 2.0.0    → sets exact version
+#   ./bump_version.sh --build  → bumps only build number
 
 set -e
 
@@ -32,12 +33,15 @@ case "$BUMP" in
     MINOR=$((MINOR + 1)); PATCH=0 ;;
   patch)
     PATCH=$((PATCH + 1)) ;;
+  --build)
+    # Only bump build number, keep version the same
+    ;;
   [0-9]*.[0-9]*.[0-9]*)
     MAJOR=$(echo "$BUMP" | cut -d. -f1)
     MINOR=$(echo "$BUMP" | cut -d. -f2)
     PATCH=$(echo "$BUMP" | cut -d. -f3) ;;
   *)
-    echo "Usage: $0 [patch|minor|major|x.y.z]"
+    echo "Usage: $0 [patch|minor|major|x.y.z|--build]"
     exit 1 ;;
 esac
 
