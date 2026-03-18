@@ -42,6 +42,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _checkingUpdate = false;
   String _updateMessage = '';
   bool _updateAvailable = false;
+  bool _recentJustLoaded = false;
 
   String get _email =>
       Supabase.instance.client.auth.currentUser?.email ?? '';
@@ -131,6 +132,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     'created_at': o['created_at'] ?? '',
                   })
               .toList();
+          _recentJustLoaded = true;
+        });
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) setState(() => _recentJustLoaded = false);
         });
       }
     } catch (_) {}
@@ -467,37 +472,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                     )
-                  else
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.bgSurface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color: AppColors.border, width: 0.5),
-                      ),
-                      child: Column(
-                        children: _recentActivity
-                            .asMap()
-                            .entries
-                            .map((entry) {
-                          final i = entry.key;
-                          final item = entry.value;
-                          final isLast = i ==
-                              _recentActivity.length - 1;
-                          return Column(
-                            children: [
-                              _RecentActivityRow(item: item),
-                              if (!isLast)
-                                Divider(
-                                  height: 0,
-                                  thickness: 0.5,
-                                  color: AppColors.border,
-                                  indent: 14,
-                                  endIndent: 14,
-                                ),
-                            ],
-                          );
-                        }).toList(),
+                    else
+                    AnimatedOpacity(
+                      opacity: _recentJustLoaded ? 0.6 : 1.0,
+                      duration: const Duration(milliseconds: 300),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.bgSurface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: AppColors.border, width: 0.5),
+                        ),
+                        child: Column(
+                          children: _recentActivity
+                              .asMap()
+                              .entries
+                              .map((entry) {
+                            final i = entry.key;
+                            final item = entry.value;
+                            final isLast = i ==
+                                _recentActivity.length - 1;
+                            return Column(
+                              children: [
+                                _RecentActivityRow(item: item),
+                                if (!isLast)
+                                  Divider(
+                                    height: 0,
+                                    thickness: 0.5,
+                                    color: AppColors.border,
+                                    indent: 14,
+                                    endIndent: 14,
+                                  ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
                       ),
                     ),
                 ],
