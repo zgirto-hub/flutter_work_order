@@ -138,6 +138,20 @@ async def close_request(request_id: str, body: CloseRequestBody):
         "closed_at": datetime.utcnow().isoformat(),
         "tech_notes": body.tech_notes,
     }).eq("id", request_id).execute()
+
+    # If linked to a work order, close it too
+    wo = supabase.table("work_orders") \
+        .select("id, status") \
+        .eq("request_id", request_id) \
+        .execute()
+    if wo.data and wo.data[0]["status"] != "Closed":
+        supabase.table("work_orders").update({
+            "status": "Closed",
+            "closed_by": body.closed_by,
+            "closed_at": datetime.utcnow().isoformat(),
+            "tech_notes": body.tech_notes,
+        }).eq("id", wo.data[0]["id"]).execute()
+
     log_activity(body.closed_by, "request", "closed",
         target_label=request_id, target_id=request_id)
     return {"status": "closed"}
