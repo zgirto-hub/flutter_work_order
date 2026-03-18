@@ -321,6 +321,8 @@
   -->
   <script>
     (function() {
+      var flutterCleanupKey = 'flutter_sw_cleanup_done_v2';
+
       function loadFlutter() {
         var script = document.createElement('script');
         script.src = 'flutter_bootstrap.js';
@@ -328,22 +330,37 @@
         document.body.appendChild(script);
       }
 
+      function isFlutterServiceWorkerRegistration(reg) {
+        var workers = [reg.active, reg.waiting, reg.installing];
+        for (var i = 0; i < workers.length; i++) {
+          var worker = workers[i];
+          if (worker && worker.scriptURL && worker.scriptURL.indexOf('flutter_service_worker.js') !== -1) {
+            return true;
+          }
+        }
+        return false;
+      }
+
       async function cleanupLegacyServiceWorker() {
         if (!('serviceWorker' in navigator)) return false;
-        if (sessionStorage.getItem('sw_cleanup_done') === '1') return false;
+        if (localStorage.getItem(flutterCleanupKey) === '1') return false;
 
         try {
           var regs = await navigator.serviceWorker.getRegistrations();
-          var hasController = !!navigator.serviceWorker.controller;
-          if (!regs.length && !hasController) return false;
-
-          await Promise.all(regs.map(function(reg) { return reg.unregister(); }));
-          if ('caches' in window) {
-            var keys = await caches.keys();
-            await Promise.all(keys.map(function(key) { return caches.delete(key); }));
+          var flutterRegs = regs.filter(isFlutterServiceWorkerRegistration);
+          if (!flutterRegs.length) {
+            localStorage.setItem(flutterCleanupKey, '1');
+            return false;
           }
 
-          sessionStorage.setItem('sw_cleanup_done', '1');
+          var removedAny = false;
+          await Promise.all(flutterRegs.map(async function(reg) {
+            var removed = await reg.unregister();
+            if (removed) removedAny = true;
+          }));
+
+          localStorage.setItem(flutterCleanupKey, '1');
+          if (!removedAny) return false;
           var url = new URL(window.location.href);
           url.searchParams.set('swreset', String(Date.now()));
           window.location.replace(url.toString());
@@ -361,19 +378,35 @@
 
   <script>
     // Called by Flutter's "Update now" button.
-    // Clears web caches, unregisters service workers, then reloads.
+    // Unregisters Flutter service workers and reloads once.
     window.applyPWAUpdate = async function() {
+      var overlay = document.createElement('div');
+      overlay.style.position = 'fixed';
+      overlay.style.inset = '0';
+      overlay.style.background = 'rgba(246, 244, 239, 0.92)';
+      overlay.style.display = 'flex';
+      overlay.style.alignItems = 'center';
+      overlay.style.justifyContent = 'center';
+      overlay.style.fontFamily = "'Inter', sans-serif";
+      overlay.style.fontSize = '15px';
+      overlay.style.fontWeight = '600';
+      overlay.style.color = '#2e1d14';
+      overlay.style.zIndex = '10000';
+      overlay.textContent = 'Applying update...';
+      document.body.appendChild(overlay);
+
       try {
         if ('serviceWorker' in navigator) {
           const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map(function(reg) {
+          const flutterRegistrations = registrations.filter(function(reg) {
+            const workers = [reg.active, reg.waiting, reg.installing];
+            return workers.some(function(worker) {
+              return worker && worker.scriptURL &&
+                  worker.scriptURL.indexOf('flutter_service_worker.js') !== -1;
+            });
+          });
+          await Promise.all(flutterRegistrations.map(function(reg) {
             return reg.unregister();
-          }));
-        }
-        if ('caches' in window) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map(function(key) {
-            return caches.delete(key);
           }));
         }
       } catch (_) {
