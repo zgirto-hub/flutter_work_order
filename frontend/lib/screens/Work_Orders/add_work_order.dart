@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../models/work_order.dart';
 import '../../models/work_order_comment.dart';
-import '../../services/request_service.dart';
 import '../../services/work_order_service.dart';
 import '../../models/employee.dart';
 import '../../services/employee_service.dart';
 import '../../models/employee_assignment.dart';
 import '../../widgets/employee_selector.dart';
 import '../../theme/app_theme.dart';
+import '../../config.dart';
 
 class AddWorkOrderScreen extends StatefulWidget {
   final WorkOrder? workOrder;
@@ -37,7 +39,6 @@ class AddWorkOrderScreen extends StatefulWidget {
 class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   final EmployeeService _employeeService = EmployeeService();
   final WorkOrderService _service = WorkOrderService();
-  final RequestService _requestService = RequestService();
   final _formKey = GlobalKey<FormState>();
 
   List<Employee> _employees = [];
@@ -113,12 +114,23 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         }
         return;
       }
-      final role = await _requestService.getUserRole(email);
-      if (!mounted) return;
-      setState(() {
-        _roleLoaded = true;
-        _userRole = role;
-      });
+      final res = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/user-role?email=${Uri.encodeComponent(email)}'),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (!mounted) return;
+        setState(() {
+          _roleLoaded = true;
+          _userRole = data['user_type'] ?? 'admin';
+        });
+      } else {
+        if (!mounted) return;
+        setState(() {
+          _roleLoaded = true;
+          _userRole = 'admin';
+        });
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {

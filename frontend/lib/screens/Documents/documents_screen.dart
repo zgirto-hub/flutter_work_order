@@ -1,14 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
+import 'package:http/http.dart' as http;
 import '../../controllers/filter_controller.dart';
 import '../../filters/document_filter_engine.dart';
 import '../../models/document.dart';
 import '../../models/folder_model.dart';
 import '../../services/document_service.dart';
 import '../../services/folder_service.dart';
-import '../../services/request_service.dart';
 import '../../theme/app_theme.dart';
+import '../../config.dart';
 import '../../widgets/claude_widgets.dart';
 import '../../widgets/move_to_folder_dialog.dart';
 import '../../widgets/confirm_dialog.dart';
@@ -70,8 +72,15 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   Future<void> _loadUserRole() async {
     final email = Supabase.instance.client.auth.currentUser?.email;
     if (email == null) return;
-    final role = await RequestService().getUserRole(email);
-    if (mounted) setState(() => _userRole = role);
+    try {
+      final res = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/user-role?email=${Uri.encodeComponent(email)}'),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (mounted) setState(() => _userRole = data['user_type'] ?? 'admin');
+      }
+    } catch (_) {}
   }
 
   @override
