@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../services/pwa_update_stub.dart'
+    if (dart.library.js_interop) '../services/pwa_update_web.dart';
 import '../theme/app_theme.dart';
 import '../config.dart';
 import '../widgets/claude_widgets.dart';
@@ -23,6 +27,9 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  static const String _currentReleaseId =
+      String.fromEnvironment('RELEASE_ID', defaultValue: '');
+
   bool _loading = true;
   bool _refreshing = false;
   int _openWorkOrders = 0;
@@ -30,6 +37,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _inProgressWorkOrders = 0;
   int _inspectionsToday = 0;
   List<Map<String, dynamic>> _recentActivity = [];
+  String _appVersion = '';
+  String _appBuild = '';
+  bool _checkingUpdate = false;
+  String _updateMessage = '';
+  bool _updateAvailable = false;
 
   String get _email =>
       Supabase.instance.client.auth.currentUser?.email ?? '';
@@ -41,6 +53,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _load();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() {
+        _appVersion = info.version;
+        _appBuild = info.buildNumber;
+      });
+    }
   }
 
   Future<void> _load() async {
@@ -111,6 +134,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _checkUpdates() async {
+    if (_checkingUpdate) return;
+    setState(() {
+      _checkingUpdate = true;
+      _updateMessage = '';
+      _updateAvailable = false;
+    });
+    try {
+      if (kIsWeb) {
+        final releaseRes = await http.get(
+          Uri.parse(
+            '${Uri.base.origin}/release.json?ts=${DateTime.now().millisecondsSinceEpoch}',
+          ),
+        );
+        if (releaseRes.statusCode == 200) {
+          final data = jsonDecode(releaseRes.body) as Map<String, dynamic>;
+          final latest = (data['version'] as String?)?.trim() ?? '';
+          final latestReleaseId = (data['release_id'] as String?)?.trim() ?? '';
+          final hasUpdate = latestReleaseId.isNotEmpty && _currentReleaseId.isNotEmpty
+              ? latestReleaseId != _currentReleaseId
+              : latest.isNotEmpty && latest != _appVersion.split('+')[0];
+          if (!mounted) return;
+          setState(() {
+            _updateAvailable = hasUpdate;
+            _updateMessage = hasUpdate
+                ? 'Update available: ${latest.isNotEmpty ? latest : 'new release'}'
+                : 'You are on the latest version';
+          });
+          setState(() => _checkingUpdate = false);
+          return;
+        }
+      }
+
+      final res = await http.get(Uri.parse('${AppConfig.baseUrl}/version'));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final latest = (data['version'] as String?)?.trim() ?? '';
+        final latestReleaseId = (data['release_id'] as String?)?.trim() ?? '';
+        final hasUpdate = latestReleaseId.isNotEmpty && _currentReleaseId.isNotEmpty
+            ? latestReleaseId != _currentReleaseId
+            : latest.isNotEmpty && latest != _appVersion.split('+')[0];
+        if (!mounted) return;
+        setState(() {
+          _updateAvailable = hasUpdate;
+          _updateMessage = hasUpdate
+              ? 'Update available: $latest'
+              : 'You are on the latest version';
+        });
+      } else {
+        setState(() => _updateMessage = 'Could not check for updates');
+      }
+    } catch (_) {
+      setState(() => _updateMessage = 'Update check failed');
+    }
+    if (mounted) setState(() => _checkingUpdate = false);
+  }
+
+  void _applyUpdate() {
+    if (kIsWeb) {
+      applyPWAUpdate();
+    }
   }
 
   @override
@@ -275,6 +361,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ],
                   ),
+                  SizedBox(height: 10),
+                  _QuickAction(
+                    label: 'Check for update',
+                    subtitle: 'v${_appVersion.isEmpty ? '...' : _appVersion} (Build ${_appBuild.isEmpty ? '...' : _appBuild})',
+                    icon: Icons.system_update_outlined,
+                    color: AppColors.accent,
+                    onTap: _checkingUpdate ? null : _checkUpdates,
+                  ),
+                  if (_updateMessage.isNotEmpty) ...[
+                    SizedBox(height: 6),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Row(
+                        children: [
+                          Text(
+                            _updateMessage,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                          if (_updateAvailable) ...[
+                            SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: _applyUpdate,
+                              child: Text(
+                                'Update now',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.accent,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
 
                   SizedBox(height: 24),
 
@@ -453,15 +578,17 @@ class _StatCard extends StatelessWidget {
 
 class _QuickAction extends StatelessWidget {
   final String label;
+  final String? subtitle;
   final IconData icon;
   final Color color;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _QuickAction({
     required this.label,
+    this.subtitle,
     required this.icon,
     required this.color,
-    required this.onTap,
+    this.onTap,
   });
 
   @override
@@ -480,13 +607,28 @@ class _QuickAction extends StatelessWidget {
             Icon(icon, size: 18, color: color),
             SizedBox(width: 8),
             Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
