@@ -43,6 +43,24 @@ echo "Building Flutter Web (v$NEW_VERSION+$BUILD_NUMBER, release $RELEASE_ID)...
 cd "$LOCAL_PROJECT"
 flutter build web --dart-define=BUILD_DATE=$BUILD_DATE --dart-define=RELEASE_ID=$RELEASE_ID
 
+# Replace Flutter's generated cleanup worker with a non-looping unregister worker.
+# This safely removes legacy registrations without forcing client.navigate().
+cat > build/web/flutter_service_worker.js <<'SWEOF'
+'use strict';
+
+self.addEventListener('install', function() {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function(event) {
+  event.waitUntil((async function() {
+    try {
+      await self.registration.unregister();
+    } catch (_) {}
+  })());
+});
+SWEOF
+
 cat > build/web/release.json <<EOF
 {
   "version": "$NEW_VERSION",

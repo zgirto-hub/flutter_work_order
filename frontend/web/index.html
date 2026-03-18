@@ -319,7 +319,45 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    (function() {
+      function loadFlutter() {
+        var script = document.createElement('script');
+        script.src = 'flutter_bootstrap.js';
+        script.async = true;
+        document.body.appendChild(script);
+      }
+
+      async function cleanupLegacyServiceWorker() {
+        if (!('serviceWorker' in navigator)) return false;
+        if (sessionStorage.getItem('sw_cleanup_done') === '1') return false;
+
+        try {
+          var regs = await navigator.serviceWorker.getRegistrations();
+          var hasController = !!navigator.serviceWorker.controller;
+          if (!regs.length && !hasController) return false;
+
+          await Promise.all(regs.map(function(reg) { return reg.unregister(); }));
+          if ('caches' in window) {
+            var keys = await caches.keys();
+            await Promise.all(keys.map(function(key) { return caches.delete(key); }));
+          }
+
+          sessionStorage.setItem('sw_cleanup_done', '1');
+          var url = new URL(window.location.href);
+          url.searchParams.set('swreset', String(Date.now()));
+          window.location.replace(url.toString());
+          return true;
+        } catch (_) {
+          return false;
+        }
+      }
+
+      cleanupLegacyServiceWorker().then(function(reloaded) {
+        if (!reloaded) loadFlutter();
+      });
+    })();
+  </script>
 
   <script>
     // Called by Flutter's "Update now" button.
