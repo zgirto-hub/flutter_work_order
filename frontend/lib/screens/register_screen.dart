@@ -227,31 +227,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 16),
               
               if (_departmentsLoaded && _departments.isNotEmpty)
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.bgSurface,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedDepartment,
-                      isExpanded: true,
-                      dropdownColor: AppColors.bgSurface,
-                      style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
-                      items: _departments.map((dept) => DropdownMenuItem(
-                        value: dept,
-                        child: Text(dept),
-                      )).toList(),
-                      onChanged: (v) {
-                        if (v != null) {
-                          setState(() => _selectedDepartment = v);
-                        }
-                      },
-                    ),
-                  ),
-                )
+                _buildDepartmentDropdown()
               else if (_departmentsLoaded && _departments.isEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -290,6 +266,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDepartmentDropdown() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.bgSurface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: null, // Always null to prevent value mismatch freeze
+          isExpanded: true,
+          hint: Text(
+            _selectedDepartment ?? 'Select Department',
+            style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+          ),
+          dropdownColor: AppColors.bgSurface,
+          style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+          items: _departments.map((dept) => DropdownMenuItem(
+            value: dept,
+            child: Text(dept),
+          )).toList(),
+          onChanged: (v) {
+            if (v != null) {
+              setState(() => _selectedDepartment = v);
+            }
+          },
         ),
       ),
     );
