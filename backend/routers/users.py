@@ -95,6 +95,7 @@ async def register_requester(body: RegisterRequesterBody):
     
     supabase.table("employees").upsert({
         "profile_id": user_id,
+        "email": email,
         "full_name": body.name,
         "department": body.department,
         "mobile": body.mobile,
@@ -147,30 +148,24 @@ async def get_employee_profile(email: str = Query(...)):
     if result.data:
         return {"employee": result.data[0]}
     
-    # Fallback: look up profile_id from user_profiles, then get employee
+    # Fallback: look up in user_profiles, then sync email to employees
     profile_result = supabase.table("user_profiles") \
         .select("*") \
         .eq("email", normalized) \
         .execute()
     
     if profile_result.data:
-        # user_profiles stores email as text, need to get profile's id
-        # Use profiles table which has id linked to auth.users
-        auth_result = supabase.auth.admin.list_users()
-        user_id = None
-        if auth_result and hasattr(auth_result, 'users'):
-            for u in auth_result.users:
-                if u.email == normalized:
-                    user_id = u.id
-                    break
-        
-        if user_id:
-            emp_result = supabase.table("employees") \
-                .select("*") \
-                .eq("profile_id", user_id) \
-                .execute()
-            if emp_result.data:
-                return {"employee": emp_result.data[0]}
+        # Try to find employee by any matching field and update email
+        # First check if there's any employee that might match
+        all_employees = supabase.table("employees").select("*").execute()
+        if all_employees.data:
+            for emp in all_employees.data:
+                # Update first unlinked employee with this email
+                if not emp.get("email"):
+                    supabase.table("employees").update({"email": normalized}).eq("id", emp["id"]).execute()
+                    updated = supabase.table("employees").select("*").eq("id", emp["id"]).execute()
+                    if updated.data:
+                        return {"employee": updated.data[0]}
     
     return {"employee": None}
 
