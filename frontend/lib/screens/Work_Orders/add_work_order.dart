@@ -296,21 +296,42 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       );
 
       if (widget.workOrder == null) {
-        final createdOrder = await _service.addWorkOrder(newWorkOrder);
-        if (!mounted) return;
-        Navigator.pop(context, createdOrder);
+        try {
+          final createdOrder = await _service.addWorkOrder(newWorkOrder);
+          if (!mounted) return;
+          Navigator.pop(context, createdOrder);
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Failed to create work order: $e'),
+            backgroundColor: AppColors.dangerText,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 5),
+          ));
+          return;
+        }
       } else {
-        await _service.updateWorkOrder(newWorkOrder);
-        if (!mounted) return;
-        Navigator.pop(context, "updated");
+        try {
+          await _service.updateWorkOrder(newWorkOrder);
+          if (!mounted) return;
+          Navigator.pop(context, "updated");
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Failed to update work order: $e'),
+            backgroundColor: AppColors.dangerText,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 5),
+          ));
+        }
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error: ${e.toString()}'),
+        content: Text('Error: $e'),
         backgroundColor: AppColors.dangerText,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: Duration(seconds: 5),
       ));
     }
   }
