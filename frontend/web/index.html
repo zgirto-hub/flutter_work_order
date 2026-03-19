@@ -463,8 +463,34 @@
         });
       });
 
-      // Hold at 0% for a visible moment
-      await new Promise(function(resolve) { setTimeout(resolve, 400); });
+      // Helper function to update progress with increment animation
+      function updateProgress(targetPercent, durationMs) {
+        return new Promise(function(resolve) {
+          var currentPercent = parseInt(text.textContent.match(/\d+/)[0]) || 0;
+          var steps = targetPercent - currentPercent;
+          if (steps <= 0) {
+            resolve();
+            return;
+          }
+          
+          var stepDuration = durationMs / steps;
+          var currentStep = 0;
+          
+          var interval = setInterval(function() {
+            currentStep++;
+            var newPercent = currentPercent + currentStep;
+            text.textContent = 'Applying update… ' + newPercent + '%';
+            
+            if (currentStep >= steps) {
+              clearInterval(interval);
+              resolve();
+            }
+          }, stepDuration);
+        });
+      }
+
+      // Phase 1: 0% → 45% (prepare for service worker cleanup)
+      await updateProgress(45, 1800);
 
       try {
         if ('serviceWorker' in navigator) {
@@ -477,24 +503,25 @@
             });
           });
           
-          // Update to 50% before unregistering
-          text.textContent = 'Applying update… 50%';
-          await new Promise(function(resolve) { setTimeout(resolve, 200); });
-          
-          await Promise.all(flutterRegistrations.map(function(reg) {
+          // Phase 2: 45% → 75% (during unregistration)
+          var unregisterPromise = Promise.all(flutterRegistrations.map(function(reg) {
             return reg.unregister();
           }));
           
-          // Pause at 50% after unregistering
-          await new Promise(function(resolve) { setTimeout(resolve, 350); });
+          await Promise.all([
+            unregisterPromise,
+            updateProgress(75, 1200)
+          ]);
         }
       } catch (_) {
         // Fall through to reload.
       }
       
-      // Show 100% briefly before reload
-      text.textContent = 'Applying update… 100%';
-      await new Promise(function(resolve) { setTimeout(resolve, 250); });
+      // Phase 3: 75% → 100% (finalizing)
+      await updateProgress(100, 1000);
+      
+      // Brief pause at 100% before reload
+      await new Promise(function(resolve) { setTimeout(resolve, 200); });
       
       const finalTs = Date.now();
       const finalUrl = new URL(window.location.href);
