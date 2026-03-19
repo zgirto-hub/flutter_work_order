@@ -206,12 +206,11 @@ async def list_work_orders(
     elif user_role == "tech" and email:
         it_team = _get_it_team(email)
         if it_team:
-            # IT tech - see work orders from their reporter departments
             reporters = _get_reporter_departments(it_team)
+            all_depts = reporters + [it_team]  # Include own department
             if reporters:
-                work_orders = [wo for wo in work_orders if wo.get("department") in reporters]
+                work_orders = [wo for wo in work_orders if wo.get("department") in all_depts]
             else:
-                # No reporters assigned, show only their own department
                 work_orders = [wo for wo in work_orders if wo.get("department") == it_team]
         else:
             # Non-IT tech - see only their department

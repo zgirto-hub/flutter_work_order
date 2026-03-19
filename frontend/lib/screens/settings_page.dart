@@ -15,6 +15,7 @@ import '../config.dart';
 import '../services/onesignal_service.dart';
 import '../services/activity_log_service.dart';
 import 'settings/activity_log_screen.dart';
+import 'admin/tech_departments_screen.dart';
 
 class SettingsPage extends StatefulWidget {
   final ThemeController themeController;
@@ -591,17 +592,33 @@ class _SettingsPageState extends State<SettingsPage> {
                 SectionLabel(text: 'System'),
                 SurfaceCard(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: SettingsRow(
-                    icon: Icons.history_rounded,
-                    label: 'Activity log',
-                    subtitle: 'View all user actions',
-                    showDivider: false,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ActivityLogScreen(),
+                  child: Column(
+                    children: [
+                      SettingsRow(
+                        icon: Icons.history_rounded,
+                        label: 'Activity log',
+                        subtitle: 'View all user actions',
+                        showDivider: true,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ActivityLogScreen(),
+                          ),
+                        ),
                       ),
-                    ),
+                      SettingsRow(
+                        icon: Icons.account_tree_outlined,
+                        label: 'IT Team Assignments',
+                        subtitle: 'Manage which departments each IT team handles',
+                        showDivider: false,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const TechDepartmentsScreen(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 SizedBox(height: 12),
