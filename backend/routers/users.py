@@ -223,3 +223,21 @@ async def log_update_check(body: SignInBody):
     log_activity(body.user_email, "app", "update_checked",
         target_label="Check for updates")
     return {"status": "logged"}
+
+
+@router.get("/employees")
+async def list_employees(tech: bool = False):
+    """Get all employees, optionally filtered by user_type"""
+    if tech:
+        result = supabase.table("employees") \
+            .select("*, user_profiles(user_type)") \
+            .execute()
+        # Filter in Python since PostgREST doesn't support this join well
+        employees = [r for r in (result.data or []) 
+                     if r.get("user_profiles", {}).get("user_type") == "tech"]
+        return {"employees": employees}
+    else:
+        result = supabase.table("employees") \
+            .select("*") \
+            .execute()
+        return {"employees": result.data or []}
