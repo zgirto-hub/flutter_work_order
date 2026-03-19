@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 import '../../models/work_order.dart';
 import '../../models/work_order_comment.dart';
+import '../../models/work_order_attachment.dart';
 import '../../services/work_order_service.dart';
 import '../../models/employee.dart';
 import '../../services/employee_service.dart';
 import '../../models/employee_assignment.dart';
 import '../../widgets/employee_selector.dart';
+import '../../widgets/attachment_widget.dart';
 import '../../theme/app_theme.dart';
 import '../../config.dart';
 
@@ -57,6 +60,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   // Activity tab state
   int _tabIndex = 0;
   List<WorkOrderComment> _comments = [];
+  List<WorkOrderAttachment> _attachments = [];
   bool _commentsLoading = false;
   bool _refreshing = false;
   bool _sending = false;
@@ -64,6 +68,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   String _userRole = 'admin';
   final TextEditingController _commentCtrl = TextEditingController();
   final ScrollController _activityScrollCtrl = ScrollController();
+  PlatformFile? _pendingAttachment;
 
   static const List<String> _allowedTypes = [
     "Technical",
@@ -202,8 +207,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     }
     try {
       final comments = await _service.fetchComments(widget.workOrder!.id);
+      final attachments = await _service.fetchAttachments(widget.workOrder!.id);
       if (mounted) {
-        setState(() => _comments = comments);
+        setState(() {
+          _comments = comments;
+          _attachments = attachments;
+        });
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_activityScrollCtrl.hasClients) {
             _activityScrollCtrl.animateTo(
@@ -223,32 +232,72 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     }
   }
 
+  Future<void> _pickAttachment() async {
+    final file = await _service.pickAttachment();
+    if (file != null && mounted) {
+      setState(() => _pendingAttachment = file);
+    }
+  }
+
+  void _removePendingAttachment() {
+    setState(() => _pendingAttachment = null);
+  }
+
+  Future<void> _deleteAttachment(WorkOrderAttachment attachment) async {
+    final success = await _service.deleteAttachment(
+      widget.workOrder!.id,
+      attachment.id,
+    );
+    if (success && mounted) {
+      setState(() {
+        _attachments.removeWhere((a) => a.id == attachment.id);
+      });
+    }
+  }
+
   Future<void> _sendComment() async {
     final text = _commentCtrl.text.trim();
-    if (text.isEmpty || _sending) return;
+    final hasAttachment = _pendingAttachment != null;
+    if (text.isEmpty && !hasAttachment) return;
+    if (_sending) return;
+
     final email = Supabase.instance.client.auth.currentUser?.email ?? '';
     final name = email.split('@').first;
 
     setState(() => _sending = true);
     try {
-      final comment = await _service.addComment(
-        workOrderId: widget.workOrder!.id,
-        authorEmail: email,
-        authorName: name,
-        body: text,
-      );
-      if (comment != null && mounted) {
-        _commentCtrl.clear();
-        setState(() => _comments = [..._comments, comment]);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_activityScrollCtrl.hasClients) {
-            _activityScrollCtrl.animateTo(
-              _activityScrollCtrl.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
-            );
-          }
-        });
+      if (_pendingAttachment != null) {
+        final attachment = await _service.uploadAttachment(
+          workOrderId: widget.workOrder!.id,
+          file: _pendingAttachment!,
+        );
+        if (attachment != null && mounted) {
+          setState(() {
+            _attachments = [..._attachments, attachment];
+          });
+        }
+      }
+
+      if (text.isNotEmpty) {
+        final comment = await _service.addComment(
+          workOrderId: widget.workOrder!.id,
+          authorEmail: email,
+          authorName: name,
+          body: text,
+        );
+        if (comment != null && mounted) {
+          _commentCtrl.clear();
+          setState(() => _comments = [..._comments, comment]);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_activityScrollCtrl.hasClients) {
+              _activityScrollCtrl.animateTo(
+                _activityScrollCtrl.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+              );
+            }
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -259,7 +308,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         ));
       }
     }
-    if (mounted) setState(() => _sending = false);
+    if (mounted) {
+      setState(() {
+        _sending = false;
+        _pendingAttachment = null;
+      });
+    }
   }
 
   Future<void> submit() async {
@@ -616,7 +670,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       );
     }
 
-    if (_comments.isEmpty) {
+    final hasContent = _comments.isNotEmpty || _attachments.isNotEmpty;
+
+    if (!hasContent) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -647,17 +703,25 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-        itemCount: _comments.length,
+        itemCount: _comments.length + (_attachments.isNotEmpty ? 1 : 0),
         itemBuilder: (context, i) {
+          if (_attachments.isNotEmpty && i == _comments.length) {
+            return _AttachmentsSection(
+              attachments: _attachments,
+              onDelete: _deleteAttachment,
+              currentUserEmail:
+                  Supabase.instance.client.auth.currentUser?.email ?? '',
+            );
+          }
           final comment = _comments[i];
-          final isLast = i == _comments.length - 1;
+          final isLast = _attachments.isEmpty && i == _comments.length - 1;
           return _ActivityItem(
-          comment: comment,
-          isLast: isLast,
-          currentUserEmail:
-              Supabase.instance.client.auth.currentUser?.email ?? '',
-        );
-      },
+            comment: comment,
+            isLast: isLast,
+            currentUserEmail:
+                Supabase.instance.client.auth.currentUser?.email ?? '',
+          );
+        },
       ),
     );
   }
@@ -675,77 +739,105 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       child: SafeArea(
         top: false,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Avatar
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.accentBg,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(abbr,
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.accent)),
-              ),
-            ),
-            SizedBox(width: 10),
-            // Input
-            Expanded(
-              child: Container(
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: AppColors.bgSurface2,
-                  borderRadius: BorderRadius.circular(20),
-                  border:
-                      Border.all(color: AppColors.border, width: 0.5),
+            if (_pendingAttachment != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: PendingAttachmentChip(
+                  file: _pendingAttachment!,
+                  onRemove: _removePendingAttachment,
                 ),
-                child: TextField(
-                  controller: _commentCtrl,
-                  maxLines: null,
-                  keyboardType: TextInputType.multiline,
-                  textInputAction: TextInputAction.newline,
-                  style: TextStyle(
-                      fontSize: 13, color: AppColors.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'Add a comment…',
-                    hintStyle: TextStyle(
-                        fontSize: 13, color: AppColors.textTertiary),
-                    filled: false,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.accentBg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(abbr,
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.accent)),
                   ),
                 ),
-              ),
-            ),
-            SizedBox(width: 10),
-            // Send button
-            GestureDetector(
-              onTap: _sending ? null : _sendComment,
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.accent,
-                  shape: BoxShape.circle,
+                SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface2,
+                      borderRadius: BorderRadius.circular(20),
+                      border:
+                          Border.all(color: AppColors.border, width: 0.5),
+                    ),
+                    child: TextField(
+                      controller: _commentCtrl,
+                      maxLines: null,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
+                      style: TextStyle(
+                          fontSize: 13, color: AppColors.textPrimary),
+                      decoration: InputDecoration(
+                        hintText: 'Add a comment…',
+                        hintStyle: TextStyle(
+                            fontSize: 13, color: AppColors.textTertiary),
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                      ),
+                    ),
+                  ),
                 ),
-                child: _sending
-                    ? Padding(
-                        padding: EdgeInsets.all(10),
-                        child: CircularProgressIndicator(
-                            strokeWidth: 1.5, color: Colors.white),
-                      )
-                    : Icon(Icons.send_rounded,
-                        size: 18, color: Colors.white),
-              ),
+                SizedBox(width: 6),
+                GestureDetector(
+                  onTap: _pickAttachment,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface2,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.border, width: 0.5),
+                    ),
+                    child: Icon(
+                      Icons.attach_file,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 6),
+                GestureDetector(
+                  onTap: _sending ? null : _sendComment,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: _sending
+                        ? Padding(
+                            padding: EdgeInsets.all(10),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 1.5, color: Colors.white),
+                          )
+                        : Icon(Icons.send_rounded,
+                            size: 18, color: Colors.white),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1104,6 +1196,86 @@ class _StatusBadge extends StatelessWidget {
       child: Text(status,
           style: TextStyle(
               fontSize: 11, fontWeight: FontWeight.w500, color: fg)),
+    );
+  }
+}
+
+// ── Attachments Section ───────────────────────────────────────────────────────
+
+class _AttachmentsSection extends StatelessWidget {
+  final List<WorkOrderAttachment> attachments;
+  final Function(WorkOrderAttachment) onDelete;
+  final String currentUserEmail;
+
+  const _AttachmentsSection({
+    required this.attachments,
+    required this.onDelete,
+    required this.currentUserEmail,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.accentBg,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.attach_file,
+                    size: 14,
+                    color: AppColors.accent,
+                  ),
+                ),
+              ),
+              SizedBox(width: 10),
+              Container(
+                width: 1,
+                height: 32,
+                color: AppColors.border,
+              ),
+              SizedBox(width: 10),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  'Attachments (${attachments.length})',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 40),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: attachments.map((attachment) {
+                return SizedBox(
+                  width: 200,
+                  child: AttachmentWidget(
+                    attachment: attachment,
+                    showDelete: true,
+                    onDelete: () => onDelete(attachment),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -4,7 +4,9 @@ from typing import Optional, List
 from datetime import datetime
 import os
 import uuid
+import io
 
+from PIL import Image
 from db import supabase
 from utils.activity import log_activity
 from utils.notification_service import dispatch_work_order_comment_notification
@@ -12,6 +14,11 @@ from utils.notification_service import dispatch_work_order_comment_notification
 router = APIRouter()
 
 UPLOAD_DIR = "uploaded_files"
+
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_IMAGE_DIMENSION = 1920
+ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "jpg", "jpeg", "png", "gif"}
+IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif"}
 
 # --------------------
 # Pydantic Models
@@ -26,9 +33,9 @@ class CreateWorkOrderBody(BaseModel):
     department: str
     type: str = "Technical"
     status: str = "Pending"
-    created_by: str
+    created_by: str  # user_id (UUID)
     created_by_email: Optional[str] = ""
-    assigned_employee_ids: Optional[List[str]] = []
+    assigned_user_ids: Optional[List[str]] = []
 
 
 class UpdateWorkOrderBody(BaseModel):
@@ -40,11 +47,11 @@ class UpdateWorkOrderBody(BaseModel):
     department: str
     type: str
     status: str
-    assigned_employee_ids: Optional[List[str]] = []
+    assigned_user_ids: Optional[List[str]] = []
 
 
 class CloseWorkOrderBody(BaseModel):
-    closed_by: str
+    closed_by: str  # user_id (UUID)
     tech_notes: Optional[str] = None
 
 
@@ -64,59 +71,59 @@ ALLOWED_TYPES = {"Technical", "Inspection", "Other"}
 ALLOWED_STATUSES = {"Pending", "In Progress", "Closed"}
 
 
-def _get_user_role(email: str) -> str:
+def _get_user_by_email(email: str) -> Optional[dict]:
     normalized = email.strip().lower()
     if not normalized:
+        return None
+    result = supabase.table("users").select("*").eq("email", normalized).execute()
+    return result.data[0] if result.data else None
+
+
+def _get_user_by_id(user_id: str) -> Optional[dict]:
+    result = supabase.table("users").select("*").eq("id", user_id).execute()
+    return result.data[0] if result.data else None
+
+
+def _get_user_role(email: str) -> str:
+    user = _get_user_by_email(email)
+    if not user:
         return "admin"
-    result = supabase.table("user_profiles") \
-        .select("user_type") \
-        .eq("email", normalized) \
-        .limit(1) \
-        .execute()
-    if not result.data:
-        return "admin"
-    return (result.data[0].get("user_type") or "admin").strip().lower()
+    return (user.get("user_type") or "admin").strip().lower()
 
 
 def _get_user_department(email: str) -> Optional[str]:
-    normalized = email.strip().lower()
-    # First try by email column in employees
-    result = supabase.table("employees") \
-        .select("department") \
-        .eq("email", normalized) \
-        .execute()
-    if result.data and result.data[0].get("department"):
-        return result.data[0]["department"]
+    user = _get_user_by_email(email)
+    if user:
+        return user.get("department")
     return None
 
 
-def _get_it_team(email: str) -> Optional[str]:
-    """Get IT team for a tech user"""
-    normalized = email.strip().lower()
-    result = supabase.table("employees") \
-        .select("it_team, department") \
-        .eq("email", normalized) \
-        .execute()
+def _get_user_id_by_email(email: str) -> Optional[str]:
+    user = _get_user_by_email(email)
+    if user:
+        return user.get("id")
+    return None
+
+
+def _get_fixers_by_department(fixer_department: str) -> List[str]:
+    """Get list of user IDs that are fixers in a specific department"""
+    result = supabase.table("users").select("id").eq("department", fixer_department).eq("user_type", "fixer").execute()
+    return [r.get("id") for r in (result.data or [])]
+
+
+def _get_reporter_departments(fixer_department: str) -> List[str]:
+    """Get list of departments that a fixer department handles"""
+    result = supabase.table("fixer_reporters").select("reporter_departments").eq("fixer_department", fixer_department).execute()
     if result.data:
-        # Return it_team if set, otherwise return department
-        return result.data[0].get("it_team") or result.data[0].get("department")
-    return None
+        return result.data[0].get("reporter_departments") or []
+    return []
 
 
-def _get_reporter_departments(it_team: str) -> List[str]:
-    """Get list of departments that an IT team supports"""
-    result = supabase.table("it_department_reporters") \
-        .select("reporter_department") \
-        .eq("it_department", it_team) \
-        .execute()
-    return [r.get("reporter_department") for r in (result.data or [])]
-
-
-def _ensure_not_requester(email: str):
-    if _get_user_role(email) == "requester":
+def _ensure_not_reporter(email: str):
+    if _get_user_role(email) == "reporter":
         raise HTTPException(
             status_code=403,
-            detail="Requester is not allowed to modify or delete work orders",
+            detail="Reporter is not allowed to modify or delete work orders",
         )
 
 
@@ -140,9 +147,10 @@ def _fetch_full_work_order(work_order_id: str):
     result = supabase.table("work_orders").select("""
         *,
         work_order_assignments (
-            employee_id,
-            employees (
+            user_id,
+            users (
                 id,
+                email,
                 full_name,
                 department
             )
@@ -153,15 +161,15 @@ def _fetch_full_work_order(work_order_id: str):
     return result.data[0]
 
 
-def _sync_assignments(work_order_id: str, employee_ids: List[str]):
+def _sync_assignments(work_order_id: str, user_ids: List[str]):
     supabase.table("work_order_assignments") \
         .delete() \
         .eq("work_order_id", work_order_id) \
         .execute()
-    if employee_ids:
+    if user_ids:
         assignments = [
-            {"work_order_id": work_order_id, "employee_id": emp_id}
-            for emp_id in employee_ids
+            {"work_order_id": work_order_id, "user_id": uid}
+            for uid in user_ids
         ]
         supabase.table("work_order_assignments").insert(assignments).execute()
 
@@ -181,9 +189,10 @@ async def list_work_orders(
     query = supabase.table("work_orders").select("""
         *,
         work_order_assignments (
-            employee_id,
-            employees (
+            user_id,
+            users (
                 id,
+                email,
                 full_name,
                 department
             )
@@ -200,26 +209,27 @@ async def list_work_orders(
     result = query.execute()
     work_orders = result.data or []
     
-    if user_role == "requester" and email:
-        # Requesters see only their own work orders
-        work_orders = [wo for wo in work_orders if wo.get("created_by") == email]
-    elif user_role == "tech" and email:
-        it_team = _get_it_team(email)
-        if it_team:
-            reporters = _get_reporter_departments(it_team)
-            all_depts = reporters + [it_team]  # Include own department
-            if reporters:
-                work_orders = [wo for wo in work_orders if wo.get("department") in all_depts]
-            else:
-                work_orders = [wo for wo in work_orders if wo.get("department") == it_team]
+    if user_role == "reporter" and email:
+        # Reporters see only their own work orders
+        user_id = _get_user_id_by_email(email)
+        if user_id:
+            work_orders = [wo for wo in work_orders if wo.get("created_by") == user_id]
         else:
-            # Non-IT tech - see only their department
-            user_dept = _get_user_department(email)
-            if user_dept:
-                work_orders = [wo for wo in work_orders if wo.get("department") == user_dept]
+            work_orders = []
+    elif user_role == "fixer" and email:
+        # Fixers see work orders in departments they handle
+        fixer_department = _get_user_department(email)
+        if fixer_department:
+            reporter_depts = _get_reporter_departments(fixer_department)
+            visible_depts = reporter_depts + [fixer_department]  # Include own department
+            if reporter_depts:
+                work_orders = [wo for wo in work_orders if wo.get("department") in visible_depts]
             else:
-                # Department not found, show only their own work orders
-                work_orders = [wo for wo in work_orders if wo.get("created_by") == email]
+                # Fixer with no assigned reporter departments - only see own department
+                work_orders = [wo for wo in work_orders if wo.get("department") == fixer_department]
+        else:
+            # Fixer with no department set - show nothing
+            work_orders = []
     # Admin sees all (no filtering)
     
     return {"work_orders": work_orders}
@@ -259,9 +269,9 @@ async def create_work_order(body: CreateWorkOrderBody):
 
     work_order_id = fetch.data["id"]
 
-    if body.assigned_employee_ids:
+    if body.assigned_user_ids:
         try:
-            _sync_assignments(work_order_id, body.assigned_employee_ids)
+            _sync_assignments(work_order_id, body.assigned_user_ids)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Assignment sync failed: {e}")
 
@@ -290,7 +300,7 @@ async def update_work_order(
     body: UpdateWorkOrderBody,
     user_email: str = Query(...),
 ):
-    _ensure_not_requester(user_email)
+    _ensure_not_reporter(user_email)
     _validate_type(body.type)
     _validate_status(body.status)
 
@@ -315,7 +325,7 @@ async def update_work_order(
         "updated_at": datetime.utcnow().isoformat(),
     }).eq("id", work_order_id).execute()
 
-    _sync_assignments(work_order_id, body.assigned_employee_ids or [])
+    _sync_assignments(work_order_id, body.assigned_user_ids or [])
 
     if existing_status and existing_status != body.status:
         try:
@@ -341,8 +351,9 @@ async def update_work_order(
 async def close_work_order(
     work_order_id: str,
     body: CloseWorkOrderBody,
+    user_email: str = Query(...),
 ):
-    _ensure_not_requester(body.closed_by)
+    _ensure_not_reporter(user_email)
     existing = supabase.table("work_orders") \
         .select("id, status") \
         .eq("id", work_order_id) \
@@ -364,7 +375,7 @@ async def close_work_order(
         "updated_at": now,
     }).eq("id", work_order_id).execute()
 
-    log_activity(body.closed_by, "work_order", "closed",
+    log_activity(user_email, "work_order", "closed",
         target_label=work_order_id, target_id=work_order_id)
 
     return {"status": "closed"}
@@ -375,7 +386,7 @@ async def delete_work_order(
     work_order_id: str,
     user_email: str = Query(...),
 ):
-    _ensure_not_requester(user_email)
+    _ensure_not_reporter(user_email)
     existing = supabase.table("work_orders") \
         .select("id") \
         .eq("id", work_order_id) \
@@ -394,7 +405,7 @@ async def delete_work_orders_bulk(
     ids: str = Query(..., description="Comma-separated work order IDs"),
     user_email: str = Query(...),
 ):
-    _ensure_not_requester(user_email)
+    _ensure_not_reporter(user_email)
     id_list = [i.strip() for i in ids.split(",") if i.strip()]
     if not id_list:
         raise HTTPException(status_code=400, detail="No IDs provided")
@@ -452,19 +463,81 @@ async def add_comment(work_order_id: str, body: AddCommentBody):
 # Attachment Endpoints
 # --------------------
 
+async def _validate_file(file: UploadFile) -> bytes:
+    content = b""
+    chunk_size = 1024 * 1024  # 1MB chunks
+    total_size = 0
+    
+    while True:
+        chunk = await file.read(chunk_size)
+        if not chunk:
+            break
+        total_size += len(chunk)
+        if total_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
+            )
+        content += chunk
+    
+    await file.seek(0)
+    
+    extension = file.filename.split(".")[-1].lower() if "." in file.filename else ""
+    if extension not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type not allowed. Allowed types: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+        )
+    
+    return content
+
+
+def _compress_image(content: bytes, extension: str) -> bytes:
+    try:
+        img = Image.open(io.BytesIO(content))
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        
+        if max(img.width, img.height) > MAX_IMAGE_DIMENSION:
+            ratio = MAX_IMAGE_DIMENSION / max(img.width, img.height)
+            new_size = (int(img.width * ratio), int(img.height * ratio))
+            img = img.resize(new_size, Image.Resampling.LANCZOS)
+        
+        output = io.BytesIO()
+        save_format = "JPEG" if extension in ("jpg", "jpeg") else "PNG"
+        img.save(output, format=save_format, optimize=True)
+        return output.getvalue()
+    except Exception:
+        return content
+
+
 @router.post("/work-orders/{work_order_id}/attachments")
 async def upload_attachment(
     work_order_id: str,
     file: UploadFile = File(...),
     uploaded_by: str = Form(...),
 ):
+    existing = supabase.table("work_orders") \
+        .select("id") \
+        .eq("id", work_order_id) \
+        .execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    content = await _validate_file(file)
+    
     file_id = str(uuid.uuid4())
     extension = file.filename.split(".")[-1].lower() if "." in file.filename else "bin"
     filename = f"wo_{file_id}.{extension}"
     file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    if extension in IMAGE_EXTENSIONS:
+        content = _compress_image(content, extension)
+        if extension in ("jpg", "jpeg"):
+            filename = f"wo_{file_id}.jpg"
+            file_path = os.path.join(UPLOAD_DIR, filename)
 
     with open(file_path, "wb") as f:
-        content = await file.read()
         f.write(content)
 
     public_url = f"/files/{filename}"
@@ -473,7 +546,7 @@ async def upload_attachment(
         "work_order_id": work_order_id,
         "file_name": file.filename,
         "file_url": public_url,
-        "file_type": file.content_type,
+        "file_type": file.content_type or f"image/{extension}" if extension in IMAGE_EXTENSIONS else "application/octet-stream",
     }).execute()
 
     return {"status": "uploaded", "file_url": public_url}

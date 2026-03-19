@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:file_picker/file_picker.dart';
 import '../models/work_order.dart';
 import '../models/work_order_comment.dart';
+import '../models/work_order_attachment.dart';
 import '../config.dart';
 
 class WorkOrderService {
@@ -200,5 +202,77 @@ class WorkOrderService {
       return data['employee'];
     }
     return null;
+  }
+
+  Future<List<WorkOrderAttachment>> fetchAttachments(String workOrderId) async {
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/work-orders/$workOrderId/attachments'),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      return (data['attachments'] as List)
+          .map((j) => WorkOrderAttachment.fromJson(j))
+          .toList();
+    }
+    return [];
+  }
+
+  Future<WorkOrderAttachment?> uploadAttachment({
+    required String workOrderId,
+    required PlatformFile file,
+    Function(int)? onProgress,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${AppConfig.baseUrl}/work-orders/$workOrderId/attachments'),
+      );
+
+      request.fields['uploaded_by'] = _email;
+
+      if (file.bytes != null) {
+        request.files.add(http.MultipartFile.fromBytes(
+          'file',
+          file.bytes!,
+          filename: file.name,
+        ));
+      } else if (file.path != null) {
+        request.files.add(await http.MultipartFile.fromPath(
+          'file',
+          file.path!,
+          filename: file.name,
+        ));
+      } else {
+        return null;
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final attachments = await fetchAttachments(workOrderId);
+        return attachments.isNotEmpty ? attachments.last : null;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<bool> deleteAttachment(String workOrderId, String attachmentId) async {
+    final res = await http.delete(
+      Uri.parse('${AppConfig.baseUrl}/work-orders/$workOrderId/attachments/$attachmentId?email=${Uri.encodeComponent(_email)}'),
+    );
+    return res.statusCode == 200;
+  }
+
+  Future<PlatformFile?> pickAttachment() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif'],
+      withData: true,
+    );
+    return result?.files.isNotEmpty == true ? result!.files.first : null;
   }
 }
