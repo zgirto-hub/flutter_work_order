@@ -95,6 +95,7 @@ async def register_requester(body: RegisterRequesterBody):
     
     supabase.table("employees").upsert({
         "profile_id": user_id,
+        "email": email,
         "full_name": body.name,
         "department": body.department,
         "mobile": body.mobile,
@@ -140,7 +141,7 @@ async def get_employee_profile(email: str = Query(...)):
     
     result = supabase.table("employees") \
         .select("*") \
-        .eq("profile_id", normalized) \
+        .eq("email", normalized) \
         .execute()
     
     if result.data:
