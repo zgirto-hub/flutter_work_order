@@ -28,6 +28,18 @@ class WorkOrderHome extends StatefulWidget {
   State<WorkOrderHome> createState() => _WorkOrderHomeState();
 }
 
+class NewWorkOrderIntent extends Intent {
+  const NewWorkOrderIntent();
+}
+
+class SearchIntent extends Intent {
+  const SearchIntent();
+}
+
+class ClearFiltersIntent extends Intent {
+  const ClearFiltersIntent();
+}
+
 class _WorkOrderHomeState extends State<WorkOrderHome>
     with WidgetsBindingObserver {
   final NotificationService _notificationService = NotificationService();
@@ -210,207 +222,254 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
     if (result == 'updated' || result == 'deleted') await _load();
   }
 
+  void _toggleSearch() {
+    setState(() {
+      _showSearch = !_showSearch;
+      if (!_showSearch) {
+        _searchCtrl.clear();
+        _filter.setSearchQuery('');
+      }
+    });
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _filter.setSearchQuery('');
+      _filter.setDate(null);
+      _filter.setEmployee(null);
+      _showSearch = false;
+      _searchCtrl.clear();
+    });
+  }
+
+  Future<void> _toggleDateFilter() async {
+    if (_filter.selectedDate != null) {
+      setState(() => _filter.selectedDate = null);
+      return;
+    }
+    final d = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (d != null) {
+      setState(() => _filter.setDate(d));
+    }
+  }
+
+  Future<void> _showEmployeeFilter() async {
+    if (_filter.selectedEmployeeId != null) {
+      setState(() => _filter.selectedEmployeeId = null);
+      return;
+    }
+    final employees = _workOrders
+        .expand((wo) => wo.assignedEmployees)
+        .toList();
+    final unique = {
+      for (var e in employees) e.id: e
+    }.values.toList();
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _EmployeePicker(employees: unique),
+    );
+    if (selected != null) {
+      setState(() => _filter.setEmployee(selected));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered =
         WorkOrderFilterEngine.applyFilters(_workOrders, _filter);
 
-    return Scaffold(
-      backgroundColor: AppColors.bgPrimary,
-      body: SafeArea(
-        child: Column(
-          children: [
+    return Shortcuts(
+      shortcuts: <LogicalKeySet, Intent>{
+        LogicalKeySet(LogicalKeyboardKey.keyN, LogicalKeyboardKey.control):
+            const NewWorkOrderIntent(),
+        LogicalKeySet(LogicalKeyboardKey.keyF, LogicalKeyboardKey.control):
+            const SearchIntent(),
+        LogicalKeySet(LogicalKeyboardKey.escape): const ClearFiltersIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          NewWorkOrderIntent: CallbackAction<NewWorkOrderIntent>(
+            onInvoke: (_) => _openAdd(),
+          ),
+          SearchIntent: CallbackAction<SearchIntent>(
+            onInvoke: (_) => _toggleSearch(),
+          ),
+          ClearFiltersIntent: CallbackAction<ClearFiltersIntent>(
+            onInvoke: (_) => _clearFilters(),
+          ),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Scaffold(
+            backgroundColor: AppColors.bgPrimary,
+            body: SafeArea(
+              child: Column(
+                children: [
 
-            // ── App Bar ───────────────────────────────────────
-            Container(
-              color: AppColors.bgSurface,
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
-              child: _selectionMode
-                  ? _SelectionBar(
-                      count: _selectedIds.length,
-                      onCancel: _exitSelectionMode,
-                      onDelete: _selectedIds.isNotEmpty
-                          ? _deleteSelected
-                          : null,
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              if (!_showSearch)
-                                Expanded(
-                                  child: Text(
-                                    'Work Orders',
-                                    style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimary,
-                                        letterSpacing: -0.3),
-                                  ),
-                                )
-                              else
-                                Expanded(
-                                  child: ClaudeSearchBar(
-                                    controller: _searchCtrl,
-                                    hintText: 'Search job no, title…',
-                                    onChanged: (v) => setState(() =>
-                                        _filter.setSearchQuery(
-                                            v.toLowerCase())),
-                                  ),
-                                ),
-                              SizedBox(width: 8),
-                              ClaudeIconButton(
-                                icon: _showSearch
-                                    ? Icons.close_rounded
-                                    : Icons.search_rounded,
-                                onTap: () {
-                                  setState(() {
-                                    _showSearch = !_showSearch;
-                                    if (!_showSearch) {
-                                      _searchCtrl.clear();
-                                      _filter.setSearchQuery('');
-                                    }
-                                  });
-                                },
-                              ),
-                              SizedBox(width: 6),
-                              ClaudeIconButton(
-                                icon: Icons.calendar_today_outlined,
-                                onTap: () async {
-                                  if (_filter.selectedDate != null) {
-                                    setState(() =>
-                                        _filter.selectedDate = null);
-                                    return;
-                                  }
-                                  final d = await showDatePicker(
-                                    context: context,
-                                    initialDate: DateTime.now(),
-                                    firstDate: DateTime(2020),
-                                    lastDate: DateTime(2100),
-                                  );
-                                  if (d != null) {
-                                    setState(() => _filter.setDate(d));
-                                  }
-                                },
-                              ),
-                              SizedBox(width: 6),
-                              ClaudeIconButton(
-                                icon: Icons.person_outline_rounded,
-                                onTap: () async {
-                                  if (_filter.selectedEmployeeId != null) {
-                                    setState(() =>
-                                        _filter.selectedEmployeeId = null);
-                                    return;
-                                  }
-                                  final employees = _workOrders
-                                      .expand((wo) => wo.assignedEmployees)
-                                      .toList();
-                                  final unique = {
-                                    for (var e in employees) e.id: e
-                                  }.values.toList();
-                                  final selected =
-                                      await showModalBottomSheet<String>(
-                                    context: context,
-                                    backgroundColor: AppColors.bgSurface,
-                                    shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.vertical(
-                                          top: Radius.circular(16)),
+                  // ── App Bar ───────────────────────────────────────
+                  Container(
+                    color: AppColors.bgSurface,
+                    padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
+                    child: _selectionMode
+                        ? _SelectionBar(
+                            count: _selectedIds.length,
+                            onCancel: _exitSelectionMode,
+                            onDelete: _selectedIds.isNotEmpty
+                                ? _deleteSelected
+                                : null,
+                          )
+                        : Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    if (!_showSearch)
+                                      Expanded(
+                                        child: Semantics(
+                                          header: true,
+                                          child: Text(
+                                            'Work Orders',
+                                            style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.textPrimary,
+                                                letterSpacing: -0.3),
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      Expanded(
+                                        child: ClaudeSearchBar(
+                                          controller: _searchCtrl,
+                                          hintText: 'Search job no, title…',
+                                          onChanged: (v) => setState(() =>
+                                              _filter.setSearchQuery(
+                                                  v.toLowerCase())),
+                                        ),
+                                      ),
+                                    SizedBox(width: 8),
+                                    ClaudeIconButton(
+                                      icon: _showSearch
+                                          ? Icons.close_rounded
+                                          : Icons.search_rounded,
+                                      onTap: _toggleSearch,
+                                      tooltip: _showSearch ? 'Close search' : 'Search',
+                                      semanticsLabel: _showSearch ? 'Close search' : 'Search work orders',
                                     ),
-                                    builder: (_) =>
-                                        _EmployeePicker(employees: unique),
-                                  );
-                                  if (selected != null) {
-                                    setState(
-                                        () => _filter.setEmployee(selected));
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
+                                    SizedBox(width: 6),
+                                    ClaudeIconButton(
+                                      icon: Icons.calendar_today_outlined,
+                                      onTap: _toggleDateFilter,
+                                      tooltip: 'Filter by date',
+                                      semanticsLabel: 'Filter by date',
+                                    ),
+                                    SizedBox(width: 6),
+                                    ClaudeIconButton(
+                                      icon: Icons.person_outline_rounded,
+                                      onTap: _showEmployeeFilter,
+                                      tooltip: 'Filter by employee',
+                                      semanticsLabel: 'Filter by employee',
+                                    ),
+                                  ],
+                                ),
 
-                          SizedBox(height: 12),
+                                SizedBox(height: 12),
 
-                          // ── Status + Type filter chips ─────────────────
-                          FilterChipRow(
-                            filters: const [
-                              'All',
-                              'Pending',
-                              'In Progress',
-                              'Closed',
-                              'Inspection',
-                            ],
-                            selected: _filter.statusFilter == 'All' &&
-                                    _filter.selectedDocumentType ==
-                                        'Inspection'
-                                ? 'Inspection'
-                                : _filter.statusFilter,
-                            onSelected: (s) {
-                              setState(() {
-                                _expandedIndex = null;
-                                if (s == 'Inspection') {
-                                  // Filter by type instead of status
-                                  _filter.setStatus('All');
-                                  _filter.setDocumentType('Inspection');
-                                } else {
-                                  _filter.setStatus(s);
-                                  _filter.setDocumentType(null);
-                                }
-                              });
-                            },
+                                // ── Status + Type filter chips ─────────────────
+                                FilterChipRow(
+                                  filters: const [
+                                    'All',
+                                    'Pending',
+                                    'In Progress',
+                                    'Closed',
+                                    'Inspection',
+                                  ],
+                                  selected: _filter.statusFilter == 'All' &&
+                                          _filter.selectedDocumentType ==
+                                              'Inspection'
+                                      ? 'Inspection'
+                                      : _filter.statusFilter,
+                                  onSelected: (s) {
+                                    setState(() {
+                                      _expandedIndex = null;
+                                      if (s == 'Inspection') {
+                                        _filter.setStatus('All');
+                                        _filter.setDocumentType('Inspection');
+                                      } else {
+                                        _filter.setStatus(s);
+                                        _filter.setDocumentType(null);
+                                      }
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
+                  ),
+
+                  // Active filters row
+                  if (!_selectionMode &&
+                      (_filter.selectedDate != null ||
+                          _filter.selectedEmployeeId != null))
+                    Container(
+                      color: AppColors.bgSurface,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                      child: Row(
+                        children: [
+                          if (_filter.selectedDate != null)
+                            _ActiveFilterChip(
+                              label:
+                                  '${_filter.selectedDate!.day}/${_filter.selectedDate!.month}/${_filter.selectedDate!.year}',
+                              onRemove: () =>
+                                  setState(() => _filter.selectedDate = null),
+                            ),
+                          if (_filter.selectedEmployeeId != null)
+                            _ActiveFilterChip(
+                              label: _workOrders
+                                  .expand((w) => w.assignedEmployees)
+                                  .firstWhere(
+                                    (e) => e.id == _filter.selectedEmployeeId,
+                                    orElse: () =>
+                                        EmployeeAssignment(id: '', fullName: ''),
+                                  )
+                                  .fullName,
+                              onRemove: () => setState(
+                                  () => _filter.selectedEmployeeId = null),
+                            ),
                         ],
                       ),
                     ),
-            ),
 
-            // Active filters row
-            if (!_selectionMode &&
-                (_filter.selectedDate != null ||
-                    _filter.selectedEmployeeId != null))
-              Container(
-                color: AppColors.bgSurface,
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                child: Row(
-                  children: [
-                    if (_filter.selectedDate != null)
-                      _ActiveFilterChip(
-                        label:
-                            '${_filter.selectedDate!.day}/${_filter.selectedDate!.month}/${_filter.selectedDate!.year}',
-                        onRemove: () =>
-                            setState(() => _filter.selectedDate = null),
-                      ),
-                    if (_filter.selectedEmployeeId != null)
-                      _ActiveFilterChip(
-                        label: _workOrders
-                            .expand((w) => w.assignedEmployees)
-                            .firstWhere(
-                              (e) => e.id == _filter.selectedEmployeeId,
-                              orElse: () =>
-                                  EmployeeAssignment(id: '', fullName: ''),
-                            )
-                            .fullName,
-                        onRemove: () => setState(
-                            () => _filter.selectedEmployeeId = null),
-                      ),
-                  ],
-                ),
+                  Divider(
+                      height: 0, thickness: 0.5, color: AppColors.border),
+
+                  // ── List ──────────────────────────────────────────
+                  Expanded(
+                    child: _buildList(filtered),
+                  ),
+                ],
               ),
-
-            Divider(
-                height: 0, thickness: 0.5, color: AppColors.border),
-
-            // ── List ──────────────────────────────────────────
-            Expanded(
-              child: _buildList(filtered),
             ),
-          ],
+            floatingActionButton:
+                _selectionMode ? null : ClaudeFAB(
+                  onTap: _openAdd,
+                  tooltip: 'Create work order',
+                  semanticsLabel: 'Create new work order',
+                ),
+          ),
         ),
       ),
-      floatingActionButton:
-          _selectionMode ? null : ClaudeFAB(onTap: _openAdd),
     );
   }
 

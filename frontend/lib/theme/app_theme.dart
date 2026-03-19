@@ -16,8 +16,8 @@ class AppColors {
 
   // ── Text ───────────────────────────────────────────────────────────────────
   static Color get textPrimary   => _dark ? const Color(0xFFEDEDEA) : const Color(0xFF1A1915);
-  static Color get textSecondary => _dark ? const Color(0xFF9B9A96) : const Color(0xFF6B6860);
-  static Color get textTertiary  => _dark ? const Color(0xFF5E5D5A) : const Color(0xFF9B9A96);
+  static Color get textSecondary => _dark ? const Color(0xFF9B9A96) : const Color(0xFF5C5650);
+  static Color get textTertiary  => _dark ? const Color(0xFF7A7774) : const Color(0xFF756F68);
 
   // ── Accent (terracotta — unchanged across modes) ──────────────────────────
   static const Color accent = Color(0xFFCC785C);
@@ -28,12 +28,12 @@ class AppColors {
   static Color get border2 => _dark ? const Color(0x1CFFFFFF) : const Color(0x1F000000);
 
   // ── Status ─────────────────────────────────────────────────────────────────
-  static Color get pendingText    => _dark ? const Color(0xFFD97706) : const Color(0xFFB45309);
-  static Color get pendingBg      => _dark ? const Color(0xFF2A1F07) : const Color(0xFFFEF3C7);
-  static Color get inProgressText => _dark ? const Color(0xFF3B82F6) : const Color(0xFF1D4ED8);
-  static Color get inProgressBg   => _dark ? const Color(0xFF0F1B38) : const Color(0xFFDBEAFE);
-  static Color get closedText     => _dark ? const Color(0xFF22C55E) : const Color(0xFF15803D);
-  static Color get closedBg       => _dark ? const Color(0xFF0A2416) : const Color(0xFFDCFCE7);
+  static Color get pendingText    => _dark ? const Color(0xFFFDE68A) : const Color(0xFF92400E);
+  static Color get pendingBg      => _dark ? const Color(0xFF78350F) : const Color(0xFFFDE68A);
+  static Color get inProgressText => _dark ? const Color(0xFFBFDBFE) : const Color(0xFF1E40AF);
+  static Color get inProgressBg   => _dark ? const Color(0xFF1E3A8A) : const Color(0xFFBFDBFE);
+  static Color get closedText     => _dark ? const Color(0xFFDCFCE7) : const Color(0xFF15803D);
+  static Color get closedBg       => _dark ? const Color(0xFF14532D) : const Color(0xFFDCFCE7);
 
   // ── Danger ─────────────────────────────────────────────────────────────────
   static const Color dangerText   = Color(0xFFDC2626);
@@ -69,8 +69,8 @@ class AppTheme {
     final bgSurface   = isDark ? const Color(0xFF212120) : const Color(0xFFFFFFFF);
     final bgSurface2  = isDark ? const Color(0xFF2A2A28) : const Color(0xFFF5F4F0);
     final textPrimary = isDark ? const Color(0xFFEDEDEA) : const Color(0xFF1A1915);
-    final textSec     = isDark ? const Color(0xFF9B9A96) : const Color(0xFF6B6860);
-    final textTert    = isDark ? const Color(0xFF5E5D5A) : const Color(0xFF9B9A96);
+    final textSec     = isDark ? const Color(0xFF9B9A96) : const Color(0xFF5C5650);
+    final textTert    = isDark ? const Color(0xFF7A7774) : const Color(0xFF756F68);
     final border      = isDark ? const Color(0x12FFFFFF) : const Color(0x14000000);
     final border2     = isDark ? const Color(0x1CFFFFFF) : const Color(0x1F000000);
 
@@ -83,6 +83,7 @@ class AppTheme {
         brightness: brightness,
         surface: bgSurface,
       ),
+      focusColor: accent.withValues(alpha: 0.12),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.android: ClaudeTransitionsBuilder(),
@@ -116,7 +117,7 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: border2, width: 0.5)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: border2, width: 0.5)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.accent, width: 1)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: accent, width: 2)),
         hintStyle: TextStyle(color: textTert, fontSize: 13),
         labelStyle: TextStyle(color: textSec, fontSize: 11),
       ),

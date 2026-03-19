@@ -44,6 +44,11 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   final WorkOrderService _service = WorkOrderService();
   final _formKey = GlobalKey<FormState>();
 
+  final _titleFocusNode = FocusNode();
+  final _descriptionFocusNode = FocusNode();
+  final _locationFocusNode = FocusNode();
+  final _mobileFocusNode = FocusNode();
+
   List<Employee> _employees = [];
   List<String> _selectedEmployeeIds = [];
 
@@ -178,6 +183,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
   @override
   void dispose() {
+    _titleFocusNode.dispose();
+    _descriptionFocusNode.dispose();
+    _locationFocusNode.dispose();
+    _mobileFocusNode.dispose();
     jobNoController.dispose();
     clientController.dispose();
     descriptionController.dispose();
@@ -545,8 +554,13 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
             SizedBox(height: 10),
             TextFormField(
               controller: clientController,
+              focusNode: _titleFocusNode,
               readOnly: !canEdit,
               decoration: InputDecoration(labelText: "Title"),
+              textInputAction: TextInputAction.next,
+              onFieldSubmitted: (_) {
+                FocusScope.of(context).requestFocus(_descriptionFocusNode);
+              },
               validator: (v) => v!.isEmpty ? "Enter Title" : null,
             ),
             SizedBox(height: 10),
@@ -561,8 +575,13 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
             SizedBox(height: 10),
             TextFormField(
               controller: locationController,
+              focusNode: _locationFocusNode,
               readOnly: !canEdit,
               decoration: InputDecoration(labelText: "Location"),
+              textInputAction: TextInputAction.next,
+              onFieldSubmitted: (_) {
+                FocusScope.of(context).requestFocus(_mobileFocusNode);
+              },
               validator: (v) => v!.isEmpty ? "Enter Location" : null,
             ),
             SizedBox(height: 10),
@@ -571,6 +590,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               readOnly: !canEdit,
               decoration: InputDecoration(labelText: "Mobile Number"),
               keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
             ),
             SizedBox(height: 10),
             TextFormField(
@@ -603,9 +623,11 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
             TextFormField(
               controller: descriptionController,
+              focusNode: _descriptionFocusNode,
               readOnly: !canEdit,
               decoration: InputDecoration(labelText: "Description"),
               maxLines: 3,
+              textInputAction: TextInputAction.done,
             ),
             SizedBox(height: 25),
             // Only show Assign Employees for admin/tech (not for requesters)

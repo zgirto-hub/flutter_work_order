@@ -324,8 +324,48 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             if (widget.onActivity != null)
-                              GestureDetector(
-                                onTap: widget.onActivity,
+                              Semantics(
+                                label: 'View activity for work order',
+                                button: true,
+                                child: GestureDetector(
+                                  onTap: widget.onActivity,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.bgSurface,
+                                      borderRadius: BorderRadius.circular(9),
+                                      border: Border.all(
+                                          color: AppColors.border2, width: 0.5),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.history_rounded,
+                                            size: 13,
+                                            color: AppColors.textSecondary),
+                                        SizedBox(width: 5),
+                                        Text('Activity',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: AppColors.textSecondary,
+                                                fontWeight: FontWeight.w500)),
+                                        if (widget.unreadActivityCount > 0) ...[
+                                          SizedBox(width: 6),
+                                          _UnreadBadge(count: widget.unreadActivityCount),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            if (widget.onActivity != null)
+                              SizedBox(width: 8),
+                            Semantics(
+                              label: 'Edit work order',
+                              button: true,
+                              child: GestureDetector(
+                                onTap: widget.onEdit,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 14, vertical: 7),
@@ -338,49 +378,17 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.history_rounded,
+                                      Icon(Icons.edit_outlined,
                                           size: 13,
                                           color: AppColors.textSecondary),
                                       SizedBox(width: 5),
-                                      Text('Activity',
+                                      Text('Edit',
                                           style: TextStyle(
                                               fontSize: 12,
                                               color: AppColors.textSecondary,
                                               fontWeight: FontWeight.w500)),
-                                      if (widget.unreadActivityCount > 0) ...[
-                                        SizedBox(width: 6),
-                                        _UnreadBadge(count: widget.unreadActivityCount),
-                                      ],
                                     ],
                                   ),
-                                ),
-                              ),
-                            if (widget.onActivity != null)
-                              SizedBox(width: 8),
-                            GestureDetector(
-                              onTap: widget.onEdit,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: AppColors.bgSurface,
-                                  borderRadius: BorderRadius.circular(9),
-                                  border: Border.all(
-                                      color: AppColors.border2, width: 0.5),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.edit_outlined,
-                                        size: 13,
-                                        color: AppColors.textSecondary),
-                                    SizedBox(width: 5),
-                                    Text('Edit',
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            color: AppColors.textSecondary,
-                                            fontWeight: FontWeight.w500)),
-                                  ],
                                 ),
                               ),
                             ),

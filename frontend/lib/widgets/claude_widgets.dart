@@ -8,6 +8,19 @@ class StatusBadge extends StatelessWidget {
 
   const StatusBadge({super.key, required this.status});
 
+  String get _statusLabel {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'Pending';
+      case 'in progress':
+        return 'In Progress';
+      case 'closed':
+        return 'Closed';
+      default:
+        return status;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     Color bg;
@@ -31,10 +44,14 @@ class StatusBadge extends StatelessWidget {
         text = AppColors.textSecondary;
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Text(status, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: text)),
+    return Semantics(
+      label: 'Status: $_statusLabel',
+      readOnly: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+        child: Text(status, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: text)),
+      ),
     );
   }
 }
@@ -172,26 +189,33 @@ class ClaudeSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 38,
-      decoration: BoxDecoration(
-        color: AppColors.bgSurface2,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: TextField(
-        controller: controller,
-        onChanged: onChanged,
-        style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(fontSize: 13, color: AppColors.textTertiary),
-          prefixIcon: Icon(Icons.search_rounded, size: 16, color: AppColors.textTertiary),
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 10),
-          filled: false,
+    return Semantics(
+      label: 'Search $hintText',
+      textField: true,
+      child: Container(
+        height: 38,
+        decoration: BoxDecoration(
+          color: AppColors.bgSurface2,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.border, width: 0.5),
+        ),
+        child: TextField(
+          controller: controller,
+          onChanged: onChanged,
+          style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: TextStyle(fontSize: 13, color: AppColors.textTertiary),
+            prefixIcon: Semantics(
+              excludeSemantics: true,
+              child: Icon(Icons.search_rounded, size: 16, color: AppColors.textTertiary),
+            ),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 10),
+            filled: false,
+          ),
         ),
       ),
     );
@@ -248,22 +272,34 @@ class InitialsAvatar extends StatelessWidget {
 class ClaudeIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
+  final String? tooltip;
+  final String? semanticsLabel;
 
-  const ClaudeIconButton({super.key, required this.icon, required this.onTap});
+  const ClaudeIconButton({
+    super.key,
+    required this.icon,
+    required this.onTap,
+    this.tooltip,
+    this.semanticsLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
-          color: AppColors.bgSurface2,
-          borderRadius: BorderRadius.circular(9),
-          border: Border.all(color: AppColors.border2, width: 0.5),
+    return Semantics(
+      label: semanticsLabel ?? tooltip,
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: AppColors.bgSurface2,
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: AppColors.border2, width: 0.5),
+          ),
+          child: Icon(icon, size: 16, color: AppColors.textSecondary),
         ),
-        child: Icon(icon, size: 16, color: AppColors.textSecondary),
       ),
     );
   }
@@ -274,28 +310,40 @@ class ClaudeIconButton extends StatelessWidget {
 class ClaudeFAB extends StatelessWidget {
   final VoidCallback onTap;
   final IconData icon;
+  final String? tooltip;
+  final String? semanticsLabel;
 
-  const ClaudeFAB({super.key, required this.onTap, this.icon = Icons.add_rounded});
+  const ClaudeFAB({
+    super.key,
+    required this.onTap,
+    this.icon = Icons.add_rounded,
+    this.tooltip,
+    this.semanticsLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          color: AppColors.accent,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.accent.withValues(alpha: 0.2),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    return Semantics(
+      label: semanticsLabel ?? tooltip ?? 'Action button',
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: AppColors.accent,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.accent.withValues(alpha: 0.2),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Icon(icon, color: Colors.white, size: 20),
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
       ),
     );
   }
