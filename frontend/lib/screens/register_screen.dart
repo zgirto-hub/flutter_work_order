@@ -271,37 +271,47 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildDepartmentDropdown() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgSurface,
+ Widget _buildDepartmentDropdown() {
+  return DropdownButtonFormField<String>(
+    // Use the actual value instead of null to make it functional
+    value: _departments.contains(_selectedDepartment) ? _selectedDepartment : null,
+    isExpanded: true,
+    hint: Text(
+      'Select Department',
+      style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
+    ),
+    style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+    dropdownColor: AppColors.bgSurface,
+    // Use the same decoration as your text fields
+    decoration: InputDecoration(
+      filled: true,
+      fillColor: AppColors.bgSurface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
+        borderSide: BorderSide(color: AppColors.border),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: null, // Always null to prevent value mismatch freeze
-          isExpanded: true,
-          hint: Text(
-            _selectedDepartment ?? 'Select Department',
-            style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
-          ),
-          dropdownColor: AppColors.bgSurface,
-          style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
-          items: _departments.map((dept) => DropdownMenuItem(
-            value: dept,
-            child: Text(dept),
-          )).toList(),
-          onChanged: (v) {
-            if (v != null) {
-              setState(() => _selectedDepartment = v);
-            }
-          },
-        ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: AppColors.border),
       ),
-    );
-  }
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: AppColors.accent),
+      ),
+    ),
+    items: _departments.map((dept) => DropdownMenuItem(
+      value: dept,
+      child: Text(dept),
+    )).toList(),
+    onChanged: (v) {
+      if (v != null) {
+        setState(() => _selectedDepartment = v);
+      }
+    },
+    validator: (v) => v == null || v.isEmpty ? 'Please select a department' : null,
+  );
+}
 
   Widget _buildTextField({
     required TextEditingController controller,
