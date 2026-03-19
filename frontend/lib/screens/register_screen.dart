@@ -25,8 +25,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscureConfirm = true;
   bool _isLoading = false;
   
-  String _selectedDepartment = 'General';
-  List<String> _departments = ['General', 'IT', 'HR', 'Finance', 'Operations', 'Maintenance', 'Security'];
+  String _selectedDepartment = '';
+  List<String> _departments = [];
 
   @override
   void initState() {
@@ -43,7 +43,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final data = jsonDecode(res.body);
         final depts = data['departments'] as List? ?? [];
         if (depts.isNotEmpty) {
-          setState(() => _departments = depts.map((d) => d['name'] as String).toList());
+          final deptNames = depts.map((d) => d['name'] as String).toList();
+          setState(() {
+            _departments = deptNames;
+            if (!_departments.contains(_selectedDepartment)) {
+              _selectedDepartment = _departments.first;
+            }
+          });
         }
       }
     } catch (_) {}
@@ -218,7 +224,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: DropdownButtonFormField<String>(
-                  value: _selectedDepartment,
+                  value: _departments.isNotEmpty ? _selectedDepartment : null,
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.zero,
@@ -229,7 +235,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     value: dept,
                     child: Text(dept),
                   )).toList(),
-                  onChanged: (v) => setState(() => _selectedDepartment = v ?? 'General'),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() => _selectedDepartment = v);
+                    }
+                  },
                 ),
               ),
               
