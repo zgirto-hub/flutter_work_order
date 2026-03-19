@@ -109,10 +109,24 @@ async def delete_department(department_id: str):
     if not existing.data:
         raise HTTPException(status_code=404, detail="Department not found")
     
+    department_name = existing.data[0]["name"]
+    
+    # Check if department is used in work_orders
+    wo_check = supabase.table("work_orders") \
+        .select("id") \
+        .eq("department", department_name) \
+        .limit(1) \
+        .execute()
+    if wo_check.data:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete: department is used in work orders"
+        )
+    
     # Delete the department
     supabase.table("departments") \
         .delete() \
         .eq("id", department_id) \
         .execute()
     
-    return {"deleted": True, "name": existing.data[0]["name"]}
+    return {"deleted": True, "name": department_name}
