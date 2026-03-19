@@ -124,8 +124,10 @@ def _fetch_full_work_order(work_order_id: str):
                 department
             )
         )
-    """).eq("id", work_order_id).single().execute()
-    return result.data
+    """).eq("id", work_order_id).execute()
+    if not result.data:
+        return None
+    return result.data[0]
 
 
 def _sync_assignments(work_order_id: str, employee_ids: List[str]):
