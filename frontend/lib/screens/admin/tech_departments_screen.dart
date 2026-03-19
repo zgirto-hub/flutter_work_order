@@ -15,12 +15,17 @@ class TechDepartmentsScreen extends StatefulWidget {
 }
 
 class _TechDepartmentsScreenState extends State<TechDepartmentsScreen> {
+  final DepartmentService _departmentService = DepartmentService(); // ← Add this line
+  List<String> _departments = [];
+  bool _isLoading = false;
+  
+  // ... rest of your code
   final ItDepartmentService _service = ItDepartmentService();
   final DepartmentService _deptService = DepartmentService();
   final ItTeamService _itTeamService = ItTeamService();
   
   List<Map<String, dynamic>> _techs = [];
-  List<String> _departments = [];
+  
   List<String> _itTeams = [];
   Map<String, List<String>> _itTeamReporters = {};
   bool _loading = true;
@@ -33,66 +38,69 @@ class _TechDepartmentsScreenState extends State<TechDepartmentsScreen> {
   }
 
   Future<void> _loadData() async {
+  setState(() {
+    _loading = true;
+    _error = null;
+  });
+
+  try {
+    // Load all IT department reporters mappings
+    final mappingsResult = await _service.getAllMappings();
+    final mappings = mappingsResult['mappings'] as List? ?? [];
+    
+    // Build map of IT team -> reporter departments
+    final Map<String, List<String>> reporters = {};
+    for (var m in mappings) {
+      final itDept = m['it_department'] as String;
+      final reporter = m['reporter_department'] as String;
+      reporters.putIfAbsent(itDept, () => []);
+      reporters[itDept]!.add(reporter);
+    }
+    
+    // Load departments from API - FIXED
+    final deptNames = await _departmentService.fetchDepartments();
+    // deptNames is already List<String> = ["IT", "HR", "Sales", etc.]
+    
+    // Load IT teams from API - CHECK WHAT getItTeams() RETURNS
+    final itTeamNames = await _itTeamService.getItTeams();
+    // If getItTeams returns List<String>, use directly
+    // If it returns List<Map>, you need: 
+    // final itTeamsResult = await _itTeamService.getItTeams();
+    // final itTeamNames = itTeamsResult.map((t) => t['name'] as String).toList();
+    
+    // Load all techs from employees
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/employees?tech=true'),
+    );
+    
+    List<Map<String, dynamic>> techs = [];
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      final employees = data['employees'] as List? ?? [];
+      techs = employees
+          .where((e) => (e['user_type'] == 'tech' || e['user_type'] == 'admin'))
+          .cast<Map<String, dynamic>>()
+          .toList();
+    }
+
+    if (!mounted) return;
+    
     setState(() {
-      _loading = true;
-      _error = null;
+      _techs = techs;
+      _departments = deptNames..sort();
+      _itTeams = List<String>.from(itTeamNames)..sort();
+      _itTeamReporters = reporters;
+      _loading = false;
     });
-
-    try {
-      // Load all IT department reporters mappings
-      final mappingsResult = await _service.getAllMappings();
-      final mappings = mappingsResult['mappings'] as List? ?? [];
-      
-      // Build map of IT team -> reporter departments
-      final Map<String, List<String>> reporters = {};
-      for (var m in mappings) {
-        final itDept = m['it_department'] as String;
-        final reporter = m['reporter_department'] as String;
-        reporters.putIfAbsent(itDept, () => []);
-        reporters[itDept]!.add(reporter);
-      }
-      
-      // Load departments from API
-      final depts = await _deptService.getDepartments();
-      final deptNames = depts.map((d) => d['name'] as String).toList();
-      
-      // Load IT teams from API
-      final itTeamsResult = await _itTeamService.getItTeams();
-      final itTeamNames = itTeamsResult.map((t) => t['name'] as String).toList();
-      
-      // Load all techs from employees
-      final res = await http.get(
-        Uri.parse('${AppConfig.baseUrl}/employees?tech=true'),
-      );
-      
-      List<Map<String, dynamic>> techs = [];
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final employees = data['employees'] as List? ?? [];
-        techs = employees
-            .where((e) => (e['user_type'] == 'tech' || e['user_type'] == 'admin'))
-            .cast<Map<String, dynamic>>()
-            .toList();
-      }
-
-      if (!mounted) return;
-      
+  } catch (e) {
+    if (mounted) {
       setState(() {
-        _techs = techs;
-        _departments = deptNames..sort();
-        _itTeams = itTeamNames..sort();
-        _itTeamReporters = reporters;
         _loading = false;
+        _error = e.toString();
       });
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _error = e.toString();
-        });
-      }
     }
   }
+}
 
   Future<void> _updateItTeam(String email, String itTeam) async {
     try {

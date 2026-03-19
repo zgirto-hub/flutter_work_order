@@ -3,68 +3,76 @@ import 'package:http/http.dart' as http;
 import '../config.dart';
 
 class DepartmentService {
-  Future<List<Map<String, dynamic>>> getDepartments() async {
+  String _errorDetail(http.Response res, String fallback) {
     try {
-      final res = await http.get(
-        Uri.parse('${AppConfig.baseUrl}/departments'),
-      );
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        return (data['departments'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      }
-    } catch (_) {}
-    return [];
-  }
-
-  Future<Map<String, dynamic>?> createDepartment(String name) async {
-    try {
-      final res = await http.post(
-        Uri.parse('${AppConfig.baseUrl}/departments'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'name': name}),
-      );
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        return data['department'];
-      } else {
-        final error = jsonDecode(res.body);
-        throw Exception(error['detail'] ?? 'Failed to create department');
-      }
-    } catch (e) {
-      rethrow;
+      final body = jsonDecode(res.body);
+      return (body is Map ? body['detail'] : null) ?? fallback;
+    } catch (_) {
+      return fallback;
     }
   }
 
-  Future<Map<String, dynamic>?> updateDepartment(String id, String name) async {
-    try {
-      final res = await http.patch(
-        Uri.parse('${AppConfig.baseUrl}/departments/$id'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'name': name}),
-      );
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        return data['department'];
-      } else {
-        final error = jsonDecode(res.body);
-        throw Exception(error['detail'] ?? 'Failed to update department');
-      }
-    } catch (e) {
-      rethrow;
+  Future<List<String>> fetchDepartments() async {
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/departments'),
+    ).timeout(Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      return List<String>.from(data['departments'] ?? []);
+    }
+    throw Exception(_errorDetail(res, 'Failed to fetch departments'));
+  }
+
+  Future<Map<String, dynamic>> fetchDepartmentInfo(String departmentName) async {
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/departments/${Uri.encodeComponent(departmentName)}'),
+    ).timeout(Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      return data;
+    }
+    throw Exception(_errorDetail(res, 'Failed to fetch department info'));
+  }
+
+  Future<int> getUserCount(String departmentName) async {
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/departments/${Uri.encodeComponent(departmentName)}/user-count'),
+    ).timeout(Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      return data['user_count'] ?? 0;
+    }
+    return 0;
+  }
+
+  Future<void> createDepartment(String name) async {
+    final res = await http.post(
+      Uri.parse('${AppConfig.baseUrl}/departments'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'name': name}),
+    ).timeout(Duration(seconds: 10));
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to create department'));
     }
   }
 
-  Future<void> deleteDepartment(String id) async {
-    try {
-      final res = await http.delete(
-        Uri.parse('${AppConfig.baseUrl}/departments/$id'),
-      );
-      if (res.statusCode != 200) {
-        final error = jsonDecode(res.body);
-        throw Exception(error['detail'] ?? 'Failed to delete department');
-      }
-    } catch (e) {
-      rethrow;
+  Future<void> renameDepartment(String oldName, String newName) async {
+    final res = await http.patch(
+      Uri.parse('${AppConfig.baseUrl}/departments/${Uri.encodeComponent(oldName)}'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'new_name': newName}),
+    ).timeout(Duration(seconds: 10));
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to rename department'));
+    }
+  }
+
+  Future<void> deleteDepartment(String name) async {
+    final res = await http.delete(
+      Uri.parse('${AppConfig.baseUrl}/departments/${Uri.encodeComponent(name)}'),
+    ).timeout(Duration(seconds: 10));
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to delete department'));
     }
   }
 }

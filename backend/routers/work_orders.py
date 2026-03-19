@@ -529,13 +529,13 @@ async def upload_attachment(
     file_id = str(uuid.uuid4())
     extension = file.filename.split(".")[-1].lower() if "." in file.filename else "bin"
     filename = f"wo_{file_id}.{extension}"
-    file_path = os.path.join(UPLOAD_DIR, filename)
     
     if extension in IMAGE_EXTENSIONS:
         content = _compress_image(content, extension)
         if extension in ("jpg", "jpeg"):
             filename = f"wo_{file_id}.jpg"
-            file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    file_path = os.path.join(UPLOAD_DIR, filename)
 
     with open(file_path, "wb") as f:
         f.write(content)

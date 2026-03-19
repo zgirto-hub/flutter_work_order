@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-Flutter frontend + Django backend work order management app.
+Flutter frontend + FastAPI backend work order management app.
 - Frontend: `frontend/` (Flutter web)
-- Backend: `backend/` (Django + FastAPI)
+- Backend: `backend/` (FastAPI)
 - Database: Supabase (Postgres + Auth + Admin API)
 - Push: OneSignal
 

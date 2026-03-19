@@ -98,18 +98,6 @@ async def delete_fixer_reporter(fixer_department: str):
     return {"deleted": True, "fixer_department": fixer_department}
 
 
-@router.get("/departments")
-async def list_departments():
-    """Get all unique departments from users table"""
-    result = supabase.table("users").select("department").eq("is_active", True).execute()
-    departments = set()
-    for row in (result.data or []):
-        dept = row.get("department")
-        if dept:
-            departments.add(dept)
-    return {"departments": sorted(list(departments))}
-
-
 @router.get("/fixer-departments")
 async def list_fixer_departments():
     """Get all fixer departments (departments with at least one fixer user)"""

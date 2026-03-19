@@ -243,18 +243,27 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
   }
 
   Future<void> _showCreateDialog(BuildContext context) async {
+    if (_allDepartments.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No departments available'), backgroundColor: AppColors.dangerText),
+      );
+      return;
+    }
+
     String? selectedFixer;
-    List<String> selectedReporters = [];
+    final localSelectedReporters = <String>[];
 
     await showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
           backgroundColor: AppColors.bgSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           title: Text('Add Fixer-Reporter Team',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          content: SingleChildScrollView(
+          content: SizedBox(
+            width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,36 +295,40 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
                 Text('Reporter Departments',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
                 SizedBox(height: 8),
-                Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: AppColors.bgSurface2,
-                    borderRadius: BorderRadius.circular(9),
-                    border: Border.all(color: AppColors.border, width: 0.5),
-                  ),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    itemCount: _allDepartments.length,
-                    itemBuilder: (ctx, i) {
-                      final dept = _allDepartments[i];
-                      final isSelected = selectedReporters.contains(dept);
-                      return CheckboxListTile(
-                        value: isSelected,
-                        onChanged: (v) {
-                          setDlg(() {
-                            if (v == true) {
-                              selectedReporters.add(dept);
-                            } else {
-                              selectedReporters.remove(dept);
-                            }
-                          });
-                        },
-                        title: Text(dept, style: TextStyle(fontSize: 13)),
-                        dense: true,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        activeColor: AppColors.accent,
-                      );
-                    },
+                Flexible(
+                  child: Container(
+                    constraints: BoxConstraints(maxHeight: 200),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface2,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: AppColors.border, width: 0.5),
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      itemCount: _allDepartments.length,
+                      separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.border),
+                      itemBuilder: (ctx, i) {
+                        final dept = _allDepartments[i];
+                        final isSelected = localSelectedReporters.contains(dept);
+                        return CheckboxListTile(
+                          value: isSelected,
+                          onChanged: (v) {
+                            setDlg(() {
+                              if (v == true) {
+                                localSelectedReporters.add(dept);
+                              } else {
+                                localSelectedReporters.remove(dept);
+                              }
+                            });
+                          },
+                          title: Text(dept, style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                          dense: true,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          activeColor: AppColors.accent,
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -324,18 +337,18 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
             ElevatedButton(
-              onPressed: selectedFixer == null || selectedReporters.isEmpty
+              onPressed: selectedFixer == null || localSelectedReporters.isEmpty
                   ? null
                   : () async {
                       try {
                         await _service.createFixerReporter(
                           fixerDepartment: selectedFixer!,
-                          reporterDepartments: selectedReporters,
+                          reporterDepartments: localSelectedReporters,
                         );
-                        if (mounted) Navigator.pop(ctx);
+                        if (dialogCtx.mounted) Navigator.pop(dialogCtx);
                         _loadData();
                       } catch (e) {
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        if (dialogCtx.mounted) ScaffoldMessenger.of(dialogCtx).showSnackBar(
                             SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.dangerText));
                       }
                     },
@@ -349,18 +362,27 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
   }
 
   Future<void> _showEditDialog(BuildContext context, String fixerDept, List<String> currentReporters) async {
-    List<String> selectedReporters = List.from(currentReporters);
+    if (_allDepartments.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No departments available'), backgroundColor: AppColors.dangerText),
+      );
+      return;
+    }
+
+    final localSelectedReporters = List<String>.from(currentReporters);
     bool loading = false;
 
     await showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
           backgroundColor: AppColors.bgSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           title: Text('Edit $fixerDept',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          content: SingleChildScrollView(
+          content: SizedBox(
+            width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -368,36 +390,40 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
                 Text('Reporter Departments',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
                 SizedBox(height: 8),
-                Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: AppColors.bgSurface2,
-                    borderRadius: BorderRadius.circular(9),
-                    border: Border.all(color: AppColors.border, width: 0.5),
-                  ),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    itemCount: _allDepartments.length,
-                    itemBuilder: (ctx, i) {
-                      final dept = _allDepartments[i];
-                      final isSelected = selectedReporters.contains(dept);
-                      return CheckboxListTile(
-                        value: isSelected,
-                        onChanged: (v) {
-                          setDlg(() {
-                            if (v == true) {
-                              selectedReporters.add(dept);
-                            } else {
-                              selectedReporters.remove(dept);
-                            }
-                          });
-                        },
-                        title: Text(dept, style: TextStyle(fontSize: 13)),
-                        dense: true,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        activeColor: AppColors.accent,
-                      );
-                    },
+                Flexible(
+                  child: Container(
+                    constraints: BoxConstraints(maxHeight: 300),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface2,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: AppColors.border, width: 0.5),
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      itemCount: _allDepartments.length,
+                      separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.border),
+                      itemBuilder: (ctx, i) {
+                        final dept = _allDepartments[i];
+                        final isSelected = localSelectedReporters.contains(dept);
+                        return CheckboxListTile(
+                          value: isSelected,
+                          onChanged: (v) {
+                            setDlg(() {
+                              if (v == true) {
+                                localSelectedReporters.add(dept);
+                              } else {
+                                localSelectedReporters.remove(dept);
+                              }
+                            });
+                          },
+                          title: Text(dept, style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                          dense: true,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          activeColor: AppColors.accent,
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -406,20 +432,20 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
             ElevatedButton(
-              onPressed: loading || selectedReporters.isEmpty
+              onPressed: loading || localSelectedReporters.isEmpty
                   ? null
                   : () async {
                       setDlg(() => loading = true);
                       try {
                         await _service.updateFixerReporter(
                           fixerDepartment: fixerDept,
-                          reporterDepartments: selectedReporters,
+                          reporterDepartments: localSelectedReporters,
                         );
-                        if (mounted) Navigator.pop(ctx);
+                        if (dialogCtx.mounted) Navigator.pop(dialogCtx);
                         _loadData();
                       } catch (e) {
                         setDlg(() => loading = false);
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        if (dialogCtx.mounted) ScaffoldMessenger.of(dialogCtx).showSnackBar(
                             SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.dangerText));
                       }
                     },

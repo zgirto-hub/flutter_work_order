@@ -15,7 +15,7 @@ class FixerReporterService {
   Future<List<Map<String, dynamic>>> fetchFixerReporters() async {
     final res = await http.get(
       Uri.parse('${AppConfig.baseUrl}/fixer-reporters'),
-    );
+    ).timeout(Duration(seconds: 10));
     if (res.statusCode != 200) {
       throw Exception(_errorDetail(res, 'Failed to fetch fixer reporters'));
     }
@@ -79,7 +79,7 @@ class FixerReporterService {
   Future<List<String>> fetchDepartments() async {
     final res = await http.get(
       Uri.parse('${AppConfig.baseUrl}/departments'),
-    );
+    ).timeout(Duration(seconds: 10));
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
       return List<String>.from(data['departments'] ?? []);

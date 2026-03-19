@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
 import '../config.dart';
+import 'package:work_order/services/department_service.dart'; // ← Add this import
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -10,8 +11,9 @@ class RegisterScreen extends StatefulWidget {
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
-
 class _RegisterScreenState extends State<RegisterScreen> {
+  final DepartmentService _departmentService = DepartmentService(); // ← Add this
+  
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -34,31 +36,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _loadDepartments();
   }
 
-  Future<void> _loadDepartments() async {
-    try {
-      final res = await http.get(
-        Uri.parse('${AppConfig.baseUrl}/departments'),
+Future<void> _loadDepartments() async {
+  setState(() => _isLoading = true);
+  try {
+    final departments = await _departmentService.fetchDepartments(); // ← Changed from getDepartments
+    setState(() {
+      _departments = departments;
+      _isLoading = false;
+    });
+  } catch (e) {
+    setState(() => _isLoading = false);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading departments: $e')),
       );
-      if (res.statusCode == 200 && mounted) {
-        final data = jsonDecode(res.body);
-        final depts = data['departments'] as List? ?? [];
-        if (depts.isNotEmpty) {
-          final deptNames = depts.map((d) => d['name'] as String).toList();
-          setState(() {
-            _departments = deptNames;
-            if (_selectedDepartment == null) {
-              _selectedDepartment = _departments.first;
-            }
-            _departmentsLoaded = true;
-          });
-        } else {
-          setState(() => _departmentsLoaded = true);
-        }
-      }
-    } catch (_) {
-      setState(() => _departmentsLoaded = true);
     }
   }
+}
 
   @override
   void dispose() {

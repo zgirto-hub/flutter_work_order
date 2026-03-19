@@ -235,18 +235,19 @@
     /* ── Progress bar ── */
     #loading-track {
       width: min(320px, 65%);
-      margin: 4px auto 2px;
       height: 3px;
-      background: #d6c4b5;
-      border-radius: 2px;
+      background: rgba(139, 103, 81, 0.12);
+      border-radius: 100px;
+      margin: 6px auto 0;
       overflow: hidden;
+      box-shadow: inset 0 1px 2px rgba(46, 29, 20, 0.04);
     }
     #loading-fill {
       height: 100%;
+      background: linear-gradient(90deg, var(--highlight) 0%, #cd9375 100%);
+      border-radius: 100px;
       width: 0%;
-      background: linear-gradient(90deg, #d79a79, #c97f59);
-      border-radius: 2px;
-      animation: loading-auto 9s ease-out forwards;
+      animation: loading-auto 7.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     #loading-fill.complete {
       animation: none;
@@ -266,6 +267,12 @@
       .ticket-edge { font-size: 0.62rem; letter-spacing: 1.3px; }
       .side-label { display: none; }
       #loading-track { width: min(300px, 86%); }
+    }
+
+    /* ── PWA update dots animation ── */
+    @keyframes pwa-dot-bounce {
+      0%, 100% { opacity: 0.25; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.2); }
     }
   </style>
 </head>
@@ -377,18 +384,6 @@
   </script>
 
   <script>
-    // Keyframes for loading dots animation
-    (function() {
-      var style = document.createElement('style');
-      style.textContent = [
-        '@keyframes pwa-dot-bounce {',
-        '  0%, 100% { opacity: 0.25; transform: scale(1); }',
-        '  50% { opacity: 1; transform: scale(1.2); }',
-        '}',
-      ].join('\n');
-      document.head.appendChild(style);
-    })();
-
     // Called by Flutter's "Update now" button.
     // Unregisters Flutter service workers and reloads once.
     window.applyPWAUpdate = async function() {
@@ -418,20 +413,30 @@
       dotsContainer.style.cssText = [
         'display: flex;',
         'align-items: center;',
-        'gap: 8px;',
+        'justify-content: center;',
       ].join(' ');
 
-      // Create 3 animated dots with staggered delays
+      // Create 3 animated dots with staggered delays and explicit margins
       for (var i = 0; i < 3; i++) {
         var dot = document.createElement('div');
-        dot.style.cssText = [
+        var dotStyle = [
           'width: 8px;',
           'height: 8px;',
           'border-radius: 50%;',
           'background: #CC785C;',
           'animation: pwa-dot-bounce 1.2s ease-in-out infinite;',
           'animation-delay: ' + (i * 0.4) + 's;',
-        ].join(' ');
+        ];
+        // Use explicit margin instead of gap
+        if (i === 0) {
+          dotStyle.push('margin-right: 8px;');
+        } else if (i === 1) {
+          dotStyle.push('margin-left: 0;');
+          dotStyle.push('margin-right: 8px;');
+        } else {
+          dotStyle.push('margin-left: 0;');
+        }
+        dot.style.cssText = dotStyle.join(' ');
         dotsContainer.appendChild(dot);
       }
 
@@ -444,12 +449,22 @@
         'color: #2e1d14;',
         'letter-spacing: -0.01em;',
       ].join(' ');
-      text.textContent = 'Applying update\u2026 0%';
+      text.textContent = 'Applying update… 0%';
 
       container.appendChild(dotsContainer);
       container.appendChild(text);
       overlay.appendChild(container);
       document.body.appendChild(overlay);
+
+      // Force browser to paint and show initial state
+      await new Promise(function(resolve) { 
+        requestAnimationFrame(function() {
+          requestAnimationFrame(resolve);
+        });
+      });
+
+      // Hold at 0% for a visible moment
+      await new Promise(function(resolve) { setTimeout(resolve, 400); });
 
       try {
         if ('serviceWorker' in navigator) {
@@ -461,15 +476,26 @@
                   worker.scriptURL.indexOf('flutter_service_worker.js') !== -1;
             });
           });
+          
+          // Update to 50% before unregistering
+          text.textContent = 'Applying update… 50%';
+          await new Promise(function(resolve) { setTimeout(resolve, 200); });
+          
           await Promise.all(flutterRegistrations.map(function(reg) {
             return reg.unregister();
           }));
-          text.textContent = 'Applying update\u2026 50%';
+          
+          // Pause at 50% after unregistering
+          await new Promise(function(resolve) { setTimeout(resolve, 350); });
         }
       } catch (_) {
         // Fall through to reload.
       }
-      text.textContent = 'Applying update\u2026 100%';
+      
+      // Show 100% briefly before reload
+      text.textContent = 'Applying update… 100%';
+      await new Promise(function(resolve) { setTimeout(resolve, 250); });
+      
       const finalTs = Date.now();
       const finalUrl = new URL(window.location.href);
       finalUrl.searchParams.set('refresh', String(finalTs));

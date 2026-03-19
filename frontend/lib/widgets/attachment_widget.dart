@@ -93,7 +93,7 @@ class AttachmentWidget extends StatelessWidget {
   }
 
   Future<void> _openAttachment(BuildContext context) async {
-    final url = '${AppConfig.baseUrl}${attachment.fileUrl}';
+    final url = '${AppConfig.downloadUrl}${attachment.fileUrl}';
     final uri = Uri.parse(url);
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);

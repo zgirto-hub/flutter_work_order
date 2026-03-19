@@ -29,6 +29,7 @@ app.include_router(users.router, prefix="/api")
 app.include_router(work_orders.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(fixer_reporters.router, prefix="/api")
+app.include_router(departments.router, prefix="/api")
 
 
 @app.get("/api/version")
