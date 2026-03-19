@@ -90,6 +90,28 @@ def _get_user_department(email: str) -> Optional[str]:
     return None
 
 
+def _get_it_team(email: str) -> Optional[str]:
+    """Get IT team for a tech user"""
+    normalized = email.strip().lower()
+    result = supabase.table("employees") \
+        .select("it_team, department") \
+        .eq("email", normalized) \
+        .execute()
+    if result.data:
+        # Return it_team if set, otherwise return department
+        return result.data[0].get("it_team") or result.data[0].get("department")
+    return None
+
+
+def _get_reporter_departments(it_team: str) -> List[str]:
+    """Get list of departments that an IT team supports"""
+    result = supabase.table("it_department_reporters") \
+        .select("reporter_department") \
+        .eq("it_department", it_team) \
+        .execute()
+    return [r.get("reporter_department") for r in (result.data or [])]
+
+
 def _ensure_not_requester(email: str):
     if _get_user_role(email) == "requester":
         raise HTTPException(
@@ -179,15 +201,26 @@ async def list_work_orders(
     work_orders = result.data or []
     
     if user_role == "requester" and email:
+        # Requesters see only their own work orders
         work_orders = [wo for wo in work_orders if wo.get("created_by") == email]
     elif user_role == "tech" and email:
-        user_dept = _get_user_department(email)
-        if user_dept:
-            # Strict filtering: only show same department
-            work_orders = [wo for wo in work_orders if wo.get("department") == user_dept]
+        it_team = _get_it_team(email)
+        if it_team:
+            # IT tech - see work orders from their reporter departments
+            reporters = _get_reporter_departments(it_team)
+            if reporters:
+                work_orders = [wo for wo in work_orders if wo.get("department") in reporters]
+            else:
+                # No reporters assigned, show only their own department
+                work_orders = [wo for wo in work_orders if wo.get("department") == it_team]
         else:
-            # If department not found, show only their own work orders
-            work_orders = [wo for wo in work_orders if wo.get("created_by") == email]
+            # Non-IT tech - see only their department
+            user_dept = _get_user_department(email)
+            if user_dept:
+                work_orders = [wo for wo in work_orders if wo.get("department") == user_dept]
+            else:
+                # Department not found, show only their own work orders
+                work_orders = [wo for wo in work_orders if wo.get("created_by") == email]
     # Admin sees all (no filtering)
     
     return {"work_orders": work_orders}
