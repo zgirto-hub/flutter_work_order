@@ -61,7 +61,7 @@ class WorkOrderService {
         'department': workOrder.department,
         'type': workOrder.type,
         'status': workOrder.status,
-        'created_by': _email,  // Use email instead of UUID
+        'created_by': _email,
         'created_by_email': _email,
         'assigned_employee_ids':
             workOrder.assignedEmployees.map((e) => e.id).toList(),
@@ -69,7 +69,8 @@ class WorkOrderService {
     );
 
     if (res.statusCode != 200) {
-      throw Exception(_errorDetail(res, 'Failed to create work order'));
+      final errorMsg = _errorDetail(res, 'Failed to create work order');
+      throw Exception('Error ${res.statusCode}: $errorMsg');
     }
 
     final data = jsonDecode(res.body);
