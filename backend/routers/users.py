@@ -147,20 +147,21 @@ async def get_employee_profile(email: str = Query(...)):
     if result.data:
         return {"employee": result.data[0]}
     
-    # Fallback: look up by user_profiles then employees
-    up_result = supabase.table("user_profiles") \
-        .select("*") \
+    # Fallback: look up profile_id from profiles table, then get employee
+    profile_result = supabase.table("profiles") \
+        .select("id") \
         .eq("email", normalized) \
         .execute()
     
-    if up_result.data:
-        profile_id = up_result.data[0].get("email")  # email is used as profile_id lookup
-        emp_result = supabase.table("employees") \
-            .select("*") \
-            .eq("profile_id", profile_id) \
-            .execute()
-        if emp_result.data:
-            return {"employee": emp_result.data[0]}
+    if profile_result.data:
+        profile_id = profile_result.data[0].get("id")
+        if profile_id:
+            emp_result = supabase.table("employees") \
+                .select("*") \
+                .eq("profile_id", profile_id) \
+                .execute()
+            if emp_result.data:
+                return {"employee": emp_result.data[0]}
     
     return {"employee": None}
 
