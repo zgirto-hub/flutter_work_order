@@ -138,7 +138,7 @@ async def get_user_role(email: str = Query(...)):
 async def get_employee_profile(email: str = Query(...)):
     normalized = email.strip().lower()
     
-    # First try direct email lookup
+    # First try by email column
     result = supabase.table("employees") \
         .select("*") \
         .eq("email", normalized) \
@@ -147,13 +147,20 @@ async def get_employee_profile(email: str = Query(...)):
     if result.data:
         return {"employee": result.data[0]}
     
-    # Fallback: lookup via user_profiles to get profile_id, then find employee
-    up = supabase.table("user_profiles").select("*").eq("email", normalized).execute()
-    if up.data:
-        profile_id = up.data[0].get("email")  # This is actually the email used as ID in user_profiles
-        result = supabase.table("employees").select("*").eq("profile_id", profile_id).execute()
-        if result.data:
-            return {"employee": result.data[0]}
+    # Fallback: look up by user_profiles then employees
+    up_result = supabase.table("user_profiles") \
+        .select("*") \
+        .eq("email", normalized) \
+        .execute()
+    
+    if up_result.data:
+        profile_id = up_result.data[0].get("email")  # email is used as profile_id lookup
+        emp_result = supabase.table("employees") \
+            .select("*") \
+            .eq("profile_id", profile_id) \
+            .execute()
+        if emp_result.data:
+            return {"employee": emp_result.data[0]}
     
     return {"employee": None}
 
