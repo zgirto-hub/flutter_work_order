@@ -232,19 +232,67 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
           }
         });
       }
-    } catch (_) {}
-    if (mounted) {
-      setState(() {
-        _commentsLoading = false;
-        _refreshing = false;
-      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load comments: $e'),
+            backgroundColor: AppColors.dangerText,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _commentsLoading = false;
+          _refreshing = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _sendComment() async {
+    if (widget.workOrder == null) return;
+    final text = _commentCtrl.text.trim();
+    if (text.isEmpty && _pendingAttachment == null) return;
+
+    setState(() => _sending = true);
+    try {
+      if (text.isNotEmpty) {
+        await _service.createComment(widget.workOrder!.id, text);
+      }
+      if (_pendingAttachment != null) {
+        await _service.uploadAttachment(
+          widget.workOrder!.id,
+          _pendingAttachment!,
+        );
+      }
+      _commentCtrl.clear();
+      setState(() => _pendingAttachment = null);
+      await _loadComments();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send: $e'),
+            backgroundColor: AppColors.dangerText,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 
   Future<void> _pickAttachment() async {
-    final file = await _service.pickAttachment();
-    if (file != null && mounted) {
-      setState(() => _pendingAttachment = file);
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+    );
+    if (result != null && result.files.isNotEmpty) {
+      setState(() => _pendingAttachment = result.files.first);
     }
   }
 
@@ -253,171 +301,86 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   }
 
   Future<void> _deleteAttachment(WorkOrderAttachment attachment) async {
-    final success = await _service.deleteAttachment(
-      widget.workOrder!.id,
-      attachment.id,
-    );
-    if (success && mounted) {
-      setState(() {
-        _attachments.removeWhere((a) => a.id == attachment.id);
-      });
-    }
-  }
-
-  Future<void> _sendComment() async {
-    final text = _commentCtrl.text.trim();
-    final hasAttachment = _pendingAttachment != null;
-    if (text.isEmpty && !hasAttachment) return;
-    if (_sending) return;
-
-    final email = Supabase.instance.client.auth.currentUser?.email ?? '';
-    final name = email.split('@').first;
-
-    setState(() => _sending = true);
-    try {
-      if (_pendingAttachment != null) {
-        final attachment = await _service.uploadAttachment(
-          workOrderId: widget.workOrder!.id,
-          file: _pendingAttachment!,
-        );
-        if (attachment != null && mounted) {
-          setState(() {
-            _attachments = [..._attachments, attachment];
-          });
-        }
-      }
-
-      if (text.isNotEmpty) {
-        final comment = await _service.addComment(
-          workOrderId: widget.workOrder!.id,
-          authorEmail: email,
-          authorName: name,
-          body: text,
-        );
-        if (comment != null && mounted) {
-          _commentCtrl.clear();
-          setState(() => _comments = [..._comments, comment]);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_activityScrollCtrl.hasClients) {
-              _activityScrollCtrl.animateTo(
-                _activityScrollCtrl.position.maxScrollExtent,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOut,
-              );
-            }
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to send: $e'),
-          backgroundColor: AppColors.dangerText,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    }
-    if (mounted) {
-      setState(() {
-        _sending = false;
-        _pendingAttachment = null;
-      });
-    }
-  }
-
-  Future<void> submit() async {
-    // Requesters can CREATE new work orders but cannot EDIT existing ones
-    final isNewWorkOrder = widget.workOrder == null;
-    if (_isRequester && !isNewWorkOrder) {
+    if (_isRequester) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Requester cannot edit work orders'),
+          content: Text('Requester cannot delete attachments'),
           backgroundColor: AppColors.dangerText,
           behavior: SnackBarBehavior.floating,
         ),
       );
       return;
     }
-    if (!_formKey.currentState!.validate()) return;
     try {
-      final now = DateTime.now().toIso8601String();
-      final newWorkOrder = WorkOrder(
-        id: widget.workOrder?.id ?? '',
-        jobNo: jobNoController.text.trim(),
-        Title: clientController.text.trim(),
-        status: selectedStatus,
-        description: descriptionController.text.trim(),
-        location: locationController.text.trim(),
-        mobileNumber: mobileController.text.trim(),
-        department: departmentController.text.trim(),
-        type: selectedType,
-        dateCreated: widget.workOrder?.dateCreated ?? now,
-        dateModified: now,
-        assignedEmployees: _selectedEmployeeIds
-            .map((id) => EmployeeAssignment(id: id, fullName: ''))
-            .toList(),
-      );
+      await _service.deleteAttachment(attachment.id);
+      await _loadComments();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete: $e'),
+            backgroundColor: AppColors.dangerText,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
 
-      if (widget.workOrder == null) {
-        try {
-          final createdOrder = await _service.addWorkOrder(newWorkOrder);
-          if (!mounted) return;
-          Navigator.pop(context, createdOrder);
-        } catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Failed to create work order: $e'),
-            backgroundColor: AppColors.dangerText,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 5),
-          ));
-          return;
-        }
+  Future<void> submit() async {
+    if (_isRequester && widget.workOrder != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Requester cannot edit existing work orders'),
+          backgroundColor: AppColors.dangerText,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) return;
+
+    final wo = WorkOrder(
+      id: widget.workOrder?.id ?? "",
+      jobNo: jobNoController.text,
+      Title: clientController.text,
+      status: selectedStatus,
+      type: selectedType,
+      description: descriptionController.text,
+      location: locationController.text,
+      mobileNumber: mobileController.text,
+      department: departmentController.text,
+      assignedEmployees: [],
+      requesterId: widget.workOrder?.requesterId,
+      requestId: widget.workOrder?.requestId ?? widget.sourceRequestId,
+      createdAt: widget.workOrder?.createdAt,
+    );
+
+    try {
+      if (widget.workOrder != null) {
+        await _service.updateWorkOrder(
+          widget.workOrder!.id,
+          wo,
+          _selectedEmployeeIds,
+        );
+        if (!mounted) return;
+        Navigator.pop(context, "updated");
       } else {
-        try {
-          await _service.updateWorkOrder(newWorkOrder);
-          if (!mounted) return;
-          Navigator.pop(context, "updated");
-        } catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Failed to update work order: $e'),
-            backgroundColor: AppColors.dangerText,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 5),
-          ));
-        }
+        await _service.createWorkOrder(wo, _selectedEmployeeIds);
+        if (!mounted) return;
+        Navigator.pop(context, "created");
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error: $e'),
-        backgroundColor: AppColors.dangerText,
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 5),
-      ));
-    }
-  }
-
-  IconData _typeIcon(String type) {
-    switch (type) {
-      case 'Inspection':
-        return Icons.checklist_rounded;
-      case 'Technical':
-        return Icons.build_outlined;
-      default:
-        return Icons.work_outline_rounded;
-    }
-  }
-
-  Color _typeColor(String type) {
-    switch (type) {
-      case 'Inspection':
-        return AppColors.inProgressText;
-      case 'Technical':
-        return AppColors.accent;
-      default:
-        return AppColors.textSecondary;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.dangerText,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -428,105 +391,110 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ── Header ────────────────────────────────────────────
-            Container(
-              color: AppColors.bgSurface,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Column(
-                children: [
-                  Row(
+      body: Column(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                // ── Header ────────────────────────────────────────────
+                Container(
+                  color: AppColors.bgSurface,
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Column(
                     children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: AppColors.bgSurface2,
-                            borderRadius: BorderRadius.circular(9),
-                            border: Border.all(
-                                color: AppColors.border2, width: 0.5),
-                          ),
-                          child: Icon(Icons.arrow_back_rounded,
-                              size: 16, color: AppColors.textSecondary),
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isEditing
-                                  ? widget.workOrder!.Title
-                                  : 'New Work Order',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                                letterSpacing: -0.3,
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () => Navigator.pop(context),
+                            child: Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: AppColors.bgSurface2,
+                                borderRadius: BorderRadius.circular(9),
+                                border: Border.all(
+                                    color: AppColors.border2, width: 0.5),
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              child: Icon(Icons.arrow_back_rounded,
+                                  size: 16, color: AppColors.textSecondary),
                             ),
-                            if (isEditing) ...[
-                              SizedBox(height: 1),
-                              Text(
-                                widget.workOrder!.jobNo,
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textTertiary),
-                              ),
-                            ],
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isEditing
+                                      ? widget.workOrder!.Title
+                                      : 'New Work Order',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                    letterSpacing: -0.3,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (isEditing) ...[
+                                  SizedBox(height: 1),
+                                  Text(
+                                    widget.workOrder!.jobNo,
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textTertiary),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          if (isEditing)
+                            _StatusPill(status: widget.workOrder!.status),
+                        ],
+                      ),
+
+                      // Tabs (edit mode only)
+                      if (isEditing) ...[
+                        SizedBox(height: 10),
+                        Row(
+                          children: [
+                            _Tab(
+                              label: 'Details',
+                              active: _tabIndex == 0,
+                              onTap: () => setState(() => _tabIndex = 0),
+                            ),
+                            _Tab(
+                              label: 'Activity',
+                              active: _tabIndex == 1,
+                              badge: _comments
+                                  .where((c) => c.type == 'comment')
+                                  .length,
+                              onTap: () => setState(() => _tabIndex = 1),
+                            ),
                           ],
                         ),
-                      ),
-                      if (isEditing)
-                        _StatusPill(status: widget.workOrder!.status),
+                      ] else
+                        SizedBox(height: 12),
                     ],
                   ),
+                ),
 
-                  // Tabs (edit mode only)
-                  if (isEditing) ...[
-                    SizedBox(height: 10),
-                    Row(
-                      children: [
-                        _Tab(
-                          label: 'Details',
-                          active: _tabIndex == 0,
-                          onTap: () => setState(() => _tabIndex = 0),
-                        ),
-                        _Tab(
-                          label: 'Activity',
-                          active: _tabIndex == 1,
-                          badge: _comments
-                              .where((c) => c.type == 'comment')
-                              .length,
-                          onTap: () => setState(() => _tabIndex = 1),
-                        ),
-                      ],
-                    ),
-                  ] else
-                    SizedBox(height: 12),
-                ],
-              ),
+                Divider(height: 0, thickness: 0.5, color: AppColors.border),
+              ],
             ),
+          ),
 
-            Divider(height: 0, thickness: 0.5, color: AppColors.border),
-
-            // ── Body ──────────────────────────────────────────────
-            Expanded(
-              child: isEditing && _tabIndex == 1
-                  ? _buildActivityTab()
-                  : _buildDetailsTab(),
-            ),
-            // ── Compose bar (activity tab only) ───────────────────
-            if (isEditing && _tabIndex == 1) _buildComposeBar(),
-          ],
-        ),
+          // ── Body ──────────────────────────────────────────────
+          Expanded(
+            child: isEditing && _tabIndex == 1
+                ? _buildActivityTab()
+                : _buildDetailsTab(),
+          ),
+          // ── Compose bar (activity tab only) ───────────────────
+          if (isEditing && _tabIndex == 1) _buildComposeBar(),
+        ],
       ),
     );
   }
@@ -536,7 +504,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     final isNewWorkOrder = widget.workOrder == null;
     final canEdit = !_isRequester || isNewWorkOrder;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(
+        16, 
+        16, 
+        16, 
+        16 + MediaQuery.of(context).padding.bottom
+      ),
       child: Form(
         key: _formKey,
         child: Column(
@@ -548,7 +521,6 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               decoration: InputDecoration(
                 labelText: "Job No",
                 hintText: "Auto-generated",
-                filled: true,
               ),
             ),
             SizedBox(height: 10),
@@ -557,20 +529,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               focusNode: _titleFocusNode,
               readOnly: !canEdit,
               decoration: InputDecoration(labelText: "Title"),
-              textInputAction: TextInputAction.next,
-              onFieldSubmitted: (_) {
-                FocusScope.of(context).requestFocus(_descriptionFocusNode);
-              },
-              validator: (v) => v!.isEmpty ? "Enter Title" : null,
-            ),
-            SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              value: selectedStatus,
-              items: _allowedStatuses
-                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                  .toList(),
-              onChanged: canEdit ? (v) => setState(() => selectedStatus = v!) : null,
-              decoration: InputDecoration(labelText: "Status"),
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? "Enter a title" : null,
             ),
             SizedBox(height: 10),
             TextFormField(
@@ -578,45 +538,43 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               focusNode: _locationFocusNode,
               readOnly: !canEdit,
               decoration: InputDecoration(labelText: "Location"),
-              textInputAction: TextInputAction.next,
-              onFieldSubmitted: (_) {
-                FocusScope.of(context).requestFocus(_mobileFocusNode);
-              },
-              validator: (v) => v!.isEmpty ? "Enter Location" : null,
-            ),
-            SizedBox(height: 10),
-            TextFormField(
-              controller: mobileController,
-              readOnly: !canEdit,
-              decoration: InputDecoration(labelText: "Mobile Number"),
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.next,
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? "Enter a location" : null,
             ),
             SizedBox(height: 10),
             TextFormField(
               controller: departmentController,
-              readOnly: true,
+              readOnly: !canEdit,
               decoration: InputDecoration(labelText: "Department"),
             ),
             SizedBox(height: 10),
-
-            // ── Type dropdown with icons ───────────────────────────
+            TextFormField(
+              controller: mobileController,
+              focusNode: _mobileFocusNode,
+              readOnly: !canEdit,
+              decoration: InputDecoration(labelText: "Mobile Number"),
+              keyboardType: TextInputType.phone,
+            ),
+            SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              value: selectedStatus,
+              onChanged: canEdit
+                  ? (v) => setState(() => selectedStatus = v ?? "Pending")
+                  : null,
+              items: _allowedStatuses.map((s) {
+                return DropdownMenuItem(value: s, child: Text(s));
+              }).toList(),
+              decoration: InputDecoration(labelText: "Status"),
+            ),
+            SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: selectedType,
-              items: _allowedTypes.map((type) {
-                return DropdownMenuItem(
-                  value: type,
-                  child: Row(
-                    children: [
-                      Icon(_typeIcon(type),
-                          size: 16, color: _typeColor(type)),
-                      SizedBox(width: 8),
-                      Text(type),
-                    ],
-                  ),
-                );
+              onChanged: canEdit
+                  ? (v) => setState(() => selectedType = v ?? "Technical")
+                  : null,
+              items: _allowedTypes.map((t) {
+                return DropdownMenuItem(value: t, child: Text(t));
               }).toList(),
-              onChanged: canEdit ? (v) => setState(() => selectedType = v!) : null,
               decoration: InputDecoration(labelText: "Type"),
             ),
             SizedBox(height: 10),
@@ -758,111 +716,113 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
     return Container(
       color: AppColors.bgSurface,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_pendingAttachment != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: PendingAttachmentChip(
-                  file: _pendingAttachment!,
-                  onRemove: _removePendingAttachment,
+      padding: EdgeInsets.only(
+        left: 12,
+        right: 12,
+        top: 10,
+        bottom: 12 + MediaQuery.of(context).padding.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_pendingAttachment != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: PendingAttachmentChip(
+                file: _pendingAttachment!,
+                onRemove: _removePendingAttachment,
+              ),
+            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.accentBg,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(abbr,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.accent)),
                 ),
               ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Container(
+              SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface2,
+                    borderRadius: BorderRadius.circular(20),
+                    border:
+                        Border.all(color: AppColors.border, width: 0.5),
+                  ),
+                  child: TextField(
+                    controller: _commentCtrl,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    style: TextStyle(
+                        fontSize: 13, color: AppColors.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Add a comment…',
+                      hintStyle: TextStyle(
+                          fontSize: 13, color: AppColors.textTertiary),
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 6),
+              GestureDetector(
+                onTap: _pickAttachment,
+                child: Container(
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: AppColors.accentBg,
+                    color: AppColors.bgSurface2,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.border, width: 0.5),
+                  ),
+                  child: Icon(
+                    Icons.attach_file,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              SizedBox(width: 6),
+              GestureDetector(
+                onTap: _sending ? null : _sendComment,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent,
                     shape: BoxShape.circle,
                   ),
-                  child: Center(
-                    child: Text(abbr,
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.accent)),
-                  ),
+                  child: _sending
+                      ? Padding(
+                          padding: EdgeInsets.all(10),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 1.5, color: Colors.white),
+                        )
+                      : Icon(Icons.send_rounded,
+                          size: 18, color: Colors.white),
                 ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Container(
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(
-                      color: AppColors.bgSurface2,
-                      borderRadius: BorderRadius.circular(20),
-                      border:
-                          Border.all(color: AppColors.border, width: 0.5),
-                    ),
-                    child: TextField(
-                      controller: _commentCtrl,
-                      maxLines: null,
-                      keyboardType: TextInputType.multiline,
-                      textInputAction: TextInputAction.newline,
-                      style: TextStyle(
-                          fontSize: 13, color: AppColors.textPrimary),
-                      decoration: InputDecoration(
-                        hintText: 'Add a comment…',
-                        hintStyle: TextStyle(
-                            fontSize: 13, color: AppColors.textTertiary),
-                        filled: false,
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 6),
-                GestureDetector(
-                  onTap: _pickAttachment,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.bgSurface2,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.border, width: 0.5),
-                    ),
-                    child: Icon(
-                      Icons.attach_file,
-                      size: 18,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 6),
-                GestureDetector(
-                  onTap: _sending ? null : _sendComment,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      shape: BoxShape.circle,
-                    ),
-                    child: _sending
-                        ? Padding(
-                            padding: EdgeInsets.all(10),
-                            child: CircularProgressIndicator(
-                                strokeWidth: 1.5, color: Colors.white),
-                          )
-                        : Icon(Icons.send_rounded,
-                            size: 18, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1010,12 +970,13 @@ class _StatusPill extends StatelessWidget {
         fg = AppColors.pendingText;
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration:
-          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Text(status,
-          style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w500, color: fg)),
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+      child: Text(
+        status,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: fg),
+      ),
     );
   }
 }
@@ -1033,36 +994,26 @@ class _ActivityItem extends StatelessWidget {
     required this.currentUserEmail,
   });
 
-  Color get _avatarBg {
-    if (comment.type == 'system') return AppColors.bgSurface2;
-    final colors = [
-      const Color(0xFFEEEDFE),
-      const Color(0xFFE1F5EE),
-      const Color(0xFFF5EBE6),
-      const Color(0xFFE8F0FB),
-    ];
-    return colors[comment.authorName.hashCode.abs() % colors.length];
-  }
-
-  Color get _avatarFg {
-    if (comment.type == 'system') return AppColors.textTertiary;
-    final colors = [
-      const Color(0xFF3C3489),
-      const Color(0xFF085041),
-      const Color(0xFF993C1D),
-      const Color(0xFF0C447C),
-    ];
-    return colors[comment.authorName.hashCode.abs() % colors.length];
-  }
-
   @override
   Widget build(BuildContext context) {
+    final _avatarBg = comment.type == 'system'
+        ? AppColors.bgSurface2
+        : comment.authorEmail == currentUserEmail
+            ? AppColors.accentBg
+            : AppColors.bgSurface2;
+
+    final _avatarFg = comment.type == 'system'
+        ? AppColors.textTertiary
+        : comment.authorEmail == currentUserEmail
+            ? AppColors.accent
+            : AppColors.textSecondary;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Left: avatar + connecting line
+        // Left: avatar+line
         SizedBox(
-          width: 34,
+          width: 30,
           child: Column(
             children: [
               Container(
@@ -1295,6 +1246,49 @@ class _AttachmentsSection extends StatelessWidget {
                 );
               }).toList(),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Pending Attachment Chip ──────────────────────────────────────────────────
+
+class PendingAttachmentChip extends StatelessWidget {
+  final PlatformFile file;
+  final VoidCallback onRemove;
+
+  const PendingAttachmentChip({
+    required this.file,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.bgSurface2,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 0.5),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.attach_file, size: 16, color: AppColors.accent),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              file.name,
+              style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          SizedBox(width: 8),
+          GestureDetector(
+            onTap: onRemove,
+            child: Icon(Icons.close, size: 16, color: AppColors.textSecondary),
           ),
         ],
       ),
