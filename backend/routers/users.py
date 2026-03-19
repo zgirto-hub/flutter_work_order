@@ -170,17 +170,6 @@ async def get_employee_profile(email: str = Query(...)):
     return {"employee": None}
 
 
-@router.get("/departments")
-async def get_departments():
-    result = supabase.table("employees") \
-        .select("department") \
-        .execute()
-    departments = list(set([r.get("department") for r in (result.data or []) if r.get("department")]))
-    if not departments:
-        departments = ["General"]
-    return {"departments": sorted(departments)}
-
-
 @router.get("/activity-log")
 async def get_activity_log(
     category: Optional[str] = Query(None),
