@@ -95,7 +95,6 @@ async def register_requester(body: RegisterRequesterBody):
     
     supabase.table("employees").upsert({
         "profile_id": user_id,
-        "email": email,
         "full_name": body.name,
         "department": body.department,
         "mobile": body.mobile,
@@ -139,6 +138,7 @@ async def get_user_role(email: str = Query(...)):
 async def get_employee_profile(email: str = Query(...)):
     normalized = email.strip().lower()
     
+    # First try direct email lookup
     result = supabase.table("employees") \
         .select("*") \
         .eq("email", normalized) \
@@ -146,6 +146,14 @@ async def get_employee_profile(email: str = Query(...)):
     
     if result.data:
         return {"employee": result.data[0]}
+    
+    # Fallback: lookup via user_profiles to get profile_id, then find employee
+    up = supabase.table("user_profiles").select("*").eq("email", normalized).execute()
+    if up.data:
+        profile_id = up.data[0].get("email")  # This is actually the email used as ID in user_profiles
+        result = supabase.table("employees").select("*").eq("profile_id", profile_id).execute()
+        if result.data:
+            return {"employee": result.data[0]}
     
     return {"employee": None}
 
