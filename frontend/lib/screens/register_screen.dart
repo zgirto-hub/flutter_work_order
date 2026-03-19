@@ -23,6 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _isLoading = false;
+  bool _departmentsLoaded = false;
   
   String? _selectedDepartment;
   List<String> _departments = [];
@@ -45,11 +46,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
           final deptNames = depts.map((d) => d['name'] as String).toList();
           setState(() {
             _departments = deptNames;
-            _selectedDepartment ??= _departments.first;
+            if (_selectedDepartment == null) {
+              _selectedDepartment = _departments.first;
+            }
+            _departmentsLoaded = true;
           });
+        } else {
+          setState(() => _departmentsLoaded = true);
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      setState(() => _departmentsLoaded = true);
+    }
   }
 
   @override
@@ -218,32 +226,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Text('Department', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
               const SizedBox(height: 16),
               
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.bgSurface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.border),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedDepartment,
-                    isExpanded: true,
-                    hint: Text('Select Department', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
-                    dropdownColor: AppColors.bgSurface,
-                    style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
-                    items: _departments.map((dept) => DropdownMenuItem(
-                      value: dept,
-                      child: Text(dept),
-                    )).toList(),
-                    onChanged: (v) {
-                      if (v != null) {
-                        setState(() => _selectedDepartment = v);
-                      }
-                    },
+              if (_departmentsLoaded && _departments.isNotEmpty)
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedDepartment,
+                      isExpanded: true,
+                      dropdownColor: AppColors.bgSurface,
+                      style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                      items: _departments.map((dept) => DropdownMenuItem(
+                        value: dept,
+                        child: Text(dept),
+                      )).toList(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() => _selectedDepartment = v);
+                        }
+                      },
+                    ),
+                  ),
+                )
+              else if (_departmentsLoaded && _departments.isEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  child: Text('No departments available', style: TextStyle(color: AppColors.textTertiary)),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
                   ),
                 ),
-              ),
               
               const SizedBox(height: 32),
               
