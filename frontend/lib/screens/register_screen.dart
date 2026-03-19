@@ -43,7 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final data = jsonDecode(res.body);
         final depts = data['departments'] as List? ?? [];
         if (depts.isNotEmpty) {
-          setState(() => _departments = List<String>.from(depts));
+          setState(() => _departments = depts.map((d) => d['name'] as String).toList());
         }
       }
     } catch (_) {}
