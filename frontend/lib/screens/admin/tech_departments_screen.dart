@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/it_department_service.dart';
+import '../../services/department_service.dart';
 import '../../config.dart';
 import '../../theme/app_theme.dart';
 
@@ -15,6 +15,7 @@ class TechDepartmentsScreen extends StatefulWidget {
 
 class _TechDepartmentsScreenState extends State<TechDepartmentsScreen> {
   final ItDepartmentService _service = ItDepartmentService();
+  final DepartmentService _deptService = DepartmentService();
   
   List<Map<String, dynamic>> _techs = [];
   List<String> _departments = [];
@@ -48,19 +49,11 @@ class _TechDepartmentsScreenState extends State<TechDepartmentsScreen> {
         reporters[itDept]!.add(reporter);
       }
       
-      // Get list of all departments
-      final allDepts = <String>{
-        'General',
-        'Operations',
-        'ATC',
-        'Finance',
-        'NOTAM',
-        'AFTN',
-        'Network',
-      };
+      // Load departments from API
+      final depts = await _deptService.getDepartments();
+      final deptNames = depts.map((d) => d['name'] as String).toList();
       
       // Load all techs from employees
-      final email = Supabase.instance.client.auth.currentUser?.email ?? '';
       final res = await http.get(
         Uri.parse('${AppConfig.baseUrl}/employees?tech=true'),
       );
@@ -79,7 +72,7 @@ class _TechDepartmentsScreenState extends State<TechDepartmentsScreen> {
       
       setState(() {
         _techs = techs;
-        _departments = allDepts.toList()..sort();
+        _departments = deptNames..sort();
         _itTeamReporters = reporters;
         _loading = false;
       });
