@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../config.dart';
 
@@ -25,7 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscureConfirm = true;
   bool _isLoading = false;
   
-  String _selectedDepartment = '';
+  String? _selectedDepartment;
   List<String> _departments = [];
 
   @override
@@ -39,16 +38,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final res = await http.get(
         Uri.parse('${AppConfig.baseUrl}/departments'),
       );
-      if (res.statusCode == 200) {
+      if (res.statusCode == 200 && mounted) {
         final data = jsonDecode(res.body);
         final depts = data['departments'] as List? ?? [];
         if (depts.isNotEmpty) {
           final deptNames = depts.map((d) => d['name'] as String).toList();
           setState(() {
             _departments = deptNames;
-            if (!_departments.contains(_selectedDepartment)) {
-              _selectedDepartment = _departments.first;
-            }
+            _selectedDepartment ??= _departments.first;
           });
         }
       }
@@ -68,6 +65,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    if (_selectedDepartment == null || _selectedDepartment!.isEmpty) {
+      _showSnack('Please select a department', isError: true);
+      return;
+    }
     
     if (_passwordController.text != _confirmPasswordController.text) {
       _showSnack('Passwords do not match', isError: true);
@@ -223,23 +225,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   border: Border.all(color: AppColors.border),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: DropdownButtonFormField<String>(
-                  value: _departments.isNotEmpty ? _selectedDepartment : null,
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedDepartment,
+                    isExpanded: true,
+                    hint: Text('Select Department', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
+                    dropdownColor: AppColors.bgSurface,
+                    style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                    items: _departments.map((dept) => DropdownMenuItem(
+                      value: dept,
+                      child: Text(dept),
+                    )).toList(),
+                    onChanged: (v) {
+                      if (v != null) {
+                        setState(() => _selectedDepartment = v);
+                      }
+                    },
                   ),
-                  dropdownColor: AppColors.bgSurface,
-                  style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
-                  items: _departments.map((dept) => DropdownMenuItem(
-                    value: dept,
-                    child: Text(dept),
-                  )).toList(),
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() => _selectedDepartment = v);
-                    }
-                  },
                 ),
               ),
               
