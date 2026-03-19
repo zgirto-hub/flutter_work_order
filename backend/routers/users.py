@@ -230,12 +230,10 @@ async def list_employees(tech: bool = False):
     """Get all employees, optionally filtered by user_type"""
     if tech:
         result = supabase.table("employees") \
-            .select("*, user_profiles(user_type)") \
+            .select("*") \
+            .eq("user_type", "tech") \
             .execute()
-        # Filter in Python since PostgREST doesn't support this join well
-        employees = [r for r in (result.data or []) 
-                     if r.get("user_profiles", {}).get("user_type") == "tech"]
-        return {"employees": employees}
+        return {"employees": result.data or []}
     else:
         result = supabase.table("employees") \
             .select("*") \
