@@ -183,7 +183,12 @@ async def list_work_orders(
     elif user_role == "tech" and email:
         user_dept = _get_user_department(email)
         if user_dept:
+            # Strict filtering: only show same department
             work_orders = [wo for wo in work_orders if wo.get("department") == user_dept]
+        else:
+            # If department not found, show only their own work orders
+            work_orders = [wo for wo in work_orders if wo.get("created_by") == email]
+    # Admin sees all (no filtering)
     
     return {"work_orders": work_orders}
 
