@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-
 from db import supabase
 from utils.activity import log_activity
 
@@ -11,164 +10,260 @@ router = APIRouter()
 class CreateUserBody(BaseModel):
     email: str
     password: str
-    user_type: str  # 'tech' | 'requester'
-    department: str
-    name: str
+    user_type: str  # 'fixer' | 'reporter'
+    department: Optional[str] = None
+    full_name: str
     mobile: Optional[str] = ""
     location: Optional[str] = ""
 
 
-class RegisterRequesterBody(BaseModel):
+class RegisterBody(BaseModel):
     email: str
     password: str
-    name: str
+    full_name: str
     department: str
     mobile: str
     location: str
 
 
-@router.post("/admin/create-user")
-async def admin_create_user(body: CreateUserBody):
-    role = body.user_type.strip().lower()
-    if role not in ("tech", "requester"):
-        raise HTTPException(status_code=400, detail="user_type must be 'tech' or 'requester'")
+class UpdateUserBody(BaseModel):
+    full_name: Optional[str] = None
+    department: Optional[str] = None
+    mobile: Optional[str] = None
+    location: Optional[str] = None
+
+
+class ChangeRoleBody(BaseModel):
+    user_type: str  # 'fixer' | 'reporter'
+    department: Optional[str] = None
+
+
+def _get_user_by_email(email: str):
+    """Get user by email from users table"""
+    normalized = email.strip().lower()
+    result = supabase.table("users").select("*").eq("email", normalized).execute()
+    return result.data[0] if result.data else None
+
+
+def _get_user_by_id(user_id: str):
+    """Get user by ID from users table"""
+    result = supabase.table("users").select("*").eq("id", user_id).execute()
+    return result.data[0] if result.data else None
+
+
+# ================================================
+# PUBLIC ENDPOINTS
+# ================================================
+
+@router.post("/register")
+async def register(body: RegisterBody):
+    """Self-register as reporter"""
     email = body.email.strip().lower()
+    
+    # Check if email already exists
+    existing = _get_user_by_email(email)
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create auth user
     try:
-        user = supabase.auth.admin.create_user({
+        auth_user = supabase.auth.admin.create_user({
             "email": email,
             "password": body.password,
             "email_confirm": True,
         })
-        user_id = user.user.id if hasattr(user, 'user') and user.user else None
+        auth_id = auth_user.user.id if auth_user.user else None
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     
-    supabase.table("user_profiles").upsert({
-        "email": email,
-        "user_type": role,
-    }).execute()
-    
-    if user_id:
-        supabase.table("profiles").upsert({
-            "id": user_id,
-            "full_name": body.name,
-            "role": role,
-        }).execute()
-        
-        supabase.table("employees").upsert({
-            "profile_id": user_id,
-            "full_name": body.name,
-            "department": body.department,
-            "mobile": body.mobile,
-            "location": body.location,
-            "user_type": role,
-            "active": True,
-        }).execute()
-    
-    log_activity(email, "auth", "account_created",
-        target_label=email, detail=role)
-    return {"status": "created"}
-
-
-@router.post("/register-requester")
-async def register_requester(body: RegisterRequesterBody):
-    email = body.email.strip().lower()
-    
-    try:
-        user = supabase.auth.admin.create_user({
-            "email": email,
-            "password": body.password,
-            "email_confirm": True,
-        })
-        user_id = user.user.id if hasattr(user, 'user') and user.user else None
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
-    if not user_id:
+    if not auth_id:
         raise HTTPException(status_code=500, detail="Failed to create auth user")
     
-    supabase.table("profiles").upsert({
-        "id": user_id,
-        "full_name": body.name,
-        "role": "requester",
-    }).execute()
-    
-    supabase.table("employees").upsert({
-        "profile_id": user_id,
+    # Create user record
+    result = supabase.table("users").insert({
+        "auth_id": auth_id,
         "email": email,
-        "full_name": body.name,
+        "full_name": body.full_name,
         "department": body.department,
         "mobile": body.mobile,
         "location": body.location,
-        "user_type": "requester",
-        "active": True,
+        "user_type": "reporter",
+        "is_active": True,
     }).execute()
     
-    supabase.table("user_profiles").upsert({
-        "email": email,
-        "user_type": "requester",
-    }).execute()
-    
-    log_activity(email, "auth", "requester_registered",
+    log_activity(email, "auth", "reporter_registered",
         target_label=email, detail=f"department: {body.department}")
+    
     return {"status": "created", "email": email}
 
 
 @router.get("/user-role")
 async def get_user_role(email: str = Query(...)):
-    normalized = email.strip().lower()
+    """Get user role by email"""
+    user = _get_user_by_email(email)
+    if user:
+        return {"user_type": user.get("user_type", "admin")}
     
-    result = supabase.table("user_profiles") \
-        .select("user_type") \
-        .eq("email", normalized) \
-        .execute()
-    if result.data:
-        return {"user_type": result.data[0]["user_type"]}
-    
-    emp_result = supabase.table("employees") \
-        .select("user_type") \
-        .eq("profile_id", normalized) \
-        .execute()
-    if emp_result.data:
-        return {"user_type": emp_result.data[0].get("user_type", "admin")}
-    
+    # Check auth.users directly if not in users table
     return {"user_type": "admin"}
 
 
-@router.get("/employee-profile")
-async def get_employee_profile(email: str = Query(...)):
-    normalized = email.strip().lower()
-    
-    # First try by email column in employees
-    result = supabase.table("employees") \
-        .select("*") \
-        .eq("email", normalized) \
-        .execute()
-    
-    if result.data:
-        return {"employee": result.data[0]}
-    
-    # Fallback: look up in user_profiles, then sync email to employees
-    profile_result = supabase.table("user_profiles") \
-        .select("*") \
-        .eq("email", normalized) \
-        .execute()
-    
-    if profile_result.data:
-        # Try to find employee by any matching field and update email
-        # First check if there's any employee that might match
-        all_employees = supabase.table("employees").select("*").execute()
-        if all_employees.data:
-            for emp in all_employees.data:
-                # Update first unlinked employee with this email
-                if not emp.get("email"):
-                    supabase.table("employees").update({"email": normalized}).eq("id", emp["id"]).execute()
-                    updated = supabase.table("employees").select("*").eq("id", emp["id"]).execute()
-                    if updated.data:
-                        return {"employee": updated.data[0]}
-    
-    return {"employee": None}
+@router.get("/users/me")
+async def get_current_user(email: str = Query(...)):
+    """Get current user profile"""
+    user = _get_user_by_email(email)
+    if user:
+        return {"user": user}
+    return {"user": None}
 
+
+# ================================================
+# ADMIN ENDPOINTS
+# ================================================
+
+@router.get("/users")
+async def list_users():
+    """Get all users"""
+    result = supabase.table("users").select("*").execute()
+    return {"users": result.data or []}
+
+
+@router.get("/users/{user_id}")
+async def get_user(user_id: str):
+    """Get user by ID"""
+    user = _get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"user": user}
+
+
+@router.post("/users")
+async def create_user(body: CreateUserBody):
+    """Create new user (admin only)"""
+    user_type = body.user_type.strip().lower()
+    if user_type not in ("fixer", "reporter", "admin"):
+        raise HTTPException(status_code=400, detail="user_type must be 'fixer', 'reporter', or 'admin'")
+    
+    email = body.email.strip().lower()
+    
+    # Check if email already exists
+    existing = _get_user_by_email(email)
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create auth user
+    try:
+        auth_user = supabase.auth.admin.create_user({
+            "email": email,
+            "password": body.password,
+            "email_confirm": True,
+        })
+        auth_id = auth_user.user.id if auth_user.user else None
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    if not auth_id:
+        raise HTTPException(status_code=500, detail="Failed to create auth user")
+    
+    # Create user record
+    result = supabase.table("users").insert({
+        "auth_id": auth_id,
+        "email": email,
+        "full_name": body.full_name,
+        "department": body.department,
+        "mobile": body.mobile,
+        "location": body.location,
+        "user_type": user_type,
+        "is_active": True,
+    }).execute()
+    
+    log_activity(email, "auth", "user_created",
+        target_label=email, detail=f"type: {user_type}")
+    
+    return {"status": "created", "user": result.data[0] if result.data else None}
+
+
+@router.patch("/users/{user_id}")
+async def update_user(user_id: str, body: UpdateUserBody):
+    """Update user details"""
+    user = _get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    update_data = {}
+    if body.full_name is not None:
+        update_data["full_name"] = body.full_name
+    if body.department is not None:
+        update_data["department"] = body.department
+    if body.mobile is not None:
+        update_data["mobile"] = body.mobile
+    if body.location is not None:
+        update_data["location"] = body.location
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    result = supabase.table("users").update(update_data).eq("id", user_id).execute()
+    
+    return {"user": result.data[0] if result.data else None}
+
+
+@router.patch("/users/{user_id}/role")
+async def change_user_role(user_id: str, body: ChangeRoleBody):
+    """Change user role (admin only)"""
+    user = _get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user_type = body.user_type.strip().lower()
+    if user_type not in ("fixer", "reporter", "admin"):
+        raise HTTPException(status_code=400, detail="user_type must be 'fixer', 'reporter', or 'admin'")
+    
+    update_data = {"user_type": user_type}
+    if body.department is not None:
+        update_data["department"] = body.department
+    
+    result = supabase.table("users").update(update_data).eq("id", user_id).execute()
+    
+    log_activity(user["email"], "admin", "role_changed",
+        target_label=user["email"], detail=f"from {user['user_type']} to {user_type}")
+    
+    return {"user": result.data[0] if result.data else None}
+
+
+@router.patch("/users/{user_id}/deactivate")
+async def deactivate_user(user_id: str):
+    """Deactivate user"""
+    user = _get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    result = supabase.table("users").update({"is_active": False}).eq("id", user_id).execute()
+    
+    log_activity(user["email"], "admin", "user_deactivated",
+        target_label=user["email"])
+    
+    return {"user": result.data[0] if result.data else None}
+
+
+@router.patch("/users/{user_id}/activate")
+async def activate_user(user_id: str):
+    """Reactivate user"""
+    user = _get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    result = supabase.table("users").update({"is_active": True}).eq("id", user_id).execute()
+    
+    log_activity(user["email"], "admin", "user_activated",
+        target_label=user["email"])
+    
+    return {"user": result.data[0] if result.data else None}
+
+
+# ================================================
+# ACTIVITY LOG (keep existing)
+# ================================================
 
 @router.get("/activity-log")
 async def get_activity_log(
@@ -181,10 +276,10 @@ async def get_activity_log(
         .order("created_at", desc=True) \
         .limit(limit) \
         .offset(offset)
-
+    
     if category and category != "all":
         query = query.eq("category", category)
-
+    
     result = query.execute()
     return {"logs": result.data or [], "total": len(result.data or [])}
 
@@ -212,19 +307,3 @@ async def log_update_check(body: SignInBody):
     log_activity(body.user_email, "app", "update_checked",
         target_label="Check for updates")
     return {"status": "logged"}
-
-
-@router.get("/employees")
-async def list_employees(tech: bool = False):
-    """Get all employees, optionally filtered by user_type"""
-    if tech:
-        result = supabase.table("employees") \
-            .select("*") \
-            .eq("user_type", "tech") \
-            .execute()
-        return {"employees": result.data or []}
-    else:
-        result = supabase.table("employees") \
-            .select("*") \
-            .execute()
-        return {"employees": result.data or []}

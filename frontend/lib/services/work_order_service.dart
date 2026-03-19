@@ -63,9 +63,9 @@ class WorkOrderService {
         'department': workOrder.department,
         'type': workOrder.type,
         'status': workOrder.status,
-        'created_by': _email,
+        'created_by': _userId,
         'created_by_email': _email,
-        'assigned_employee_ids':
+        'assigned_user_ids':
             workOrder.assignedEmployees.map((e) => e.id).toList(),
       }),
     );
@@ -93,7 +93,7 @@ class WorkOrderService {
         'department': workOrder.department,
         'type': workOrder.type,
         'status': workOrder.status,
-        'assigned_employee_ids':
+        'assigned_user_ids':
             workOrder.assignedEmployees.map((e) => e.id).toList(),
       }),
     );
@@ -109,7 +109,7 @@ class WorkOrderService {
     String? techNotes,
   }) async {
     final res = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/work-orders/$id/close'),
+      Uri.parse('${AppConfig.baseUrl}/work-orders/$id/close?user_email=${Uri.encodeComponent(_email)}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'closed_by': closedBy,

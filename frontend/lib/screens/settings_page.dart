@@ -15,9 +15,8 @@ import '../config.dart';
 import '../services/onesignal_service.dart';
 import '../services/activity_log_service.dart';
 import 'settings/activity_log_screen.dart';
-import 'admin/tech_departments_screen.dart';
-import 'admin/departments_screen.dart';
-import 'admin/it_teams_screen.dart';
+import 'admin/user_management_screen.dart';
+import 'admin/fixer_reporters_screen.dart';
 
 class SettingsPage extends StatefulWidget {
   final ThemeController themeController;
@@ -245,7 +244,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       color: AppColors.textTertiary)),
               SizedBox(height: 6),
               Row(
-                children: ['requester', 'tech'].map((role) {
+                children: ['reporter', 'fixer'].map((role) {
                   final isSel = selectedRole == role;
                   return Expanded(
                     child: GestureDetector(
@@ -253,7 +252,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
                         margin:
-                            EdgeInsets.only(right: role == 'requester' ? 6 : 0),
+                            EdgeInsets.only(right: role == 'reporter' ? 6 : 0),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           color: isSel
@@ -269,7 +268,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         child: Center(
                           child: Text(
-                            role == 'requester' ? 'Requester' : 'Tech',
+                            role == 'reporter' ? 'Reporter' : 'Fixer',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -609,38 +608,26 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ),
                       SettingsRow(
+                        icon: Icons.people_outlined,
+                        label: 'User Management',
+                        subtitle: 'Manage users, roles, and departments',
+                        showDivider: true,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const UserManagementScreen(),
+                          ),
+                        ),
+                      ),
+                      SettingsRow(
                         icon: Icons.account_tree_outlined,
-                        label: 'IT Team Assignments',
-                        subtitle: 'Manage which departments each IT team handles',
-                        showDivider: true,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const TechDepartmentsScreen(),
-                          ),
-                        ),
-                      ),
-                      SettingsRow(
-                        icon: Icons.group_outlined,
-                        label: 'IT Teams',
-                        subtitle: 'Manage IT teams',
-                        showDivider: true,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ItTeamsScreen(),
-                          ),
-                        ),
-                      ),
-                      SettingsRow(
-                        icon: Icons.business_outlined,
-                        label: 'Departments',
-                        subtitle: 'Manage departments',
+                        label: 'Fixer-Reporter Teams',
+                        subtitle: 'Assign reporters to fixer teams',
                         showDivider: false,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const DepartmentsScreen(),
+                            builder: (_) => const FixerReportersScreen(),
                           ),
                         ),
                       ),

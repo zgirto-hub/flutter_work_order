@@ -184,8 +184,8 @@ async def remove_share(
     return {"status": "access removed"}
 
 
-@router.get("/users")
-async def list_users():
+@router.get("/document-uploaders")
+async def list_document_uploaders():
     response = supabase.table("documents").select("uploaded_by").execute()
 
     if not response.data:

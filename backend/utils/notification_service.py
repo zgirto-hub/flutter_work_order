@@ -37,9 +37,10 @@ def _get_preferences(emails: List[str]) -> Dict[str, dict]:
 
 
 def _resolve_admin_opt_in_emails() -> Set[str]:
-    admins_res = supabase.table("user_profiles") \
+    admins_res = supabase.table("users") \
         .select("email") \
         .eq("user_type", "admin") \
+        .eq("is_active", True) \
         .execute()
     admin_emails = {
         _norm(r.get("email", "")) for r in (admins_res.data or [])
@@ -73,39 +74,22 @@ def _resolve_assigned_emails(work_order_id: str) -> Set[str]:
     out: Set[str] = set()
 
     assignments = supabase.table("work_order_assignments") \
-        .select("employee_id") \
+        .select("user_id") \
         .eq("work_order_id", work_order_id) \
         .execute()
-    emp_ids = [r.get("employee_id") for r in (assignments.data or []) if r.get("employee_id")]
-    if not emp_ids:
+    user_ids = [r.get("user_id") for r in (assignments.data or []) if r.get("user_id")]
+    if not user_ids:
         return out
 
-    employees = supabase.table("employees") \
-        .select("id, profile_id") \
-        .in_("id", emp_ids) \
+    users = supabase.table("users") \
+        .select("email") \
+        .in_("id", user_ids) \
         .execute()
 
-    profile_ids = [r.get("profile_id") for r in (employees.data or []) if r.get("profile_id")]
-    if not profile_ids:
-        return out
-
-    # profile_id maps to auth user id in this project
-    for pid in profile_ids:
-        try:
-            user_resp = supabase.auth.admin.get_user_by_id(str(pid))
-            user_obj = getattr(user_resp, "user", None)
-            if user_obj is None and isinstance(user_resp, dict):
-                user_obj = user_resp.get("user")
-            email = None
-            if isinstance(user_obj, dict):
-                email = user_obj.get("email")
-            else:
-                email = getattr(user_obj, "email", None)
-            n = _norm(email or "")
-            if _is_valid(n):
-                out.add(n)
-        except Exception:
-            continue
+    for r in (users.data or []):
+        email = _norm(r.get("email") or "")
+        if _is_valid(email):
+            out.add(email)
 
     return out
 
@@ -116,16 +100,16 @@ def _resolve_user_id_to_email(user_id: str) -> str:
         return ""
     if "@" in uid:
         return _norm(uid)
-    try:
-        user_resp = supabase.auth.admin.get_user_by_id(uid)
-        user_obj = getattr(user_resp, "user", None)
-        if user_obj is None and isinstance(user_resp, dict):
-            user_obj = user_resp.get("user")
-        if isinstance(user_obj, dict):
-            return _norm(user_obj.get("email") or "")
-        return _norm(getattr(user_obj, "email", "") or "")
-    except Exception:
-        return ""
+    
+    user_res = supabase.table("users") \
+        .select("email") \
+        .eq("id", uid) \
+        .single() \
+        .execute()
+    if user_res.data:
+        return _norm(user_res.data.get("email") or "")
+    
+    return ""
 
 
 def _resolve_watcher_emails(work_order_id: str) -> Set[str]:
@@ -141,7 +125,7 @@ def resolve_comment_recipients(work_order_id: str, commenter_email: str) -> dict
         commenter = _norm(commenter_email)
 
         wo_res = supabase.table("work_orders") \
-            .select("id, job_no, title, request_id, created_by") \
+            .select("id, job_no, title, created_by") \
             .eq("id", work_order_id) \
             .limit(1) \
             .execute()
@@ -152,7 +136,6 @@ def resolve_comment_recipients(work_order_id: str, commenter_email: str) -> dict
         recipients: Set[str] = set()
         sources = {
             "creator": [],
-            "requester": [],
             "assignees": [],
             "watchers": [],
         }
@@ -161,22 +144,6 @@ def resolve_comment_recipients(work_order_id: str, commenter_email: str) -> dict
         if _is_valid(creator_email):
             recipients.add(creator_email)
             sources["creator"].append(creator_email)
-
-        request_id = wo.get("request_id")
-        if request_id:
-            try:
-                req_res = supabase.table("requests") \
-                    .select("created_by") \
-                    .eq("id", request_id) \
-                    .limit(1) \
-                    .execute()
-                if req_res.data:
-                    requester = _norm(req_res.data[0].get("created_by") or "")
-                    if _is_valid(requester):
-                        recipients.add(requester)
-                        sources["requester"].append(requester)
-            except Exception as e:
-                print(f"Notification recipient resolve (requester) failed: {e}")
 
         try:
             assignees = _resolve_assigned_emails(work_order_id)
