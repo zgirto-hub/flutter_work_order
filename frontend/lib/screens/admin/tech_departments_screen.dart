@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../services/it_department_service.dart';
 import '../../services/department_service.dart';
+import '../../services/it_team_service.dart';
 import '../../config.dart';
 import '../../theme/app_theme.dart';
 
@@ -16,9 +17,11 @@ class TechDepartmentsScreen extends StatefulWidget {
 class _TechDepartmentsScreenState extends State<TechDepartmentsScreen> {
   final ItDepartmentService _service = ItDepartmentService();
   final DepartmentService _deptService = DepartmentService();
+  final ItTeamService _itTeamService = ItTeamService();
   
   List<Map<String, dynamic>> _techs = [];
   List<String> _departments = [];
+  List<String> _itTeams = [];
   Map<String, List<String>> _itTeamReporters = {};
   bool _loading = true;
   String? _error;
@@ -53,6 +56,10 @@ class _TechDepartmentsScreenState extends State<TechDepartmentsScreen> {
       final depts = await _deptService.getDepartments();
       final deptNames = depts.map((d) => d['name'] as String).toList();
       
+      // Load IT teams from API
+      final itTeamsResult = await _itTeamService.getItTeams();
+      final itTeamNames = itTeamsResult.map((t) => t['name'] as String).toList();
+      
       // Load all techs from employees
       final res = await http.get(
         Uri.parse('${AppConfig.baseUrl}/employees?tech=true'),
@@ -73,6 +80,7 @@ class _TechDepartmentsScreenState extends State<TechDepartmentsScreen> {
       setState(() {
         _techs = techs;
         _departments = deptNames..sort();
+        _itTeams = itTeamNames..sort();
         _itTeamReporters = reporters;
         _loading = false;
       });
@@ -89,12 +97,25 @@ class _TechDepartmentsScreenState extends State<TechDepartmentsScreen> {
   Future<void> _updateItTeam(String email, String itTeam) async {
     try {
       await _service.updateEmployeeItTeam(email, itTeam);
+      await _loadData(); // Refresh after update
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('IT team updated'),
+            backgroundColor: AppColors.closedText,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to update IT team: $e'),
             backgroundColor: AppColors.dangerText,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -123,6 +144,8 @@ class _TechDepartmentsScreenState extends State<TechDepartmentsScreen> {
           SnackBar(
             content: Text('Failed to update: $e'),
             backgroundColor: AppColors.dangerText,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -175,24 +198,29 @@ class _TechDepartmentsScreenState extends State<TechDepartmentsScreen> {
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                     )
-                  : ListView.builder(
-                      padding: EdgeInsets.all(16),
-                      itemCount: _techs.length,
-                      itemBuilder: (context, index) {
-                        final tech = _techs[index];
-                        return _TechCard(
-                          tech: tech,
-                          departments: _departments,
-                          reporterDepartments: _getReporterDepartments(tech['it_team'] ?? ''),
-                          onItTeamChanged: (team) => _updateItTeam(tech['email'] ?? '', team),
-                          onReporterToggled: (reporter, add) {
-                            final itTeam = tech['it_team'] ?? '';
-                            if (itTeam.isNotEmpty) {
-                              _toggleReporter(itTeam, reporter, add);
-                            }
-                          },
-                        );
-                      },
+                  : RefreshIndicator(
+                      onRefresh: _loadData,
+                      color: AppColors.accent,
+                      child: ListView.builder(
+                        padding: EdgeInsets.all(16),
+                        itemCount: _techs.length,
+                        itemBuilder: (context, index) {
+                          final tech = _techs[index];
+                          return _TechCard(
+                            tech: tech,
+                            departments: _departments,
+                            itTeams: _itTeams,
+                            reporterDepartments: _getReporterDepartments(tech['it_team'] ?? ''),
+                            onItTeamChanged: (team) => _updateItTeam(tech['email'] ?? '', team),
+                            onReporterToggled: (reporter, add) {
+                              final itTeam = tech['it_team'] ?? '';
+                              if (itTeam.isNotEmpty) {
+                                _toggleReporter(itTeam, reporter, add);
+                              }
+                            },
+                          );
+                        },
+                      ),
                     ),
     );
   }
@@ -201,6 +229,7 @@ class _TechDepartmentsScreenState extends State<TechDepartmentsScreen> {
 class _TechCard extends StatelessWidget {
   final Map<String, dynamic> tech;
   final List<String> departments;
+  final List<String> itTeams;
   final List<String> reporterDepartments;
   final Function(String) onItTeamChanged;
   final Function(String, bool) onReporterToggled;
@@ -208,6 +237,7 @@ class _TechCard extends StatelessWidget {
   const _TechCard({
     required this.tech,
     required this.departments,
+    required this.itTeams,
     required this.reporterDepartments,
     required this.onItTeamChanged,
     required this.onReporterToggled,
@@ -221,7 +251,7 @@ class _TechCard extends StatelessWidget {
 
     // Filter out the IT team's own department from reporters
     final reporterOptions = departments
-        .where((d) => d != itTeam && !['AFTN', 'Network'].contains(d))
+        .where((d) => d != itTeam)
         .toList();
 
     return Card(
@@ -291,12 +321,12 @@ class _TechCard extends StatelessWidget {
                 border: Border.all(color: AppColors.border),
               ),
               child: DropdownButton<String>(
-                value: itTeam.isEmpty ? null : itTeam,
+                value: itTeams.contains(itTeam) ? itTeam : null,
                 hint: Text('Select IT Team', style: TextStyle(color: AppColors.textTertiary)),
                 isExpanded: true,
                 underline: SizedBox(),
                 dropdownColor: AppColors.bgSurface,
-                items: ['AFTN', 'Network', 'Security', 'Other']
+                items: itTeams
                     .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                     .toList(),
                 onChanged: (value) {

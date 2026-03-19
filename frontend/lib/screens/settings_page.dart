@@ -17,6 +17,7 @@ import '../services/activity_log_service.dart';
 import 'settings/activity_log_screen.dart';
 import 'admin/tech_departments_screen.dart';
 import 'admin/departments_screen.dart';
+import 'admin/it_teams_screen.dart';
 
 class SettingsPage extends StatefulWidget {
   final ThemeController themeController;
@@ -616,6 +617,18 @@ class _SettingsPageState extends State<SettingsPage> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const TechDepartmentsScreen(),
+                          ),
+                        ),
+                      ),
+                      SettingsRow(
+                        icon: Icons.group_outlined,
+                        label: 'IT Teams',
+                        subtitle: 'Manage IT teams',
+                        showDivider: true,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ItTeamsScreen(),
                           ),
                         ),
                       ),
