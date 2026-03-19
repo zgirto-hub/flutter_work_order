@@ -80,9 +80,10 @@ def _get_user_role(email: str) -> str:
 
 def _get_user_department(email: str) -> Optional[str]:
     normalized = email.strip().lower()
+    # First try by email column in employees
     result = supabase.table("employees") \
         .select("department") \
-        .eq("profile_id", normalized) \
+        .eq("email", normalized) \
         .execute()
     if result.data and result.data[0].get("department"):
         return result.data[0]["department"]
