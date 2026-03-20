@@ -85,7 +85,9 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/github_deploy
+          cat <<'SSHKEY' > ~/.ssh/github_deploy
+          ${{ secrets.SSH_PRIVATE_KEY }}
+          SSHKEY
           chmod 600 ~/.ssh/github_deploy
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
           
