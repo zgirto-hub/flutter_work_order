@@ -3,7 +3,7 @@ name: Deploy Flutter Web
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
 
 env:
   FLUTTER_VERSION: '3.41.2'
@@ -11,27 +11,27 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
-          
+
       - name: Install dependencies
         working-directory: frontend
         run: flutter pub get
-        
+
       - name: Analyze code
         working-directory: frontend
         run: flutter analyze --no-fatal-infos
         continue-on-error: true
-        
+
       - name: Get version info
         id: version
         run: |
@@ -41,74 +41,50 @@ jobs:
           BUILD_NUMBER=$(echo "$PUBSPEC_VERSION" | cut -d'+' -f2)
           BUILD_DATE=$(date +%Y-%m-%d_%H-%M-%S)
           RELEASE_ID=$(date +%Y%m%d%H%M%S)
-          
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
           echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
           echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
-          
+
       - name: Build Flutter Web
         working-directory: frontend
         run: flutter build web --dart-define=BUILD_DATE=${{ steps.version.outputs.build_date }} --dart-define=RELEASE_ID=${{ steps.version.outputs.release_id }}
-        
+
       - name: Replace service worker
-        working-directory: frontend/build/web
         run: |
-          cat > flutter_service_worker.js <<'SWEOF'
-'use strict';
+          cat > frontend/build/web/flutter_service_worker.js <<'SWEOF'
+          'use strict';
+          self.addEventListener('install', function() { self.skipWaiting(); });
+          self.addEventListener('activate', function(event) {
+            event.waitUntil((async function() {
+              try { await self.registration.unregister(); } catch (_) {}
+            })());
+          });
+          SWEOF
 
-self.addEventListener('install', function() {
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', function(event) {
-  event.waitUntil((async function() {
-    try {
-      await self.registration.unregister();
-    } catch (_) {}
-  })());
-});
-SWEOF
-          
       - name: Create release.json
-        working-directory: frontend/build/web
         run: |
-          cat > release.json <<EOF
-{
-  "version": "${{ steps.version.outputs.version }}",
-  "build": "${{ steps.version.outputs.build_number }}",
-  "release_id": "${{ steps.version.outputs.release_id }}",
-  "build_date": "${{ steps.version.outputs.build_date }}"
-}
-EOF
-          
+          cat > frontend/build/web/release.json <<EOF
+          {"version":"${{ steps.version.outputs.version }}","build":"${{ steps.version.outputs.build_number }}","release_id":"${{ steps.version.outputs.release_id }}","build_date":"${{ steps.version.outputs.build_date }}"}
+          EOF
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" | sed 's/^[[:space:]]*//' > ~/.ssh/github_deploy
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/github_deploy
           chmod 600 ~/.ssh/github_deploy
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-          
+
       - name: Deploy to server
         run: |
           TIMESTAMP=$(date +%F_%H-%M)
           NEW_RELEASE="/var/www/releases/release_$TIMESTAMP"
-          
-          echo "Creating new release directory..."
           ssh -i ~/.ssh/github_deploy ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "mkdir -p $NEW_RELEASE"
-          
-          echo "Uploading build files..."
           scp -i ~/.ssh/github_deploy -r frontend/build/web/* ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:$NEW_RELEASE/
-          
-          echo "Updating symlink..."
           ssh -i ~/.ssh/github_deploy ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "ln -sfn $NEW_RELEASE /var/www/flutter_app"
-          
-          echo "Verifying deployment..."
           ssh -i ~/.ssh/github_deploy ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "test -f /var/www/flutter_app/release.json && echo 'Deployment verified'"
-          
-          echo "Cleaning old releases (keeping last 10)..."
           ssh -i ~/.ssh/github_deploy ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "ls -dt /var/www/releases/release_* 2>/dev/null | tail -n +11 | xargs -r rm -rf"
-          
+
       - name: Deployment summary
         run: |
           echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
