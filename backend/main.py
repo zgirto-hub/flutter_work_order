@@ -37,3 +37,15 @@ app.include_router(employees.router, prefix="/api")
 def get_version():
     with open("version.json") as f:
         return json.load(f)
+
+
+@app.get("/api/debug/env")
+def debug_env():
+    import os
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_KEY", "")
+    return {
+        "url": url,
+        "key_prefix": key[:10] + "..." if key else "",
+        "key_length": len(key),
+    }
