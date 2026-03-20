@@ -175,7 +175,7 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                             ],
                             Expanded(
                               child: Text(
-                                widget.workOrder.Title,
+                                widget.workOrder.title,
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,

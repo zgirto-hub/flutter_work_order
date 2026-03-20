@@ -20,6 +20,9 @@ MAX_IMAGE_DIMENSION = 1920
 ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "jpg", "jpeg", "png", "gif"}
 IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif"}
 
+ALLOWED_TYPES = {"Technical", "Inspection", "Other"}
+ALLOWED_STATUSES = {"Pending", "In Progress", "Resolved", "Closed"}
+
 # --------------------
 # Pydantic Models
 # --------------------
@@ -33,9 +36,9 @@ class CreateWorkOrderBody(BaseModel):
     department: str
     type: str = "Technical"
     status: str = "Pending"
-    created_by: str  # user_id (UUID)
+    created_by: str  # user UUID
     created_by_email: Optional[str] = ""
-    assigned_user_ids: Optional[List[str]] = []
+    assigned_fixer_ids: Optional[List[str]] = []
 
 
 class UpdateWorkOrderBody(BaseModel):
@@ -47,11 +50,11 @@ class UpdateWorkOrderBody(BaseModel):
     department: str
     type: str
     status: str
-    assigned_user_ids: Optional[List[str]] = []
+    assigned_fixer_ids: Optional[List[str]] = []
 
 
 class CloseWorkOrderBody(BaseModel):
-    closed_by: str  # user_id (UUID)
+    closed_by: str  # user UUID
     tech_notes: Optional[str] = None
 
 
@@ -66,10 +69,6 @@ class AddCommentBody(BaseModel):
 # --------------------
 # Helpers
 # --------------------
-
-ALLOWED_TYPES = {"Technical", "Inspection", "Other"}
-ALLOWED_STATUSES = {"Pending", "In Progress", "Closed"}
-
 
 def _get_user_by_email(email: str) -> Optional[dict]:
     normalized = email.strip().lower()
@@ -91,13 +90,6 @@ def _get_user_role(email: str) -> str:
     return (user.get("user_type") or "admin").strip().lower()
 
 
-def _get_user_department(email: str) -> Optional[str]:
-    user = _get_user_by_email(email)
-    if user:
-        return user.get("department")
-    return None
-
-
 def _get_user_id_by_email(email: str) -> Optional[str]:
     user = _get_user_by_email(email)
     if user:
@@ -105,18 +97,18 @@ def _get_user_id_by_email(email: str) -> Optional[str]:
     return None
 
 
-def _get_fixers_by_department(fixer_department: str) -> List[str]:
-    """Get list of user IDs that are fixers in a specific department"""
-    result = supabase.table("users").select("id").eq("department", fixer_department).eq("user_type", "fixer").execute()
-    return [r.get("id") for r in (result.data or [])]
+def _get_fixers_by_department(department: str) -> List[str]:
+    """Get list of fixer user IDs that handle a specific department"""
+    result = supabase.table("fixer_departments").select("fixer_id").eq("department", department).execute()
+    return [r.get("fixer_id") for r in (result.data or [])]
 
 
-def _get_reporter_departments(fixer_department: str) -> List[str]:
-    """Get list of departments that a fixer department handles"""
-    result = supabase.table("fixer_reporters").select("reporter_departments").eq("fixer_department", fixer_department).execute()
-    if result.data:
-        return result.data[0].get("reporter_departments") or []
-    return []
+def _get_fixer_departments(fixer_id: str) -> List[str]:
+    """Get list of departments that a fixer handles"""
+    if not fixer_id:
+        return []
+    result = supabase.table("fixer_departments").select("department").eq("fixer_id", fixer_id).execute()
+    return [r.get("department") for r in (result.data or []) if r.get("department")]
 
 
 def _ensure_not_reporter(email: str):
@@ -147,7 +139,9 @@ def _fetch_full_work_order(work_order_id: str):
     result = supabase.table("work_orders").select("""
         *,
         work_order_assignments (
-            user_id,
+            fixer_id,
+            assigned_at,
+            assigned_by,
             users (
                 id,
                 email,
@@ -161,17 +155,32 @@ def _fetch_full_work_order(work_order_id: str):
     return result.data[0]
 
 
-def _sync_assignments(work_order_id: str, user_ids: List[str]):
+def _sync_assignments(work_order_id: str, fixer_ids: List[str], assigned_by: str):
     supabase.table("work_order_assignments") \
         .delete() \
         .eq("work_order_id", work_order_id) \
         .execute()
-    if user_ids:
+    if fixer_ids:
         assignments = [
-            {"work_order_id": work_order_id, "user_id": uid}
-            for uid in user_ids
+            {
+                "work_order_id": work_order_id,
+                "fixer_id": fixer_id,
+                "assigned_by": assigned_by
+            }
+            for fixer_id in fixer_ids
         ]
         supabase.table("work_order_assignments").insert(assignments).execute()
+
+
+def _log_status_change(work_order_id: str, old_status: str, new_status: str, changed_by: str, note: Optional[str] = None):
+    """Log status change to audit trail"""
+    supabase.table("work_order_status_logs").insert({
+        "work_order_id": work_order_id,
+        "changed_by": changed_by,
+        "old_status": old_status,
+        "new_status": new_status,
+        "note": note,
+    }).execute()
 
 
 # --------------------
@@ -189,7 +198,8 @@ async def list_work_orders(
     query = supabase.table("work_orders").select("""
         *,
         work_order_assignments (
-            user_id,
+            fixer_id,
+            assigned_at,
             users (
                 id,
                 email,
@@ -210,26 +220,24 @@ async def list_work_orders(
     work_orders = result.data or []
     
     if user_role == "reporter" and email:
-        # Reporters see only work orders from their department
-        reporter_department = _get_user_department(email)
-        if reporter_department:
-            work_orders = [wo for wo in work_orders if wo.get("department") == reporter_department]
+        reporter_user_id = _get_user_id_by_email(email)
+        if reporter_user_id:
+            # Reporters see only work orders they created
+            work_orders = [wo for wo in work_orders if wo.get("created_by") == reporter_user_id]
         else:
-            # Reporter with no department - show nothing
             work_orders = []
     elif user_role == "fixer" and email:
-        # Fixers see work orders in departments they handle
-        fixer_department = _get_user_department(email)
-        if fixer_department:
-            reporter_depts = _get_reporter_departments(fixer_department)
-            visible_depts = reporter_depts + [fixer_department]  # Include own department
-            if reporter_depts:
-                work_orders = [wo for wo in work_orders if wo.get("department") in visible_depts]
+        fixer_user = _get_user_by_email(email)
+        if fixer_user:
+            fixer_id = str(fixer_user.get("id") or "")
+            fixer_departments = _get_fixer_departments(fixer_id)
+            if fixer_departments:
+                # Fixers see work orders in departments they handle
+                work_orders = [wo for wo in work_orders if wo.get("department") in fixer_departments]
             else:
-                # Fixer with no assigned reporter departments - only see own department
-                work_orders = [wo for wo in work_orders if wo.get("department") == fixer_department]
+                # Fixer with no assigned departments - show nothing
+                work_orders = []
         else:
-            # Fixer with no department set - show nothing
             work_orders = []
     # Admin sees all (no filtering)
     
@@ -270,9 +278,9 @@ async def create_work_order(body: CreateWorkOrderBody):
 
     work_order_id = fetch.data["id"]
 
-    if body.assigned_user_ids:
+    if body.assigned_fixer_ids:
         try:
-            _sync_assignments(work_order_id, body.assigned_user_ids)
+            _sync_assignments(work_order_id, body.assigned_fixer_ids, body.created_by)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Assignment sync failed: {e}")
 
@@ -313,6 +321,7 @@ async def update_work_order(
         raise HTTPException(status_code=404, detail="Work order not found")
 
     existing_status = existing.data[0].get("status")
+    updater_id = _get_user_id_by_email(user_email)
 
     supabase.table("work_orders").update({
         "job_no": body.job_no,
@@ -326,9 +335,16 @@ async def update_work_order(
         "updated_at": datetime.utcnow().isoformat(),
     }).eq("id", work_order_id).execute()
 
-    _sync_assignments(work_order_id, body.assigned_user_ids or [])
+    _sync_assignments(work_order_id, body.assigned_fixer_ids or [], updater_id or "")
 
     if existing_status and existing_status != body.status:
+        _log_status_change(
+            work_order_id,
+            existing_status,
+            body.status,
+            updater_id or "",
+            None
+        )
         try:
             supabase.table("work_order_comments").insert({
                 "work_order_id": work_order_id,
@@ -366,6 +382,7 @@ async def close_work_order(
     if existing.data[0]["status"] == "Closed":
         raise HTTPException(status_code=400, detail="Work order already closed")
 
+    old_status = existing.data[0]["status"]
     now = datetime.utcnow().isoformat()
 
     supabase.table("work_orders").update({
@@ -375,6 +392,8 @@ async def close_work_order(
         "tech_notes": body.tech_notes,
         "updated_at": now,
     }).eq("id", work_order_id).execute()
+
+    _log_status_change(work_order_id, old_status, "Closed", body.closed_by, body.tech_notes)
 
     log_activity(user_email, "work_order", "closed",
         target_label=work_order_id, target_id=work_order_id)
@@ -414,6 +433,25 @@ async def delete_work_orders_bulk(
     supabase.table("work_orders").delete().in_("id", id_list).execute()
     return {"status": "deleted", "count": len(id_list)}
 
+
+# --------------------
+# Status History
+# --------------------
+
+@router.get("/work-orders/{work_order_id}/status-history")
+async def get_status_history(work_order_id: str):
+    """Get status change history for a work order"""
+    result = supabase.table("work_order_status_logs") \
+        .select("*, users(full_name, email)") \
+        .eq("work_order_id", work_order_id) \
+        .order("changed_at", desc=True) \
+        .execute()
+    return {"status_history": result.data or []}
+
+
+# --------------------
+# Comments
+# --------------------
 
 @router.get("/work-orders/{work_order_id}/comments")
 async def get_comments(work_order_id: str):
@@ -548,6 +586,7 @@ async def upload_attachment(
         "file_name": file.filename,
         "file_url": public_url,
         "file_type": file.content_type or f"image/{extension}" if extension in IMAGE_EXTENSIONS else "application/octet-stream",
+        "uploaded_by": uploaded_by,
     }).execute()
 
     return {"status": "uploaded", "file_url": public_url}

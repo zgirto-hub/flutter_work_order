@@ -373,14 +373,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 if (emailCtrl.text.isEmpty || passCtrl.text.isEmpty || nameCtrl.text.isEmpty) return;
                 setDlg(() => loading = true);
                 try {
-                  await _userService.createUser(
+                  final userId = await _userService.createUser(
                     email: emailCtrl.text.trim(),
                     password: passCtrl.text,
                     userType: selectedRole,
                     fullName: nameCtrl.text.trim(),
-                    department: selectedDept,
                     mobile: mobileCtrl.text.trim(),
                   );
+                  if (userId != null && selectedRole == 'fixer' && (selectedDept?.isNotEmpty ?? false)) {
+                    await _userService.setFixerDepartments(userId, [selectedDept!]);
+                  }
                   if (mounted) Navigator.pop(ctx, true);
                   _loadData();
                 } catch (e) {
@@ -581,14 +583,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   await _userService.changeUserRole(
                     userId: user.id,
                     userType: selectedRole,
-                    department: selectedDept,
                   );
                   await _userService.updateUser(
                     userId: user.id,
                     fullName: nameCtrl.text.trim(),
                     mobile: mobileCtrl.text.trim(),
-                    department: selectedDept,
                   );
+                  if (selectedRole == 'fixer' && (selectedDept?.isNotEmpty ?? false)) {
+                    await _userService.setFixerDepartments(user.id, [selectedDept!]);
+                  }
                   if (mounted) Navigator.pop(ctx);
                   _loadData();
                 } catch (e) {

@@ -56,7 +56,7 @@ class WorkOrderService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'job_no': workOrder.jobNo,
-        'title': workOrder.Title,
+        'title': workOrder.title,
         'description': workOrder.description,
         'location': workOrder.location,
         'mobile_number': workOrder.mobileNumber,
@@ -65,7 +65,7 @@ class WorkOrderService {
         'status': workOrder.status,
         'created_by': _userId,
         'created_by_email': _email,
-        'assigned_user_ids':
+        'assigned_fixer_ids':
             workOrder.assignedEmployees.map((e) => e.id).toList(),
       }),
     );
@@ -86,7 +86,7 @@ class WorkOrderService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'job_no': workOrder.jobNo,
-        'title': workOrder.Title,
+        'title': workOrder.title,
         'description': workOrder.description,
         'location': workOrder.location,
         'mobile_number': workOrder.mobileNumber,

@@ -100,7 +100,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     _loadDepartments();
     if (widget.workOrder != null) {
       jobNoController.text = widget.workOrder!.jobNo;
-      clientController.text = widget.workOrder!.Title;
+      clientController.text = widget.workOrder!.title;
       descriptionController.text = widget.workOrder!.description;
       locationController.text = widget.workOrder!.location;
       mobileController.text = widget.workOrder!.mobileNumber ?? '';
@@ -357,7 +357,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       final newWorkOrder = WorkOrder(
         id: widget.workOrder?.id ?? '',
         jobNo: jobNoController.text.trim(),
-        Title: clientController.text.trim(),
+        title: clientController.text.trim(),
         status: selectedStatus,
         description: descriptionController.text.trim(),
         location: locationController.text.trim(),
@@ -474,7 +474,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                           children: [
                             Text(
                               isEditing
-                                  ? widget.workOrder!.Title
+                                  ? widget.workOrder!.title
                                   : 'New Work Order',
                               style: TextStyle(
                                 fontSize: 16,

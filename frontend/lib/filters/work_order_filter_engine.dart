@@ -27,7 +27,7 @@ class WorkOrderFilterEngine {
             wo.jobNo.toLowerCase().contains(query);
 
         final titleMatch =
-            wo.Title.toLowerCase().contains(query);
+            wo.title.toLowerCase().contains(query);
 
         final descriptionMatch =
             wo.description.toLowerCase().contains(query);
