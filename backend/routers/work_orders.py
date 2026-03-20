@@ -548,12 +548,16 @@ async def get_status_history(work_order_id: str):
 
 @router.get("/work-orders/{work_order_id}/comments")
 async def get_comments(work_order_id: str):
-    result = supabase.table("work_order_comments") \
-        .select("*") \
-        .eq("work_order_id", work_order_id) \
-        .order("created_at", desc=False) \
-        .execute()
-    return {"comments": result.data or []}
+    try:
+        result = supabase.table("work_order_comments") \
+            .select("*") \
+            .eq("work_order_id", work_order_id) \
+            .order("created_at", desc=False) \
+            .execute()
+        return {"comments": result.data or []}
+    except Exception as e:
+        print(f"Error getting comments: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/work-orders/{work_order_id}/comments")
