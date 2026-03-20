@@ -100,7 +100,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   Future<void> _load() async {
     if (!_profileLoaded) return;
     final department = _userRole == 'reporter' ? _userDepartment : null;
-    final data = await _service.fetchWorkOrders(department: department);
+    final data = await _service.fetchWorkOrders(department: department, userRole: _userRole);
     await _refreshUnreadNotifications(playSoundIfIncreased: false);
     if (!mounted) return;
     setState(() => _workOrders = data);
