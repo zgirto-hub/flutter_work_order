@@ -10,8 +10,7 @@ router = APIRouter()
 class CreateUserBody(BaseModel):
     email: str
     password: str
-    user_type: str  # 'fixer' | 'reporter'
-    department: Optional[str] = None
+    user_type: str  # 'fixer' | 'reporter' | 'admin'
     full_name: str
     mobile: Optional[str] = ""
     location: Optional[str] = ""
@@ -146,12 +145,13 @@ async def create_user(body: CreateUserBody):
     
     email = body.email.strip().lower()
     
-    # Check if email already exists
+    # Check if email already exists in our users table
     existing = _get_user_by_email(email)
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="User already exists in database")
     
     # Create auth user
+    auth_id = None
     try:
         auth_user = supabase.auth.admin.create_user({
             "email": email,
@@ -160,7 +160,10 @@ async def create_user(body: CreateUserBody):
         })
         auth_id = auth_user.user.id if auth_user.user else None
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        error_msg = str(e).lower()
+        if "already been registered" in error_msg or "already exists" in error_msg:
+            raise HTTPException(status_code=400, detail="User already exists in authentication system")
+        raise HTTPException(status_code=400, detail=f"Auth error: {str(e)}")
     
     if not auth_id:
         raise HTTPException(status_code=500, detail="Failed to create auth user")
@@ -170,9 +173,8 @@ async def create_user(body: CreateUserBody):
         "auth_id": auth_id,
         "email": email,
         "full_name": body.full_name,
-        "department": body.department,
-        "mobile": body.mobile,
-        "location": body.location,
+        "mobile": body.mobile or "",
+        "location": body.location or "",
         "user_type": user_type,
         "is_active": True,
     }).execute()
