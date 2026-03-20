@@ -41,21 +41,16 @@ async def get_department_info(department_name: str):
         raise HTTPException(status_code=404, detail=f"Department '{department_name}' not found")
     dept_id = dept_result.data[0].get("id")
     
-    users_result = supabase.table("users").select("id").eq("department", department_name).execute()
-    user_count = len(users_result.data or [])
-    
-    fixers_result = supabase.table("users").select("id").eq("department", department_name).eq("user_type", "fixer").execute()
-    fixer_count = len(fixers_result.data or [])
-    
-    reporters_result = supabase.table("users").select("id").eq("department", department_name).eq("user_type", "reporter").execute()
-    reporter_count = len(reporters_result.data or [])
+    # Count fixers assigned to this department
+    fixers_result = supabase.table("fixer_departments").select("fixer_id").eq("department_id", dept_id).execute()
+    fixer_ids = [r.get("fixer_id") for r in (fixers_result.data or [])]
     
     return {
         "department": department_name,
         "department_id": dept_id,
-        "user_count": user_count,
-        "fixer_count": fixer_count,
-        "reporter_count": reporter_count
+        "user_count": len(fixer_ids),
+        "fixer_count": len(fixer_ids),
+        "reporter_count": 0
     }
 
 
@@ -92,22 +87,13 @@ async def rename_department(department_name: str, body: RenameDepartmentBody):
     if new_existing.data:
         raise HTTPException(status_code=400, detail=f"Department '{new_name}' already exists")
     
+    # Just update the department name - fixer_departments uses department_id FK
     supabase.table("departments").update({"name": new_name}).eq("name", old_name).execute()
-    
-    users_result = supabase.table("users") \
-        .update({"department": new_name}) \
-        .eq("department", old_name) \
-        .execute()
-    
-    supabase.table("fixer_departments") \
-        .update({"department": new_name}) \
-        .eq("department", old_name) \
-        .execute()
     
     return {
         "old_name": old_name,
         "new_name": new_name,
-        "updated_users": len(users_result.data or [])
+        "updated": True
     }
 
 
@@ -116,14 +102,30 @@ async def delete_department(department_name: str):
     """Delete a department (soft delete by setting is_active=false)"""
     name = department_name.strip()
     
-    users_result = supabase.table("users").select("id").eq("department", name).execute()
-    if users_result.data:
+    # Get department ID
+    dept_result = supabase.table("departments").select("id").eq("name", name).single().execute()
+    if not dept_result.data:
+        raise HTTPException(status_code=404, detail=f"Department '{name}' not found")
+    
+    dept_id = dept_result.data["id"]
+    
+    # Check if any users are assigned to this department via fixer_departments
+    fixers_result = supabase.table("fixer_departments").select("id").eq("department_id", dept_id).execute()
+    if fixers_result.data:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot delete department '{name}' - {len(users_result.data)} user(s) are assigned"
+            detail=f"Cannot delete department '{name}' - {len(fixers_result.data)} fixer(s) are assigned"
         )
     
-    supabase.table("departments").update({"is_active": False}).eq("name", name).execute()
+    # Check if any work orders use this department
+    wo_result = supabase.table("work_orders").select("id").eq("department_id", dept_id).execute()
+    if wo_result.data:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete department '{name}' - {len(wo_result.data)} work order(s) use it"
+        )
+    
+    supabase.table("departments").update({"is_active": False}).eq("id", dept_id).execute()
     
     return {"deleted": True, "department": name}
 
@@ -131,5 +133,13 @@ async def delete_department(department_name: str):
 @router.get("/departments/{department_name}/user-count")
 async def get_department_user_count(department_name: str):
     """Get the number of users in a department"""
-    result = supabase.table("users").select("id").eq("department", department_name).execute()
+    # Get department ID
+    dept_result = supabase.table("departments").select("id").eq("name", department_name).execute()
+    if not dept_result.data:
+        return {"department": department_name, "user_count": 0}
+    
+    dept_id = dept_result.data[0]["id"]
+    
+    # Count fixers assigned to this department
+    result = supabase.table("fixer_departments").select("fixer_id").eq("department_id", dept_id).execute()
     return {"department": department_name, "user_count": len(result.data or [])}
