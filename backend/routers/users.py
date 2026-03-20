@@ -124,7 +124,16 @@ async def get_current_user(email: str = Query(...)):
 async def list_users():
     """Get all users"""
     result = supabase.table("users").select("*").execute()
-    return {"users": result.data or []}
+    users = result.data or []
+    
+    for user in users:
+        dept_result = supabase.table("fixer_departments") \
+            .select("department") \
+            .eq("fixer_id", user.get("id")) \
+            .execute()
+        user["departments"] = [r.get("department") for r in (dept_result.data or []) if r.get("department")]
+    
+    return {"users": users}
 
 
 @router.get("/users/{user_id}")
@@ -133,6 +142,13 @@ async def get_user(user_id: str):
     user = _get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    dept_result = supabase.table("fixer_departments") \
+        .select("department") \
+        .eq("fixer_id", user.get("id")) \
+        .execute()
+    user["departments"] = [r.get("department") for r in (dept_result.data or []) if r.get("department")]
+    
     return {"user": user}
 
 
