@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 import uuid
 import io
+import traceback
 
 from PIL import Image
 from db import supabase
@@ -215,7 +216,12 @@ async def list_work_orders(
     if department:
         query = query.eq("department", department)
 
-    result = query.execute()
+    try:
+        result = query.execute()
+    except Exception as e:
+        print(f"ERROR in list_work_orders: {e}")
+        traceback.print_exc()
+        raise
     work_orders = result.data or []
     
     if user_role == "reporter" and email:
