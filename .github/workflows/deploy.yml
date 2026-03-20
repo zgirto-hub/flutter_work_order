@@ -55,39 +55,37 @@ jobs:
         working-directory: frontend/build/web
         run: |
           cat > flutter_service_worker.js <<'SWEOF'
-          'use strict';
-          
-          self.addEventListener('install', function() {
-            self.skipWaiting();
-          });
-          
-          self.addEventListener('activate', function(event) {
-            event.waitUntil((async function() {
-              try {
-                await self.registration.unregister();
-              } catch (_) {}
-            })());
-          });
-          SWEOF
+'use strict';
+
+self.addEventListener('install', function() {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function(event) {
+  event.waitUntil((async function() {
+    try {
+      await self.registration.unregister();
+    } catch (_) {}
+  })());
+});
+SWEOF
           
       - name: Create release.json
         working-directory: frontend/build/web
         run: |
           cat > release.json <<EOF
-          {
-            "version": "${{ steps.version.outputs.version }}",
-            "build": "${{ steps.version.outputs.build_number }}",
-            "release_id": "${{ steps.version.outputs.release_id }}",
-            "build_date": "${{ steps.version.outputs.build_date }}"
-          }
-          EOF
+{
+  "version": "${{ steps.version.outputs.version }}",
+  "build": "${{ steps.version.outputs.build_number }}",
+  "release_id": "${{ steps.version.outputs.release_id }}",
+  "build_date": "${{ steps.version.outputs.build_date }}"
+}
+EOF
           
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          cat <<'SSHKEY' > ~/.ssh/github_deploy
-          ${{ secrets.SSH_PRIVATE_KEY }}
-          SSHKEY
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" | sed 's/^[[:space:]]*//' > ~/.ssh/github_deploy
           chmod 600 ~/.ssh/github_deploy
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
           
