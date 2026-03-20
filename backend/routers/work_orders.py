@@ -83,6 +83,27 @@ def _get_user_by_id(user_id: str) -> Optional[dict]:
     return result.data[0] if result.data else None
 
 
+def _get_user_by_auth_id(auth_id: str) -> Optional[dict]:
+    """Get user by auth.users.id (auth_id)"""
+    if not auth_id:
+        return None
+    result = supabase.table("users").select("*").eq("auth_id", auth_id).execute()
+    return result.data[0] if result.data else None
+
+
+def _resolve_created_by(created_by: str) -> Optional[str]:
+    """Resolve created_by - could be either users.id or auth.users.id"""
+    if not created_by:
+        return None
+    user = _get_user_by_id(created_by)
+    if user:
+        return created_by
+    user = _get_user_by_auth_id(created_by)
+    if user:
+        return str(user.get("id") or created_by)
+    return created_by
+
+
 def _get_user_role(email: str) -> str:
     user = _get_user_by_email(email)
     if not user:
@@ -321,6 +342,9 @@ async def create_work_order(body: CreateWorkOrderBody):
     if not dept_id:
         raise HTTPException(status_code=400, detail=f"Could not find department: {body.department}")
 
+    # Resolve created_by (could be auth_id or users.id)
+    resolved_created_by = _resolve_created_by(body.created_by)
+
     try:
         supabase.table("work_orders").insert({
             "job_no": body.job_no,
@@ -331,7 +355,7 @@ async def create_work_order(body: CreateWorkOrderBody):
             "department_id": dept_id,
             "type": body.type,
             "status": body.status,
-            "created_by": body.created_by,
+            "created_by": resolved_created_by,
         }).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB insert failed: {e}")
@@ -344,7 +368,7 @@ async def create_work_order(body: CreateWorkOrderBody):
 
     if body.assigned_fixer_ids:
         try:
-            _sync_assignments(work_order_id, body.assigned_fixer_ids, body.created_by)
+            _sync_assignments(work_order_id, body.assigned_fixer_ids, resolved_created_by or "")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Assignment sync failed: {e}")
 
