@@ -87,7 +87,7 @@ class _TechDepartmentsScreenState extends State<TechDepartmentsScreen> {
     
     setState(() {
       _techs = techs;
-      _departments = deptNames..sort();
+    //  _departments = deptNames..sort();
       _itTeams = List<String>.from(itTeamNames)..sort();
       _itTeamReporters = reporters;
       _loading = false;

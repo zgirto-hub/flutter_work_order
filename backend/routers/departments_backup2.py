@@ -10,11 +10,6 @@ class CreateDepartmentBody(BaseModel):
     name: str
 
 
-class UpdateDepartmentBody(BaseModel):
-    name: str
-    is_active: Optional[bool] = None
-
-
 class RenameDepartmentBody(BaseModel):
     new_name: str
 
@@ -55,77 +50,6 @@ async def get_department(department_id: str):
         raise HTTPException(status_code=404, detail="Department not found")
     
     return {"department": result.data[0]}
-
-
-@router.patch("/departments/{department_id}")
-async def update_department(department_id: str, body: UpdateDepartmentBody):
-    """Update a department by ID (name and/or active status)"""
-    # Check if department exists
-    dept_result = supabase.table("departments").select("id, name").eq("id", department_id).execute()
-    if not dept_result.data:
-        raise HTTPException(status_code=404, detail="Department not found")
-    
-    # Check if new name conflicts with existing department
-    if body.name != dept_result.data[0]["name"]:
-        existing = supabase.table("departments").select("id").eq("name", body.name).execute()
-        if existing.data:
-            raise HTTPException(status_code=400, detail=f"Department '{body.name}' already exists")
-    
-    # Build update payload
-    update_data = {"name": body.name}
-    if body.is_active is not None:
-        update_data["is_active"] = body.is_active
-    
-    # Update the department
-    supabase.table("departments").update(update_data).eq("id", department_id).execute()
-    
-    return {"updated": True, "department_id": department_id}
-
-
-@router.delete("/departments/{department_id}")
-async def delete_department(department_id: str):
-    """Delete a department by ID (soft delete by setting is_active=false)"""
-    # Check if department exists
-    dept_result = supabase.table("departments").select("id, name").eq("id", department_id).execute()
-    if not dept_result.data:
-        raise HTTPException(status_code=404, detail="Department not found")
-    
-    dept_name = dept_result.data[0]["name"]
-    
-    # Check if any fixers are assigned to this department
-    fixers_result = supabase.table("fixer_departments").select("id").eq("department_id", department_id).execute()
-    if fixers_result.data:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot delete department '{dept_name}' - {len(fixers_result.data)} fixer(s) are assigned"
-        )
-    
-    # Check if any work orders use this department
-    wo_result = supabase.table("work_orders").select("id").eq("department_id", department_id).execute()
-    if wo_result.data:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot delete department '{dept_name}' - {len(wo_result.data)} work order(s) use it"
-        )
-    
-    # Soft delete by setting is_active to false
-    supabase.table("departments").update({"is_active": False}).eq("id", department_id).execute()
-    
-    return {"deleted": True, "department": dept_name}
-
-
-@router.get("/departments/{department_id}/fixer-count")
-async def get_department_fixer_count(department_id: str):
-    """Get the number of fixers assigned to a department"""
-    result = supabase.table("fixer_departments").select("fixer_id").eq("department_id", department_id).execute()
-    return {"department_id": department_id, "fixer_count": len(result.data or [])}
-
-
-@router.get("/departments/{department_id}/work-order-count")
-async def get_department_work_order_count(department_id: str):
-    """Get the number of work orders in a department"""
-    result = supabase.table("work_orders").select("id").eq("department_id", department_id).execute()
-    return {"department_id": department_id, "work_order_count": len(result.data or [])}
 
 
 @router.get("/departments/by-name/{department_name}")

@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../config.dart';
 import 'package:work_order/services/department_service.dart'; // ← Add this import
 
+
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -39,13 +40,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
 Future<void> _loadDepartments() async {
   setState(() => _isLoading = true);
   try {
-    final departments = await _departmentService.fetchDepartments(); // ← Changed from getDepartments
+    final departments = await _departmentService.fetchDepartments(isActive: true);
     setState(() {
-      _departments = departments;
+      // Extract department names from Department objects
+      _departments = departments.map((d) => d.name).toList();
+      _departmentsLoaded = true;
       _isLoading = false;
     });
   } catch (e) {
-    setState(() => _isLoading = false);
+    setState(() {
+      _departmentsLoaded = true;
+      _isLoading = false;
+    });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error loading departments: $e')),

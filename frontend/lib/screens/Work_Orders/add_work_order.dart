@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
-import '../../models/work_order.dart';
+import '../../models/work_order_backup.dart';
 import '../../models/work_order_comment.dart';
 import '../../models/work_order_attachment.dart';
 import '../../services/work_order_service.dart';
@@ -122,16 +122,17 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     }
   }
 
-  Future<void> _loadDepartments() async {
-    try {
-      final departments = await _departmentService.fetchDepartments();
-      if (mounted) {
-        setState(() {
-          _departments = departments..sort();
-        });
-      }
-    } catch (_) {}
-  }
+Future<void> _loadDepartments() async {
+  try {
+    final departments = await _departmentService.fetchDepartments(isActive: true);
+    if (mounted) {
+      setState(() {
+        // Extract department names and sort alphabetically
+        _departments = departments.map((d) => d.name).toList()..sort();
+      });
+    }
+  } catch (_) {}
+}
 
   Future<void> _loadUserRole() async {
     try {
