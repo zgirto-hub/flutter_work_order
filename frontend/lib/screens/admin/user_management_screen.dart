@@ -592,11 +592,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   if (selectedRole == 'fixer' && (selectedDept?.isNotEmpty ?? false)) {
                     await _userService.setFixerDepartments(user.id, [selectedDept!]);
                   }
-                  if (mounted) Navigator.pop(ctx);
+                  if (ctx.mounted) Navigator.pop(ctx);
                   _loadData();
                 } catch (e) {
                   setDlg(() => loading = false);
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.dangerText));
                 }
               },
