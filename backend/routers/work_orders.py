@@ -142,7 +142,7 @@ def _fetch_full_work_order(work_order_id: str):
             fixer_id,
             assigned_at,
             assigned_by,
-            users (
+            users!work_order_assignments_fixer_id_fkey (
                 id,
                 email,
                 full_name,
@@ -200,7 +200,8 @@ async def list_work_orders(
         work_order_assignments (
             fixer_id,
             assigned_at,
-            users (
+            assigned_by,
+            users!work_order_assignments_fixer_id_fkey (
                 id,
                 email,
                 full_name,
