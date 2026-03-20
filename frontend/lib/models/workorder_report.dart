@@ -13,7 +13,7 @@ class WorkOrderReport {
   return WorkOrderReport(
     title: json['title'] ?? '',
     location: json['location'] ?? '',
-    modifiedDate: DateTime.parse(json['updated_at']),
+    modifiedDate: DateTime.parse(json['closed_at']),
   );
 }
 }

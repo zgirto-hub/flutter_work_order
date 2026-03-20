@@ -127,7 +127,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
           children: [
             Icon(Icons.error_outline, size: 48, color: AppColors.dangerText),
             SizedBox(height: 12),
-            Text('Failed to load departments',
+            Text(_error ?? 'Failed to load departments',
                 style: TextStyle(color: AppColors.textSecondary)),
             SizedBox(height: 8),
             ElevatedButton(

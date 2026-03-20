@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/app_notification.dart';
-import '../../models/work_order_backup.dart';
+import '../../models/work_order.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/claude_widgets.dart';
 import '../../widgets/work_order_card.dart';

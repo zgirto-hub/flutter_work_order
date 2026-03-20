@@ -2,13 +2,24 @@ print("=== THIS MAIN.PY IS RUNNING v1.10.0 ===")
 
 import json
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from routers import documents, folders, notifications, users, work_orders, fixer_departments, departments, employees
 
 app = FastAPI()
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    body = await request.body()
+    print(f"=== 422 VALIDATION ERROR ===")
+    print(f"URL: {request.url}")
+    print(f"Body: {body.decode()}")
+    print(f"Errors: {exc.errors()}")
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 UPLOAD_DIR = "uploaded_files"
 os.makedirs(UPLOAD_DIR, exist_ok=True)

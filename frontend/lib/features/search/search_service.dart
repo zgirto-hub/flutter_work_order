@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../config.dart' as config;
-import '../../models/work_order_backup.dart';
+import '../../models/work_order.dart';
 
 class SearchResult {
   final List<WorkOrder> workOrders;
