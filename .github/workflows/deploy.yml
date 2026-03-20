@@ -11,6 +11,9 @@ env:
 jobs:
   build-and-deploy:
     runs-on: self-hosted
+    defaults:
+      run:
+        shell: pwsh
 
     steps:
       - name: Checkout code
@@ -35,53 +38,46 @@ jobs:
       - name: Get version info
         id: version
         run: |
-          cd frontend
-          PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //')
-          NEW_VERSION=$(echo "$PUBSPEC_VERSION" | cut -d'+' -f1)
-          BUILD_NUMBER=$(echo "$PUBSPEC_VERSION" | cut -d'+' -f2)
-          BUILD_DATE=$(date +%Y-%m-%d_%H-%M-%S)
-          RELEASE_ID=$(date +%Y%m%d%H%M%S)
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
-          echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
-          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+          $pubspec = Get-Content frontend/pubspec.yaml | Select-String "^version:"
+          $versionLine = $pubspec.ToString().Replace("version: ", "")
+          $newVersion = $versionLine.Split("+")[0]
+          $buildNumber = $versionLine.Split("+")[1]
+          $buildDate = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+          $releaseId = Get-Date -Format "yyyyMMddHHmmss"
+          
+          echo "version=$newVersion" >> $env:GITHUB_OUTPUT
+          echo "build_number=$buildNumber" >> $env:GITHUB_OUTPUT
+          echo "build_date=$buildDate" >> $env:GITHUB_OUTPUT
+          echo "release_id=$releaseId" >> $env:GITHUB_OUTPUT
 
       - name: Build Flutter Web
         working-directory: frontend
         run: flutter build web --dart-define=BUILD_DATE=${{ steps.version.outputs.build_date }} --dart-define=RELEASE_ID=${{ steps.version.outputs.release_id }}
 
-      - name: Replace service worker
-        run: |
-          cat > frontend/build/web/flutter_service_worker.js <<'SWEOF'
-          'use strict';
-          self.addEventListener('install', function() { self.skipWaiting(); });
-          self.addEventListener('activate', function(event) {
-            event.waitUntil((async function() {
-              try { await self.registration.unregister(); } catch (_) {}
-            })());
-          });
-          SWEOF
-
       - name: Create release.json
         run: |
-          cat > frontend/build/web/release.json <<EOF
-          {"version":"${{ steps.version.outputs.version }}","build":"${{ steps.version.outputs.build_number }}","release_id":"${{ steps.version.outputs.release_id }}","build_date":"${{ steps.version.outputs.build_date }}"}
-          EOF
+          @{
+            version = "${{ steps.version.outputs.version }}"
+            build = "${{ steps.version.outputs.build_number }}"
+            release_id = "${{ steps.version.outputs.release_id }}"
+            build_date = "${{ steps.version.outputs.build_date }}"
+          } | ConvertTo-Json | Out-File -FilePath "frontend/build/web/release.json" -Encoding utf8
 
       - name: Deploy to server
         run: |
-          TIMESTAMP=$(date +%F_%H-%M)
-          NEW_RELEASE="/var/www/releases/release_$TIMESTAMP"
-          ssh zorin@100.85.73.37 "mkdir -p $NEW_RELEASE"
-          scp -r frontend/build/web/* zorin@100.85.73.37:$NEW_RELEASE/
-          ssh zorin@100.85.73.37 "ln -sfn $NEW_RELEASE /var/www/flutter_app"
+          $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm"
+          $newRelease = "/var/www/releases/release_$timestamp"
+          
+          ssh zorin@100.85.73.37 "mkdir -p $newRelease"
+          scp -r frontend/build/web/* zorin@100.85.73.37:$newRelease/
+          ssh zorin@100.85.73.37 "ln -sfn $newRelease /var/www/flutter_app"
           ssh zorin@100.85.73.37 "test -f /var/www/flutter_app/release.json && echo 'Deployment verified'"
           ssh zorin@100.85.73.37 "ls -dt /var/www/releases/release_* 2>/dev/null | tail -n +11 | xargs -r rm -rf"
 
       - name: Deployment summary
         run: |
-          echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Build**: ${{ steps.version.outputs.build_number }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Release ID**: ${{ steps.version.outputs.release_id }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Server**: 100.85.73.37" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployment Complete" >> $env:GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.version.outputs.version }}" >> $env:GITHUB_STEP_SUMMARY
+          echo "- **Build**: ${{ steps.version.outputs.build_number }}" >> $env:GITHUB_STEP_SUMMARY
+          echo "- **Release ID**: ${{ steps.version.outputs.release_id }}" >> $env:GITHUB_STEP_SUMMARY
+          echo "- **Server**: 100.85.73.37" >> $env:GITHUB_STEP_SUMMARY
