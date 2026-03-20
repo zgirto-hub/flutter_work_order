@@ -83,27 +83,6 @@ def _get_user_by_id(user_id: str) -> Optional[dict]:
     return result.data[0] if result.data else None
 
 
-def _get_user_by_auth_id(auth_id: str) -> Optional[dict]:
-    """Get user by auth.users.id (auth_id)"""
-    if not auth_id:
-        return None
-    result = supabase.table("users").select("*").eq("auth_id", auth_id).execute()
-    return result.data[0] if result.data else None
-
-
-def _resolve_created_by(created_by: str) -> Optional[str]:
-    """Resolve created_by - could be either users.id or auth.users.id"""
-    if not created_by:
-        return None
-    user = _get_user_by_id(created_by)
-    if user:
-        return created_by
-    user = _get_user_by_auth_id(created_by)
-    if user:
-        return str(user.get("id") or created_by)
-    return created_by
-
-
 def _get_user_role(email: str) -> str:
     user = _get_user_by_email(email)
     if not user:
@@ -118,48 +97,18 @@ def _get_user_id_by_email(email: str) -> Optional[str]:
     return None
 
 
-def _get_department_id_by_name(department_name: str) -> Optional[str]:
-    """Get department UUID by name"""
-    result = supabase.table("departments").select("id").eq("name", department_name).eq("is_active", True).execute()
-    return result.data[0].get("id") if result.data else None
-
-
-def _get_department_name_by_id(department_id: str) -> Optional[str]:
-    """Get department name by UUID"""
-    result = supabase.table("departments").select("name").eq("id", department_id).execute()
-    return result.data[0].get("name") if result.data else None
-
-
 def _get_fixers_by_department(department: str) -> List[str]:
     """Get list of fixer user IDs that handle a specific department"""
-    dept_id = _get_department_id_by_name(department)
-    if not dept_id:
-        return []
-    result = supabase.table("fixer_departments").select("fixer_id").eq("department_id", dept_id).execute()
+    result = supabase.table("fixer_departments").select("fixer_id").eq("department", department).execute()
     return [r.get("fixer_id") for r in (result.data or [])]
 
 
 def _get_fixer_departments(fixer_id: str) -> List[str]:
-    """Get list of department names that a fixer handles"""
+    """Get list of departments that a fixer handles"""
     if not fixer_id:
         return []
-    result = supabase.table("fixer_departments").select("department_id").eq("fixer_id", fixer_id).execute()
-    departments = []
-    for r in (result.data or []):
-        dept_id = r.get("department_id")
-        if dept_id:
-            name = _get_department_name_by_id(dept_id)
-            if name:
-                departments.append(name)
-    return departments
-
-
-def _get_fixer_department_ids(fixer_id: str) -> List[str]:
-    """Get list of department IDs that a fixer handles"""
-    if not fixer_id:
-        return []
-    result = supabase.table("fixer_departments").select("department_id").eq("fixer_id", fixer_id).execute()
-    return [r.get("department_id") for r in (result.data or []) if r.get("department_id")]
+    result = supabase.table("fixer_departments").select("department").eq("fixer_id", fixer_id).execute()
+    return [r.get("department") for r in (result.data or []) if r.get("department")]
 
 
 def _ensure_not_reporter(email: str):
@@ -189,9 +138,6 @@ def _validate_status(status: str):
 def _fetch_full_work_order(work_order_id: str):
     result = supabase.table("work_orders").select("""
         *,
-        departments!work_orders_department_id_fkey (
-            name
-        ),
         work_order_assignments (
             fixer_id,
             assigned_at,
@@ -199,24 +145,14 @@ def _fetch_full_work_order(work_order_id: str):
             users!work_order_assignments_fixer_id_fkey (
                 id,
                 email,
-                full_name
+                full_name,
+                department
             )
         )
     """).eq("id", work_order_id).execute()
     if not result.data:
         return None
-    
-    wo = result.data[0]
-    # Add department name for frontend compatibility
-    dept_data = wo.get("departments")
-    if dept_data and isinstance(dept_data, dict):
-        wo["department"] = dept_data.get("name", "")
-    else:
-        wo["department"] = ""
-    if "departments" in wo:
-        del wo["departments"]
-    
-    return wo
+    return result.data[0]
 
 
 def _sync_assignments(work_order_id: str, fixer_ids: List[str], assigned_by: str):
@@ -261,9 +197,6 @@ async def list_work_orders(
 ):
     query = supabase.table("work_orders").select("""
         *,
-        departments!work_orders_department_id_fkey (
-            name
-        ),
         work_order_assignments (
             fixer_id,
             assigned_at,
@@ -271,7 +204,8 @@ async def list_work_orders(
             users!work_order_assignments_fixer_id_fkey (
                 id,
                 email,
-                full_name
+                full_name,
+                department
             )
         )
     """).order("created_at", desc=True)
@@ -281,23 +215,10 @@ async def list_work_orders(
     if type:
         query = query.eq("type", type)
     if department:
-        dept_id = _get_department_id_by_name(department)
-        if dept_id:
-            query = query.eq("department_id", dept_id)
+        query = query.eq("department", department)
 
     result = query.execute()
     work_orders = result.data or []
-    
-    # Add department name to each work order for frontend compatibility
-    for wo in work_orders:
-        dept_data = wo.get("departments")
-        if dept_data and isinstance(dept_data, dict):
-            wo["department"] = dept_data.get("name", "")
-        else:
-            wo["department"] = ""
-        # Remove internal FK field
-        if "departments" in wo:
-            del wo["departments"]
     
     if user_role == "reporter" and email:
         reporter_user_id = _get_user_id_by_email(email)
@@ -310,10 +231,10 @@ async def list_work_orders(
         fixer_user = _get_user_by_email(email)
         if fixer_user:
             fixer_id = str(fixer_user.get("id") or "")
-            fixer_department_ids = _get_fixer_department_ids(fixer_id)
-            if fixer_department_ids:
+            fixer_departments = _get_fixer_departments(fixer_id)
+            if fixer_departments:
                 # Fixers see work orders in departments they handle
-                work_orders = [wo for wo in work_orders if wo.get("department_id") in fixer_department_ids]
+                work_orders = [wo for wo in work_orders if wo.get("department") in fixer_departments]
             else:
                 # Fixer with no assigned departments - show nothing
                 work_orders = []
@@ -337,14 +258,6 @@ async def create_work_order(body: CreateWorkOrderBody):
     _validate_type(body.type)
     _validate_status(body.status)
 
-    # Resolve department name to department_id
-    dept_id = _get_department_id_by_name(body.department)
-    if not dept_id:
-        raise HTTPException(status_code=400, detail=f"Could not find department: {body.department}")
-
-    # Resolve created_by (could be auth_id or users.id)
-    resolved_created_by = _resolve_created_by(body.created_by)
-
     try:
         supabase.table("work_orders").insert({
             "job_no": body.job_no,
@@ -352,10 +265,10 @@ async def create_work_order(body: CreateWorkOrderBody):
             "description": body.description,
             "location": body.location,
             "mobile_number": body.mobile_number,
-            "department_id": dept_id,
+            "department": body.department,
             "type": body.type,
             "status": body.status,
-            "created_by": resolved_created_by,
+            "created_by": body.created_by,
         }).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB insert failed: {e}")
@@ -368,7 +281,7 @@ async def create_work_order(body: CreateWorkOrderBody):
 
     if body.assigned_fixer_ids:
         try:
-            _sync_assignments(work_order_id, body.assigned_fixer_ids, resolved_created_by or "")
+            _sync_assignments(work_order_id, body.assigned_fixer_ids, body.created_by)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Assignment sync failed: {e}")
 
@@ -411,18 +324,13 @@ async def update_work_order(
     existing_status = existing.data[0].get("status")
     updater_id = _get_user_id_by_email(user_email)
 
-    # Resolve department name to department_id
-    dept_id = _get_department_id_by_name(body.department)
-    if not dept_id:
-        raise HTTPException(status_code=400, detail=f"Could not find department: {body.department}")
-
     supabase.table("work_orders").update({
         "job_no": body.job_no,
         "title": body.title,
         "description": body.description,
         "location": body.location,
         "mobile_number": body.mobile_number,
-        "department_id": dept_id,
+        "department": body.department,
         "type": body.type,
         "status": body.status,
         "updated_at": datetime.utcnow().isoformat(),
@@ -548,16 +456,12 @@ async def get_status_history(work_order_id: str):
 
 @router.get("/work-orders/{work_order_id}/comments")
 async def get_comments(work_order_id: str):
-    try:
-        result = supabase.table("work_order_comments") \
-            .select("*") \
-            .eq("work_order_id", work_order_id) \
-            .order("created_at", desc=False) \
-            .execute()
-        return {"comments": result.data or []}
-    except Exception as e:
-        print(f"Error getting comments: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    result = supabase.table("work_order_comments") \
+        .select("*") \
+        .eq("work_order_id", work_order_id) \
+        .order("created_at", desc=False) \
+        .execute()
+    return {"comments": result.data or []}
 
 
 @router.post("/work-orders/{work_order_id}/comments")

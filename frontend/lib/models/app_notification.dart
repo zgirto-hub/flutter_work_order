@@ -1,6 +1,5 @@
 class AppNotification {
   final String id;
-  final String? userId;
   final String userEmail;
   final String kind;
   final String title;
@@ -13,7 +12,6 @@ class AppNotification {
 
   const AppNotification({
     required this.id,
-    this.userId,
     required this.userEmail,
     required this.kind,
     required this.title,
@@ -29,7 +27,6 @@ class AppNotification {
     final rawData = json['data'];
     return AppNotification(
       id: (json['id'] ?? '').toString(),
-      userId: json['user_id']?.toString(),
       userEmail: (json['user_email'] ?? '').toString(),
       kind: (json['kind'] ?? '').toString(),
       title: (json['title'] ?? '').toString(),
