@@ -72,26 +72,14 @@
     // Set badge when a OneSignal notification arrives (foreground)
     OneSignalDeferred.push(function(OneSignal) {
       OneSignal.Notifications.addEventListener('foregroundWillDisplay', function(event) {
-        event.notification.display(); // required — without this OneSignal suppresses the notification
+        event.notification.display();
         if ('setAppBadge' in navigator) {
           navigator.setAppBadge().catch(function() {});
         }
       });
     });
   </script>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
 
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
@@ -114,218 +102,511 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg-color: #f6f4ef;
-      --highlight: #cd7f58;
-      --text-dark: #2e1d14;
-      --ticket-bg: #f6f2ea;
-      --border-color: #cfbeaf;
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
     }
 
-    body { background: var(--bg-color); }
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --primary-light: #3b82f6;
+      --secondary: #64748b;
+      --bg-gradient-start: #0f172a;
+      --bg-gradient-end: #1e293b;
+      --card-bg: rgba(255, 255, 255, 0.05);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --text-primary: #ffffff;
+      --text-secondary: #94a3b8;
+      --success: #10b981;
+      --glass-bg: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.08);
+    }
 
-    /* ── Screen ── */
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Animated background grid */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 50px 50px;
+      animation: grid-move 20s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes grid-move {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(50px); }
+    }
+
+    /* Floating orbs */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: 0.15;
+      pointer-events: none;
+      animation: float 20s ease-in-out infinite;
+    }
+
+    .orb-1 {
+      width: 400px;
+      height: 400px;
+      background: var(--primary);
+      top: -100px;
+      left: -100px;
+      animation-delay: 0s;
+    }
+
+    .orb-2 {
+      width: 350px;
+      height: 350px;
+      background: #8b5cf6;
+      bottom: -100px;
+      right: -100px;
+      animation-delay: 5s;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(30px, -30px) scale(1.1); }
+      66% { transform: translate(-20px, 20px) scale(0.9); }
+    }
+
+    /* Loading screen */
     #loading-screen {
       position: fixed;
       inset: 0;
-      background: var(--bg-color);
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 20px;
       z-index: 9999;
       opacity: 0;
-      animation: splash-enter 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.08s;
+      animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.1s;
       transition: opacity 0.4s ease;
     }
+
     #loading-screen.fade-out {
       opacity: 0 !important;
       animation: none;
       pointer-events: none;
     }
-    @keyframes splash-enter {
-      from { opacity: 0; transform: translateY(16px); }
-      to   { opacity: 1; transform: translateY(0); }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
 
-    /* ── Ticket ── */
-    #ticket-wrap {
+    /* Main card */
+    .launch-card {
       position: relative;
-      width: min(100%, 880px);
-      margin: 0 auto;
-      padding: 26px;
-      border-radius: 30px;
-      background: rgba(255, 255, 255, 0.55);
+      width: min(100%, 500px);
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 48px 40px;
+      box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      animation: cardSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.2s;
+      opacity: 0;
     }
-    .ticket {
-      position: relative;
-      background: var(--ticket-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      box-shadow: 0 8px 22px rgba(76, 49, 31, 0.1);
+
+    @keyframes cardSlideUp {
+      from { 
+        opacity: 0; 
+        transform: translateY(30px);
+      }
+      to { 
+        opacity: 1; 
+        transform: translateY(0);
+      }
     }
-    .ticket-content {
-      padding: 20px 34px 18px;
-      display: flex;
-      flex-direction: column;
-      border: 1px solid var(--border-color);
-      margin: 12px;
-      gap: 18px;
-      position: relative;
-      border-radius: 8px;
-      background-image: radial-gradient(circle at 20% 25%, rgba(255,255,255,0.5), rgba(255,255,255,0) 42%), radial-gradient(circle at 80% 75%, rgba(255,255,255,0.4), rgba(255,255,255,0) 38%);
-    }
-    .ticket-edge {
-      font-family: 'Inter', sans-serif;
-      font-size: 0.85rem;
-      letter-spacing: 2px;
-      font-weight: 800;
-      color: #8e6f5d;
-      text-align: center;
-      text-transform: uppercase;
-    }
-    .ticket-center {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-    }
-    .ticket-brand {
+
+    /* Logo area */
+    .logo-container {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 12px;
+      margin-bottom: 32px;
     }
-    .logo { color: var(--highlight); font-size: clamp(44px, 8vw, 66px); margin-bottom: 0; line-height: 1; }
-    .ticket-title {
-      font-family: 'Inter', sans-serif;
-      font-size: clamp(40px, 7vw, 4.6rem);
-      font-weight: 800;
-      color: var(--text-dark);
-      margin: 0;
-      letter-spacing: -1.2px;
-    }
-    .ticket-subtitle {
-      font-family: 'Playfair Display', serif;
-      font-style: italic;
-      font-size: clamp(22px, 3.1vw, 2.5rem);
-      color: #7a5744;
-      margin-top: 2px;
-    }
-    .ticket-icon { font-size: clamp(42px, 7vw, 62px); text-align: center; line-height: 1; }
-    .side-label {
-      position: absolute;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.95rem;
-      letter-spacing: 2px;
-      font-weight: 800;
-      color: #8e6f5d;
-      top: 50%;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-    .side-label.left  { left: -48px;  transform: translateY(-50%) rotate(-90deg); }
-    .side-label.right { right: -48px; transform: translateY(-50%) rotate(90deg); }
 
-    /* ── Progress bar ── */
-    #loading-track {
-      width: min(320px, 65%);
-      height: 3px;
-      background: rgba(139, 103, 81, 0.12);
-      border-radius: 100px;
-      margin: 6px auto 0;
+    .logo-icon {
+      width: 72px;
+      height: 72px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      box-shadow: 
+        0 8px 24px rgba(37, 99, 235, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      position: relative;
       overflow: hidden;
-      box-shadow: inset 0 1px 2px rgba(46, 29, 20, 0.04);
     }
-    #loading-fill {
+
+    .logo-icon::before {
+      content: '';
+      position: absolute;
+      inset: -50%;
+      background: linear-gradient(
+        45deg,
+        transparent,
+        rgba(255, 255, 255, 0.1),
+        transparent
+      );
+      animation: shimmer 3s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+      100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+    }
+
+    /* Text content */
+    .text-content {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .main-title {
+      font-size: clamp(28px, 5vw, 36px);
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    /* Feature pills */
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 36px;
+    }
+
+    .feature-pill {
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 100px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.3s ease;
+    }
+
+    .feature-pill:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .feature-icon {
+      font-size: 14px;
+    }
+
+    /* Progress section */
+    .progress-section {
+      margin-top: 40px;
+    }
+
+    .progress-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .loading-dots {
+      display: inline-flex;
+      gap: 3px;
+    }
+
+    .loading-dots span {
+      width: 3px;
+      height: 3px;
+      background: var(--text-secondary);
+      border-radius: 50%;
+      animation: dotPulse 1.4s ease-in-out infinite;
+    }
+
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes dotPulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    /* Progress bar */
+    .progress-track {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 100px;
+      overflow: hidden;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+      position: relative;
+    }
+
+    .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, var(--highlight) 0%, #cd9375 100%);
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
       border-radius: 100px;
       width: 0%;
-      animation: loading-auto 7.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+      position: relative;
+      overflow: hidden;
     }
-    #loading-fill.complete {
-      animation: none;
+
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+      );
+      animation: progressShimmer 2s infinite;
+    }
+
+    @keyframes progressShimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+
+    .progress-fill.complete {
       width: 100% !important;
-      transition: width 0.15s ease;
-    }
-    @keyframes loading-auto {
-      0%   { width: 0%; }
-      30%  { width: 55%; }
-      60%  { width: 75%; }
-      100% { width: 88%; }
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    @media (max-width: 680px) {
-      #ticket-wrap { padding: 10px; }
-      .ticket-content { padding: 14px 14px 12px; gap: 10px; }
-      .ticket-edge { font-size: 0.62rem; letter-spacing: 1.3px; }
-      .side-label { display: none; }
-      #loading-track { width: min(300px, 86%); }
+    .progress-percentage {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: 8px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
     }
 
-    /* ── PWA update dots animation ── */
-    @keyframes pwa-dot-bounce {
-      0%, 100% { opacity: 0.25; transform: scale(1); }
-      50% { opacity: 1; transform: scale(1.2); }
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      gap: 12px;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .stat-item {
+      flex: 1;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .launch-card {
+        padding: 36px 28px;
+      }
+
+      .logo-icon {
+        width: 64px;
+        height: 64px;
+        font-size: 32px;
+      }
+
+      .feature-pill {
+        font-size: 12px;
+        padding: 6px 12px;
+      }
+
+      .stats-bar {
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .stat-item {
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+      }
+    }
+
+    /* Accessibility */
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
     }
   </style>
 </head>
 <body>
+  <!-- Background effects -->
+  <div class="bg-grid"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <!-- Loading screen -->
   <div id="loading-screen">
-    <div id="ticket-wrap">
-      <div class="ticket">
-        <div class="ticket-content">
-          <div class="ticket-edge top">Please wait &nbsp;•&nbsp; now loading: WORK ORDER SYSTEM</div>
+    <div class="launch-card">
+      <!-- Logo -->
+      <div class="logo-container">
+        <div class="logo-icon">
+          📋
+        </div>
+      </div>
 
-          <div class="ticket-center">
-            <div class="ticket-brand">
-              <div class="logo">✱</div>
-              <h2 class="ticket-title">Work Order</h2>
-            </div>
-            <p class="ticket-subtitle">Immediate workflow access</p>
+      <!-- Text content -->
+      <div class="text-content">
+        <h1 class="main-title">Work Order System</h1>
+        <p class="subtitle">Streamline your workflow management</p>
+      </div>
+
+      <!-- Feature pills -->
+      <div class="features">
+        <div class="feature-pill">
+          <span class="feature-icon">⚡</span>
+          <span>Real-time Updates</span>
+        </div>
+        <div class="feature-pill">
+          <span class="feature-icon">🔔</span>
+          <span>Notifications</span>
+        </div>
+        <div class="feature-pill">
+          <span class="feature-icon">📊</span>
+          <span>Analytics</span>
+        </div>
+      </div>
+
+      <!-- Progress section -->
+      <div class="progress-section">
+        <div class="progress-label">
+          <span>Initializing workspace</span>
+          <div class="loading-dots">
+            <span></span>
+            <span></span>
+            <span></span>
           </div>
+        </div>
+        <div class="progress-track">
+          <div id="loading-fill" class="progress-fill"></div>
+        </div>
+        <div id="progress-percentage" class="progress-percentage">0%</div>
+      </div>
 
-          <div class="ticket-icon">💼</div>
-
-          <div id="loading-track"><div id="loading-fill"></div></div>
-
-          <div class="ticket-edge bottom">Please wait &nbsp;•&nbsp; now Loading: WORK ORDER SYSTEM</div>
-
-          <div class="side-label left">0000001 · CLICK HERE</div>
-          <div class="side-label right">CLICK HERE · 0000001</div>
+      <!-- Stats -->
+      <div class="stats-bar">
+        <div class="stat-item">
+          <div class="stat-value">24/7</div>
+          <div class="stat-label">Available</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">Fast</div>
+          <div class="stat-label">Response</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">Secure</div>
+          <div class="stat-label">Platform</div>
         </div>
       </div>
     </div>
-
   </div>
 
   <script>
+    // Simulate loading progress
+    (function() {
+      var fill = document.getElementById('loading-fill');
+      var percentage = document.getElementById('progress-percentage');
+      var progress = 0;
+      
+      var interval = setInterval(function() {
+        progress += Math.random() * 15;
+        if (progress > 90) progress = 90;
+        
+        fill.style.width = progress + '%';
+        percentage.textContent = Math.round(progress) + '%';
+        
+        if (progress >= 90) {
+          clearInterval(interval);
+        }
+      }, 200);
+    })();
+
     window.addEventListener('flutter-first-frame', function() {
-      var fill   = document.getElementById('loading-fill');
+      var fill = document.getElementById('loading-fill');
+      var percentage = document.getElementById('progress-percentage');
       var screen = document.getElementById('loading-screen');
-      if (fill) fill.classList.add('complete');
+      
+      if (fill) {
+        fill.style.width = '100%';
+        fill.classList.add('complete');
+      }
+      if (percentage) {
+        percentage.textContent = '100%';
+      }
+      
       setTimeout(function() {
         if (screen) screen.classList.add('fade-out');
         setTimeout(function() {
           if (screen) screen.remove();
-        }, 380);
-      }, 180);
+        }, 400);
+      }, 300);
     });
   </script>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
   <script>
     (function() {
       var flutterCleanupKey = 'flutter_sw_cleanup_done_v2';
@@ -384,14 +665,13 @@
   </script>
 
   <script>
-    // Called by Flutter's "Update now" button.
-    // Unregisters Flutter service workers and reloads once.
+    // Called by Flutter's "Update now" button
     window.applyPWAUpdate = async function() {
       var overlay = document.createElement('div');
       overlay.style.cssText = [
         'position: fixed;',
         'inset: 0;',
-        'background: rgba(246, 244, 239, 0.92);',
+        'background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);',
         'display: flex;',
         'flex-direction: column;',
         'align-items: center;',
@@ -399,54 +679,41 @@
         'z-index: 10000;',
       ].join(' ');
 
-      // Container for dots and text
       var container = document.createElement('div');
       container.style.cssText = [
         'display: flex;',
         'flex-direction: column;',
         'align-items: center;',
-        'gap: 16px;',
+        'gap: 20px;',
       ].join(' ');
 
-      // Dots container
       var dotsContainer = document.createElement('div');
       dotsContainer.style.cssText = [
         'display: flex;',
         'align-items: center;',
         'justify-content: center;',
+        'gap: 10px;',
       ].join(' ');
 
-      // Create 3 animated dots with staggered delays and explicit margins
       for (var i = 0; i < 3; i++) {
         var dot = document.createElement('div');
-        var dotStyle = [
-          'width: 8px;',
-          'height: 8px;',
+        dot.style.cssText = [
+          'width: 10px;',
+          'height: 10px;',
           'border-radius: 50%;',
-          'background: #CC785C;',
+          'background: #3b82f6;',
           'animation: pwa-dot-bounce 1.2s ease-in-out infinite;',
-          'animation-delay: ' + (i * 0.4) + 's;',
-        ];
-        // Use explicit margin instead of gap
-        if (i === 0) {
-          dotStyle.push('margin-right: 8px;');
-        } else if (i === 1) {
-          dotStyle.push('margin-left: 0;');
-          dotStyle.push('margin-right: 8px;');
-        } else {
-          dotStyle.push('margin-left: 0;');
-        }
-        dot.style.cssText = dotStyle.join(' ');
+          'animation-delay: ' + (i * 0.15) + 's;',
+        ].join(' ');
         dotsContainer.appendChild(dot);
       }
 
-      // Text with percentage
       var text = document.createElement('div');
       text.style.cssText = [
         'font-family: Inter, sans-serif;',
-        'font-size: 14px;',
-        'font-weight: 500;',
-        'color: #2e1d14;',
+        'font-size: 15px;',
+        'font-weight: 600;',
+        'color: #94a3b8;',
         'letter-spacing: -0.01em;',
       ].join(' ');
       text.textContent = 'Applying update… 0%';
@@ -456,14 +723,12 @@
       overlay.appendChild(container);
       document.body.appendChild(overlay);
 
-      // Force browser to paint and show initial state
       await new Promise(function(resolve) { 
         requestAnimationFrame(function() {
           requestAnimationFrame(resolve);
         });
       });
 
-      // Helper function to update progress with increment animation
       function updateProgress(targetPercent, durationMs) {
         return new Promise(function(resolve) {
           var currentPercent = parseInt(text.textContent.match(/\d+/)[0]) || 0;
@@ -489,7 +754,6 @@
         });
       }
 
-      // Phase 1: 0% → 45% (prepare for service worker cleanup)
       await updateProgress(45, 1800);
 
       try {
@@ -503,7 +767,6 @@
             });
           });
           
-          // Phase 2: 45% → 75% (during unregistration)
           var unregisterPromise = Promise.all(flutterRegistrations.map(function(reg) {
             return reg.unregister();
           }));
@@ -513,14 +776,9 @@
             updateProgress(75, 1200)
           ]);
         }
-      } catch (_) {
-        // Fall through to reload.
-      }
+      } catch (_) {}
       
-      // Phase 3: 75% → 100% (finalizing)
       await updateProgress(100, 1000);
-      
-      // Brief pause at 100% before reload
       await new Promise(function(resolve) { setTimeout(resolve, 200); });
       
       const finalTs = Date.now();
@@ -529,5 +787,12 @@
       window.location.replace(finalUrl.toString());
     };
   </script>
+
+  <style>
+    @keyframes pwa-dot-bounce {
+      0%, 100% { transform: translateY(0); opacity: 0.4; }
+      50% { transform: translateY(-10px); opacity: 1; }
+    }
+  </style>
 </body>
 </html>

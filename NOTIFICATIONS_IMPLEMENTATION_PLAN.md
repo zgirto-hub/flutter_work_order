@@ -9,11 +9,12 @@ Implement targeted work-order notifications with:
 - Delivery logs for push attempts
 - In-app inbox with read/unread APIs
 - Recipient resolution for comments:
-  - requester
-  - assigned employees
-  - work-order creator
-  - watchers
-  - exclude commenter
+  - **Reporter** (requester) - the user who created the work order
+  - **Fixer** - assigned fixers on the work order
+  - **Admin** - opted-in admins
+  - **Creator** - work-order creator (if different from reporter)
+  - **Watchers** - extra followers on the work order
+  - **Exclude commenter** - the person who posted the comment does not receive a notification
 
 ## Data Model
 
@@ -40,8 +41,8 @@ File: `backend/utils/notifications.py`
 File: `backend/utils/notification_service.py`
 
 - Resolve recipients for comment events.
-- Resolve assigned employee emails via:
-  - `work_order_assignments.employee_id -> employees.profile_id -> auth user email`
+- Resolve assigned fixer emails via:
+  - `work_order_assignments.fixer_id -> users.email`
 - Apply preferences and event toggles.
 - Insert in-app notifications.
 - Send push notifications.
@@ -87,10 +88,10 @@ File: `frontend/lib/screens/main_screen.dart`
 
 ## Validation Checklist
 
-1. Comment by tech/admin/requester creates comment successfully.
+1. Comment by fixer/admin/requester creates comment successfully.
 2. Commenter does not receive own notification.
 3. Requester receives notification when others comment.
-4. Assigned employees and creator receive notification.
+4. Assigned fixers and creator receive notification.
 5. Watchers receive notification.
 6. `mute_all` or event toggle disables delivery.
 7. In-app notification rows are created as expected.

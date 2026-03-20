@@ -212,6 +212,29 @@ if not prefs.in_app_enabled: skip inbox (still send push if push_enabled)
 
 ---
 
+## Supabase CLI & MCP
+
+### CLI Setup (March 2026)
+- **Binary**: `supabase.exe` in project root (v2.78.1)
+- **Token**: Stored locally after first login
+- **Linked project**: `rydrqsjofoulwdtwfbgv` (Work orders Project)
+- **Commands**:
+  - `./supabase.exe db remote set` — set remote database
+  - `./supabase.exe db push` — push migrations to cloud
+  - `./supabase.exe db reset` — reset cloud database
+  - `./supabase.exe functions list/deploy` — manage edge functions
+  - `./supabase.exe migration new <name>` — create new migration
+
+### MCP Setup (Remote)
+- **Config file**: `opencode.jsonc` in project root
+- **URL**: `https://mcp.supabase.com/mcp`
+- **Project scope**: `rydrqsjofoulwdtwfbgv`
+- **Auth**: OAuth via `opencode mcp auth supabase`
+- **Status**: Connected (verified via `opencode mcp list`)
+- **Usage**: Add `use supabase` in prompts to access tools (execute_sql, list_tables, etc.)
+
+---
+
 ## Key Architecture Notes
 
 ### Supabase Auth Mapping
