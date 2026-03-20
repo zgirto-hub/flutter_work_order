@@ -1,5 +1,53 @@
 import 'package:flutter/material.dart';
 
+class Breakpoints {
+  static const double mobile = 600;
+  static const double tablet = 900;
+  static const double desktop = 1200;
+
+  static bool isMobile(BuildContext context) =>
+      MediaQuery.of(context).size.width < mobile;
+
+  static bool isTablet(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    return width >= mobile && width < desktop;
+  }
+
+  static bool isDesktop(BuildContext context) =>
+      MediaQuery.of(context).size.width >= desktop;
+
+  static double getContentWidth(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    if (screenWidth >= desktop) return desktop;
+    return screenWidth;
+  }
+
+  static EdgeInsets getPagePadding(BuildContext context) {
+    if (isMobile(context)) return const EdgeInsets.all(16);
+    if (isTablet(context)) return const EdgeInsets.all(24);
+    return const EdgeInsets.all(32);
+  }
+
+  static int getGridColumns(BuildContext context) {
+    if (isMobile(context)) return 1;
+    if (isTablet(context)) return 2;
+    return 3;
+  }
+}
+
+class TouchTargets {
+  static const double minimum = 44.0;
+  static const double comfortable = 48.0;
+  static const double large = 56.0;
+  static const double minSpacing = 8.0;
+
+  static BoxConstraints get minimumConstraints =>
+      const BoxConstraints(minWidth: minimum, minHeight: minimum);
+
+  static BoxConstraints get comfortableConstraints =>
+      const BoxConstraints(minWidth: comfortable, minHeight: comfortable);
+}
+
 class AppIcons {
   static const workOrder = Icons.assignment_outlined;
   static const workOrderFilled = Icons.assignment;
