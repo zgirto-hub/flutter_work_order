@@ -5,8 +5,9 @@ import '../theme/app_theme.dart';
 
 class StatusBadge extends StatelessWidget {
   final String status;
+  final bool isSmall;
 
-  const StatusBadge({super.key, required this.status});
+  const StatusBadge({super.key, required this.status, this.isSmall = false});
 
   String get _statusLabel {
     switch (status.toLowerCase()) {
@@ -23,6 +24,7 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     Color bg;
     Color text;
 
@@ -48,9 +50,19 @@ class StatusBadge extends StatelessWidget {
       label: 'Status: $_statusLabel',
       readOnly: true,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: EdgeInsets.symmetric(
+          horizontal: isSmall ? 8 : 10,
+          vertical: isSmall ? 4 : 6,
+        ),
         decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-        child: Text(status, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: text)),
+        child: Text(
+          status,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: text,
+            fontSize: isSmall ? 10 : 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -85,13 +97,77 @@ class SectionLabel extends StatelessWidget {
   }
 }
 
+// ─── Empty State ─────────────────────────────────────────────────────────────
+
+class EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget? action;
+  final Color? iconColor;
+
+  const EmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.action,
+    this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final effectiveIconColor = iconColor ?? AppColors.accent;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: effectiveIconColor.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 40, color: effectiveIconColor),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: theme.textTheme.titleLarge,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: theme.textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            if (action != null) ...[
+              const SizedBox(height: 24),
+              action!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Surface Card ─────────────────────────────────────────────────────────────
 
-class SurfaceCard extends StatelessWidget {
+enum SurfaceLevel { base, elevated, raised }
+
+class SurfaceCard extends StatefulWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
   final BorderRadius? borderRadius;
+  final SurfaceLevel level;
 
   const SurfaceCard({
     super.key,
@@ -99,23 +175,59 @@ class SurfaceCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(14),
     this.onTap,
     this.borderRadius,
+    this.level = SurfaceLevel.elevated,
   });
 
   @override
+  State<SurfaceCard> createState() => _SurfaceCardState();
+}
+
+class _SurfaceCardState extends State<SurfaceCard> {
+  bool _isPressed = false;
+
+  List<BoxShadow>? _getShadows() {
+    final brightness = Theme.of(context).brightness;
+    switch (widget.level) {
+      case SurfaceLevel.base:
+        return null;
+      case SurfaceLevel.elevated:
+        return _isPressed ? AppShadows.cardLight : AppShadows.card(brightness);
+      case SurfaceLevel.raised:
+        return _isPressed
+            ? AppShadows.card(brightness)
+            : AppShadows.card(brightness, elevated: true);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgSurface,
-        borderRadius: borderRadius ?? BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 0.5),
+    final borderRadius = widget.borderRadius ?? BorderRadius.circular(14);
+
+    return GestureDetector(
+      onTapDown: widget.onTap != null ? (_) => setState(() => _isPressed = true) : null,
+      onTapUp: widget.onTap != null
+          ? (_) {
+              setState(() => _isPressed = false);
+              widget.onTap?.call();
+            }
+          : null,
+      onTapCancel: widget.onTap != null ? () => setState(() => _isPressed = false) : null,
+      child: AnimatedScale(
+        scale: _isPressed ? 0.98 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOut,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            color: AppColors.bgSurface,
+            borderRadius: borderRadius,
+            border: Border.all(color: AppColors.border, width: 0.5),
+            boxShadow: _getShadows(),
+          ),
+          child: Padding(padding: widget.padding, child: widget.child),
+        ),
       ),
-      child: onTap != null
-          ? InkWell(
-              onTap: onTap,
-              borderRadius: borderRadius ?? BorderRadius.circular(14),
-              child: Padding(padding: padding, child: child),
-            )
-          : Padding(padding: padding, child: child),
     );
   }
 }
@@ -269,7 +381,7 @@ class InitialsAvatar extends StatelessWidget {
 
 // ─── Icon Button ──────────────────────────────────────────────────────────────
 
-class ClaudeIconButton extends StatelessWidget {
+class ClaudeIconButton extends StatefulWidget {
   final IconData icon;
   final VoidCallback onTap;
   final String? tooltip;
@@ -284,21 +396,38 @@ class ClaudeIconButton extends StatelessWidget {
   });
 
   @override
+  State<ClaudeIconButton> createState() => _ClaudeIconButtonState();
+}
+
+class _ClaudeIconButtonState extends State<ClaudeIconButton> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: semanticsLabel ?? tooltip,
+      label: widget.semanticsLabel ?? widget.tooltip,
       button: true,
       child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: AppColors.bgSurface2,
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(color: AppColors.border2, width: 0.5),
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) {
+          setState(() => _isPressed = false);
+          widget.onTap();
+        },
+        onTapCancel: () => setState(() => _isPressed = false),
+        child: AnimatedScale(
+          scale: _isPressed ? 0.92 : 1.0,
+          duration: const Duration(milliseconds: 80),
+          curve: Curves.easeOut,
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.bgSurface2,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: AppColors.border2, width: 0.5),
+            ),
+            child: Icon(widget.icon, size: 16, color: AppColors.textSecondary),
           ),
-          child: Icon(icon, size: 16, color: AppColors.textSecondary),
         ),
       ),
     );
@@ -307,7 +436,7 @@ class ClaudeIconButton extends StatelessWidget {
 
 // ─── FAB ──────────────────────────────────────────────────────────────────────
 
-class ClaudeFAB extends StatelessWidget {
+class ClaudeFAB extends StatefulWidget {
   final VoidCallback onTap;
   final IconData icon;
   final String? tooltip;
@@ -322,27 +451,41 @@ class ClaudeFAB extends StatelessWidget {
   });
 
   @override
+  State<ClaudeFAB> createState() => _ClaudeFABState();
+}
+
+class _ClaudeFABState extends State<ClaudeFAB> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+
     return Semantics(
-      label: semanticsLabel ?? tooltip ?? 'Action button',
+      label: widget.semanticsLabel ?? widget.tooltip ?? 'Action button',
       button: true,
       child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: AppColors.accent,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.accent.withValues(alpha: 0.2),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) {
+          setState(() => _isPressed = false);
+          widget.onTap();
+        },
+        onTapCancel: () => setState(() => _isPressed = false),
+        child: AnimatedScale(
+          scale: _isPressed ? 0.94 : 1.0,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeOut,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: AppColors.accent,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: AppShadows.fab(brightness),
+            ),
+            child: Icon(widget.icon, color: Colors.white, size: 20),
           ),
-          child: Icon(icon, color: Colors.white, size: 20),
         ),
       ),
     );

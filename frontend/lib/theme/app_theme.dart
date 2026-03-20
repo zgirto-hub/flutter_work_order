@@ -2,6 +2,124 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_transitions.dart';
 
+class AppShadows {
+  static List<BoxShadow> get cardLight => [
+        BoxShadow(
+          color: const Color(0xFF1A1915).withValues(alpha: 0.04),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+          spreadRadius: 0,
+        ),
+      ];
+
+  static List<BoxShadow> get cardLightElevated => [
+        BoxShadow(
+          color: const Color(0xFF1A1915).withValues(alpha: 0.06),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+          spreadRadius: 0,
+        ),
+      ];
+
+  static List<BoxShadow> get cardDark => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.2),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+          spreadRadius: 0,
+        ),
+      ];
+
+  static List<BoxShadow> get cardDarkElevated => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.3),
+          blurRadius: 16,
+          offset: const Offset(0, 6),
+          spreadRadius: 0,
+        ),
+      ];
+
+  static List<BoxShadow> get fabLight => [
+        BoxShadow(
+          color: const Color(0xFFCC785C).withValues(alpha: 0.2),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+          spreadRadius: 0,
+        ),
+        BoxShadow(
+          color: const Color(0xFF1A1915).withValues(alpha: 0.04),
+          blurRadius: 24,
+          offset: const Offset(0, 8),
+          spreadRadius: 0,
+        ),
+      ];
+
+  static List<BoxShadow> get fabDark => [
+        BoxShadow(
+          color: const Color(0xFFCC785C).withValues(alpha: 0.3),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+          spreadRadius: 0,
+        ),
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.4),
+          blurRadius: 24,
+          offset: const Offset(0, 8),
+          spreadRadius: 0,
+        ),
+      ];
+
+  static List<BoxShadow> get dialogLight => [
+        BoxShadow(
+          color: const Color(0xFF1A1915).withValues(alpha: 0.12),
+          blurRadius: 32,
+          offset: const Offset(0, 12),
+          spreadRadius: -8,
+        ),
+      ];
+
+  static List<BoxShadow> get dialogDark => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.5),
+          blurRadius: 32,
+          offset: const Offset(0, 16),
+          spreadRadius: -8,
+        ),
+      ];
+
+  static List<BoxShadow> get inputFocusLight => [
+        BoxShadow(
+          color: const Color(0xFFCC785C).withValues(alpha: 0.15),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+          spreadRadius: 0,
+        ),
+      ];
+
+  static List<BoxShadow> get inputFocusDark => [
+        BoxShadow(
+          color: const Color(0xFFCC785C).withValues(alpha: 0.3),
+          blurRadius: 12,
+          offset: const Offset(0, 2),
+          spreadRadius: 0,
+        ),
+      ];
+
+  static List<BoxShadow> card(Brightness brightness, {bool elevated = false}) =>
+      brightness == Brightness.light
+          ? (elevated ? cardLightElevated : cardLight)
+          : (elevated ? cardDarkElevated : cardDark);
+
+  static List<BoxShadow> fab(Brightness brightness) =>
+      brightness == Brightness.light ? fabLight : fabDark;
+
+  static List<BoxShadow> dialog(Brightness brightness) =>
+      brightness == Brightness.light ? dialogLight : dialogDark;
+
+  static List<BoxShadow> inputFocus(Brightness brightness) =>
+      brightness == Brightness.light ? inputFocusLight : inputFocusDark;
+}
+
 class AppColors {
   // ── Mode flag ──────────────────────────────────────────────────────────────
   static bool _dark = false;
