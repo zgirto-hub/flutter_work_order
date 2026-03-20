@@ -622,8 +622,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       SettingsRow(
                         icon: Icons.account_tree_outlined,
-                        label: 'Fixer-Reporter Teams',
-                        subtitle: 'Assign reporters to fixer teams',
+                        label: 'Fixer Departments',
+                        subtitle: 'Assign departments to fixers',
                         showDivider: true,
                         onTap: () => Navigator.push(
                           context,

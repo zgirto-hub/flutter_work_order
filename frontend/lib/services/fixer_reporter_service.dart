@@ -13,72 +13,86 @@ class FixerReporterService {
   }
 
   Future<List<Map<String, dynamic>>> fetchFixerReporters() async {
-    final res = await http.get(
-      Uri.parse('${AppConfig.baseUrl}/fixer-reporters'),
-    ).timeout(Duration(seconds: 10));
-    if (res.statusCode != 200) {
-      throw Exception(_errorDetail(res, 'Failed to fetch fixer reporters'));
-    }
-    final data = jsonDecode(res.body);
-    return List<Map<String, dynamic>>.from(data['fixer_reporters'] ?? []);
+    return fetchFixerDepartments();
   }
 
-  Future<Map<String, dynamic>?> fetchFixerReporter(String fixerDepartment) async {
+  Future<List<Map<String, dynamic>>> fetchFixerDepartments() async {
     final res = await http.get(
-      Uri.parse('${AppConfig.baseUrl}/fixer-reporters/${Uri.encodeComponent(fixerDepartment)}'),
+      Uri.parse('${AppConfig.baseUrl}/fixer-departments'),
+    ).timeout(Duration(seconds: 10));
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to fetch fixer departments'));
+    }
+    final data = jsonDecode(res.body);
+    return List<Map<String, dynamic>>.from(data['fixer_departments'] ?? []);
+  }
+
+  Future<List<String>> getFixerDepartments(String fixerId) async {
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/fixer-departments/user/$fixerId'),
     );
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
-      return data['fixer_reporter'];
+      return List<String>.from(data['departments'] ?? []);
     }
-    return null;
+    return [];
+  }
+
+  Future<void> setFixerDepartments(String fixerId, List<String> departments) async {
+    final res = await http.post(
+      Uri.parse('${AppConfig.baseUrl}/fixer-departments/bulk/$fixerId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'departments': departments}),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to update fixer departments'));
+    }
   }
 
   Future<void> createFixerReporter({
     required String fixerDepartment,
     required List<String> reporterDepartments,
   }) async {
-    final res = await http.post(
-      Uri.parse('${AppConfig.baseUrl}/fixer-reporters'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'fixer_department': fixerDepartment,
-        'reporter_departments': reporterDepartments,
-      }),
-    );
-    if (res.statusCode != 200) {
-      throw Exception(_errorDetail(res, 'Failed to create fixer reporter'));
-    }
+    await setFixerDepartments(fixerDepartment, reporterDepartments);
   }
 
   Future<void> updateFixerReporter({
     required String fixerDepartment,
     required List<String> reporterDepartments,
   }) async {
-    final res = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/fixer-reporters/${Uri.encodeComponent(fixerDepartment)}'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'reporter_departments': reporterDepartments,
-      }),
-    );
-    if (res.statusCode != 200) {
-      throw Exception(_errorDetail(res, 'Failed to update fixer reporter'));
-    }
+    await setFixerDepartments(fixerDepartment, reporterDepartments);
   }
 
   Future<void> deleteFixerReporter(String fixerDepartment) async {
-    final res = await http.delete(
-      Uri.parse('${AppConfig.baseUrl}/fixer-reporters/${Uri.encodeComponent(fixerDepartment)}'),
+    await removeFixerDepartment(fixerDepartment, '');
+  }
+
+  Future<void> addFixerDepartment(String fixerId, String department) async {
+    final res = await http.post(
+      Uri.parse('${AppConfig.baseUrl}/fixer-departments'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'fixer_id': fixerId,
+        'department': department,
+      }),
     );
     if (res.statusCode != 200) {
-      throw Exception(_errorDetail(res, 'Failed to delete fixer reporter'));
+      throw Exception(_errorDetail(res, 'Failed to add fixer department'));
     }
   }
 
-  Future<List<String>> fetchDepartments() async {
+  Future<void> removeFixerDepartment(String fixerId, String department) async {
+    final res = await http.delete(
+      Uri.parse('${AppConfig.baseUrl}/fixer-departments/$fixerId/${Uri.encodeComponent(department)}'),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to remove fixer department'));
+    }
+  }
+
+  Future<List<String>> fetchAllDepartments() async {
     final res = await http.get(
-      Uri.parse('${AppConfig.baseUrl}/departments'),
+      Uri.parse('${AppConfig.baseUrl}/departments/all'),
     ).timeout(Duration(seconds: 10));
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
@@ -87,14 +101,7 @@ class FixerReporterService {
     return [];
   }
 
-  Future<List<String>> fetchFixerDepartments() async {
-    final res = await http.get(
-      Uri.parse('${AppConfig.baseUrl}/fixer-departments'),
-    );
-    if (res.statusCode == 200) {
-      final data = jsonDecode(res.body);
-      return List<String>.from(data['fixer_departments'] ?? []);
-    }
-    return [];
+  Future<List<String>> fetchDepartments() async {
+    return fetchAllDepartments();
   }
 }

@@ -82,7 +82,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
               ),
             ),
           Expanded(
-            child: Text('Fixer-Reporter Teams',
+            child: Text('Fixer Departments',
                 style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
