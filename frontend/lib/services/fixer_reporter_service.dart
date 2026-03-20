@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config.dart';
+import '../models/user.dart';
+import 'user_service.dart';
 
 class FixerReporterService {
+  final _userService = UserService();
   String _errorDetail(http.Response res, String fallback) {
     try {
       final body = jsonDecode(res.body);
@@ -103,5 +106,9 @@ class FixerReporterService {
 
   Future<List<String>> fetchDepartments() async {
     return fetchAllDepartments();
+  }
+
+  Future<List<AppUser>> fetchFixers() async {
+    return _userService.fetchFixers();
   }
 }

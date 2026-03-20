@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/fixer_reporter_service.dart';
+import '../../models/user.dart';
 import '../../theme/app_theme.dart';
 
 class FixerReportersScreen extends StatefulWidget {
@@ -12,7 +13,7 @@ class FixerReportersScreen extends StatefulWidget {
 class _FixerReportersScreenState extends State<FixerReportersScreen> {
   final _service = FixerReporterService();
   List<Map<String, dynamic>> _mappings = [];
-  List<String> _allDepartments = [];
+  List<AppUser> _fixers = [];
   bool _loading = true;
   String? _error;
 
@@ -29,12 +30,12 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
     });
     try {
       final results = await Future.wait([
-        _service.fetchFixerReporters(),
-        _service.fetchDepartments(),
+        _service.fetchFixerDepartments(),
+        _service.fetchFixers(),
       ]);
       setState(() {
         _mappings = (results[0] as List).cast<Map<String, dynamic>>();
-        _allDepartments = (results[1] as List).cast<String>();
+        _fixers = (results[1] as List).cast<AppUser>();
         _loading = false;
       });
     } catch (e) {
@@ -43,6 +44,18 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
         _loading = false;
       });
     }
+  }
+
+  Map<String, List<String>> get _groupedByFixer {
+    final Map<String, List<String>> grouped = {};
+    for (final mapping in _mappings) {
+      final fixerEmail = mapping['users']?['email'] ?? '';
+      final dept = mapping['department'] as String? ?? '';
+      if (fixerEmail.isNotEmpty && dept.isNotEmpty) {
+        grouped.putIfAbsent(fixerEmail, () => []).add(dept);
+      }
+    }
+    return grouped;
   }
 
   @override
@@ -90,7 +103,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
                     letterSpacing: -0.3)),
           ),
           IconButton(
-            onPressed: () => _showCreateDialog(context),
+            onPressed: () => _showAddDialog(context),
             icon: Container(
               width: 34,
               height: 34,
@@ -127,18 +140,21 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
         ),
       );
     }
-    if (_mappings.isEmpty) {
+
+    final grouped = _groupedByFixer;
+    
+    if (grouped.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.account_tree_outlined, size: 48, color: AppColors.textTertiary),
+            Icon(Icons.engineering_outlined, size: 48, color: AppColors.textTertiary),
             SizedBox(height: 12),
-            Text('No fixer-reporter mappings',
+            Text('No fixer-department mappings',
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
             SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: () => _showCreateDialog(context),
+              onPressed: () => _showAddDialog(context),
               icon: Icon(Icons.add, size: 16),
               label: Text('Add Mapping'),
               style: ElevatedButton.styleFrom(
@@ -150,19 +166,27 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
         ),
       );
     }
+
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _mappings.length,
-        itemBuilder: (context, index) => _buildMappingCard(_mappings[index]),
+        itemCount: grouped.length,
+        itemBuilder: (context, index) {
+          final email = grouped.keys.elementAt(index);
+          final depts = grouped[email]!;
+          return _buildFixerCard(email, depts);
+        },
       ),
     );
   }
 
-  Widget _buildMappingCard(Map<String, dynamic> mapping) {
-    final fixerDept = mapping['fixer_department'] as String;
-    final reporterDepts = List<String>.from(mapping['reporter_departments'] ?? []);
+  Widget _buildFixerCard(String fixerEmail, List<String> departments) {
+    final fixer = _fixers.firstWhere(
+      (f) => f.email == fixerEmail,
+      orElse: () => AppUser(id: '', email: fixerEmail, userType: UserType.fixer),
+    );
+    final name = fixer.fullName ?? fixerEmail.split('@').first;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -175,7 +199,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () => _showEditDialog(context, fixerDept, reporterDepts),
+          onTap: () => _showEditDialog(context, fixerEmail, departments),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -183,45 +207,49 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(9),
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: AppColors.accent.withValues(alpha: 0.15),
+                      child: Text(
+                        name.substring(0, 1).toUpperCase(),
+                        style: TextStyle(
+                          color: AppColors.accent,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      child: Icon(Icons.engineering_outlined,
-                          size: 18, color: AppColors.accent),
                     ),
                     SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Fixer Team',
-                              style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
-                          Text(fixerDept,
+                          Text(name,
                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
                                   color: AppColors.textPrimary)),
+                          Text(fixerEmail,
+                              style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
                         ],
                       ),
                     ),
-                    IconButton(
-                      onPressed: () => _confirmDelete(fixerDept),
-                      icon: Icon(Icons.delete_outline, size: 18, color: AppColors.dangerText),
-                      padding: EdgeInsets.zero,
-                      constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text('FIXER',
+                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.accent)),
                     ),
                   ],
                 ),
                 SizedBox(height: 12),
-                Text('Handles Reporters From:',
+                Text('Assigned Departments:',
                     style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
                 SizedBox(height: 8),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
-                  children: reporterDepts.map((dept) {
+                  children: departments.map((dept) {
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
@@ -242,16 +270,18 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
     );
   }
 
-  Future<void> _showCreateDialog(BuildContext context) async {
-    if (_allDepartments.isEmpty) {
+  Future<void> _showAddDialog(BuildContext context) async {
+    if (_fixers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No departments available'), backgroundColor: AppColors.dangerText),
+        SnackBar(content: Text('No fixers available. Create a fixer user first.'), backgroundColor: AppColors.dangerText),
       );
       return;
     }
 
-    String? selectedFixer;
-    final localSelectedReporters = <String>[];
+    AppUser? selectedFixer;
+    final selectedDepts = <String>[];
+    final allDepts = ['Operations', 'ATC', 'Finance', 'NOTAM', 'MET', 'IT-Support', 'Helpdesk', 'General'];
+    bool loading = false;
 
     await showDialog(
       context: context,
@@ -260,7 +290,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
         builder: (ctx, setDlg) => AlertDialog(
           backgroundColor: AppColors.bgSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          title: Text('Add Fixer-Reporter Team',
+          title: Text('Add Fixer Department',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           content: SizedBox(
             width: double.maxFinite,
@@ -268,7 +298,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Fixer Team (Department)',
+                Text('Fixer',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
                 SizedBox(height: 6),
                 Container(
@@ -279,20 +309,20 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
                     border: Border.all(color: AppColors.border, width: 0.5),
                   ),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
+                    child: DropdownButton<AppUser>(
                       value: selectedFixer,
                       isExpanded: true,
-                      hint: Text('Select fixer team', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
-                      items: _allDepartments
-                          .where((d) => !_mappings.any((m) => m['fixer_department'] == d))
-                          .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                          .toList(),
+                      hint: Text('Select fixer', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
+                      items: _fixers.map((f) {
+                        final name = f.fullName ?? f.email.split('@').first;
+                        return DropdownMenuItem(value: f, child: Text(name));
+                      }).toList(),
                       onChanged: (v) => setDlg(() => selectedFixer = v),
                     ),
                   ),
                 ),
                 SizedBox(height: 16),
-                Text('Reporter Departments',
+                Text('Departments',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
                 SizedBox(height: 8),
                 Flexible(
@@ -306,19 +336,19 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
                     child: ListView.separated(
                       shrinkWrap: true,
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      itemCount: _allDepartments.length,
+                      itemCount: allDepts.length,
                       separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.border),
                       itemBuilder: (ctx, i) {
-                        final dept = _allDepartments[i];
-                        final isSelected = localSelectedReporters.contains(dept);
+                        final dept = allDepts[i];
+                        final isSelected = selectedDepts.contains(dept);
                         return CheckboxListTile(
                           value: isSelected,
                           onChanged: (v) {
                             setDlg(() {
                               if (v == true) {
-                                localSelectedReporters.add(dept);
+                                selectedDepts.add(dept);
                               } else {
-                                localSelectedReporters.remove(dept);
+                                selectedDepts.remove(dept);
                               }
                             });
                           },
@@ -337,23 +367,24 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
             ElevatedButton(
-              onPressed: selectedFixer == null || localSelectedReporters.isEmpty
+              onPressed: selectedFixer == null || selectedDepts.isEmpty || loading
                   ? null
                   : () async {
+                      setDlg(() => loading = true);
                       try {
-                        await _service.createFixerReporter(
-                          fixerDepartment: selectedFixer!,
-                          reporterDepartments: localSelectedReporters,
-                        );
+                        await _service.setFixerDepartments(selectedFixer!.id, selectedDepts);
                         if (dialogCtx.mounted) Navigator.pop(dialogCtx);
                         _loadData();
                       } catch (e) {
+                        setDlg(() => loading = false);
                         if (dialogCtx.mounted) ScaffoldMessenger.of(dialogCtx).showSnackBar(
                             SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.dangerText));
                       }
                     },
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
-              child: Text('Create', style: TextStyle(fontSize: 13)),
+              child: loading
+                  ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white))
+                  : Text('Add', style: TextStyle(fontSize: 13)),
             ),
           ],
         ),
@@ -361,15 +392,13 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
     );
   }
 
-  Future<void> _showEditDialog(BuildContext context, String fixerDept, List<String> currentReporters) async {
-    if (_allDepartments.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No departments available'), backgroundColor: AppColors.dangerText),
-      );
-      return;
-    }
-
-    final localSelectedReporters = List<String>.from(currentReporters);
+  Future<void> _showEditDialog(BuildContext context, String fixerEmail, List<String> currentDepts) async {
+    final fixer = _fixers.firstWhere(
+      (f) => f.email == fixerEmail,
+      orElse: () => AppUser(id: '', email: fixerEmail, userType: UserType.fixer),
+    );
+    final allDepts = ['Operations', 'ATC', 'Finance', 'NOTAM', 'MET', 'IT-Support', 'Helpdesk', 'General'];
+    final selectedDepts = List<String>.from(currentDepts);
     bool loading = false;
 
     await showDialog(
@@ -379,7 +408,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
         builder: (ctx, setDlg) => AlertDialog(
           backgroundColor: AppColors.bgSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          title: Text('Edit $fixerDept',
+          title: Text('Edit ${fixer.fullName ?? fixerEmail}',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           content: SizedBox(
             width: double.maxFinite,
@@ -387,7 +416,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Reporter Departments',
+                Text('Departments',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
                 SizedBox(height: 8),
                 Flexible(
@@ -401,19 +430,19 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
                     child: ListView.separated(
                       shrinkWrap: true,
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      itemCount: _allDepartments.length,
+                      itemCount: allDepts.length,
                       separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.border),
                       itemBuilder: (ctx, i) {
-                        final dept = _allDepartments[i];
-                        final isSelected = localSelectedReporters.contains(dept);
+                        final dept = allDepts[i];
+                        final isSelected = selectedDepts.contains(dept);
                         return CheckboxListTile(
                           value: isSelected,
                           onChanged: (v) {
                             setDlg(() {
                               if (v == true) {
-                                localSelectedReporters.add(dept);
+                                selectedDepts.add(dept);
                               } else {
-                                localSelectedReporters.remove(dept);
+                                selectedDepts.remove(dept);
                               }
                             });
                           },
@@ -430,17 +459,27 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
             ),
           ),
           actions: [
+            TextButton(
+              onPressed: () async {
+                setDlg(() => loading = true);
+                try {
+                  await _service.setFixerDepartments(fixer.id, []);
+                  if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                  _loadData();
+                } catch (e) {
+                  setDlg(() => loading = false);
+                }
+              },
+              child: Text('Remove All', style: TextStyle(color: AppColors.dangerText)),
+            ),
             TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
             ElevatedButton(
-              onPressed: loading || localSelectedReporters.isEmpty
+              onPressed: loading
                   ? null
                   : () async {
                       setDlg(() => loading = true);
                       try {
-                        await _service.updateFixerReporter(
-                          fixerDepartment: fixerDept,
-                          reporterDepartments: localSelectedReporters,
-                        );
+                        await _service.setFixerDepartments(fixer.id, selectedDepts);
                         if (dialogCtx.mounted) Navigator.pop(dialogCtx);
                         _loadData();
                       } catch (e) {
@@ -458,35 +497,5 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
         ),
       ),
     );
-  }
-
-  Future<void> _confirmDelete(String fixerDept) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: Text('Delete Mapping?'),
-        content: Text('Are you sure you want to delete the mapping for "$fixerDept"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.dangerText),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      try {
-        await _service.deleteFixerReporter(fixerDept);
-        _loadData();
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.dangerText));
-      }
-    }
   }
 }
