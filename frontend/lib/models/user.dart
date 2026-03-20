@@ -36,6 +36,7 @@ class AppUser {
       userType: _parseUserType(json['user_type']),
       isActive: json['is_active'] ?? true,
       createdAt: json['created_at'] ?? '',
+      departments: List<String>.from(json['departments'] ?? []),
     );
   }
 

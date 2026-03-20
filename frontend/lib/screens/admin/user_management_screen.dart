@@ -222,8 +222,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Widget _buildUserCard(AppUser user) {
     final initials = (user.fullName ?? user.email.split('@').first).substring(0, 1).toUpperCase();
     final roleColor = switch (user.userType) {
-      'admin' => AppColors.accent,
-      'fixer' => AppColors.pendingText,
+      UserType.admin => AppColors.accent,
+      UserType.fixer => AppColors.pendingText,
       _ => AppColors.closedText,
     };
     return Container(
