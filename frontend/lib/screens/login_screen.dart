@@ -323,8 +323,9 @@ class _InputLabel extends StatelessWidget {
 }
 
 // ── App Logo ───────────────────────────────────────────────────────────────────
-// Claude.ai-inspired: warm terracotta gradient rounded square with a
+// Claude.ai-inspired: Premium terracotta gradient rounded square with a
 // triskelion mark (3 rounded pills at 120° intervals).
+// Enhanced with: layered shadows, subtle border, shimmer overlay
 
 class _AppLogo extends StatelessWidget {
   const _AppLogo();
@@ -338,18 +339,64 @@ class _AppLogo extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFDA8C6A), Color(0xFFAF5335)],
+          colors: [Color(0xFFE89977), Color(0xFFB85E3F)],
+          stops: [0.0, 1.0],
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.15),
+          width: 0.5,
+        ),
         boxShadow: [
+          // Main soft shadow
           BoxShadow(
-            color: const Color(0xFFCC785C).withValues(alpha: 0.38),
-            blurRadius: 22,
-            offset: const Offset(0, 8),
+            color: const Color(0xFFCC785C).withValues(alpha: 0.25),
+            blurRadius: 16,
+            spreadRadius: 0,
+            offset: const Offset(0, 6),
+          ),
+          // Deeper shadow for depth
+          BoxShadow(
+            color: const Color(0xFFCC785C).withValues(alpha: 0.15),
+            blurRadius: 32,
+            spreadRadius: 0,
+            offset: const Offset(0, 12),
+          ),
+          // Highlight on top edge
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.2),
+            blurRadius: 2,
+            spreadRadius: -1,
+            offset: const Offset(0, -1),
           ),
         ],
       ),
-      child: const CustomPaint(painter: _LogoMarkPainter()),
+      child: Stack(
+        children: [
+          // Main logo mark
+          const CustomPaint(painter: _LogoMarkPainter()),
+          
+          // Subtle shimmer overlay
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.15),
+                    Colors.transparent,
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.05),
+                  ],
+                  stops: const [0.0, 0.3, 0.7, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
