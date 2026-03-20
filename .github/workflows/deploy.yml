@@ -18,7 +18,7 @@ jobs:
 
       - name: Setup Flutter
         run: |
-          if not exist "C:\flutter" git clone https://github.com/flutter/flutter.git -b stable C:\flutter
+          if (!(Test-Path "C:\flutter")) { git clone https://github.com/flutter/flutter.git -b stable C:\flutter }
           C:\flutter\bin\flutter.bat config --no-analytics
           C:\flutter\bin\flutter.bat --version
 
@@ -33,7 +33,6 @@ jobs:
 
       - name: Get version info
         id: version
-        shell: pwsh
         run: |
           $pubspec = Get-Content frontend/pubspec.yaml | Select-String "^version:"
           $versionLine = $pubspec.ToString().Replace("version: ", "")
@@ -52,7 +51,6 @@ jobs:
         run: C:\flutter\bin\flutter.bat build web --dart-define=BUILD_DATE=${{ steps.version.outputs.build_date }} --dart-define=RELEASE_ID=${{ steps.version.outputs.release_id }}
 
       - name: Create release.json
-        shell: pwsh
         run: |
           @{
             version = "${{ steps.version.outputs.version }}"
@@ -63,12 +61,14 @@ jobs:
 
       - name: Deploy to server
         run: |
-          ssh zorin@100.85.73.37 "mkdir -p /var/www/releases/release_%date:~0,4%%date:~5,2%%date:~8,2%_%time:~0,2%%time:~3,2%"
-          scp -r "frontend/build/web/*" "zorin@100.85.73.37:/var/www/releases/latest/"
-          ssh zorin@100.85.73.37 "ln -sfn /var/www/releases/latest /var/www/flutter_app"
+          $timestamp = Get-Date -Format "yyyyMMddHHmm"
+          $newRelease = "/var/www/releases/release_$timestamp"
+          ssh zorin@100.85.73.37 "mkdir -p $newRelease"
+          scp -r "frontend/build/web/*" "zorin@100.85.73.37:$newRelease/"
+          ssh zorin@100.85.73.37 "ln -sfn $newRelease /var/www/flutter_app"
+          ssh zorin@100.85.73.37 "ls -dt /var/www/releases/release_* 2>/dev/null | tail -n +11 | xargs -r rm -rf"
 
       - name: Deployment summary
-        shell: pwsh
         run: |
           echo "## Deployment Complete" >> $env:GITHUB_STEP_SUMMARY
           echo "- **Version**: ${{ steps.version.outputs.version }}" >> $env:GITHUB_STEP_SUMMARY
