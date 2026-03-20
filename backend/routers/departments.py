@@ -5,6 +5,17 @@ from db import supabase
 
 router = APIRouter()
 
+STANDARD_DEPARTMENTS = [
+    "Operations",
+    "ATC",
+    "Finance",
+    "NOTAM",
+    "MET",
+    "IT-Support",
+    "Helpdesk",
+    "General",
+]
+
 
 class CreateDepartmentBody(BaseModel):
     name: str
@@ -14,18 +25,24 @@ class RenameDepartmentBody(BaseModel):
     new_name: str
 
 
+def _get_all_departments() -> List[str]:
+    """Get all departments from fixer_departments + standard list"""
+    result = supabase.table("fixer_departments").select("department").execute()
+    fd_depts = set(r.get("department") for r in (result.data or []) if r.get("department"))
+    all_depts = set(STANDARD_DEPARTMENTS) | fd_depts
+    return sorted(all_depts)
+
+
 @router.get("/departments")
 async def list_departments():
     """Get all departments"""
-    result = supabase.table("departments").select("name").order("name").execute()
-    return {"departments": [r.get("name") for r in (result.data or [])]}
+    return {"departments": _get_all_departments()}
 
 
 @router.get("/departments/all")
 async def list_all_departments():
     """Get all departments"""
-    result = supabase.table("departments").select("name").order("name").execute()
-    return {"departments": [r.get("name") for r in (result.data or [])]}
+    return {"departments": _get_all_departments()}
 
 
 @router.get("/departments/{department_name}")
@@ -50,16 +67,14 @@ async def get_department_info(department_name: str):
 
 @router.post("/departments")
 async def create_department(body: CreateDepartmentBody):
-    """Create a new department"""
+    """Create a new department (adds to fixer_departments if new)"""
     name = body.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Department name is required")
     
-    existing = supabase.table("departments").select("name").eq("name", name).execute()
-    if existing.data:
+    all_depts = _get_all_departments()
+    if name in all_depts:
         raise HTTPException(status_code=400, detail=f"Department '{name}' already exists")
-    
-    supabase.table("departments").insert({"name": name}).execute()
     
     return {"department": name, "created": True}
 
@@ -73,38 +88,22 @@ async def rename_department(department_name: str, body: RenameDepartmentBody):
     if not new_name:
         raise HTTPException(status_code=400, detail="New department name is required")
     
-    existing = supabase.table("departments").select("name").eq("name", old_name).execute()
-    if not existing.data:
+    all_depts = _get_all_departments()
+    if old_name not in all_depts:
         raise HTTPException(status_code=404, detail=f"Department '{old_name}' not found")
     
-    new_existing = supabase.table("departments").select("name").eq("name", new_name).execute()
-    if new_existing.data:
+    if new_name in all_depts:
         raise HTTPException(status_code=400, detail=f"Department '{new_name}' already exists")
-    
-    supabase.table("departments").update({"name": new_name}).eq("name", old_name).execute()
     
     users_result = supabase.table("users") \
         .update({"department": new_name}) \
         .eq("department", old_name) \
         .execute()
     
-    fixers_result = supabase.table("fixer_reporters").select("*").execute()
-    for fixer in (fixers_result.data or []):
-        reporter_depts = fixer.get("reporter_departments") or []
-        fixer_dept = fixer.get("fixer_department") or ""
-        
-        if fixer_dept == old_name:
-            supabase.table("fixer_reporters") \
-                .update({"fixer_department": new_name}) \
-                .eq("fixer_department", old_name) \
-                .execute()
-        
-        if old_name in reporter_depts:
-            new_reporter_depts = [d if d != old_name else new_name for d in reporter_depts]
-            supabase.table("fixer_reporters") \
-                .update({"reporter_departments": new_reporter_depts}) \
-                .eq("fixer_department", fixer_dept) \
-                .execute()
+    supabase.table("fixer_departments") \
+        .update({"department": new_name}) \
+        .eq("department", old_name) \
+        .execute()
     
     return {
         "old_name": old_name,
@@ -118,6 +117,12 @@ async def delete_department(department_name: str):
     """Delete a department (blocked if users exist with this department)"""
     name = department_name.strip()
     
+    if name in STANDARD_DEPARTMENTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete standard department '{name}'"
+        )
+    
     users_result = supabase.table("users").select("id").eq("department", name).execute()
     if users_result.data:
         raise HTTPException(
@@ -125,7 +130,10 @@ async def delete_department(department_name: str):
             detail=f"Cannot delete department '{name}' - {len(users_result.data)} user(s) are assigned"
         )
     
-    supabase.table("departments").delete().eq("name", name).execute()
+    supabase.table("fixer_departments") \
+        .delete() \
+        .eq("department", name) \
+        .execute()
     
     return {"deleted": True, "department": name}
 
