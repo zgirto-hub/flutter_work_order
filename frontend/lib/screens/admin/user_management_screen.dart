@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/user_service.dart';
-import '../../models/app_user.dart';
+import '../../models/user.dart';
 import '../../theme/app_theme.dart';
 
 class UserManagementScreen extends StatefulWidget {
@@ -53,7 +53,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       final matchesSearch = _searchQuery.isEmpty ||
           user.email.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           (user.fullName ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
-      final matchesRole = _filterRole == 'all' || user.userType == _filterRole;
+      final matchesRole = _filterRole == 'all' || user.userTypeString == _filterRole;
       return matchesSearch && matchesRole;
     }).toList();
   }
@@ -269,12 +269,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         color: roleColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(user.userType.toUpperCase(),
+                      child: Text(user.userTypeString.toUpperCase(),
                           style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: roleColor)),
                     ),
-                    if (user.department != null) ...[
+                    if (user.departments.isNotEmpty) ...[
                       SizedBox(height: 4),
-                      Text(user.department!,
+                      Text(user.departments.first,
                           style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
                     ],
                   ],
@@ -431,8 +431,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Future<void> _showUserDetailsDialog(BuildContext context, AppUser user) async {
     final nameCtrl = TextEditingController(text: user.fullName);
     final mobileCtrl = TextEditingController(text: user.mobile);
-    String selectedRole = user.userType;
-    String? selectedDept = user.department;
+    String selectedRole = user.userTypeString;
+    String? selectedDept = user.departments.isNotEmpty ? user.departments.first : null;
     bool loading = false;
     bool deleting = false;
 

@@ -84,7 +84,7 @@ async def create_fixer_department(body: FixerDepartmentCreate):
     return {"fixer_department": result.data[0] if result.data else None}
 
 
-@router.post("/fixer-departments/bulk")
+@router.post("/fixer-departments/bulk/{user_id}")
 async def set_fixer_departments(user_id: str, body: FixerDepartmentsUpdate):
     """Set all departments for a fixer (replaces existing)"""
     user_id_clean = user_id.strip()
