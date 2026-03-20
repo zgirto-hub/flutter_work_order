@@ -145,8 +145,7 @@ def _fetch_full_work_order(work_order_id: str):
             users!work_order_assignments_fixer_id_fkey (
                 id,
                 email,
-                full_name,
-                department
+                full_name
             )
         )
     """).eq("id", work_order_id).execute()
@@ -204,8 +203,7 @@ async def list_work_orders(
             users!work_order_assignments_fixer_id_fkey (
                 id,
                 email,
-                full_name,
-                department
+                full_name
             )
         )
     """).order("created_at", desc=True)
