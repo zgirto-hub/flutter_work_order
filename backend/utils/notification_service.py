@@ -24,39 +24,87 @@ def _is_valid(email: str) -> bool:
     return "@" in email and "." in email
 
 
-def _get_preferences(emails: List[str]) -> Dict[str, dict]:
-    clean = sorted({_norm(e) for e in emails if _is_valid(_norm(e))})
-    if not clean:
+def _get_user_id_by_email(email: str) -> Optional[str]:
+    """Get user UUID by email"""
+    normalized = _norm(email)
+    res = supabase.table("users").select("id").eq("email", normalized).limit(1).execute()
+    return res.data[0].get("id") if res.data else None
+
+
+def _get_user_id_and_email(email: str) -> tuple:
+    """Get user UUID and email by email"""
+    normalized = _norm(email)
+    res = supabase.table("users").select("id, email").eq("email", normalized).limit(1).execute()
+    if res.data:
+        return res.data[0].get("id"), normalized
+    return None, normalized
+
+
+def _get_preferences(user_ids: List[str]) -> Dict[str, dict]:
+    """Get preferences by user_id list"""
+    if not user_ids:
         return {}
     res = supabase.table("notification_preferences") \
         .select("*") \
-        .in_("user_email", clean) \
+        .in_("user_id", user_ids) \
         .execute()
-    by_email = {_norm(r.get("user_email", "")): r for r in (res.data or [])}
+    by_user_id = {r.get("user_id", ""): r for r in (res.data or [])}
+    return by_user_id
+
+
+def _get_prefs_by_emails(emails: List[str]) -> Dict[str, dict]:
+    """Get preferences by email list (resolves to user_id internally)"""
+    clean = sorted({_norm(e) for e in emails if _is_valid(_norm(e))})
+    if not clean:
+        return {}
+    
+    users_res = supabase.table("users").select("id, email").in_("email", clean).execute()
+    users_by_email = {_norm(u.get("email", "")): u.get("id") for u in (users_res.data or [])}
+    
+    user_ids = [uid for uid in users_by_email.values() if uid]
+    if not user_ids:
+        return {}
+    
+    prefs_res = supabase.table("notification_preferences") \
+        .select("*") \
+        .in_("user_id", user_ids) \
+        .execute()
+    
+    by_email = {}
+    for pref in (prefs_res.data or []):
+        pref_user_id = pref.get("user_id", "")
+        for email, uid in users_by_email.items():
+            if uid == pref_user_id:
+                by_email[email] = pref
+                break
     return by_email
 
 
 def _resolve_admin_opt_in_emails() -> Set[str]:
+    """Get emails of admins who have opted into all work order comments"""
     admins_res = supabase.table("users") \
-        .select("email") \
+        .select("id, email") \
         .eq("user_type", "admin") \
         .eq("is_active", True) \
         .execute()
-    admin_emails = {
-        _norm(r.get("email", "")) for r in (admins_res.data or [])
-        if _is_valid(_norm(r.get("email", "")))
-    }
-    if not admin_emails:
+    
+    admin_ids = [r.get("id") for r in (admins_res.data or []) if r.get("id")]
+    admin_emails = {_norm(r.get("email", "")): r.get("id") for r in (admins_res.data or []) if _is_valid(_norm(r.get("email", "")))}
+    
+    if not admin_ids:
         return set()
 
     prefs_res = supabase.table("notification_preferences") \
-        .select("user_email") \
+        .select("user_id") \
         .eq("admin_all_workorder_comments", True) \
-        .in_("user_email", sorted(admin_emails)) \
+        .in_("user_id", admin_ids) \
         .execute()
+    
+    opted_in_ids = {r.get("user_id") for r in (prefs_res.data or [])}
+    
     return {
-        _norm(r.get("user_email", "")) for r in (prefs_res.data or [])
-        if _is_valid(_norm(r.get("user_email", "")))
+        email for email, uid in admin_emails.items()
+        if uid in opted_in_ids and _is_valid(email)
     }
 
 
@@ -70,20 +118,21 @@ def _prefs_allow(row: dict, event_type: str) -> bool:
     return row.get("system_notifications", True)
 
 
-def _resolve_assigned_emails(work_order_id: str) -> Set[str]:
+def _resolve_assigned_fixers(work_order_id: str) -> Set[str]:
+    """Get emails of assigned fixers for a work order"""
     out: Set[str] = set()
 
     assignments = supabase.table("work_order_assignments") \
-        .select("user_id") \
+        .select("fixer_id") \
         .eq("work_order_id", work_order_id) \
         .execute()
-    user_ids = [r.get("user_id") for r in (assignments.data or []) if r.get("user_id")]
-    if not user_ids:
+    fixer_ids = [r.get("fixer_id") for r in (assignments.data or []) if r.get("fixer_id")]
+    if not fixer_ids:
         return out
 
     users = supabase.table("users") \
         .select("email") \
-        .in_("id", user_ids) \
+        .in_("id", fixer_ids) \
         .execute()
 
     for r in (users.data or []):
@@ -112,12 +161,13 @@ def _resolve_user_id_to_email(user_id: str) -> str:
     return ""
 
 
-def _resolve_watcher_emails(work_order_id: str) -> Set[str]:
+def _resolve_watchers(work_order_id: str) -> List[tuple]:
+    """Get list of (user_id, user_email) for watchers"""
     res = supabase.table("work_order_watchers") \
-        .select("user_email") \
+        .select("user_id, user_email") \
         .eq("work_order_id", work_order_id) \
         .execute()
-    return {_norm(r.get("user_email", "")) for r in (res.data or []) if _is_valid(_norm(r.get("user_email", "")))}
+    return [(r.get("user_id"), _norm(r.get("user_email", ""))) for r in (res.data or []) if r.get("user_id")]
 
 
 def resolve_comment_recipients(work_order_id: str, commenter_email: str) -> dict:
@@ -146,16 +196,17 @@ def resolve_comment_recipients(work_order_id: str, commenter_email: str) -> dict
             sources["creator"].append(creator_email)
 
         try:
-            assignees = _resolve_assigned_emails(work_order_id)
+            assignees = _resolve_assigned_fixers(work_order_id)
             recipients |= assignees
             sources["assignees"] = sorted(assignees)
         except Exception as e:
             print(f"Notification recipient resolve (assignees) failed: {e}")
 
         try:
-            watchers = _resolve_watcher_emails(work_order_id)
-            recipients |= watchers
-            sources["watchers"] = sorted(watchers)
+            watchers = _resolve_watchers(work_order_id)
+            watcher_emails = [email for _, email in watchers if _is_valid(email)]
+            recipients |= set(watcher_emails)
+            sources["watchers"] = sorted(watcher_emails)
         except Exception as e:
             print(f"Notification recipient resolve (watchers) failed: {e}")
 
@@ -186,7 +237,7 @@ def resolve_comment_recipients(work_order_id: str, commenter_email: str) -> dict
 
 def _insert_notifications(
     *,
-    recipients: List[str],
+    recipients: List[tuple],
     kind: str,
     title: str,
     body: str,
@@ -194,9 +245,11 @@ def _insert_notifications(
     source_id: str,
     data: Optional[dict] = None,
 ) -> List[dict]:
+    """Insert notifications. recipients is list of (user_id, user_email) tuples"""
     if not recipients:
         return []
     rows = [{
+        "user_id": user_id,
         "user_email": _norm(email),
         "kind": kind,
         "title": title,
@@ -204,7 +257,9 @@ def _insert_notifications(
         "data": data or {},
         "source_type": source_type,
         "source_id": source_id,
-    } for email in recipients]
+    } for user_id, email in recipients if user_id]
+    if not rows:
+        return []
     res = supabase.table("notifications").insert(rows).execute()
     return res.data or []
 
@@ -212,7 +267,8 @@ def _insert_notifications(
 def _log_delivery(
     *,
     notification_id: Optional[str],
-    recipient: str,
+    user_id: Optional[str],
+    user_email: str,
     status: str,
     provider: str = "onesignal",
     channel: str = "push",
@@ -226,9 +282,10 @@ def _log_delivery(
 
     supabase.table("notification_delivery_logs").insert({
         "notification_id": notification_id,
+        "user_id": user_id,
+        "user_email": _norm(user_email),
         "channel": channel,
         "provider": provider,
-        "recipient": _norm(recipient),
         "status": status,
         "provider_message_id": provider_message_id,
         "error": error,
@@ -260,20 +317,27 @@ def dispatch_work_order_comment_notification(
     if not recipients:
         return
 
-    prefs_map = _get_preferences(recipients)
+    prefs_map = _get_prefs_by_emails(recipients)
 
-    in_app_recipients: List[str] = []
-    push_recipients: List[str] = []
+    in_app_recipients: List[tuple] = []
+    push_recipients: List[tuple] = []
 
     for email in recipients:
         pref = DEFAULT_PREFS.copy()
         pref.update(prefs_map.get(email, {}))
         if not _prefs_allow(pref, "comment"):
             continue
+        
+        user_id = _get_user_id_by_email(email)
+        if user_id:
+            user_tuple = (user_id, email)
+        else:
+            user_tuple = (None, email)
+        
         if pref.get("in_app_enabled", True):
-            in_app_recipients.append(email)
+            in_app_recipients.append(user_tuple)
         if pref.get("push_enabled", True):
-            push_recipients.append(email)
+            push_recipients.append(user_tuple)
 
     snippet = (comment_text or "").strip()
     if len(snippet) > 90:
@@ -307,10 +371,11 @@ def dispatch_work_order_comment_notification(
             print(f"Notification insert failed: {e}")
 
     if push_recipients:
+        push_emails = [email for _, email in push_recipients]
         push_result = send_push_to_external_ids(
             title=title,
             body=body,
-            external_ids=push_recipients,
+            external_ids=push_emails,
             data=payload,
         )
         message_id = None
@@ -323,10 +388,11 @@ def dispatch_work_order_comment_notification(
                 status = "failed"
                 error = str(push_result.get("error"))
 
-        for email in push_recipients:
+        for user_id, email in push_recipients:
             _log_delivery(
                 notification_id=notification_id_by_email.get(_norm(email)),
-                recipient=email,
+                user_id=user_id,
+                user_email=email,
                 status=status,
                 provider_message_id=message_id,
                 error=error,
