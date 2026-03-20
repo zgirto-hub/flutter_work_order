@@ -11,9 +11,6 @@ env:
 jobs:
   build-and-deploy:
     runs-on: self-hosted
-    defaults:
-      run:
-        shell: powershell
 
     steps:
       - name: Checkout code
@@ -21,29 +18,22 @@ jobs:
 
       - name: Setup Flutter
         run: |
-          $flutterPath = "C:\flutter"
-          if (!(Test-Path $flutterPath)) {
-            git clone https://github.com/flutter/flutter.git -b stable $flutterPath
-          }
-          $env:PATH = "$flutterPath\bin;$env:PATH"
-          flutter config --no-analytics
-          flutter --version
+          if not exist "C:\flutter" git clone https://github.com/flutter/flutter.git -b stable C:\flutter
+          C:\flutter\bin\flutter.bat config --no-analytics
+          C:\flutter\bin\flutter.bat --version
 
       - name: Install dependencies
         working-directory: frontend
-        run: |
-          $env:PATH = "C:\flutter\bin;$env:PATH"
-          flutter pub get
+        run: C:\flutter\bin\flutter.bat pub get
 
       - name: Analyze code
         working-directory: frontend
-        run: |
-          $env:PATH = "C:\flutter\bin;$env:PATH"
-          flutter analyze --no-fatal-infos
+        run: C:\flutter\bin\flutter.bat analyze --no-fatal-infos
         continue-on-error: true
 
       - name: Get version info
         id: version
+        shell: pwsh
         run: |
           $pubspec = Get-Content frontend/pubspec.yaml | Select-String "^version:"
           $versionLine = $pubspec.ToString().Replace("version: ", "")
@@ -59,11 +49,10 @@ jobs:
 
       - name: Build Flutter Web
         working-directory: frontend
-        run: |
-          $env:PATH = "C:\flutter\bin;$env:PATH"
-          flutter build web --dart-define=BUILD_DATE=${{ steps.version.outputs.build_date }} --dart-define=RELEASE_ID=${{ steps.version.outputs.release_id }}
+        run: C:\flutter\bin\flutter.bat build web --dart-define=BUILD_DATE=${{ steps.version.outputs.build_date }} --dart-define=RELEASE_ID=${{ steps.version.outputs.release_id }}
 
       - name: Create release.json
+        shell: pwsh
         run: |
           @{
             version = "${{ steps.version.outputs.version }}"
@@ -74,16 +63,12 @@ jobs:
 
       - name: Deploy to server
         run: |
-          $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm"
-          $newRelease = "/var/www/releases/release_$timestamp"
-          
-          ssh zorin@100.85.73.37 "mkdir -p $newRelease"
-          scp -r frontend/build/web/* zorin@100.85.73.37:$newRelease/
-          ssh zorin@100.85.73.37 "ln -sfn $newRelease /var/www/flutter_app"
-          ssh zorin@100.85.73.37 "test -f /var/www/flutter_app/release.json && echo 'Deployment verified'"
-          ssh zorin@100.85.73.37 "ls -dt /var/www/releases/release_* 2>/dev/null | tail -n +11 | xargs -r rm -rf"
+          ssh zorin@100.85.73.37 "mkdir -p /var/www/releases/release_%date:~0,4%%date:~5,2%%date:~8,2%_%time:~0,2%%time:~3,2%"
+          scp -r "frontend/build/web/*" "zorin@100.85.73.37:/var/www/releases/latest/"
+          ssh zorin@100.85.73.37 "ln -sfn /var/www/releases/latest /var/www/flutter_app"
 
       - name: Deployment summary
+        shell: pwsh
         run: |
           echo "## Deployment Complete" >> $env:GITHUB_STEP_SUMMARY
           echo "- **Version**: ${{ steps.version.outputs.version }}" >> $env:GITHUB_STEP_SUMMARY
