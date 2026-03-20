@@ -20,19 +20,26 @@ jobs:
         uses: actions/checkout@v4.1.0
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2.10.0
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          cache: true
+        run: |
+          $flutterPath = "C:\flutter"
+          if (!(Test-Path $flutterPath)) {
+            git clone https://github.com/flutter/flutter.git -b stable $flutterPath
+          }
+          $env:PATH = "$flutterPath\bin;$env:PATH"
+          flutter config --no-analytics
+          flutter --version
 
       - name: Install dependencies
         working-directory: frontend
-        run: flutter pub get
+        run: |
+          $env:PATH = "C:\flutter\bin;$env:PATH"
+          flutter pub get
 
       - name: Analyze code
         working-directory: frontend
-        run: flutter analyze --no-fatal-infos
+        run: |
+          $env:PATH = "C:\flutter\bin;$env:PATH"
+          flutter analyze --no-fatal-infos
         continue-on-error: true
 
       - name: Get version info
@@ -52,7 +59,9 @@ jobs:
 
       - name: Build Flutter Web
         working-directory: frontend
-        run: flutter build web --dart-define=BUILD_DATE=${{ steps.version.outputs.build_date }} --dart-define=RELEASE_ID=${{ steps.version.outputs.release_id }}
+        run: |
+          $env:PATH = "C:\flutter\bin;$env:PATH"
+          flutter build web --dart-define=BUILD_DATE=${{ steps.version.outputs.build_date }} --dart-define=RELEASE_ID=${{ steps.version.outputs.release_id }}
 
       - name: Create release.json
         run: |
