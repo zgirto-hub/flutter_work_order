@@ -61,13 +61,31 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   final Set<String> _selectedIds = {};
   bool _navigatingToActivity = false;
   bool _navigatingToEdit = false;
+  String _userRole = 'admin';
+  String? _userDepartment;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadProfile();
     _load();
     _startNotificationPolling();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final profile = await _service.getEmployeeProfile();
+      if (profile != null && mounted) {
+        setState(() {
+          _userRole = (profile['user_type'] ?? widget.userRole).toString();
+          _userDepartment = (profile['department'] ?? '').toString();
+        });
+        if (_userRole == 'reporter') {
+          await _load();
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -76,7 +94,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   }
 
   Future<void> _load() async {
-    final data = await _service.fetchWorkOrders();
+    final department = _userRole == 'reporter' ? _userDepartment : null;
+    final data = await _service.fetchWorkOrders(department: department);
     await _refreshUnreadNotifications(playSoundIfIncreased: false);
     if (!mounted) return;
     setState(() => _workOrders = data);

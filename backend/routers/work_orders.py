@@ -210,11 +210,12 @@ async def list_work_orders(
     work_orders = result.data or []
     
     if user_role == "reporter" and email:
-        # Reporters see only their own work orders
-        user_id = _get_user_id_by_email(email)
-        if user_id:
-            work_orders = [wo for wo in work_orders if wo.get("created_by") == user_id]
+        # Reporters see only work orders from their department
+        reporter_department = _get_user_department(email)
+        if reporter_department:
+            work_orders = [wo for wo in work_orders if wo.get("department") == reporter_department]
         else:
+            # Reporter with no department - show nothing
             work_orders = []
     elif user_role == "fixer" and email:
         # Fixers see work orders in departments they handle
