@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# IMPORTANT: Always use this script to deploy. Never manually copy files to /var/www/flutter_app
+#   - The deploy script uses symlinks to /var/www/releases/release_* directories
+#   - Direct file copies will break the release system and cause version mismatches
+#
 # Usage:
 #   ./deploy_frontend.sh           → bumps patch and deploys
 #   ./deploy_frontend.sh patch     → bumps patch and deploys
@@ -87,14 +91,28 @@ ssh $SERVER "mkdir -p $NEW_RELEASE"
 echo "Uploading build..."
 scp -r build/web/* $SERVER:$NEW_RELEASE/
 
-# Keep server git working tree clean: do not scp tracked repo files
-# (for example backend/version.json) into /home/zorin/Development/flutter_work_order.
-
 echo "Switching to new release..."
-ssh $SERVER "ln -sfn $NEW_RELEASE $CURRENT_LINK"
+ssh $SERVER "
+  # Ensure /var/www/flutter_app is always a symlink, never files
+  if [ -L '$CURRENT_LINK' ]; then
+    rm '$CURRENT_LINK'
+  elif [ -d '$CURRENT_LINK' ]; then
+    echo 'WARNING: /var/www/flutter_app was a directory (not symlink). Replacing with symlink.'
+    rm -rf '$CURRENT_LINK'
+  fi
+  ln -sfn '$NEW_RELEASE' '$CURRENT_LINK'
+"
 
 echo "Verifying deployed release metadata..."
-ssh $SERVER "test -f $CURRENT_LINK/release.json"
+ssh $SERVER "test -f $CURRENT_LINK/release.json && echo 'Release metadata verified.'"
+
+# Verify version matches
+DEPLOYED_VERSION=$(ssh $SERVER "cat $CURRENT_LINK/version.json | grep -oP '\"version\":\s*\"\K[^\"]+'")
+if [ "$DEPLOYED_VERSION" != "$NEW_VERSION" ]; then
+  echo "ERROR: Version mismatch! Expected $NEW_VERSION, got $DEPLOYED_VERSION"
+  exit 1
+fi
+echo "Version check passed: v$DEPLOYED_VERSION"
 
 echo "Cleaning old releases (keep last 10)..."
 ssh $SERVER "ls -dt $RELEASE_DIR/release_* 2>/dev/null | tail -n +11 | xargs -r rm -rf"

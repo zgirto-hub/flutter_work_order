@@ -218,12 +218,19 @@ if not prefs.in_app_enabled: skip inbox (still send push if push_enabled)
 - **Binary**: `supabase.exe` in project root (v2.78.1)
 - **Token**: Stored locally after first login
 - **Linked project**: `rydrqsjofoulwdtwfbgv` (Work orders Project)
+- **Password**: `s@LaH270!1984` (for CLI linking)
+- **Anon key**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5ZHJxc2pvZm91bHdkdHdmYmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxNDE4OTIsImV4cCI6MjA4NzcxNzg5Mn0.FK65DZA7KnZd3Hz_hYOFFFMh1tyQtFiJhY3TzHleFeA`
 - **Commands**:
   - `./supabase.exe db remote set` — set remote database
   - `./supabase.exe db push` — push migrations to cloud
   - `./supabase.exe db reset` — reset cloud database
   - `./supabase.exe functions list/deploy` — manage edge functions
   - `./supabase.exe migration new <name>` — create new migration
+
+### Database State (March 2026)
+- **Existing tables**: `work_orders`, `requests`, `users`, `profiles`, `departments` (all empty)
+- **Missing**: Notification tables (`notifications`, `notification_preferences`, `work_order_watchers`, `notification_delivery_logs`)
+- **Fix**: Run `backend/notifications_schema.sql` in Supabase SQL Editor
 
 ### MCP Setup (Remote)
 - **Config file**: `opencode.jsonc` in project root
