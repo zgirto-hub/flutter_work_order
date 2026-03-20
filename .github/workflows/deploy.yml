@@ -18,6 +18,8 @@ jobs:
 
       - name: Setup Flutter
         run: |
+          git config --global --add safe.directory C:/flutter
+          git config --global --add safe.directory C:/flutter/bin/cache/dart-sdk
           if (!(Test-Path "C:\flutter")) { git clone https://github.com/flutter/flutter.git -b stable C:\flutter }
           C:\flutter\bin\flutter.bat config --no-analytics
           C:\flutter\bin\flutter.bat --version
