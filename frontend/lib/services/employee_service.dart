@@ -1,16 +1,18 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../models/employee.dart';
+import '../config.dart';
 
 class EmployeeService {
-  final _client = Supabase.instance.client;
-
   Future<List<Employee>> fetchEmployees() async {
-    final response = await _client
-        .from('employees')
-        .select()
-        .eq('active', true)
-        .order('full_name');
-
-    return response.map<Employee>((json) => Employee.fromJson(json)).toList();
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/employees'),
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to fetch employees');
+    }
+    final data = jsonDecode(res.body);
+    final list = data['employees'] as List? ?? [];
+    return list.map((json) => Employee.fromJson(json)).toList();
   }
 }

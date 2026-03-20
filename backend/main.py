@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from routers import documents, folders, notifications, users, work_orders, fixer_reporters, departments
+from routers import documents, folders, notifications, users, work_orders, fixer_reporters, departments, employees
 
 app = FastAPI()
 
@@ -30,6 +30,7 @@ app.include_router(work_orders.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(fixer_reporters.router, prefix="/api")
 app.include_router(departments.router, prefix="/api")
+app.include_router(employees.router, prefix="/api")
 
 
 @app.get("/api/version")
