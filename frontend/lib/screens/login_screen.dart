@@ -159,26 +159,72 @@ class _LoginScreenState extends State<LoginScreen>
       backgroundColor: AppColors.bgPrimary,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
+            constraints: const BoxConstraints(maxWidth: 400),
             child: AutofillGroup(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
 
-                  // ── Logo + title ───────────────────────────────────────
+                  // ── Logo + Brand ───────────────────────────────────────
                   FadeTransition(
                     opacity: _fadeAt(0.0, 0.55),
                     child: SlideTransition(
                       position: _slideAt(0.0, 0.55),
                       child: Column(
                         children: [
-                          const Center(child: _AppLogo()),
+                          const _AppLogo(),
                           const SizedBox(height: 20),
-                          Center(child: Text('Work Order', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -0.4))),
-                          const SizedBox(height: 5),
-                          Center(child: Text('Sign in to your account', style: TextStyle(fontSize: 13, color: AppColors.textSecondary))),
+                          Text(
+                            'Work Order',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Workflow Management',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+
+                  // ── Welcome Message ────────────────────────────────────
+                  FadeTransition(
+                    opacity: _fadeAt(0.1, 0.6),
+                    child: SlideTransition(
+                      position: _slideAt(0.1, 0.6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Welcome back',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Sign in to continue to your workspace',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -187,66 +233,96 @@ class _LoginScreenState extends State<LoginScreen>
 
                   // ── Form fields ────────────────────────────────────────
                   FadeTransition(
-                    opacity: _fadeAt(0.15, 0.7),
+                    opacity: _fadeAt(0.2, 0.75),
                     child: SlideTransition(
-                      position: _slideAt(0.15, 0.7),
+                      position: _slideAt(0.2, 0.75),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const _InputLabel(label: 'Email address'),
-                          const SizedBox(height: 6),
+                          const _InputLabel(label: 'Email'),
+                          const SizedBox(height: 8),
                           TextField(
                             controller: emailController,
                             keyboardType: TextInputType.emailAddress,
                             autofillHints: const [AutofillHints.email, AutofillHints.username],
                             textInputAction: TextInputAction.next,
-                            style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
-                            decoration: const InputDecoration(hintText: 'you@company.com'),
+                            style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                            decoration: const InputDecoration(
+                              hintText: 'name@company.com',
+                              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            ),
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 20),
 
                           const _InputLabel(label: 'Password'),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           TextField(
                             controller: passwordController,
                             obscureText: _obscure,
                             autofillHints: const [AutofillHints.password],
                             textInputAction: TextInputAction.done,
                             onSubmitted: (_) => _signIn(),
-                            style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                            style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
                             decoration: InputDecoration(
-                              hintText: '',
+                              hintText: '••••••••',
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                               suffixIcon: GestureDetector(
                                 onTap: () => setState(() => _obscure = !_obscure),
-                                child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 16, color: AppColors.textTertiary),
+                                child: Icon(
+                                  _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                  size: 18,
+                                  color: AppColors.textTertiary,
+                                ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 16),
 
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               GestureDetector(
                                 onTap: () => setState(() => _rememberMe = !_rememberMe),
-                                child: Row(children: [
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 150),
-                                    width: 18, height: 18,
-                                    decoration: BoxDecoration(
-                                      color: _rememberMe ? AppColors.textPrimary : AppColors.bgSurface,
-                                      borderRadius: BorderRadius.circular(5),
-                                      border: Border.all(color: _rememberMe ? AppColors.textPrimary : AppColors.border2, width: 0.5),
+                                child: Row(
+                                  children: [
+                                    AnimatedContainer(
+                                      duration: const Duration(milliseconds: 200),
+                                      width: 18,
+                                      height: 18,
+                                      decoration: BoxDecoration(
+                                        color: _rememberMe ? AppColors.textPrimary : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                          color: _rememberMe ? AppColors.textPrimary : AppColors.border2,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: _rememberMe
+                                          ? const Icon(Icons.check_rounded, color: Colors.white, size: 13)
+                                          : null,
                                     ),
-                                    child: _rememberMe ? const Icon(Icons.check_rounded, color: Colors.white, size: 12) : null,
-                                  ),
-                                  const SizedBox(width: 7),
-                                  Text('Remember me', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                                ]),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Remember me',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.textSecondary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               GestureDetector(
                                 onTap: _showResetPasswordDialog,
-                                child: Text('Forgot password?', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                                child: Text(
+                                  'Forgot password?',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -254,52 +330,114 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 28),
 
-                  // ── Buttons + footer ───────────────────────────────────
+                  // ── Sign In Button ─────────────────────────────────────
                   FadeTransition(
-                    opacity: _fadeAt(0.3, 0.9),
+                    opacity: _fadeAt(0.3, 0.85),
                     child: SlideTransition(
-                      position: _slideAt(0.3, 0.9),
-                      child: Column(
-                        children: [
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _signIn,
-                              child: _isLoading
-                                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                  : const Text('Sign in'),
+                      position: _slideAt(0.3, 0.85),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _signIn,
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          const SizedBox(height: 12),
-
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton(
-                              onPressed: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                              ),
-                              child: const Text('Create account'),
-                            ),
-                          ),
-
-                          const SizedBox(height: 40),
-
-                          Column(children: [
-                            Text('Developed by Salah © 2026', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                            if (version.isNotEmpty) ...[
-                              const SizedBox(height: 3),
-                              Text('Version $version (Build $buildNumber)', style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
-                            ],
-                            if (AppConfig.buildDate.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text('Build: ${AppConfig.buildDate}', style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
-                            ],
-                          ]),
-                        ],
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Sign in',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                        ),
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ── Create Account Button ──────────────────────────────
+                  FadeTransition(
+                    opacity: _fadeAt(0.35, 0.9),
+                    child: SlideTransition(
+                      position: _slideAt(0.35, 0.9),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'Create account',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+
+                  // ── Footer ─────────────────────────────────────────────
+                  FadeTransition(
+                    opacity: _fadeAt(0.4, 1.0),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Developed by Salah © 2026',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textTertiary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        if (version.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Version $version (Build $buildNumber)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textTertiary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                        if (AppConfig.buildDate.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Build: ${AppConfig.buildDate}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textTertiary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],
@@ -318,7 +456,15 @@ class _InputLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary));
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+        color: AppColors.textPrimary,
+        letterSpacing: -0.1,
+      ),
+    );
   }
 }
 
