@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Query, HTTPException, UploadFile, File, Form
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -219,9 +220,10 @@ async def list_work_orders(
     try:
         result = query.execute()
     except Exception as e:
-        print(f"ERROR in list_work_orders: {e}")
-        traceback.print_exc()
-        raise
+        import traceback
+        error_detail = f"{e}\n{traceback.format_exc()}"
+        print(f"ERROR in list_work_orders: {error_detail}")
+        return JSONResponse(status_code=500, content={"error": error_detail})
     work_orders = result.data or []
     
     if user_role == "reporter" and email:
