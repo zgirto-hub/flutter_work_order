@@ -4,21 +4,24 @@
 -- =============================================================
 
 -- =============================================================
--- STEP 1 — Drop old tables
+-- STEP 1 — Drop old tables (with CASCADE to remove dependencies)
 -- =============================================================
-DROP TABLE IF EXISTS work_order_assignments;
-DROP TABLE IF EXISTS work_order_attachments;
-DROP TABLE IF EXISTS notifications;
-DROP TABLE IF EXISTS notification_delivery_logs;
-DROP TABLE IF EXISTS notification_preferences;
-DROP TABLE IF EXISTS work_orders;
-DROP TABLE IF EXISTS fixer_departments;
-DROP TABLE IF EXISTS it_department_reporters;
-DROP TABLE IF EXISTS it_teams;
-DROP TABLE IF EXISTS departments;
-DROP TABLE IF EXISTS employees;
-DROP TABLE IF EXISTS user_profiles;
-DROP TABLE IF EXISTS fixer_reporters;
+DROP TABLE IF EXISTS notification_delivery_logs CASCADE;
+DROP TABLE IF EXISTS work_order_comments CASCADE;
+DROP TABLE IF EXISTS work_order_watchers CASCADE;
+DROP TABLE IF EXISTS work_order_attachments CASCADE;
+DROP TABLE IF EXISTS work_order_assignments CASCADE;
+DROP TABLE IF EXISTS work_order_status_logs CASCADE;
+DROP TABLE IF EXISTS work_orders CASCADE;
+DROP TABLE IF EXISTS fixer_departments CASCADE;
+DROP TABLE IF EXISTS it_department_reporters CASCADE;
+DROP TABLE IF EXISTS it_teams CASCADE;
+DROP TABLE IF EXISTS departments CASCADE;
+DROP TABLE IF EXISTS employees CASCADE;
+DROP TABLE IF EXISTS user_profiles CASCADE;
+DROP TABLE IF EXISTS fixer_reporters CASCADE;
+DROP TABLE IF EXISTS notification_preferences CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
 
 -- =============================================================
 -- STEP 2 — Create tables (parent before child)
