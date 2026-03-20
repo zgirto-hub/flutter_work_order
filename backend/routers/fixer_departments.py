@@ -38,7 +38,8 @@ async def list_fixer_departments():
     
     mappings = []
     for r in (result.data or []):
-        dept_name = r.get("department") or _get_department_name(r.get("department_id"))
+        dept_id = r.get("department_id")
+        dept_name = _get_department_name(dept_id) if dept_id else None
         user = r.get("users") or {}
         mappings.append({
             **r,
@@ -53,15 +54,17 @@ async def list_fixer_departments():
 async def get_user_fixer_departments(user_id: str):
     """Get departments handled by a specific fixer"""
     result = supabase.table("fixer_departments") \
-        .select("department") \
+        .select("department_id") \
         .eq("fixer_id", user_id) \
         .execute()
     
     departments = []
     for r in (result.data or []):
-        dept_name = r.get("department") or _get_department_name(r.get("department_id"))
-        if dept_name:
-            departments.append(dept_name)
+        dept_id = r.get("department_id")
+        if dept_id:
+            dept_name = _get_department_name(dept_id)
+            if dept_name:
+                departments.append(dept_name)
     
     return {"departments": departments}
 
@@ -70,10 +73,12 @@ async def get_user_fixer_departments(user_id: str):
 async def get_fixers_by_department(department: str):
     """Get all fixers who handle a specific department"""
     dept_id = _get_department_id(department)
+    if not dept_id:
+        return {"fixers": [], "department": department}
     
     result = supabase.table("fixer_departments") \
         .select("*, users(id, email, full_name, is_active)") \
-        .eq("department", department) \
+        .eq("department_id", dept_id) \
         .execute()
     
     active_fixers = [
@@ -105,14 +110,14 @@ async def create_fixer_department(body: FixerDepartmentCreate):
     existing = supabase.table("fixer_departments") \
         .select("id") \
         .eq("fixer_id", fixer_id) \
-        .eq("department", department) \
+        .eq("department_id", dept_id) \
         .execute()
     if existing.data:
         raise HTTPException(status_code=400, detail=f"Fixer already handles department '{department}'")
     
     result = supabase.table("fixer_departments").insert({
         "fixer_id": fixer_id,
-        "department": department,
+        "department_id": dept_id,
     }).execute()
     
     return {"fixer_department": result.data[0] if result.data else None}
@@ -136,11 +141,13 @@ async def set_fixer_departments(user_id: str, body: FixerDepartmentsUpdate):
         .execute()
     
     if body.departments:
-        new_mappings = [
-            {"fixer_id": user_id_clean, "department": dept.strip()}
-            for dept in body.departments
-            if dept.strip()
-        ]
+        new_mappings = []
+        for dept_name in body.departments:
+            dept_name = dept_name.strip()
+            if dept_name:
+                dept_id = _get_department_id(dept_name)
+                if dept_id:
+                    new_mappings.append({"fixer_id": user_id_clean, "department_id": dept_id})
         if new_mappings:
             supabase.table("fixer_departments").insert(new_mappings).execute()
     
@@ -153,10 +160,14 @@ async def delete_fixer_department(fixer_id: str, department: str):
     fixer_id_clean = fixer_id.strip()
     department_clean = department.strip()
     
+    dept_id = _get_department_id(department_clean)
+    if not dept_id:
+        raise HTTPException(status_code=404, detail=f"Department '{department_clean}' not found")
+    
     existing = supabase.table("fixer_departments") \
         .select("id") \
         .eq("fixer_id", fixer_id_clean) \
-        .eq("department", department_clean) \
+        .eq("department_id", dept_id) \
         .execute()
     
     if not existing.data:

@@ -128,10 +128,17 @@ async def list_users():
     
     for user in users:
         dept_result = supabase.table("fixer_departments") \
-            .select("department") \
+            .select("department_id") \
             .eq("fixer_id", user.get("id")) \
             .execute()
-        user["departments"] = [r.get("department") for r in (dept_result.data or []) if r.get("department")]
+        dept_ids = [r.get("department_id") for r in (dept_result.data or []) if r.get("department_id")]
+        
+        dept_names = []
+        for dept_id in dept_ids:
+            d_result = supabase.table("departments").select("name").eq("id", dept_id).execute()
+            if d_result.data:
+                dept_names.append(d_result.data[0].get("name"))
+        user["departments"] = dept_names
     
     return {"users": users}
 
@@ -144,10 +151,17 @@ async def get_user(user_id: str):
         raise HTTPException(status_code=404, detail="User not found")
     
     dept_result = supabase.table("fixer_departments") \
-        .select("department") \
+        .select("department_id") \
         .eq("fixer_id", user.get("id")) \
         .execute()
-    user["departments"] = [r.get("department") for r in (dept_result.data or []) if r.get("department")]
+    dept_ids = [r.get("department_id") for r in (dept_result.data or []) if r.get("department_id")]
+    
+    dept_names = []
+    for dept_id in dept_ids:
+        d_result = supabase.table("departments").select("name").eq("id", dept_id).execute()
+        if d_result.data:
+            dept_names.append(d_result.data[0].get("name"))
+    user["departments"] = dept_names
     
     return {"user": user}
 
