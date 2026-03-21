@@ -676,7 +676,7 @@ Future<void> _loadDepartments() async {
             // Only show Assign Employees for admin/tech (not for requesters)
             if (!_isRequester) ...[
               Text(
-                "Assign Employees",
+                "Assign Technician",
                 style:
                     TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
