@@ -8,8 +8,8 @@
 -- =============================================================
 DROP TABLE IF EXISTS work_order_assignments;
 DROP TABLE IF EXISTS work_order_attachments;
-DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS notification_delivery_logs;
+DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS notification_preferences;
 DROP TABLE IF EXISTS work_orders;
 DROP TABLE IF EXISTS fixer_departments;
