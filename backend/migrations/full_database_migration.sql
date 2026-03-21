@@ -13,13 +13,13 @@ DROP TABLE IF EXISTS work_order_attachments CASCADE;
 DROP TABLE IF EXISTS work_order_assignments CASCADE;
 DROP TABLE IF EXISTS work_order_status_logs CASCADE;
 DROP TABLE IF EXISTS work_orders CASCADE;
-DROP TABLE IF EXISTS fixer_departments CASCADE;
+DROP TABLE IF EXISTS technician_departments CASCADE;
 DROP TABLE IF EXISTS it_department_reporters CASCADE;
 DROP TABLE IF EXISTS it_teams CASCADE;
 DROP TABLE IF EXISTS departments CASCADE;
 DROP TABLE IF EXISTS employees CASCADE;
 DROP TABLE IF EXISTS user_profiles CASCADE;
-DROP TABLE IF EXISTS fixer_reporters CASCADE;
+DROP TABLE IF EXISTS technician_reporters CASCADE;
 DROP TABLE IF EXISTS notification_preferences CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
 
@@ -41,16 +41,16 @@ CREATE TABLE users (
     full_name   TEXT,
     mobile      TEXT,
     location    TEXT,
-    user_type   TEXT NOT NULL CHECK (user_type IN ('admin', 'fixer', 'reporter')),
+    user_type   TEXT NOT NULL CHECK (user_type IN ('admin', 'technician', 'reporter')),
     is_active   BOOLEAN DEFAULT true,
     created_at  TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE fixer_departments (
+CREATE TABLE technician_departments (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    fixer_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    technician_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     department_id UUID NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
-    UNIQUE (fixer_id, department_id)
+    UNIQUE (technician_id, department_id)
 );
 
 CREATE TABLE work_orders (
@@ -74,10 +74,10 @@ CREATE TABLE work_orders (
 
 CREATE TABLE work_order_assignments (
     work_order_id   UUID REFERENCES work_orders(id) ON DELETE CASCADE,
-    fixer_id        UUID REFERENCES users(id) ON DELETE CASCADE,
+    technician_id   UUID REFERENCES users(id) ON DELETE CASCADE,
     assigned_at     TIMESTAMPTZ DEFAULT now(),
     assigned_by     UUID REFERENCES users(id),
-    PRIMARY KEY (work_order_id, fixer_id)
+    PRIMARY KEY (work_order_id, technician_id)
 );
 
 CREATE TABLE work_order_status_logs (
@@ -112,11 +112,11 @@ ON CONFLICT (name) DO NOTHING;
 CREATE INDEX IF NOT EXISTS idx_work_orders_department_id
     ON work_orders(department_id);
 
-CREATE INDEX IF NOT EXISTS idx_fixer_departments_department_id
-    ON fixer_departments(department_id);
+CREATE INDEX IF NOT EXISTS idx_technician_departments_department_id
+    ON technician_departments(department_id);
 
-CREATE INDEX IF NOT EXISTS idx_fixer_departments_fixer_id
-    ON fixer_departments(fixer_id);
+CREATE INDEX IF NOT EXISTS idx_technician_departments_technician_id
+    ON technician_departments(technician_id);
 
 -- =============================================================
 -- STEP 5 — RLS Policies (optional for development)
@@ -130,13 +130,13 @@ CREATE INDEX IF NOT EXISTS idx_fixer_departments_fixer_id
 --     AND created_by = (SELECT id FROM users WHERE auth_id = auth.uid())
 -- );
 
--- DROP POLICY IF EXISTS "fixer_department_wos" ON work_orders;
--- CREATE POLICY "fixer_department_wos" ON work_orders
+-- DROP POLICY IF EXISTS "technician_department_wos" ON work_orders;
+-- CREATE POLICY "technician_department_wos" ON work_orders
 -- FOR SELECT USING (
---     (SELECT user_type FROM users WHERE auth_id = auth.uid()) = 'fixer'
+--     (SELECT user_type FROM users WHERE auth_id = auth.uid()) = 'technician'
 --     AND department_id IN (
---         SELECT department_id FROM fixer_departments
---         WHERE fixer_id = (SELECT id FROM users WHERE auth_id = auth.uid())
+--         SELECT department_id FROM technician_departments
+--         WHERE technician_id = (SELECT id FROM users WHERE auth_id = auth.uid())
 --     )
 -- );
 
