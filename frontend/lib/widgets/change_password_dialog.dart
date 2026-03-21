@@ -34,8 +34,30 @@ Future<void> changePassword() async {
     return;
   }
 
-  try {
+  final user = Supabase.instance.client.auth.currentUser;
+  if (user == null || user.email == null) {
+    setState(() {
+      message = "Unable to verify current user";
+      loading = false;
+    });
+    return;
+  }
 
+  try {
+    // Verify old password by re-authenticating
+    await Supabase.instance.client.auth.signInWithPassword(
+      email: user.email!,
+      password: oldController.text,
+    );
+  } catch (e) {
+    setState(() {
+      message = "Old password is incorrect";
+      loading = false;
+    });
+    return;
+  }
+
+  try {
     await Supabase.instance.client.auth.updateUser(
       UserAttributes(
         password: newController.text,
