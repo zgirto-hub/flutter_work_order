@@ -39,8 +39,8 @@ app.include_router(folders.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(work_orders.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
-app.include_router(fixer_departments.router, prefix="/api")
 app.include_router(departments.router, prefix="/api")
+app.include_router(fixer_departments.router, prefix="/api")
 app.include_router(employees.router, prefix="/api")
 
 

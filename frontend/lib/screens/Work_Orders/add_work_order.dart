@@ -7,7 +7,7 @@ import '../../models/work_order.dart';
 import '../../models/work_order_comment.dart';
 import '../../models/work_order_attachment.dart';
 import '../../services/work_order_service.dart';
-import '../../models/employee.dart';
+import '../../models/user.dart';
 import '../../services/employee_service.dart';
 import '../../services/department_service.dart';
 import '../../models/department.dart';
@@ -52,7 +52,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   final _locationFocusNode = FocusNode();
   final _mobileFocusNode = FocusNode();
 
-  List<Employee> _employees = [];
+  List<AppUser> _employees = [];
   List<String> _selectedEmployeeIds = [];
 
   final TextEditingController jobNoController = TextEditingController();
@@ -627,7 +627,7 @@ Future<void> _loadDepartments() async {
             ),
             SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              initialValue: _departments.any((d) => d.name == selectedDepartment) ? selectedDepartment : (_departments.isNotEmpty ? _departments.first.name : 'General'),
+              value: _departments.isEmpty ? 'General' : selectedDepartment,
               items: _departments.isEmpty
                   ? [DropdownMenuItem(value: 'General', child: Text('General'))]
                   : _departments.map((d) => DropdownMenuItem(value: d.name, child: Text(d.name))).toList(),
@@ -694,7 +694,7 @@ Future<void> _loadDepartments() async {
                 children: _employees
                     .where((e) => _selectedEmployeeIds.contains(e.id))
                     .map((employee) => Chip(
-                          label: Text(employee.fullName),
+                          label: Text(employee.fullName ?? ''),
                           deleteIcon: canEdit ? Icon(Icons.close) : null,
                           onDeleted: canEdit
                               ? () => setState(() =>

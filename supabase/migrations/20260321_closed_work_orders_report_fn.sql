@@ -5,6 +5,7 @@ CREATE OR REPLACE FUNCTION get_closed_work_orders_report(
 )
 RETURNS TABLE (title TEXT, location TEXT, closed_at TIMESTAMPTZ)
 LANGUAGE sql
+SECURITY DEFINER
 AS $$
   SELECT
     wo.title,

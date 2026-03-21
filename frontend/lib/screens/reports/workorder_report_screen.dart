@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
-import '../../models/employee.dart';
+import '../../models/user.dart';
 import '../../models/workorder_report.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/employee_service.dart';
@@ -19,7 +19,7 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
   DateTime? _startDate;
   DateTime? _endDate;
   String? _employeeId;
-  List<Employee> _employees = [];
+  List<AppUser> _employees = [];
   List<WorkOrderReport> _results = [];
   bool _loading = false;
   bool _employeesLoading = true;
@@ -64,10 +64,10 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
           'end_date': _endDate!.toIso8601String(),
         },
       );
-      setState(() {
-        _results =
-            (data as List).map((e) => WorkOrderReport.fromJson(e)).toList();
-      });
+      final list =
+          (data as List).map((e) => WorkOrderReport.fromJson(e)).toList();
+      setState(() => _results = list);
+      if (list.isEmpty) _showSnack('No closed work orders found for this period');
     } catch (e) {
       _showSnack('Failed to load report');
       debugPrint('Report error: $e');
@@ -189,9 +189,10 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
   String get _selectedEmployeeName {
     return _employees
         .firstWhere((e) => e.id == _employeeId,
-            orElse: () => const Employee(
-                id: '', fullName: '', shiftType: '', active: false))
-        .fullName;
+            orElse: () =>
+                const AppUser(id: '', email: '', userType: UserType.reporter))
+        .fullName ??
+        '';
   }
 
   String _formatDate(DateTime d) => '${d.day} ${_monthName(d.month)} ${d.year}';
@@ -721,7 +722,7 @@ class _DateButton extends StatelessWidget {
 }
 
 class _EmployeeDropdown extends StatelessWidget {
-  final List<Employee> employees;
+  final List<AppUser> employees;
   final String? value;
   final ValueChanged<String?> onChanged;
 
@@ -754,7 +755,7 @@ class _EmployeeDropdown extends StatelessWidget {
           items: employees
               .map((emp) => DropdownMenuItem(
                     value: emp.id,
-                    child: Text(emp.fullName,
+                    child: Text(emp.fullName ?? '',
                         style: TextStyle(
                             fontSize: 13, color: AppColors.textPrimary)),
                   ))
