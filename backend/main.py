@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from routers import documents, folders, notifications, users, work_orders, technician_departments, departments
+from routers import documents, folders, notifications, users, work_orders, technician_departments, departments, recurring_inspections
 
 app = FastAPI()
 
@@ -41,6 +41,7 @@ app.include_router(work_orders.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(departments.router, prefix="/api")
 app.include_router(technician_departments.router, prefix="/api")
+app.include_router(recurring_inspections.router, prefix="/api")
 
 
 @app.get("/api/version")
