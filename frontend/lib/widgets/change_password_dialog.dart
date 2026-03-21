@@ -24,6 +24,7 @@ Future<void> changePassword() async {
   setState(() {
     loading = true;
     message = "";
+    _isSuccess = false;
   });
 
   if (newController.text != confirmController.text) {
