@@ -33,12 +33,12 @@ class CreateWorkOrderBody(BaseModel):
     job_no: str
     title: str
     description: Optional[str] = ""
-    location: str = ""
+    location: Optional[str] = ""
     mobile_number: Optional[str] = ""
-    department_id: str  # Changed from 'department' to 'department_id' (UUID)
-    type: str = "Technical"
-    status: str = "Pending"
-    created_by: str  # user UUID
+    department_id: str
+    type: Optional[str] = "Technical"
+    status: Optional[str] = "Pending"
+    created_by: str
     created_by_email: Optional[str] = ""
     assigned_fixer_ids: Optional[List[str]] = []
 
@@ -123,16 +123,16 @@ def _ensure_not_reporter(email: str):
         )
 
 
-def _validate_type(type: str):
-    if type not in ALLOWED_TYPES:
+def _validate_type(type: Optional[str]):
+    if type is not None and type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid type. Must be one of: {', '.join(ALLOWED_TYPES)}"
         )
 
 
-def _validate_status(status: str):
-    if status not in ALLOWED_STATUSES:
+def _validate_status(status: Optional[str]):
+    if status is not None and status not in ALLOWED_STATUSES:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid status. Must be one of: {', '.join(ALLOWED_STATUSES)}"
@@ -288,14 +288,13 @@ async def create_work_order(body: CreateWorkOrderBody):
     payload = {
         "job_no": body.job_no,
         "title": body.title,
-        "description": body.description,
-        "location": body.location,
-        "mobile_number": body.mobile_number,
-        "department_id": body.department_id,  # Changed from 'department' to 'department_id'
-        "type": body.type,
-        "status": body.status,
+        "description": body.description or "",
+        "location": body.location or "",
+        "mobile_number": body.mobile_number or "",
+        "department_id": body.department_id,
+        "type": body.type or "Technical",
+        "status": body.status or "Pending",
         "created_by": body.created_by,
-        "created_by_email": body.created_by_email.strip().lower() if body.created_by_email else "",
     }
     result = supabase.table("work_orders").insert(payload).execute()
     if not result.data:

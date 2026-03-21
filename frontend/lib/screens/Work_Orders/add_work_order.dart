@@ -598,7 +598,7 @@ Future<void> _loadDepartments() async {
             ),
             SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              value: selectedStatus,
+              initialValue: selectedStatus,
               items: _allowedStatuses
                   .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                   .toList(),
@@ -627,7 +627,7 @@ Future<void> _loadDepartments() async {
             ),
             SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              value: _departments.isEmpty ? 'General' : selectedDepartment,
+              initialValue: _departments.isEmpty ? 'General' : selectedDepartment,
               items: _departments.isEmpty
                   ? [DropdownMenuItem(value: 'General', child: Text('General'))]
                   : _departments.map((d) => DropdownMenuItem(value: d.name, child: Text(d.name))).toList(),
@@ -646,7 +646,7 @@ Future<void> _loadDepartments() async {
 
             // ── Type dropdown with icons ───────────────────────────
             DropdownButtonFormField<String>(
-              value: selectedType,
+              initialValue: selectedType,
               items: _allowedTypes.map((type) {
                 return DropdownMenuItem(
                   value: type,
