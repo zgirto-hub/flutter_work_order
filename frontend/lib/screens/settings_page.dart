@@ -386,7 +386,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               SizedBox(height: 12),
               if (widget.userRole == 'admin') ...[
-                SectionLabel(text: 'System'),
+                SectionLabel(text: 'Administration'),
                 SurfaceCard(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: Column(
