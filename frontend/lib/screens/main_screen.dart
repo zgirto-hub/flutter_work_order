@@ -11,8 +11,6 @@ import '../widgets/claude_widgets.dart';
 import '../widgets/change_password_dialog.dart';
 import '../screens/Work_Orders/work_order_home.dart';
 import '../screens/Work_Orders/add_work_order.dart';
-import '../screens/Documents/documents_screen.dart';
-import '../screens/reports/workorder_report_screen.dart';
 import '../screens/more_screen.dart';
 import '../screens/dashboard_screen.dart';
 import '../config.dart';
