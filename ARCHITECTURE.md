@@ -2,12 +2,14 @@
 
 ## Overview
 
-A full-stack work order management system built with:
+A full-stack work order management system with document management, built with:
 - **Frontend**: Flutter (cross-platform mobile/web)
 - **Backend**: FastAPI (Python)
 - **Database**: Supabase (PostgreSQL)
 - **Auth**: Supabase Authentication
 - **Push**: OneSignal
+- **Storage**: Supabase Storage (document files)
+- **OCR**: pytesseract + pdf2image (Arabic + English)
 
 ---
 
@@ -26,10 +28,19 @@ A full-stack work order management system built with:
 | `work_order_comments` | Comments on WOs (comment, status_change, system) |
 | `work_order_attachments` | File attachments on WOs |
 
-### Notification Tables
+### Document Tables
 
 | Table | Purpose |
 |-------|---------|
+| `documents` | Uploaded documents with metadata, parsed text, folder assignment |
+| `document_folders` | Hierarchical folder structure (self-referencing `parent_id`) |
+| `resource_permissions` | Role-based sharing for documents and folders (viewer/editor) |
+
+### Activity & Notification Tables
+
+| Table | Purpose |
+|-------|---------|
+| `user_activity_log` | Comprehensive audit trail (auth, WO, document, folder actions) |
 | `notifications` | In-app notification records |
 | `notification_preferences` | Per-user notification settings (mute, filters) |
 | `notification_delivery_logs` | Push delivery tracking with retry support |
@@ -45,6 +56,9 @@ work_orders.department_id → departments.id     (WO targets a department)
 work_orders.created_by → users.id              (who reported it)
 work_order_assignments.technician_id → users.id (who's assigned)
 work_order_assignments.work_order_id → work_orders.id
+documents.folder_id → document_folders.id      (document in folder)
+document_folders.parent_id → document_folders.id (folder hierarchy)
+resource_permissions.resource_id → documents.id or document_folders.id
 ```
 
 ---
@@ -62,12 +76,23 @@ work_order_assignments.work_order_id → work_orders.id
 | Comment on WO | Yes | Yes | Yes |
 | Receive notifications | Own WOs | Assigned WOs | Opt-in all |
 | Mute notifications | Yes | Yes | Yes |
+| Upload documents | Yes | Yes | Yes |
+| Share documents | Own/Editor | Own/Editor | Own/Editor |
 
 ### Role Details
 
 - **Reporter**: Belongs to a department (`users.department_id`). Can create WOs targeting any department. Can only view WOs they created.
 - **Technician**: Assigned to one or more departments via `technician_departments`. Can view/update/close WOs in their assigned departments.
 - **Admin**: Full access. Only role that can create user accounts, manage departments, and delete WOs.
+
+### Document Permission Model
+
+Documents and folders use a separate role-based permission system via `resource_permissions`:
+- **Owner**: Full control (view, download, rename, move, delete, share, edit_type). Determined by `uploaded_by`/`created_by`.
+- **Editor**: Can view, download, rename, move, share, edit_type — cannot delete.
+- **Viewer**: Can view and download only.
+- Permissions inherit through folder hierarchy (walks up parent chain via `backend/utils/permissions.py`).
+- Role priority: viewer(1) < editor(2) < owner(3).
 
 ---
 
@@ -101,7 +126,7 @@ work_order_assignments.work_order_id → work_orders.id
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/work-orders/{id}/comments` | List comments |
-| POST | `/api/work-orders/{id}/comments` | Add comment |
+| POST | `/api/work-orders/{id}/comments` | Add comment (triggers notifications) |
 | GET | `/api/work-orders/{id}/attachments` | List attachments |
 | POST | `/api/work-orders/{id}/attachments` | Upload attachment |
 | DELETE | `/api/work-orders/{id}/attachments/{att_id}` | Delete attachment |
@@ -129,14 +154,49 @@ work_order_assignments.work_order_id → work_orders.id
 | POST | `/api/technician-departments/bulk/{id}` | Set all departments for technician |
 | DELETE | `/api/technician-departments/{id}/{dept}` | Remove mapping |
 
+### Documents
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/upload` | Upload file with auto text extraction |
+| DELETE | `/api/delete/{doc_id}` | Delete document |
+| POST | `/api/share-document` | Share document (form: document_id, owner_email, share_with, role) |
+| GET | `/api/document-shares/{doc_id}` | List shares on a document |
+| DELETE | `/api/remove-share` | Revoke a document share |
+| GET | `/api/document-uploaders` | List all distinct document uploaders |
+| GET | `/api/documents/{doc_id}/my-role?user_email=` | Get user's effective role on document |
+
+### Folders
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/folders?parent_id=&user_email=&all=` | List folders |
+| POST | `/api/folders` | Create folder (body: name, parent_id, created_by, is_private) |
+| PATCH | `/api/folders/{folder_id}/rename` | Rename folder |
+| DELETE | `/api/folders/{folder_id}` | Delete folder (orphans documents to root) |
+| PATCH | `/api/folders/{folder_id}/move` | Move folder to new parent |
+| PATCH | `/api/documents/{doc_id}/move` | Move document to folder |
+
 ### Notifications
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/notifications?email=` | List user notifications |
-| POST | `/api/notifications/{id}/read` | Mark as read |
-| POST | `/api/notifications/read-all?email=` | Mark all read |
 | GET | `/api/notification-preferences?email=` | Get preferences |
-| PUT | `/api/notification-preferences` | Update preferences |
+| PATCH | `/api/notification-preferences` | Update preferences |
+| GET | `/api/work-orders/{id}/watchers` | List watchers |
+| POST | `/api/work-orders/{id}/watchers` | Add watcher |
+| DELETE | `/api/work-orders/{id}/watchers?email=` | Remove watcher |
+| GET | `/api/notifications?email=&unread_only=&limit=&offset=` | List notifications |
+| GET | `/api/notifications/unread-count?email=` | Unread count |
+| PATCH | `/api/notifications/{id}/read?email=` | Mark as read |
+| PATCH | `/api/notifications/read-all?email=` | Mark all read |
+| DELETE | `/api/notifications?email=` | Clear all |
+| GET | `/api/work-orders/{id}/notification-debug?commenter_email=` | Debug recipients |
+
+### Activity Log
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/activity-log?category=&limit=&offset=` | Get activity log |
+| POST | `/api/activity-log/sign-in` | Log sign-in |
+| POST | `/api/activity-log/sign-out` | Log sign-out |
+| POST | `/api/activity-log/update-check` | Log app update check |
 
 ---
 
@@ -149,6 +209,35 @@ work_order_assignments.work_order_id → work_orders.id
 5. Role stored locally, used to filter views and API calls
 6. Backend verifies role on each request via `user_type` in `users` table
 7. RLS policies provide defense-in-depth for direct Supabase client access
+
+**Account creation**: Admin-only. No self-registration. Admin calls `POST /api/users?admin_email=` which creates both the Supabase auth user and the `users` table record.
+
+---
+
+## Document Management System
+
+### Upload & Text Extraction
+- Files uploaded via `POST /api/upload` to Supabase Storage
+- Auto text extraction on upload using `backend/utils/text_extraction.py`:
+  - **PDF**: PyPDF2
+  - **DOCX**: python-docx
+  - **TXT**: direct read
+  - **JPG/PNG**: OCR via pytesseract + pdf2image
+- Supports Arabic + English (`lang="ara+eng"`)
+- Arabic text normalized via NFKC (`normalize_arabic()`)
+- Extracted text stored in `documents.parsed_text`
+
+### Folder Hierarchy
+- Folders can be nested via `parent_id` self-reference on `document_folders`
+- Deleting a folder orphans its documents back to root (sets `folder_id = NULL`)
+- Folders can be moved to new parents
+
+### Permission Inheritance
+- Permissions checked via `backend/utils/permissions.py`
+- `get_effective_role(user_email, resource_id, resource_type)` resolves role
+- For documents in folders, permission walks up the folder chain
+- Role priority: viewer(1) < editor(2) < owner(3)
+- Owner is determined by `uploaded_by` (documents) or `created_by` (folders)
 
 ---
 
@@ -174,6 +263,18 @@ Each user can control via `notification_preferences`:
 - `status_notifications` — toggle status change notifications
 - `push_enabled` / `in_app_enabled` — per-channel toggles
 
+### OneSignal Integration
+- App ID: `760f00e5-fb08-4c0c-b898-ea35737bcc21`
+- API key: env var `ONESIGNAL_API_KEY`
+- Frontend sets external ID via `OneSignal.login(email)` on web
+
+### Foreground Sound Logic (work_order_home.dart)
+- Poll unread count every 20s
+- `SystemSound.play(SystemSoundType.alert)` only when:
+  - App is in foreground (`WidgetsBindingObserver` + `AppLifecycleState.resumed`)
+  - Unread count increased since last poll
+  - First poll is always silent (`soundPrimed` flag)
+
 ---
 
 ## Row Level Security (RLS)
@@ -197,14 +298,15 @@ RLS is enabled on `work_orders` as defense-in-depth:
 
 ### Frontend (`frontend/lib/`)
 ```
-models/            Data classes (WorkOrder, AppUser, TechnicianAssignment, etc.)
-services/          API clients (WorkOrderService, UserService, etc.)
+models/            Data classes (WorkOrder, AppUser, TechnicianAssignment, DocumentModel, FolderModel, ActivityLogEntry, WorkOrderReport)
+services/          API clients (WorkOrderService, UserService, DocumentService, FolderService, ActivityLogService, etc.)
 screens/           UI pages
   Work_Orders/     WO list, create/edit
+  Documents/       Document list, upload, details, viewer (with web-specific viewer)
   admin/           User management, technician departments, departments
   reports/         PDF report generation
   settings/        Activity log, app settings
-widgets/           Reusable components (TechnicianSelector, cards, etc.)
+widgets/           Reusable components (TechnicianSelector, work_order_card, document_card, move_to_folder_dialog, etc.)
 filters/           WO filter engine
 theme/             Colors, typography, theme controller
 config.dart        API base URL configuration
@@ -215,18 +317,28 @@ config.dart        API base URL configuration
 main.py            FastAPI app, router registration, CORS
 db.py              Supabase client initialization
 routers/
-  work_orders.py   WO CRUD, comments, attachments
-  users.py         User management, activity log
-  departments.py   Department CRUD
+  work_orders.py   WO CRUD, comments, attachments, status history
+  users.py         User management (admin-only creation), activity log
+  departments.py   Department CRUD, technician/WO counts
   technician_departments.py  Technician-department mapping
-  notifications.py Notification endpoints
-  documents.py     Document management
-  folders.py       Folder management
+  notifications.py Notification endpoints, watchers, preferences
+  documents.py     Document upload, delete, sharing, permissions
+  folders.py       Folder CRUD, move documents/folders
 utils/
-  notification_service.py  Recipient resolution, dispatch
-  notifications.py         OneSignal push integration
-  activity.py              Activity audit logging
-migrations/        SQL migration scripts
+  notification_service.py  Recipient resolution + dispatch orchestration
+  notifications.py         OneSignal HTTP helpers
+  activity.py              Activity audit logging (fire-and-forget)
+  permissions.py           Document/folder permission engine (role inheritance)
+  text_extraction.py       Text extraction from PDF, DOCX, TXT, images (OCR)
+migrations/        SQL migration scripts (legacy, use supabase/migrations/ instead)
+```
+
+### Scripts (`scripts/`)
+```
+deploy_frontend.sh       Frontend deployment
+bump_version.sh          Version bumping
+update_nginx_config.sh   Nginx configuration update
+rollback_frontend.sh     Frontend rollback
 ```
 
 ### Supabase (`supabase/`)

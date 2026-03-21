@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Flutter frontend + FastAPI backend work order management app.
+Flutter frontend + FastAPI backend work order management app with document management.
 - Frontend: `frontend/` (Flutter web)
 - Backend: `backend/` (FastAPI)
 - Database: Supabase (Postgres + Auth + Admin API)
@@ -23,10 +23,21 @@ Flutter frontend + FastAPI backend work order management app.
 | Comment on WO | Yes | Yes | Yes |
 | Receive notifications | Own WOs | Assigned WOs | Opt-in all |
 | Mute notifications | Yes | Yes | Yes |
+| Upload documents | Yes | Yes | Yes |
+| Share documents | Own/Editor | Own/Editor | Own/Editor |
+| View shared docs | If shared | If shared | If shared |
 
 - **Reporter**: Belongs to a department (`users.department_id`). Can create WOs targeting any department. Can only view WOs they created.
 - **Technician**: Assigned to one or more departments via `technician_departments`. Can view/update/close WOs in their assigned departments.
 - **Admin**: Full access. Only role that can create user accounts, manage departments, and delete WOs.
+
+### Document Permissions (Role-Based)
+
+Documents use a separate permission model via `resource_permissions`:
+- **Owner**: Full control (view, download, rename, move, delete, share, edit_type)
+- **Editor**: Can view, download, rename, move, share, edit_type — cannot delete
+- **Viewer**: Can view and download only
+- Permissions inherit through folder hierarchy (walks up parent chain)
 
 ---
 
@@ -120,6 +131,61 @@ work_order_attachments (
 )
 ```
 
+### Document Tables
+
+```sql
+documents (
+  id UUID PK,
+  title TEXT,
+  file_name TEXT,
+  file_extension TEXT,
+  mime_type TEXT,
+  file_path TEXT,              -- Supabase Storage path
+  parsed_text TEXT,            -- extracted text content (OCR/PDF/DOCX)
+  is_private BOOLEAN DEFAULT false,
+  uploaded_by TEXT,            -- user email
+  file_size BIGINT,
+  folder_id UUID FK -> document_folders(id),
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
+)
+
+document_folders (
+  id UUID PK,
+  name TEXT NOT NULL,
+  parent_id UUID FK -> document_folders(id),  -- hierarchical folders
+  created_by TEXT,             -- user email
+  is_private BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ
+)
+
+resource_permissions (
+  id UUID PK,
+  resource_id UUID NOT NULL,   -- document or folder ID
+  resource_type TEXT,           -- 'document' | 'folder'
+  user_email TEXT NOT NULL,
+  role TEXT,                    -- 'viewer' | 'editor'
+  granted_by TEXT,             -- granter email
+  created_at TIMESTAMPTZ
+)
+```
+
+### Activity Log Table
+
+```sql
+user_activity_log (
+  id UUID PK,
+  user_email TEXT,
+  user_name TEXT,
+  category TEXT,               -- 'work_order', 'document', 'folder', 'request', 'auth', 'admin'
+  action TEXT,                 -- 'created', 'updated', 'deleted', 'uploaded', 'shared', 'closed', 'signed_in', etc.
+  target_label TEXT,
+  target_id TEXT,
+  detail TEXT,
+  created_at TIMESTAMPTZ
+)
+```
+
 ### Notification Tables
 
 ```sql
@@ -200,6 +266,9 @@ work_orders.department_id -> departments.id       (WO targets a department)
 work_orders.created_by -> users.id                (who reported it)
 work_order_assignments.technician_id -> users.id  (who's assigned)
 work_order_assignments.work_order_id -> work_orders.id
+documents.folder_id -> document_folders.id        (document in folder)
+document_folders.parent_id -> document_folders.id (folder hierarchy)
+resource_permissions.resource_id -> documents.id or document_folders.id
 ```
 
 ---
@@ -262,6 +331,27 @@ work_order_assignments.work_order_id -> work_orders.id
 | POST | `/api/technician-departments/bulk/{id}` | Set all departments for technician |
 | DELETE | `/api/technician-departments/{id}/{dept}` | Remove mapping |
 
+### Documents
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/upload` | Upload file with auto text extraction |
+| DELETE | `/api/delete/{doc_id}` | Delete document |
+| POST | `/api/share-document` | Share document (form: document_id, owner_email, share_with, role) |
+| GET | `/api/document-shares/{doc_id}` | List shares on a document |
+| DELETE | `/api/remove-share` | Revoke a document share |
+| GET | `/api/document-uploaders` | List all distinct document uploaders |
+| GET | `/api/documents/{doc_id}/my-role?user_email=` | Get user's effective role on document |
+
+### Folders
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/folders?parent_id=&user_email=&all=` | List folders |
+| POST | `/api/folders` | Create folder (body: name, parent_id, created_by, is_private) |
+| PATCH | `/api/folders/{folder_id}/rename` | Rename folder |
+| DELETE | `/api/folders/{folder_id}` | Delete folder (orphans documents to root) |
+| PATCH | `/api/folders/{folder_id}/move` | Move folder to new parent |
+| PATCH | `/api/documents/{doc_id}/move` | Move document to folder |
+
 ### Notifications
 | Method | Path | Description |
 |--------|------|-------------|
@@ -283,6 +373,34 @@ work_order_assignments.work_order_id -> work_orders.id
 | GET | `/api/activity-log?category=&limit=&offset=` | Get activity log |
 | POST | `/api/activity-log/sign-in` | Log sign-in |
 | POST | `/api/activity-log/sign-out` | Log sign-out |
+| POST | `/api/activity-log/update-check` | Log app update check |
+
+---
+
+## Document Management System
+
+### Upload & Text Extraction
+- Files uploaded via `POST /api/upload` to Supabase Storage
+- Auto text extraction on upload using `backend/utils/text_extraction.py`:
+  - **PDF**: PyPDF2
+  - **DOCX**: python-docx
+  - **TXT**: direct read
+  - **JPG/PNG**: OCR via pytesseract + pdf2image
+- Supports Arabic + English (`lang="ara+eng"`)
+- Arabic text normalized via NFKC (`normalize_arabic()`)
+- Extracted text stored in `documents.parsed_text`
+
+### Folder Hierarchy
+- Folders can be nested via `parent_id` self-reference
+- Deleting a folder orphans its documents back to root (sets `folder_id = NULL`)
+- Folders can be moved to new parents
+
+### Permission Inheritance
+- Permissions checked via `backend/utils/permissions.py`
+- `get_effective_role(user_email, resource_id, resource_type)` resolves role
+- For documents in folders, permission walks up the folder chain
+- Role priority: viewer(1) < editor(2) < owner(3)
+- Owner is determined by `uploaded_by` (documents) or `created_by` (folders)
 
 ---
 
@@ -363,6 +481,8 @@ if not prefs.in_app_enabled: skip inbox (still send push if push_enabled)
 - **Lint**: `flutter analyze` (frontend), `python -m py_compile` (backend)
 - **Deploy**: `bash scripts/deploy_frontend.sh --no-bump`
 - **Version bump**: `bash scripts/bump_version.sh`
+- **Rollback**: `bash scripts/rollback_frontend.sh`
+- **Nginx config**: `bash scripts/update_nginx_config.sh`
 - **Migrations**: Run SQL files from `supabase/migrations/` in Supabase SQL Editor (in timestamp order), or use `supabase db push`
 - **Debug notifications**: `GET /api/work-orders/{id}/notification-debug?commenter_email=...`
 - **Backend failures are best-effort**: Comment creation must never block on notification failure. All notification calls wrapped in try/except.
@@ -373,14 +493,15 @@ if not prefs.in_app_enabled: skip inbox (still send push if push_enabled)
 
 ### Frontend (`frontend/lib/`)
 ```
-models/            Data classes (WorkOrder, AppUser, TechnicianAssignment, etc.)
-services/          API clients (WorkOrderService, UserService, TechnicianDepartmentService, etc.)
+models/            Data classes (WorkOrder, AppUser, TechnicianAssignment, DocumentModel, FolderModel, ActivityLogEntry, WorkOrderReport)
+services/          API clients (WorkOrderService, UserService, TechnicianDepartmentService, DocumentService, FolderService, ActivityLogService, etc.)
 screens/           UI pages
   Work_Orders/     WO list, create/edit
+  Documents/       Document list, upload, details, viewer
   admin/           User management, technician departments, departments
   reports/         PDF report generation
   settings/        Activity log, app settings
-widgets/           Reusable components (TechnicianSelector, work_order_card, etc.)
+widgets/           Reusable components (TechnicianSelector, work_order_card, document_card, move_to_folder_dialog, etc.)
 filters/           WO filter engine
 theme/             Colors, typography, theme controller
 config.dart        API base URL configuration
@@ -396,13 +517,23 @@ routers/
   departments.py   Department CRUD, technician/WO counts
   technician_departments.py  Technician-department mapping
   notifications.py Notification endpoints, watchers, preferences
-  documents.py     Document management
-  folders.py       Folder management
+  documents.py     Document upload, delete, sharing, permissions
+  folders.py       Folder CRUD, move documents/folders
 utils/
   notification_service.py  Recipient resolution + dispatch orchestration
   notifications.py         OneSignal HTTP helpers
-  activity.py              Activity audit logging
+  activity.py              Activity audit logging (fire-and-forget)
+  permissions.py           Document/folder permission engine (role inheritance)
+  text_extraction.py       Text extraction from PDF, DOCX, TXT, images (OCR)
 migrations/        SQL migration scripts (legacy, use supabase/migrations/ instead)
+```
+
+### Scripts (`scripts/`)
+```
+deploy_frontend.sh       Frontend deployment
+bump_version.sh          Version bumping
+update_nginx_config.sh   Nginx configuration update
+rollback_frontend.sh     Frontend rollback
 ```
 
 ### Supabase (`supabase/`)
@@ -422,27 +553,46 @@ seed.sql           Initial seed data (departments, sample users, sample WOs)
 - `backend/routers/departments.py` — department CRUD, technician/WO counts
 - `backend/routers/technician_departments.py` — technician-department mapping CRUD
 - `backend/routers/notifications.py` — notification/watcher/preference APIs
+- `backend/routers/documents.py` — document upload, delete, sharing, role check
+- `backend/routers/folders.py` — folder CRUD, move operations
 - `backend/utils/notification_service.py` — recipient resolution + dispatch orchestration
 - `backend/utils/notifications.py` — OneSignal HTTP helpers
 - `backend/utils/activity.py` — activity audit logging
+- `backend/utils/permissions.py` — document/folder permission engine with inheritance
+- `backend/utils/text_extraction.py` — text extraction (PDF, DOCX, TXT, OCR for images)
 
 ### Frontend
 - `frontend/lib/models/user.dart` — AppUser model (UserType: admin, technician, reporter)
 - `frontend/lib/models/work_order.dart` — WorkOrder model with TechnicianAssignment list
 - `frontend/lib/models/technician_assignment.dart` — TechnicianAssignment model
+- `frontend/lib/models/document.dart` — DocumentModel with DocumentCapabilities (role-based)
+- `frontend/lib/models/folder_model.dart` — FolderModel (hierarchical)
+- `frontend/lib/models/activity_log_entry.dart` — ActivityLogEntry with category/action
+- `frontend/lib/models/workorder_report.dart` — WorkOrderReport for PDF generation
 - `frontend/lib/services/user_service.dart` — user API client (fetchTechnicians, getTechnicianDepartments, etc.)
 - `frontend/lib/services/work_order_service.dart` — work order API client
 - `frontend/lib/services/technician_department_service.dart` — technician-department mapping API
 - `frontend/lib/services/notification_service.dart` — notification API client
+- `frontend/lib/services/document_service.dart` — document API client (fetch, insert, search)
+- `frontend/lib/services/folder_service.dart` — folder API client (CRUD, move operations)
+- `frontend/lib/services/activity_log_service.dart` — activity log API client
 - `frontend/lib/screens/Work_Orders/work_order_home.dart` — WO list with badges + sound
 - `frontend/lib/screens/Work_Orders/add_work_order.dart` — WO create/edit with technician selector
+- `frontend/lib/screens/Documents/documents_screen.dart` — document list with folder sidebar, search, filters, multi-select
+- `frontend/lib/screens/Documents/add_document_screen.dart` — upload documents (single/multi mode)
+- `frontend/lib/screens/Documents/document_details_screen.dart` — document viewer with share/permissions UI
+- `frontend/lib/screens/Documents/document_viewer_screen.dart` — document content viewer
+- `frontend/lib/screens/Documents/document_viewer_web.dart` — web-specific document viewer
 - `frontend/lib/screens/admin/user_management_screen.dart` — admin user CRUD
 - `frontend/lib/screens/admin/technician_departments_screen.dart` — technician-department mapping UI
 - `frontend/lib/screens/admin/departments_screen.dart` — department management
 - `frontend/lib/screens/settings_page.dart` — notification toggles, admin panels
+- `frontend/lib/screens/settings/activity_log_screen.dart` — activity audit log viewer with category filtering
 - `frontend/lib/screens/login_screen.dart` — login (no self-registration)
 - `frontend/lib/widgets/technician_selector.dart` — technician picker bottom sheet
 - `frontend/lib/widgets/work_order_card.dart` — WO card with unread badge support
+- `frontend/lib/widgets/document_card.dart` — document list item with selection, rename, delete, move, share
+- `frontend/lib/widgets/move_to_folder_dialog.dart` — bottom sheet for moving documents/folders
 - `frontend/lib/config.dart` — base URL
 
 ### Documentation
