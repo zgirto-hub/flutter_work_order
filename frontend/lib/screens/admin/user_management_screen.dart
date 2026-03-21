@@ -292,11 +292,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Future<void> _showCreateUserDialog(BuildContext context) async {
     final emailCtrl = TextEditingController();
     final passCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
     final nameCtrl = TextEditingController();
     final mobileCtrl = TextEditingController();
     String selectedRole = 'reporter';
     String? selectedDept;
     bool loading = false;
+    bool obscurePass = true;
+    bool obscureConfirmPass = true;
+    String? passwordError;
 
     await showDialog<bool>(
       context: context,
@@ -312,7 +316,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               children: [
                 _buildField('Email', emailCtrl, TextInputType.emailAddress),
                 SizedBox(height: 12),
-                _buildField('Password', passCtrl, TextInputType.visiblePassword, obscure: true),
+                _buildField('Password', passCtrl, TextInputType.visiblePassword,
+                    obscure: true, obscureState: obscurePass,
+                    onToggleObscure: () => setDlg(() => obscurePass = !obscurePass)),
+                SizedBox(height: 12),
+                _buildField('Confirm Password', confirmPassCtrl, TextInputType.visiblePassword,
+                    obscure: true, obscureState: obscureConfirmPass,
+                    onToggleObscure: () => setDlg(() => obscureConfirmPass = !obscureConfirmPass)),
+                if (passwordError != null) ...[
+                  SizedBox(height: 4),
+                  Text(passwordError!, style: TextStyle(fontSize: 11, color: AppColors.dangerText)),
+                ],
                 SizedBox(height: 12),
                 _buildField('Full Name', nameCtrl, TextInputType.name),
                 SizedBox(height: 12),
@@ -371,7 +385,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ElevatedButton(
               onPressed: loading ? null : () async {
                 if (emailCtrl.text.isEmpty || passCtrl.text.isEmpty || nameCtrl.text.isEmpty) return;
-                setDlg(() => loading = true);
+                if (passCtrl.text != confirmPassCtrl.text) {
+                  setDlg(() => passwordError = 'Passwords do not match');
+                  return;
+                }
+                setDlg(() {
+                  passwordError = null;
+                  loading = true;
+                });
                 try {
                   final userId = await _userService.createUser(
                     email: emailCtrl.text.trim(),
@@ -401,7 +422,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController ctrl, TextInputType type, {bool obscure = false}) {
+  Widget _buildField(String label, TextEditingController ctrl, TextInputType type, {bool obscure = false, bool? obscureState, VoidCallback? onToggleObscure}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -415,12 +436,22 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           ),
           child: TextField(
             controller: ctrl,
-            obscureText: obscure,
+            obscureText: obscureState ?? obscure,
             keyboardType: type,
             style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
             decoration: InputDecoration(
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              suffixIcon: onToggleObscure != null
+                  ? IconButton(
+                      icon: Icon(
+                        (obscureState ?? obscure) ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                        size: 18,
+                        color: AppColors.textTertiary,
+                      ),
+                      onPressed: onToggleObscure,
+                    )
+                  : null,
             ),
           ),
         ),
