@@ -114,11 +114,11 @@ async def delete_department(department_id: str):
     return {"deleted": True, "department": dept_name}
 
 
-@router.get("/departments/{department_id}/fixer-count")
-async def get_department_fixer_count(department_id: str):
-    """Get the number of fixers assigned to a department"""
-    result = supabase.table("fixer_departments").select("fixer_id").eq("department_id", department_id).execute()
-    return {"department_id": department_id, "fixer_count": len(result.data or [])}
+@router.get("/departments/{department_id}/technician-count")
+async def get_department_technician_count(department_id: str):
+    """Get the number of technicians assigned to a department"""
+    result = supabase.table("technician_departments").select("technician_id").eq("department_id", department_id).execute()
+    return {"department_id": department_id, "technician_count": len(result.data or [])}
 
 
 @router.get("/departments/{department_id}/work-order-count")
@@ -136,15 +136,15 @@ async def get_department_info(department_name: str):
         raise HTTPException(status_code=404, detail=f"Department '{department_name}' not found")
     dept_id = dept_result.data[0].get("id")
     
-    # Count fixers assigned to this department
-    fixers_result = supabase.table("fixer_departments").select("fixer_id").eq("department_id", dept_id).execute()
-    fixer_ids = [r.get("fixer_id") for r in (fixers_result.data or [])]
-    
+    # Count technicians assigned to this department
+    tech_result = supabase.table("technician_departments").select("technician_id").eq("department_id", dept_id).execute()
+    tech_ids = [r.get("technician_id") for r in (tech_result.data or [])]
+
     return {
         "department": department_name,
         "department_id": dept_id,
-        "user_count": len(fixer_ids),
-        "fixer_count": len(fixer_ids),
+        "user_count": len(tech_ids),
+        "technician_count": len(tech_ids),
         "reporter_count": 0
     }
 

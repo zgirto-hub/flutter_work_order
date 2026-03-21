@@ -164,7 +164,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 items: [
                   DropdownMenuItem(value: 'all', child: Text('All roles')),
                   DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                  DropdownMenuItem(value: 'fixer', child: Text('Fixer')),
+                  DropdownMenuItem(value: 'technician', child: Text('Technician')),
                   DropdownMenuItem(value: 'reporter', child: Text('Reporter')),
                 ],
                 onChanged: (v) => setState(() => _filterRole = v ?? 'all'),
@@ -223,7 +223,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final initials = (user.fullName ?? user.email.split('@').first).substring(0, 1).toUpperCase();
     final roleColor = switch (user.userType) {
       UserType.admin => AppColors.accent,
-      UserType.fixer => AppColors.pendingText,
+      UserType.technician => AppColors.pendingText,
       _ => AppColors.closedText,
     };
     return Container(
@@ -321,7 +321,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 Text('Role', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
                 SizedBox(height: 6),
                 Row(
-                  children: ['reporter', 'fixer', 'admin'].map((role) {
+                  children: ['reporter', 'technician', 'admin'].map((role) {
                     final isSel = selectedRole == role;
                     return Expanded(
                       child: GestureDetector(
@@ -380,8 +380,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     fullName: nameCtrl.text.trim(),
                     mobile: mobileCtrl.text.trim(),
                   );
-                  if (userId != null && selectedRole == 'fixer' && (selectedDept?.isNotEmpty ?? false)) {
-                    await _userService.setFixerDepartments(userId, [selectedDept!]);
+                  if (userId != null && selectedRole == 'technician' && (selectedDept?.isNotEmpty ?? false)) {
+                    await _userService.setTechnicianDepartments(userId, [selectedDept!]);
                   }
                   if (mounted) Navigator.pop(ctx, true);
                   _loadData();
@@ -481,7 +481,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 Text('Role', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
                 SizedBox(height: 6),
                 Row(
-                  children: ['reporter', 'fixer', 'admin'].map((role) {
+                  children: ['reporter', 'technician', 'admin'].map((role) {
                     final isSel = selectedRole == role;
                     return Expanded(
                       child: GestureDetector(
@@ -589,8 +589,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     fullName: nameCtrl.text.trim(),
                     mobile: mobileCtrl.text.trim(),
                   );
-                  if (selectedRole == 'fixer' && (selectedDept?.isNotEmpty ?? false)) {
-                    await _userService.setFixerDepartments(user.id, [selectedDept!]);
+                  if (selectedRole == 'technician' && (selectedDept?.isNotEmpty ?? false)) {
+                    await _userService.setTechnicianDepartments(user.id, [selectedDept!]);
                   }
                   if (ctx.mounted) Navigator.pop(ctx);
                   _loadData();

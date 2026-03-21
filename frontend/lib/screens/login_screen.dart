@@ -5,7 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../config.dart';
-import 'register_screen.dart';
+// Registration removed - admin creates all accounts
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -364,38 +364,6 @@ class _LoginScreenState extends State<LoginScreen>
                                     letterSpacing: -0.2,
                                   ),
                                 ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ── Create Account Button ──────────────────────────────
-                  FadeTransition(
-                    opacity: _fadeAt(0.35, 0.9),
-                    child: SlideTransition(
-                      position: _slideAt(0.35, 0.9),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            'Create account',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
                         ),
                       ),
                     ),

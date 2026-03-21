@@ -40,7 +40,7 @@ class CreateWorkOrderBody(BaseModel):
     status: Optional[str] = "Pending"
     created_by: str
     created_by_email: Optional[str] = ""
-    assigned_fixer_ids: Optional[List[str]] = []
+    assigned_technician_ids: Optional[List[str]] = []
 
 
 class UpdateWorkOrderBody(BaseModel):
@@ -49,10 +49,10 @@ class UpdateWorkOrderBody(BaseModel):
     description: Optional[str] = ""
     location: str
     mobile_number: Optional[str] = ""
-    department_id: str  # Changed from 'department' to 'department_id' (UUID)
+    department_id: str
     type: str
     status: str
-    assigned_fixer_ids: Optional[List[str]] = []
+    assigned_technician_ids: Optional[List[str]] = []
 
 
 class CloseWorkOrderBody(BaseModel):
@@ -88,8 +88,8 @@ def _get_user_by_id(user_id: str) -> Optional[dict]:
 def _get_user_role(email: str) -> str:
     user = _get_user_by_email(email)
     if not user:
-        return "admin"
-    return (user.get("user_type") or "admin").strip().lower()
+        raise HTTPException(status_code=403, detail="User not found")
+    return (user.get("user_type") or "reporter").strip().lower()
 
 
 def _get_user_id_by_email(email: str) -> Optional[str]:
@@ -99,19 +99,17 @@ def _get_user_id_by_email(email: str) -> Optional[str]:
     return None
 
 
-def _get_fixers_by_department(department_id: str) -> List[str]:
-    """Get list of fixer user IDs that handle a specific department"""
-    # Updated to use department_id instead of department name
-    result = supabase.table("fixer_departments").select("fixer_id").eq("department_id", department_id).execute()
-    return [r.get("fixer_id") for r in (result.data or [])]
+def _get_technicians_by_department(department_id: str) -> List[str]:
+    """Get list of technician user IDs that handle a specific department"""
+    result = supabase.table("technician_departments").select("technician_id").eq("department_id", department_id).execute()
+    return [r.get("technician_id") for r in (result.data or [])]
 
 
-def _get_fixer_departments(fixer_id: str) -> List[str]:
-    """Get list of department IDs that a fixer handles"""
-    if not fixer_id:
+def _get_technician_departments(technician_id: str) -> List[str]:
+    """Get list of department IDs that a technician handles"""
+    if not technician_id:
         return []
-    # Updated to return department_id instead of department name
-    result = supabase.table("fixer_departments").select("department_id").eq("fixer_id", fixer_id).execute()
+    result = supabase.table("technician_departments").select("department_id").eq("technician_id", technician_id).execute()
     return [r.get("department_id") for r in (result.data or []) if r.get("department_id")]
 
 
@@ -149,10 +147,10 @@ def _fetch_full_work_order(work_order_id: str):
             is_active
         ),
         work_order_assignments (
-            fixer_id,
+            technician_id,
             assigned_at,
             assigned_by,
-            users!work_order_assignments_fixer_id_fkey (
+            users!work_order_assignments_technician_id_fkey (
                 id,
                 email,
                 full_name
@@ -164,19 +162,19 @@ def _fetch_full_work_order(work_order_id: str):
     return result.data[0]
 
 
-def _sync_assignments(work_order_id: str, fixer_ids: List[str], assigned_by: str):
+def _sync_assignments(work_order_id: str, technician_ids: List[str], assigned_by: str):
     supabase.table("work_order_assignments") \
         .delete() \
         .eq("work_order_id", work_order_id) \
         .execute()
-    if fixer_ids:
+    if technician_ids:
         assignments = [
             {
                 "work_order_id": work_order_id,
-                "fixer_id": fixer_id,
+                "technician_id": technician_id,
                 "assigned_by": assigned_by
             }
-            for fixer_id in fixer_ids
+            for technician_id in technician_ids
         ]
         supabase.table("work_order_assignments").insert(assignments).execute()
 
@@ -213,10 +211,10 @@ async def list_work_orders(
             is_active
         ),
         work_order_assignments (
-            fixer_id,
+            technician_id,
             assigned_at,
             assigned_by,
-            users!work_order_assignments_fixer_id_fkey (
+            users!work_order_assignments_technician_id_fkey (
                 id,
                 email,
                 full_name
@@ -243,20 +241,17 @@ async def list_work_orders(
     if user_role == "reporter" and email:
         reporter_user_id = _get_user_id_by_email(email)
         if reporter_user_id:
-            # Reporters see only work orders they created
             work_orders = [wo for wo in work_orders if wo.get("created_by") == reporter_user_id]
         else:
             work_orders = []
-    elif user_role == "fixer" and email:
-        fixer_user = _get_user_by_email(email)
-        if fixer_user:
-            fixer_id = str(fixer_user.get("id") or "")
-            fixer_department_ids = _get_fixer_departments(fixer_id)
-            if fixer_department_ids:
-                # Fixers see work orders in departments they handle
-                work_orders = [wo for wo in work_orders if wo.get("department_id") in fixer_department_ids]
+    elif user_role == "technician" and email:
+        tech_user = _get_user_by_email(email)
+        if tech_user:
+            tech_id = str(tech_user.get("id") or "")
+            tech_department_ids = _get_technician_departments(tech_id)
+            if tech_department_ids:
+                work_orders = [wo for wo in work_orders if wo.get("department_id") in tech_department_ids]
             else:
-                # Fixer with no assigned departments - show nothing
                 work_orders = []
         else:
             work_orders = []
@@ -266,10 +261,28 @@ async def list_work_orders(
 
 
 @router.get("/work-orders/{work_order_id}")
-async def get_work_order(work_order_id: str):
+async def get_work_order(
+    work_order_id: str,
+    email: Optional[str] = Query(None),
+    user_role: Optional[str] = Query(None),
+):
     data = _fetch_full_work_order(work_order_id)
     if not data:
         raise HTTPException(status_code=404, detail="Work order not found")
+
+    if user_role == "reporter" and email:
+        reporter_user_id = _get_user_id_by_email(email)
+        if data.get("created_by") != reporter_user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif user_role == "technician" and email:
+        tech_user = _get_user_by_email(email)
+        if tech_user:
+            tech_dept_ids = _get_technician_departments(str(tech_user.get("id", "")))
+            if data.get("department_id") not in tech_dept_ids:
+                raise HTTPException(status_code=403, detail="Access denied")
+        else:
+            raise HTTPException(status_code=403, detail="Access denied")
+
     return {"work_order": data}
 
 
@@ -303,12 +316,12 @@ async def create_work_order(body: CreateWorkOrderBody):
     work_order_id = result.data[0].get("id")
     
     # Sync assignments
-    fixer_ids = body.assigned_fixer_ids or []
-    if not fixer_ids:
-        fixer_ids = _get_fixers_by_department(body.department_id)
-    
-    if fixer_ids:
-        _sync_assignments(work_order_id, fixer_ids, body.created_by)
+    technician_ids = body.assigned_technician_ids or []
+    if not technician_ids:
+        technician_ids = _get_technicians_by_department(body.department_id)
+
+    if technician_ids:
+        _sync_assignments(work_order_id, technician_ids, body.created_by)
 
     created_user_email = body.created_by_email or "unknown"
     log_activity(created_user_email, "work_order", "created",
@@ -358,7 +371,7 @@ async def update_work_order(
     supabase.table("work_orders").update(payload).eq("id", work_order_id).execute()
 
     user_id = _get_user_id_by_email(user_email) or "unknown"
-    _sync_assignments(work_order_id, body.assigned_fixer_ids or [], user_id)
+    _sync_assignments(work_order_id, body.assigned_technician_ids or [], user_id)
 
     if old_status != body.status:
         _log_status_change(work_order_id, old_status, body.status, user_id)

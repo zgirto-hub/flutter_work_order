@@ -98,10 +98,10 @@ class DepartmentService {
     }
   }
 
-  /// Get fixer count for a department
-  Future<int> getFixerCount(String departmentId) async {
+  /// Get technician count for a department
+  Future<int> getTechnicianCount(String departmentId) async {
     final res = await http.get(
-      Uri.parse('${AppConfig.baseUrl}/departments/$departmentId/fixer-count'),
+      Uri.parse('${AppConfig.baseUrl}/departments/$departmentId/technician-count'),
     );
 
     if (res.statusCode != 200) {
@@ -109,7 +109,7 @@ class DepartmentService {
     }
 
     final data = jsonDecode(res.body);
-    return data['fixer_count'] ?? 0;
+    return data['technician_count'] ?? 0;
   }
 
   /// Get work order count for a department

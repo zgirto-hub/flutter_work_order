@@ -1,4 +1,4 @@
-import 'employee_assignment.dart';
+import 'technician_assignment.dart';
 
 class WorkOrder {
   final String id;
@@ -15,10 +15,10 @@ class WorkOrder {
   final String? techNotes;
   final String? createdBy;
   final String? createdByEmail;
-  final String departmentId;  // Changed from 'department' to 'departmentId' (UUID)
-  final String? departmentName;  // Add this for display purposes (from nested departments object)
+  final String departmentId;
+  final String? departmentName;
   final String? mobileNumber;
-  final List<EmployeeAssignment> assignedEmployees;
+  final List<TechnicianAssignment> assignedTechnicians;
 
   const WorkOrder({
     required this.id,
@@ -35,14 +35,13 @@ class WorkOrder {
     this.techNotes,
     this.createdBy,
     this.createdByEmail,
-    this.departmentId = '',  // Changed from 'department'
-    this.departmentName,  // Add this field
+    this.departmentId = '',
+    this.departmentName,
     this.mobileNumber,
-    this.assignedEmployees = const [],
+    this.assignedTechnicians = const [],
   });
 
   factory WorkOrder.fromJson(Map<String, dynamic> json) {
-    // Extract department name from the nested departments object (from SQL JOIN)
     String? deptName;
     if (json['departments'] is Map<String, dynamic>) {
       deptName = json['departments']['name'];
@@ -63,12 +62,12 @@ class WorkOrder {
       techNotes: json['tech_notes'],
       createdBy: json['created_by'],
       createdByEmail: json['created_by_email'] as String?,
-      departmentId: json['department_id'] ?? '',  // Changed from json['department']
-      departmentName: deptName,  // Extract from nested object
+      departmentId: json['department_id'] ?? '',
+      departmentName: deptName,
       mobileNumber: json['mobile_number'],
-      assignedEmployees: (json['work_order_assignments'] as List<dynamic>?)
-              ?.map((assignment) => EmployeeAssignment.fromJson(assignment as Map<String, dynamic>))
-              .where((emp) => emp.id.isNotEmpty)
+      assignedTechnicians: (json['work_order_assignments'] as List<dynamic>?)
+              ?.map((assignment) => TechnicianAssignment.fromJson(assignment as Map<String, dynamic>))
+              .where((tech) => tech.id.isNotEmpty)
               .toList() ??
           [],
     );
@@ -83,10 +82,10 @@ class WorkOrder {
       'status': status,
       'location': location,
       'type': type,
-      'department_id': departmentId,  // Changed from 'department'
+      'department_id': departmentId,
       'mobile_number': mobileNumber,
       'created_by': createdBy,
-      'assigned_fixer_ids': assignedEmployees.map((e) => e.id).toList(),
+      'assigned_technician_ids': assignedTechnicians.map((e) => e.id).toList(),
     };
   }
 
@@ -105,10 +104,10 @@ class WorkOrder {
     String? techNotes,
     String? createdBy,
     String? createdByEmail,
-    String? departmentId,  // Changed from 'department'
-    String? departmentName,  // Add this
+    String? departmentId,
+    String? departmentName,
     String? mobileNumber,
-    List<EmployeeAssignment>? assignedEmployees,
+    List<TechnicianAssignment>? assignedTechnicians,
   }) {
     return WorkOrder(
       id: id ?? this.id,
@@ -125,13 +124,12 @@ class WorkOrder {
       techNotes: techNotes ?? this.techNotes,
       createdBy: createdBy ?? this.createdBy,
       createdByEmail: createdByEmail ?? this.createdByEmail,
-      departmentId: departmentId ?? this.departmentId,  // Changed
-      departmentName: departmentName ?? this.departmentName,  // Add this
+      departmentId: departmentId ?? this.departmentId,
+      departmentName: departmentName ?? this.departmentName,
       mobileNumber: mobileNumber ?? this.mobileNumber,
-      assignedEmployees: assignedEmployees ?? this.assignedEmployees,
+      assignedTechnicians: assignedTechnicians ?? this.assignedTechnicians,
     );
   }
 
-  // Helper getter for backward compatibility - use departmentName for display
   String get department => departmentName ?? 'General';
 }

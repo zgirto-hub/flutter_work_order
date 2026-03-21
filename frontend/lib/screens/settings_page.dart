@@ -16,7 +16,7 @@ import '../services/onesignal_service.dart';
 import '../services/activity_log_service.dart';
 import 'settings/activity_log_screen.dart';
 import 'admin/user_management_screen.dart';
-import 'admin/fixer_reporters_screen.dart';
+import 'admin/technician_departments_screen.dart';
 import 'admin/departments_screen.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -245,7 +245,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       color: AppColors.textTertiary)),
               SizedBox(height: 6),
               Row(
-                children: ['reporter', 'fixer'].map((role) {
+                children: ['reporter', 'technician'].map((role) {
                   final isSel = selectedRole == role;
                   return Expanded(
                     child: GestureDetector(
@@ -269,7 +269,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         child: Center(
                           child: Text(
-                            role == 'reporter' ? 'Reporter' : 'Fixer',
+                            role == 'reporter' ? 'Reporter' : 'Technician',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -622,13 +622,13 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       SettingsRow(
                         icon: Icons.account_tree_outlined,
-                        label: 'Fixer Departments',
-                        subtitle: 'Assign departments to fixers',
+                        label: 'Technician Departments',
+                        subtitle: 'Assign departments to technicians',
                         showDivider: true,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const FixerReportersScreen(),
+                            builder: (_) => const TechnicianDepartmentsScreen(),
                           ),
                         ),
                       ),

@@ -4,7 +4,7 @@ import 'package:printing/printing.dart';
 import '../../models/user.dart';
 import '../../models/workorder_report.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../services/employee_service.dart';
+import '../../services/user_service.dart';
 import '../../services/pdf/work_order_pdf_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -35,7 +35,7 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
 
   Future<void> _loadEmployees() async {
     try {
-      final employees = await EmployeeService().fetchEmployees(techOnly: true);
+      final employees = await UserService().fetchTechnicians();
       setState(() {
         _employees = employees;
         _employeesLoading = false;

@@ -1,4 +1,4 @@
-enum UserType { admin, fixer, reporter }
+enum UserType { admin, technician, reporter }
 
 class AppUser {
   final String id;
@@ -7,6 +7,7 @@ class AppUser {
   final String? fullName;
   final String? mobile;
   final String? location;
+  final String? departmentId;
   final UserType userType;
   final bool isActive;
   final String createdAt;
@@ -19,6 +20,7 @@ class AppUser {
     this.fullName,
     this.mobile,
     this.location,
+    this.departmentId,
     required this.userType,
     this.isActive = true,
     this.createdAt = '',
@@ -33,6 +35,7 @@ class AppUser {
       fullName: json['full_name'],
       mobile: json['mobile'],
       location: json['location'],
+      departmentId: json['department_id'],
       userType: _parseUserType(json['user_type']),
       isActive: json['is_active'] ?? true,
       createdAt: json['created_at'] ?? '',
@@ -48,6 +51,7 @@ class AppUser {
       fullName: json['full_name'] ?? '',
       mobile: json['mobile'],
       location: json['location'],
+      departmentId: json['department_id'],
       userType: _parseUserType(json['user_type'] ?? 'reporter'),
       isActive: true,
       createdAt: json['created_at'] ?? '',
@@ -58,8 +62,8 @@ class AppUser {
     switch (type?.toLowerCase()) {
       case 'admin':
         return UserType.admin;
-      case 'fixer':
-        return UserType.fixer;
+      case 'technician':
+        return UserType.technician;
       case 'reporter':
       default:
         return UserType.reporter;
@@ -70,8 +74,8 @@ class AppUser {
     switch (userType) {
       case UserType.admin:
         return 'admin';
-      case UserType.fixer:
-        return 'fixer';
+      case UserType.technician:
+        return 'technician';
       case UserType.reporter:
         return 'reporter';
     }
@@ -87,6 +91,7 @@ class AppUser {
       'full_name': fullName,
       'mobile': mobile,
       'location': location,
+      'department_id': departmentId,
       'user_type': userTypeString,
       'is_active': isActive,
     };
@@ -99,6 +104,7 @@ class AppUser {
     String? fullName,
     String? mobile,
     String? location,
+    String? departmentId,
     UserType? userType,
     bool? isActive,
     String? createdAt,
@@ -111,6 +117,7 @@ class AppUser {
       fullName: fullName ?? this.fullName,
       mobile: mobile ?? this.mobile,
       location: location ?? this.location,
+      departmentId: departmentId ?? this.departmentId,
       userType: userType ?? this.userType,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,

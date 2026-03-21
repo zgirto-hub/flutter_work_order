@@ -10,7 +10,7 @@ import '../../widgets/work_order_card.dart';
 import '../../services/work_order_service.dart';
 import '../../controllers/filter_controller.dart';
 import '../../filters/work_order_filter_engine.dart';
-import '../../models/employee_assignment.dart';
+import '../../models/technician_assignment.dart';
 import '../../theme/app_theme.dart';
 import 'add_work_order.dart';
 
@@ -288,7 +288,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       return;
     }
     final employees = _workOrders
-        .expand((wo) => wo.assignedEmployees)
+        .expand((wo) => wo.assignedTechnicians)
         .toList();
     final unique = {
       for (var e in employees) e.id: e
@@ -461,11 +461,11 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                           if (_filter.selectedEmployeeId != null)
                             _ActiveFilterChip(
                               label: _workOrders
-                                  .expand((w) => w.assignedEmployees)
+                                  .expand((w) => w.assignedTechnicians)
                                   .firstWhere(
                                     (e) => e.id == _filter.selectedEmployeeId,
                                     orElse: () =>
-                                        EmployeeAssignment(id: '', fullName: ''),
+                                        TechnicianAssignment(id: '', fullName: ''),
                                   )
                                   .fullName,
                               onRemove: () => setState(
@@ -668,7 +668,7 @@ class _ActiveFilterChip extends StatelessWidget {
 // ── Employee picker ───────────────────────────────────────────────────────────
 
 class _EmployeePicker extends StatelessWidget {
-  final List<EmployeeAssignment> employees;
+  final List<TechnicianAssignment> employees;
   const _EmployeePicker({required this.employees});
 
   @override

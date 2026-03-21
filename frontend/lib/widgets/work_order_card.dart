@@ -209,11 +209,11 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                         ),
 
                         // Employees
-                        if (widget.workOrder.assignedEmployees.isNotEmpty) ...[
+                        if (widget.workOrder.assignedTechnicians.isNotEmpty) ...[
                           SizedBox(height: 8),
                           Row(
                             children: [
-                              ...widget.workOrder.assignedEmployees
+                              ...widget.workOrder.assignedTechnicians
                                   .take(3)
                                   .map((emp) => Padding(
                                         padding:
@@ -221,11 +221,11 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                                         child: InitialsAvatar(
                                             name: emp.fullName, size: 22),
                                       )),
-                              if (widget.workOrder.assignedEmployees.length >
+                              if (widget.workOrder.assignedTechnicians.length >
                                   3) ...[
                                 SizedBox(width: 8),
                                 Text(
-                                  '+${widget.workOrder.assignedEmployees.length - 3}',
+                                  '+${widget.workOrder.assignedTechnicians.length - 3}',
                                   style: TextStyle(
                                       fontSize: 11,
                                       color: AppColors.textTertiary),
@@ -287,12 +287,12 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                           ),
                           SizedBox(height: 10),
                         ],
-                        if (widget.workOrder.assignedEmployees.isNotEmpty) ...[
+                        if (widget.workOrder.assignedTechnicians.isNotEmpty) ...[
                           Wrap(
                             spacing: 6,
                             runSpacing: 6,
                             children:
-                                widget.workOrder.assignedEmployees.map((emp) {
+                                widget.workOrder.assignedTechnicians.map((emp) {
                               return Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 10, vertical: 4),

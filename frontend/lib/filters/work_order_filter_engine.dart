@@ -59,7 +59,7 @@ class WorkOrderFilterEngine {
 
       filtered = filtered.where((wo) {
 
-        return wo.assignedEmployees.any(
+        return wo.assignedTechnicians.any(
           (emp) => emp.id == filter.selectedEmployeeId,
         );
 

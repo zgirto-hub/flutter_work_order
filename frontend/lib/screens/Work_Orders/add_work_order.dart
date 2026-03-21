@@ -8,11 +8,11 @@ import '../../models/work_order_comment.dart';
 import '../../models/work_order_attachment.dart';
 import '../../services/work_order_service.dart';
 import '../../models/user.dart';
-import '../../services/employee_service.dart';
+import '../../services/user_service.dart';
 import '../../services/department_service.dart';
 import '../../models/department.dart';
-import '../../models/employee_assignment.dart';
-import '../../widgets/employee_selector.dart';
+import '../../models/technician_assignment.dart';
+import '../../widgets/technician_selector.dart';
 import '../../widgets/attachment_widget.dart';
 import '../../theme/app_theme.dart';
 import '../../config.dart';
@@ -42,7 +42,7 @@ class AddWorkOrderScreen extends StatefulWidget {
 }
 
 class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
-  final EmployeeService _employeeService = EmployeeService();
+  final UserService _userService = UserService();
   final DepartmentService _departmentService = DepartmentService();
   final WorkOrderService _service = WorkOrderService();
   final _formKey = GlobalKey<FormState>();
@@ -223,12 +223,12 @@ Future<void> _loadDepartments() async {
   }
 
   Future<void> _loadEmployees() async {
-    final data = await _employeeService.fetchEmployees();
+    final data = await _userService.fetchTechnicians();
     setState(() {
       _employees = data;
       if (widget.workOrder != null) {
         _selectedEmployeeIds =
-            widget.workOrder!.assignedEmployees.map((emp) => emp.id).toList();
+            widget.workOrder!.assignedTechnicians.map((t) => t.id).toList();
       }
     });
   }
@@ -386,8 +386,8 @@ Future<void> _loadDepartments() async {
         type: selectedType,
         dateCreated: widget.workOrder?.dateCreated ?? now,
         dateModified: now,
-        assignedEmployees: _selectedEmployeeIds
-            .map((id) => EmployeeAssignment(id: id, fullName: ''))
+        assignedTechnicians: _selectedEmployeeIds
+            .map((id) => TechnicianAssignment(id: id, fullName: ''))
             .toList(),
       );
 
@@ -952,8 +952,8 @@ Future<void> _loadDepartments() async {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => EmployeeSelector(
-        employees: _employees,
+      builder: (context) => TechnicianSelector(
+        technicians: _employees,
         selectedIds: _selectedEmployeeIds,
         onChanged: (ids) => setState(() => _selectedEmployeeIds = ids),
       ),

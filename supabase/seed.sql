@@ -5,10 +5,10 @@ INSERT INTO departments (id, name) VALUES
   ('11111111-0000-0000-0000-000000000003', 'Plumbing')
 ON CONFLICT DO NOTHING;
 
--- ── Users (fixers + admin) ────────────────────────────────────
+-- ── Users (technicians + admin) ──────────────────────────────
 INSERT INTO users (id, email, full_name, user_type, is_active) VALUES
-  ('22222222-0000-0000-0000-000000000001', 'ahmed@company.com',   'Ahmed Al-Rashidi',  'fixer', true),
-  ('22222222-0000-0000-0000-000000000002', 'mohammed@company.com','Mohammed Al-Harbi', 'fixer', true),
+  ('22222222-0000-0000-0000-000000000001', 'ahmed@company.com',   'Ahmed Al-Rashidi',  'technician', true),
+  ('22222222-0000-0000-0000-000000000002', 'mohammed@company.com','Mohammed Al-Harbi', 'technician', true),
   ('22222222-0000-0000-0000-000000000003', 'khalid@company.com',  'Khalid Al-Otaibi',  'admin', true),
   ('22222222-0000-0000-0000-000000000004', 'sara@company.com',    'Sara Al-Qahtani',   'reporter', true)
 ON CONFLICT DO NOTHING;
@@ -28,7 +28,7 @@ INSERT INTO work_orders (id, job_no, title, description, location, department_id
 ON CONFLICT DO NOTHING;
 
 -- ── Work Order Assignments ────────────────────────────────────
-INSERT INTO work_order_assignments (work_order_id, fixer_id, assigned_at, assigned_by) VALUES
+INSERT INTO work_order_assignments (work_order_id, technician_id, assigned_at, assigned_by) VALUES
   ('33333333-0000-0000-0000-000000000001', '22222222-0000-0000-0000-000000000001', '2026-02-01 08:10:00+03', '22222222-0000-0000-0000-000000000003'),
   ('33333333-0000-0000-0000-000000000002', '22222222-0000-0000-0000-000000000001', '2026-02-03 09:10:00+03', '22222222-0000-0000-0000-000000000003'),
   ('33333333-0000-0000-0000-000000000003', '22222222-0000-0000-0000-000000000001', '2026-02-05 10:10:00+03', '22222222-0000-0000-0000-000000000003'),

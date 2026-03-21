@@ -13,7 +13,7 @@ class DepartmentsScreen extends StatefulWidget {
 class _DepartmentsScreenState extends State<DepartmentsScreen> {
   final _service = DepartmentService();
   List<Department> _departments = [];
-  Map<String, int> _fixerCounts = {};
+  Map<String, int> _technicianCounts = {};
   Map<String, int> _workOrderCounts = {};
   bool _loading = true;
   String? _error;
@@ -33,17 +33,17 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
       final departments = await _service.fetchDepartments();
       
       // Load counts for each department
-      final fixerCounts = <String, int>{};
+      final technicianCounts = <String, int>{};
       final woCounts = <String, int>{};
       
       for (final dept in departments) {
-        fixerCounts[dept.id] = await _service.getFixerCount(dept.id);
+        technicianCounts[dept.id] = await _service.getTechnicianCount(dept.id);
         woCounts[dept.id] = await _service.getWorkOrderCount(dept.id);
       }
       
       setState(() {
         _departments = departments;
-        _fixerCounts = fixerCounts;
+        _technicianCounts = technicianCounts;
         _workOrderCounts = woCounts;
         _loading = false;
       });
@@ -172,7 +172,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
   }
 
   Widget _buildDepartmentCard(Department department) {
-    final fixerCount = _fixerCounts[department.id] ?? 0;
+    final fixerCount = _technicianCounts[department.id] ?? 0;
     final woCount = _workOrderCounts[department.id] ?? 0;
 
     return Container(

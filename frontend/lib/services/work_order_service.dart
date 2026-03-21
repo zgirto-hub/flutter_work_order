@@ -74,8 +74,8 @@ class WorkOrderService {
         'status': workOrder.status,
         'created_by': _userId,
         'created_by_email': _email,
-        'assigned_fixer_ids':
-            workOrder.assignedEmployees.map((e) => e.id).toList(),
+        'assigned_technician_ids':
+            workOrder.assignedTechnicians.map((e) => e.id).toList(),
       }),
     );
 
@@ -102,8 +102,8 @@ class WorkOrderService {
         'department_id': workOrder.departmentId,
         'type': workOrder.type,
         'status': workOrder.status,
-        'assigned_fixer_ids':
-            workOrder.assignedEmployees.map((e) => e.id).toList(),
+        'assigned_technician_ids':
+            workOrder.assignedTechnicians.map((e) => e.id).toList(),
       }),
     );
 

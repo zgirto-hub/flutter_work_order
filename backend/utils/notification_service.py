@@ -74,10 +74,10 @@ def _resolve_assigned_emails(work_order_id: str) -> Set[str]:
     out: Set[str] = set()
 
     assignments = supabase.table("work_order_assignments") \
-        .select("user_id") \
+        .select("technician_id") \
         .eq("work_order_id", work_order_id) \
         .execute()
-    user_ids = [r.get("user_id") for r in (assignments.data or []) if r.get("user_id")]
+    user_ids = [r.get("technician_id") for r in (assignments.data or []) if r.get("technician_id")]
     if not user_ids:
         return out
 

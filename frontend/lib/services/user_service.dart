@@ -60,9 +60,10 @@ class UserService {
     required String fullName,
     String? mobile,
     String? location,
+    String? departmentId,
   }) async {
     final res = await http.post(
-      Uri.parse('${AppConfig.baseUrl}/users'),
+      Uri.parse('${AppConfig.baseUrl}/users?admin_email=${Uri.encodeComponent(_email)}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'email': email,
@@ -71,6 +72,7 @@ class UserService {
         'full_name': fullName,
         'mobile': mobile ?? '',
         'location': location ?? '',
+        if (departmentId != null) 'department_id': departmentId,
       }),
     );
 
@@ -86,14 +88,16 @@ class UserService {
     String? fullName,
     String? mobile,
     String? location,
+    String? departmentId,
   }) async {
     final body = <String, dynamic>{};
     if (fullName != null) body['full_name'] = fullName;
     if (mobile != null) body['mobile'] = mobile;
     if (location != null) body['location'] = location;
+    if (departmentId != null) body['department_id'] = departmentId;
 
     final res = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/users/$userId'),
+      Uri.parse('${AppConfig.baseUrl}/users/$userId?admin_email=${Uri.encodeComponent(_email)}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(body),
     );
@@ -108,7 +112,7 @@ class UserService {
     required String userType,
   }) async {
     final res = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/users/$userId/role'),
+      Uri.parse('${AppConfig.baseUrl}/users/$userId/role?admin_email=${Uri.encodeComponent(_email)}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'user_type': userType}),
     );
@@ -120,7 +124,7 @@ class UserService {
 
   Future<void> deactivateUser(String userId) async {
     final res = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/users/$userId/deactivate'),
+      Uri.parse('${AppConfig.baseUrl}/users/$userId/deactivate?admin_email=${Uri.encodeComponent(_email)}'),
     );
     if (res.statusCode != 200) {
       throw Exception(_errorDetail(res, 'Failed to deactivate user'));
@@ -129,39 +133,11 @@ class UserService {
 
   Future<void> activateUser(String userId) async {
     final res = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/users/$userId/activate'),
+      Uri.parse('${AppConfig.baseUrl}/users/$userId/activate?admin_email=${Uri.encodeComponent(_email)}'),
     );
     if (res.statusCode != 200) {
       throw Exception(_errorDetail(res, 'Failed to activate user'));
     }
-  }
-
-  Future<String?> register({
-    required String email,
-    required String password,
-    required String fullName,
-    required String department,
-    required String mobile,
-    required String location,
-  }) async {
-    final res = await http.post(
-      Uri.parse('${AppConfig.baseUrl}/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-        'full_name': fullName,
-        'department': department,
-        'mobile': mobile,
-        'location': location,
-      }),
-    );
-
-    if (res.statusCode == 200) {
-      final data = jsonDecode(res.body);
-      return data['email'];
-    }
-    throw Exception(_errorDetail(res, 'Failed to register'));
   }
 
   Future<String> getUserRole() async {
@@ -175,9 +151,9 @@ class UserService {
     return 'reporter';
   }
 
-  Future<List<String>> getFixerDepartments(String userId) async {
+  Future<List<String>> getTechnicianDepartments(String userId) async {
     final res = await http.get(
-      Uri.parse('${AppConfig.baseUrl}/fixer-departments/user/$userId'),
+      Uri.parse('${AppConfig.baseUrl}/technician-departments/user/$userId'),
     );
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
@@ -186,20 +162,20 @@ class UserService {
     return [];
   }
 
-  Future<void> setFixerDepartments(String userId, List<String> departments) async {
+  Future<void> setTechnicianDepartments(String userId, List<String> departments) async {
     final res = await http.post(
-      Uri.parse('${AppConfig.baseUrl}/fixer-departments/bulk/$userId'),
+      Uri.parse('${AppConfig.baseUrl}/technician-departments/bulk/$userId'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'departments': departments}),
     );
     if (res.statusCode != 200) {
-      throw Exception(_errorDetail(res, 'Failed to update fixer departments'));
+      throw Exception(_errorDetail(res, 'Failed to update technician departments'));
     }
   }
 
-  Future<List<AppUser>> fetchFixers() async {
+  Future<List<AppUser>> fetchTechnicians() async {
     final users = await fetchUsers();
-    return users.where((u) => u.userType == UserType.fixer && u.isActive).toList();
+    return users.where((u) => u.userType == UserType.technician && u.isActive).toList();
   }
 
   Future<List<String>> fetchDepartments() async {

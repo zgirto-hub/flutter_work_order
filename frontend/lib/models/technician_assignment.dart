@@ -1,4 +1,4 @@
-class EmployeeAssignment {
+class TechnicianAssignment {
   final String id;
   final String fullName;
   final String? email;
@@ -6,7 +6,7 @@ class EmployeeAssignment {
   final String? assignedAt;
   final String? assignedBy;
 
-  const EmployeeAssignment({
+  const TechnicianAssignment({
     required this.id,
     required this.fullName,
     this.email,
@@ -15,12 +15,12 @@ class EmployeeAssignment {
     this.assignedBy,
   });
 
-  factory EmployeeAssignment.fromJson(Map<String, dynamic> json) {
+  factory TechnicianAssignment.fromJson(Map<String, dynamic> json) {
     final users = json['users'] as Map<String, dynamic>?;
-    final fixerId = json['fixer_id'] ?? users?['id'] ?? '';
-    
-    return EmployeeAssignment(
-      id: fixerId,
+    final technicianId = json['technician_id'] ?? users?['id'] ?? '';
+
+    return TechnicianAssignment(
+      id: technicianId,
       fullName: users?['full_name'] ?? '',
       email: users?['email'],
       department: users?['department'],
@@ -31,7 +31,7 @@ class EmployeeAssignment {
 
   Map<String, dynamic> toJson() {
     return {
-      'fixer_id': id,
+      'technician_id': id,
       'full_name': fullName,
       'email': email,
       'department': department,

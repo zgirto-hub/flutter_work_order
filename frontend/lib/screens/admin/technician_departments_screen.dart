@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import '../../services/fixer_reporter_service.dart';
+import '../../services/technician_department_service.dart';
 import '../../models/user.dart';
 import '../../theme/app_theme.dart';
 
-class FixerReportersScreen extends StatefulWidget {
-  const FixerReportersScreen({super.key});
+class TechnicianDepartmentsScreen extends StatefulWidget {
+  const TechnicianDepartmentsScreen({super.key});
 
   @override
-  State<FixerReportersScreen> createState() => _FixerReportersScreenState();
+  State<TechnicianDepartmentsScreen> createState() => _TechnicianDepartmentsScreenState();
 }
 
-class _FixerReportersScreenState extends State<FixerReportersScreen> {
-  final _service = FixerReporterService();
+class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScreen> {
+  final _service = TechnicianDepartmentService();
   List<Map<String, dynamic>> _mappings = [];
-  List<AppUser> _fixers = [];
+  List<AppUser> _technicians = [];
   bool _loading = true;
   String? _error;
 
@@ -30,12 +30,12 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
     });
     try {
       final results = await Future.wait([
-        _service.fetchFixerDepartments(),
-        _service.fetchFixers(),
+        _service.fetchTechnicianDepartments(),
+        _service.fetchTechnicians(),
       ]);
       setState(() {
         _mappings = (results[0] as List).cast<Map<String, dynamic>>();
-        _fixers = (results[1] as List).cast<AppUser>();
+        _technicians = (results[1] as List).cast<AppUser>();
         _loading = false;
       });
     } catch (e) {
@@ -46,13 +46,13 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
     }
   }
 
-  Map<String, List<String>> get _groupedByFixer {
+  Map<String, List<String>> get _groupedByTechnician {
     final Map<String, List<String>> grouped = {};
     for (final mapping in _mappings) {
-      final fixerEmail = mapping['users']?['email'] ?? '';
+      final techEmail = mapping['users']?['email'] ?? '';
       final dept = mapping['department'] as String? ?? '';
-      if (fixerEmail.isNotEmpty && dept.isNotEmpty) {
-        grouped.putIfAbsent(fixerEmail, () => []).add(dept);
+      if (techEmail.isNotEmpty && dept.isNotEmpty) {
+        grouped.putIfAbsent(techEmail, () => []).add(dept);
       }
     }
     return grouped;
@@ -95,7 +95,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
               ),
             ),
           Expanded(
-            child: Text('Fixer Departments',
+            child: Text('Technician Departments',
                 style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -141,8 +141,8 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
       );
     }
 
-    final grouped = _groupedByFixer;
-    
+    final grouped = _groupedByTechnician;
+
     if (grouped.isEmpty) {
       return Center(
         child: Column(
@@ -150,7 +150,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
           children: [
             Icon(Icons.engineering_outlined, size: 48, color: AppColors.textTertiary),
             SizedBox(height: 12),
-            Text('No fixer-department mappings',
+            Text('No technician-department mappings',
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
             SizedBox(height: 16),
             ElevatedButton.icon(
@@ -175,18 +175,18 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
         itemBuilder: (context, index) {
           final email = grouped.keys.elementAt(index);
           final depts = grouped[email]!;
-          return _buildFixerCard(email, depts);
+          return _buildTechnicianCard(email, depts);
         },
       ),
     );
   }
 
-  Widget _buildFixerCard(String fixerEmail, List<String> departments) {
-    final fixer = _fixers.firstWhere(
-      (f) => f.email == fixerEmail,
-      orElse: () => AppUser(id: '', email: fixerEmail, userType: UserType.fixer),
+  Widget _buildTechnicianCard(String techEmail, List<String> departments) {
+    final technician = _technicians.firstWhere(
+      (t) => t.email == techEmail,
+      orElse: () => AppUser(id: '', email: techEmail, userType: UserType.technician),
     );
-    final name = fixer.fullName ?? fixerEmail.split('@').first;
+    final name = technician.fullName ?? techEmail.split('@').first;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -199,7 +199,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () => _showEditDialog(context, fixerEmail, departments),
+          onTap: () => _showEditDialog(context, techEmail, departments),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -226,7 +226,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
                           Text(name,
                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
                                   color: AppColors.textPrimary)),
-                          Text(fixerEmail,
+                          Text(techEmail,
                               style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
                         ],
                       ),
@@ -237,7 +237,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
                         color: AppColors.accent.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text('FIXER',
+                      child: Text('TECHNICIAN',
                           style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.accent)),
                     ),
                   ],
@@ -271,14 +271,14 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
   }
 
   Future<void> _showAddDialog(BuildContext context) async {
-    if (_fixers.isEmpty) {
+    if (_technicians.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No fixers available. Create a fixer user first.'), backgroundColor: AppColors.dangerText),
+        SnackBar(content: Text('No technicians available. Create a technician user first.'), backgroundColor: AppColors.dangerText),
       );
       return;
     }
 
-    AppUser? selectedFixer;
+    AppUser? selectedTechnician;
     final selectedDepts = <String>[];
     final allDepts = ['Operations', 'ATC', 'Finance', 'NOTAM', 'MET', 'IT-Support', 'Helpdesk', 'General'];
     bool loading = false;
@@ -290,7 +290,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
         builder: (ctx, setDlg) => AlertDialog(
           backgroundColor: AppColors.bgSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          title: Text('Add Fixer Department',
+          title: Text('Add Technician Department',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           content: SizedBox(
             width: double.maxFinite,
@@ -298,7 +298,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Fixer',
+                Text('Technician',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
                 SizedBox(height: 6),
                 Container(
@@ -310,14 +310,14 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<AppUser>(
-                      value: selectedFixer,
+                      value: selectedTechnician,
                       isExpanded: true,
-                      hint: Text('Select fixer', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
-                      items: _fixers.map((f) {
-                        final name = f.fullName ?? f.email.split('@').first;
-                        return DropdownMenuItem(value: f, child: Text(name));
+                      hint: Text('Select technician', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
+                      items: _technicians.map((t) {
+                        final name = t.fullName ?? t.email.split('@').first;
+                        return DropdownMenuItem(value: t, child: Text(name));
                       }).toList(),
-                      onChanged: (v) => setDlg(() => selectedFixer = v),
+                      onChanged: (v) => setDlg(() => selectedTechnician = v),
                     ),
                   ),
                 ),
@@ -367,12 +367,12 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
             ElevatedButton(
-              onPressed: selectedFixer == null || selectedDepts.isEmpty || loading
+              onPressed: selectedTechnician == null || selectedDepts.isEmpty || loading
                   ? null
                   : () async {
                       setDlg(() => loading = true);
                       try {
-                        await _service.setFixerDepartments(selectedFixer!.id, selectedDepts);
+                        await _service.setTechnicianDepartments(selectedTechnician!.id, selectedDepts);
                         if (dialogCtx.mounted) Navigator.pop(dialogCtx);
                         _loadData();
                       } catch (e) {
@@ -392,10 +392,10 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
     );
   }
 
-  Future<void> _showEditDialog(BuildContext context, String fixerEmail, List<String> currentDepts) async {
-    final fixer = _fixers.firstWhere(
-      (f) => f.email == fixerEmail,
-      orElse: () => AppUser(id: '', email: fixerEmail, userType: UserType.fixer),
+  Future<void> _showEditDialog(BuildContext context, String techEmail, List<String> currentDepts) async {
+    final technician = _technicians.firstWhere(
+      (t) => t.email == techEmail,
+      orElse: () => AppUser(id: '', email: techEmail, userType: UserType.technician),
     );
     final allDepts = ['Operations', 'ATC', 'Finance', 'NOTAM', 'MET', 'IT-Support', 'Helpdesk', 'General'];
     final selectedDepts = List<String>.from(currentDepts);
@@ -408,7 +408,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
         builder: (ctx, setDlg) => AlertDialog(
           backgroundColor: AppColors.bgSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          title: Text('Edit ${fixer.fullName ?? fixerEmail}',
+          title: Text('Edit ${technician.fullName ?? techEmail}',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           content: SizedBox(
             width: double.maxFinite,
@@ -463,7 +463,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
               onPressed: () async {
                 setDlg(() => loading = true);
                 try {
-                  await _service.setFixerDepartments(fixer.id, []);
+                  await _service.setTechnicianDepartments(technician.id, []);
                   if (dialogCtx.mounted) Navigator.pop(dialogCtx);
                   _loadData();
                 } catch (e) {
@@ -479,7 +479,7 @@ class _FixerReportersScreenState extends State<FixerReportersScreen> {
                   : () async {
                       setDlg(() => loading = true);
                       try {
-                        await _service.setFixerDepartments(fixer.id, selectedDepts);
+                        await _service.setTechnicianDepartments(technician.id, selectedDepts);
                         if (dialogCtx.mounted) Navigator.pop(dialogCtx);
                         _loadData();
                       } catch (e) {

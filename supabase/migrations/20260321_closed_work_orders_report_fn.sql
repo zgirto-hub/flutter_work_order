@@ -13,7 +13,7 @@ AS $$
     wo.closed_at
   FROM work_order_assignments a
   JOIN work_orders wo ON wo.id = a.work_order_id
-  WHERE a.fixer_id = emp_id
+  WHERE a.technician_id = emp_id
     AND wo.closed_at::date >= start_date
     AND wo.closed_at::date <= end_date
   ORDER BY wo.closed_at DESC;
