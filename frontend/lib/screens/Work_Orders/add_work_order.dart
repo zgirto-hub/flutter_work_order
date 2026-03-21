@@ -191,15 +191,14 @@ Future<void> _loadDepartments() async {
     if (email.isEmpty) return;
     try {
       final res = await http.get(
-        Uri.parse('${AppConfig.baseUrl}/employee-profile?email=${Uri.encodeComponent(email)}'),
+        Uri.parse('${AppConfig.baseUrl}/users/me?email=${Uri.encodeComponent(email)}'),
       );
       if (res.statusCode == 200 && mounted) {
         final data = jsonDecode(res.body);
-        final emp = data['employee'];
-        if (emp != null) {
+        final user = data['user'];
+        if (user != null) {
           setState(() {
-            selectedDepartment = (emp['department'] ?? 'General').toString();
-            mobileController.text = (emp['mobile'] ?? '').toString();
+            mobileController.text = (user['mobile'] ?? '').toString();
           });
         }
       }

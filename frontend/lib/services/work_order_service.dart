@@ -204,11 +204,11 @@ class WorkOrderService {
 
   Future<Map<String, dynamic>?> getEmployeeProfile() async {
     final res = await http.get(
-      Uri.parse('${AppConfig.baseUrl}/employee-profile?email=${Uri.encodeComponent(_email)}'),
+      Uri.parse('${AppConfig.baseUrl}/users/me?email=${Uri.encodeComponent(_email)}'),
     );
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
-      return data['employee'];
+      return data['user'];
     }
     return null;
   }
