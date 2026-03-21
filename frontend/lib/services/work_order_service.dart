@@ -17,7 +17,16 @@ class WorkOrderService {
   String _errorDetail(http.Response res, String fallback) {
     try {
       final body = jsonDecode(res.body);
-      return (body is Map ? body['detail'] : null) ?? fallback;
+      if (body is! Map) return fallback;
+      final detail = body['detail'];
+      if (detail is String) return detail;
+      if (detail is List) {
+        // FastAPI 422 validation error format
+        return detail
+            .map((e) => e is Map ? '${e['loc']?.last ?? ''}: ${e['msg'] ?? ''}' : e.toString())
+            .join(', ');
+      }
+      return fallback;
     } catch (_) {
       return fallback;
     }
@@ -60,7 +69,7 @@ class WorkOrderService {
         'description': workOrder.description,
         'location': workOrder.location,
         'mobile_number': workOrder.mobileNumber,
-        'department': workOrder.department,
+        'department_id': workOrder.departmentId,
         'type': workOrder.type,
         'status': workOrder.status,
         'created_by': _userId,
@@ -72,7 +81,7 @@ class WorkOrderService {
 
     if (res.statusCode != 200) {
       final errorMsg = _errorDetail(res, 'Failed to create work order');
-      throw Exception('Error ${res.statusCode}: $errorMsg');
+      throw Exception('Error ${res.statusCode}: $errorMsg\nRAW: ${res.body}');
     }
 
     final data = jsonDecode(res.body);
@@ -80,7 +89,7 @@ class WorkOrderService {
   }
 
   Future<void> updateWorkOrder(WorkOrder workOrder) async {
-    final res = await http.patch(
+    final res = await http.put(
       Uri.parse(
           '${AppConfig.baseUrl}/work-orders/${workOrder.id}?user_email=${Uri.encodeComponent(_email)}'),
       headers: {'Content-Type': 'application/json'},
@@ -90,10 +99,10 @@ class WorkOrderService {
         'description': workOrder.description,
         'location': workOrder.location,
         'mobile_number': workOrder.mobileNumber,
-        'department': workOrder.department,
+        'department_id': workOrder.departmentId,
         'type': workOrder.type,
         'status': workOrder.status,
-        'assigned_user_ids':
+        'assigned_fixer_ids':
             workOrder.assignedEmployees.map((e) => e.id).toList(),
       }),
     );

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
-import '../../../../models/employee.dart';
-import '../../../../models/workorder_report.dart';
-import '../../../../services/pdf/work_order_pdf_service.dart';
-import '../../../../theme/app_theme.dart';
+import '../../models/employee.dart';
+import '../../models/workorder_report.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/employee_service.dart';
+import '../../services/pdf/work_order_pdf_service.dart';
+import '../../theme/app_theme.dart';
 
 class WorkOrderReportScreen extends StatefulWidget {
   const WorkOrderReportScreen({super.key});
@@ -34,13 +35,9 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
 
   Future<void> _loadEmployees() async {
     try {
-      final data = await Supabase.instance.client
-          .from('employees')
-          .select('id, full_name, shift_type, active, profile_id')
-          .eq('active', true)
-          .order('full_name');
+      final employees = await EmployeeService().fetchEmployees(techOnly: true);
       setState(() {
-        _employees = (data as List).map((e) => Employee.fromJson(e)).toList();
+        _employees = employees;
         _employeesLoading = false;
       });
     } catch (e) {

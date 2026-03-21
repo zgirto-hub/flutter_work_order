@@ -10,6 +10,7 @@ import '../../services/work_order_service.dart';
 import '../../models/employee.dart';
 import '../../services/employee_service.dart';
 import '../../services/department_service.dart';
+import '../../models/department.dart';
 import '../../models/employee_assignment.dart';
 import '../../widgets/employee_selector.dart';
 import '../../widgets/attachment_widget.dart';
@@ -60,10 +61,11 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   final TextEditingController locationController = TextEditingController();
   final TextEditingController mobileController = TextEditingController();
   String selectedDepartment = "General";
+  String selectedDepartmentId = '';
 
   String selectedStatus = "Pending";
   String selectedType = "Technical";
-  List<String> _departments = [];
+  List<Department> _departments = [];
 
   // Activity tab state
   int _tabIndex = 0;
@@ -105,6 +107,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       locationController.text = widget.workOrder!.location;
       mobileController.text = widget.workOrder!.mobileNumber ?? '';
       selectedDepartment = widget.workOrder!.department;
+      selectedDepartmentId = widget.workOrder!.departmentId;
       selectedStatus = _allowedStatuses.contains(widget.workOrder!.status)
           ? widget.workOrder!.status
           : "Pending";
@@ -122,16 +125,24 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     }
   }
 
-  Future<void> _loadDepartments() async {
-    try {
-      final departments = await _departmentService.fetchDepartments();
-      if (mounted) {
-        setState(() {
-          _departments = departments..sort();
-        });
-      }
-    } catch (_) {}
-  }
+Future<void> _loadDepartments() async {
+  try {
+    final departments = await _departmentService.fetchDepartments(isActive: true);
+    if (mounted) {
+      setState(() {
+        _departments = departments..sort((a, b) => a.name.compareTo(b.name));
+        // Sync selectedDepartmentId from name match or default to first
+        final match = _departments.where((d) => d.name == selectedDepartment).firstOrNull;
+        if (match != null) {
+          selectedDepartmentId = match.id;
+        } else if (_departments.isNotEmpty && selectedDepartmentId.isEmpty) {
+          selectedDepartment = _departments.first.name;
+          selectedDepartmentId = _departments.first.id;
+        }
+      });
+    }
+  } catch (_) {}
+}
 
   Future<void> _loadUserRole() async {
     try {
@@ -352,6 +363,14 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       return;
     }
     if (!_formKey.currentState!.validate()) return;
+    if (selectedDepartmentId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Please select a department'),
+        backgroundColor: Colors.orange,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
     try {
       final now = DateTime.now().toIso8601String();
       final newWorkOrder = WorkOrder(
@@ -362,7 +381,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         description: descriptionController.text.trim(),
         location: locationController.text.trim(),
         mobileNumber: mobileController.text.trim(),
-        department: selectedDepartment,
+        departmentName: selectedDepartment,
+        departmentId: selectedDepartmentId,
         type: selectedType,
         dateCreated: widget.workOrder?.dateCreated ?? now,
         dateModified: now,
@@ -441,6 +461,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       resizeToAvoidBottomInset: true,
+      bottomNavigationBar:
+          (isEditing && _tabIndex == 1) ? _buildComposeBar() : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -536,8 +558,6 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                   ? _buildActivityTab()
                   : _buildDetailsTab(),
             ),
-            // ── Compose bar (activity tab only) ───────────────────
-            if (isEditing && _tabIndex == 1) _buildComposeBar(),
           ],
         ),
       ),
@@ -607,11 +627,19 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
             ),
             SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              initialValue: _departments.contains(selectedDepartment) ? selectedDepartment : (_departments.isNotEmpty ? _departments.first : 'General'),
+              initialValue: _departments.any((d) => d.name == selectedDepartment) ? selectedDepartment : (_departments.isNotEmpty ? _departments.first.name : 'General'),
               items: _departments.isEmpty
                   ? [DropdownMenuItem(value: 'General', child: Text('General'))]
-                  : _departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
-              onChanged: canEdit ? (v) => setState(() => selectedDepartment = v!) : null,
+                  : _departments.map((d) => DropdownMenuItem(value: d.name, child: Text(d.name))).toList(),
+              onChanged: canEdit ? (v) {
+                if (v != null) {
+                  final dept = _departments.firstWhere((d) => d.name == v, orElse: () => _departments.first);
+                  setState(() {
+                    selectedDepartment = dept.name;
+                    selectedDepartmentId = dept.id;
+                  });
+                }
+              } : null,
               decoration: InputDecoration(labelText: "Department"),
             ),
             SizedBox(height: 10),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/employee.dart';
+import '../models/user.dart';
 
 class EmployeeSelector extends StatefulWidget {
-  final List<Employee> employees;
+  final List<AppUser> employees;
   final List<String> selectedIds;
   final Function(List<String>) onChanged;
 
@@ -31,7 +31,7 @@ class _EmployeeSelectorState extends State<EmployeeSelector> {
   Widget build(BuildContext context) {
     final filteredEmployees = widget.employees
         .where((e) =>
-            e.fullName.toLowerCase().contains(search.toLowerCase()))
+            (e.fullName ?? '').toLowerCase().contains(search.toLowerCase()))
         .toList();
 
     return Padding(
@@ -79,8 +79,7 @@ class _EmployeeSelectorState extends State<EmployeeSelector> {
 
                   return CheckboxListTile(
                     value: isSelected,
-                    title: Text(employee.fullName),
-                    subtitle: Text(employee.shiftType),
+                    title: Text(employee.displayName),
                     onChanged: (value) {
                       setState(() {
                         if (value == true) {

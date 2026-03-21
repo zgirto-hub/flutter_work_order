@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/department_service.dart';
+import '../../models/department.dart';
 import '../../theme/app_theme.dart';
 
 class DepartmentsScreen extends StatefulWidget {
@@ -11,8 +12,9 @@ class DepartmentsScreen extends StatefulWidget {
 
 class _DepartmentsScreenState extends State<DepartmentsScreen> {
   final _service = DepartmentService();
-  List<String> _departments = [];
-  Map<String, int> _userCounts = {};
+  List<Department> _departments = [];
+  Map<String, int> _fixerCounts = {};
+  Map<String, int> _workOrderCounts = {};
   bool _loading = true;
   String? _error;
 
@@ -29,13 +31,20 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
     });
     try {
       final departments = await _service.fetchDepartments();
-      final counts = <String, int>{};
+      
+      // Load counts for each department
+      final fixerCounts = <String, int>{};
+      final woCounts = <String, int>{};
+      
       for (final dept in departments) {
-        counts[dept] = await _service.getUserCount(dept);
+        fixerCounts[dept.id] = await _service.getFixerCount(dept.id);
+        woCounts[dept.id] = await _service.getWorkOrderCount(dept.id);
       }
+      
       setState(() {
         _departments = departments;
-        _userCounts = counts;
+        _fixerCounts = fixerCounts;
+        _workOrderCounts = woCounts;
         _loading = false;
       });
     } catch (e) {
@@ -118,7 +127,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
           children: [
             Icon(Icons.error_outline, size: 48, color: AppColors.dangerText),
             SizedBox(height: 12),
-            Text('Failed to load departments',
+            Text(_error ?? 'Failed to load departments',
                 style: TextStyle(color: AppColors.textSecondary)),
             SizedBox(height: 8),
             ElevatedButton(
@@ -162,8 +171,9 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
     );
   }
 
-  Widget _buildDepartmentCard(String department) {
-    final userCount = _userCounts[department] ?? 0;
+  Widget _buildDepartmentCard(Department department) {
+    final fixerCount = _fixerCounts[department.id] ?? 0;
+    final woCount = _workOrderCounts[department.id] ?? 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -176,7 +186,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () => _showRenameDialog(context, department),
+          onTap: () => _showEditDialog(context, department),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(
@@ -196,21 +206,21 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(department,
+                      Text(department.name,
                           style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textPrimary)),
                       SizedBox(height: 2),
                       Text(
-                          '$userCount user${userCount == 1 ? '' : 's'}',
+                          '$fixerCount fixer${fixerCount == 1 ? '' : 's'} • $woCount work order${woCount == 1 ? '' : 's'}',
                           style: TextStyle(
                               fontSize: 11, color: AppColors.textTertiary)),
                     ],
                   ),
                 ),
                 IconButton(
-                  onPressed: () => _confirmDelete(department, userCount),
+                  onPressed: () => _confirmDelete(department, fixerCount, woCount),
                   icon: Icon(Icons.delete_outline,
                       size: 18, color: AppColors.dangerText),
                   padding: EdgeInsets.zero,
@@ -227,11 +237,6 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
   Future<void> _showAddDialog(BuildContext context) async {
     final nameCtrl = TextEditingController();
     bool loading = false;
-    bool hasText = false;
-
-    nameCtrl.addListener(() {
-      hasText = nameCtrl.text.trim().isNotEmpty;
-    });
 
     await showDialog(
       context: context,
@@ -240,8 +245,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
         builder: (ctx, setDlg) {
           return AlertDialog(
             backgroundColor: AppColors.bgSurface,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             title: Text('Add Department',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             content: Column(
@@ -266,8 +270,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                     style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Enter department name',
-                      hintStyle:
-                          TextStyle(fontSize: 14, color: AppColors.textTertiary),
+                      hintStyle: TextStyle(fontSize: 14, color: AppColors.textTertiary),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 12),
@@ -316,8 +319,8 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
     );
   }
 
-  Future<void> _showRenameDialog(BuildContext context, String currentName) async {
-    final nameCtrl = TextEditingController(text: currentName);
+  Future<void> _showEditDialog(BuildContext context, Department department) async {
+    final nameCtrl = TextEditingController(text: department.name);
     bool loading = false;
 
     await showDialog(
@@ -327,15 +330,14 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
         builder: (ctx, setDlg) {
           return AlertDialog(
             backgroundColor: AppColors.bgSurface,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            title: Text('Rename Department',
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            title: Text('Edit Department',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('New Name',
+                Text('Department Name',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
@@ -353,8 +355,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                     style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Enter new name',
-                      hintStyle:
-                          TextStyle(fontSize: 14, color: AppColors.textTertiary),
+                      hintStyle: TextStyle(fontSize: 14, color: AppColors.textTertiary),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 12),
@@ -371,13 +372,15 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
               ElevatedButton(
                 onPressed: loading ||
                         nameCtrl.text.trim().isEmpty ||
-                        nameCtrl.text.trim() == currentName
+                        nameCtrl.text.trim() == department.name
                     ? null
                     : () async {
                         setDlg(() => loading = true);
                         try {
-                          await _service.renameDepartment(
-                              currentName, nameCtrl.text.trim());
+                          await _service.updateDepartment(
+                            department.id,
+                            name: nameCtrl.text.trim(),
+                          );
                           if (dialogCtx.mounted) Navigator.pop(dialogCtx);
                           _loadData();
                         } catch (e) {
@@ -397,7 +400,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                         height: 14,
                         child: CircularProgressIndicator(
                             strokeWidth: 1.5, color: Colors.white))
-                    : Text('Rename', style: TextStyle(fontSize: 13)),
+                    : Text('Update', style: TextStyle(fontSize: 13)),
               ),
             ],
           );
@@ -406,11 +409,11 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
     );
   }
 
-  Future<void> _confirmDelete(String department, int userCount) async {
-    if (userCount > 0) {
+  Future<void> _confirmDelete(Department department, int fixerCount, int woCount) async {
+    if (fixerCount > 0 || woCount > 0) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            'Cannot delete "$department" - $userCount user(s) are assigned'),
+            'Cannot delete "${department.name}" - $fixerCount fixer(s) and $woCount work order(s) are assigned'),
         backgroundColor: AppColors.dangerText,
       ));
       return;
@@ -422,7 +425,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
         backgroundColor: AppColors.bgSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: Text('Delete Department?'),
-        content: Text('Are you sure you want to delete "$department"?'),
+        content: Text('Are you sure you want to delete "${department.name}"?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
@@ -437,7 +440,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
 
     if (confirm == true) {
       try {
-        await _service.deleteDepartment(department);
+        await _service.deleteDepartment(department.id);
         _loadData();
       } catch (e) {
         if (mounted) {

@@ -15,7 +15,8 @@ class WorkOrder {
   final String? techNotes;
   final String? createdBy;
   final String? createdByEmail;
-  final String department;
+  final String departmentId;  // Changed from 'department' to 'departmentId' (UUID)
+  final String? departmentName;  // Add this for display purposes (from nested departments object)
   final String? mobileNumber;
   final List<EmployeeAssignment> assignedEmployees;
 
@@ -34,12 +35,19 @@ class WorkOrder {
     this.techNotes,
     this.createdBy,
     this.createdByEmail,
-    this.department = 'General',
+    this.departmentId = '',  // Changed from 'department'
+    this.departmentName,  // Add this field
     this.mobileNumber,
     this.assignedEmployees = const [],
   });
 
   factory WorkOrder.fromJson(Map<String, dynamic> json) {
+    // Extract department name from the nested departments object (from SQL JOIN)
+    String? deptName;
+    if (json['departments'] is Map<String, dynamic>) {
+      deptName = json['departments']['name'];
+    }
+
     return WorkOrder(
       id: json['id'] ?? '',
       jobNo: json['job_no'] ?? '',
@@ -55,7 +63,8 @@ class WorkOrder {
       techNotes: json['tech_notes'],
       createdBy: json['created_by'],
       createdByEmail: json['created_by_email'] as String?,
-      department: json['department'] ?? 'General',
+      departmentId: json['department_id'] ?? '',  // Changed from json['department']
+      departmentName: deptName,  // Extract from nested object
       mobileNumber: json['mobile_number'],
       assignedEmployees: (json['work_order_assignments'] as List<dynamic>?)
               ?.map((assignment) => EmployeeAssignment.fromJson(assignment as Map<String, dynamic>))
@@ -74,7 +83,7 @@ class WorkOrder {
       'status': status,
       'location': location,
       'type': type,
-      'department': department,
+      'department_id': departmentId,  // Changed from 'department'
       'mobile_number': mobileNumber,
       'created_by': createdBy,
       'assigned_fixer_ids': assignedEmployees.map((e) => e.id).toList(),
@@ -96,7 +105,8 @@ class WorkOrder {
     String? techNotes,
     String? createdBy,
     String? createdByEmail,
-    String? department,
+    String? departmentId,  // Changed from 'department'
+    String? departmentName,  // Add this
     String? mobileNumber,
     List<EmployeeAssignment>? assignedEmployees,
   }) {
@@ -115,9 +125,13 @@ class WorkOrder {
       techNotes: techNotes ?? this.techNotes,
       createdBy: createdBy ?? this.createdBy,
       createdByEmail: createdByEmail ?? this.createdByEmail,
-      department: department ?? this.department,
+      departmentId: departmentId ?? this.departmentId,  // Changed
+      departmentName: departmentName ?? this.departmentName,  // Add this
       mobileNumber: mobileNumber ?? this.mobileNumber,
       assignedEmployees: assignedEmployees ?? this.assignedEmployees,
     );
   }
+
+  // Helper getter for backward compatibility - use departmentName for display
+  String get department => departmentName ?? 'General';
 }

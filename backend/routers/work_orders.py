@@ -35,7 +35,7 @@ class CreateWorkOrderBody(BaseModel):
     description: Optional[str] = ""
     location: str = ""
     mobile_number: Optional[str] = ""
-    department: str
+    department_id: str  # Changed from 'department' to 'department_id' (UUID)
     type: str = "Technical"
     status: str = "Pending"
     created_by: str  # user UUID
@@ -49,7 +49,7 @@ class UpdateWorkOrderBody(BaseModel):
     description: Optional[str] = ""
     location: str
     mobile_number: Optional[str] = ""
-    department: str
+    department_id: str  # Changed from 'department' to 'department_id' (UUID)
     type: str
     status: str
     assigned_fixer_ids: Optional[List[str]] = []
@@ -99,18 +99,20 @@ def _get_user_id_by_email(email: str) -> Optional[str]:
     return None
 
 
-def _get_fixers_by_department(department: str) -> List[str]:
+def _get_fixers_by_department(department_id: str) -> List[str]:
     """Get list of fixer user IDs that handle a specific department"""
-    result = supabase.table("fixer_departments").select("fixer_id").eq("department", department).execute()
+    # Updated to use department_id instead of department name
+    result = supabase.table("fixer_departments").select("fixer_id").eq("department_id", department_id).execute()
     return [r.get("fixer_id") for r in (result.data or [])]
 
 
 def _get_fixer_departments(fixer_id: str) -> List[str]:
-    """Get list of departments that a fixer handles"""
+    """Get list of department IDs that a fixer handles"""
     if not fixer_id:
         return []
-    result = supabase.table("fixer_departments").select("department").eq("fixer_id", fixer_id).execute()
-    return [r.get("department") for r in (result.data or []) if r.get("department")]
+    # Updated to return department_id instead of department name
+    result = supabase.table("fixer_departments").select("department_id").eq("fixer_id", fixer_id).execute()
+    return [r.get("department_id") for r in (result.data or []) if r.get("department_id")]
 
 
 def _ensure_not_reporter(email: str):
@@ -138,8 +140,14 @@ def _validate_status(status: str):
 
 
 def _fetch_full_work_order(work_order_id: str):
+    # Updated query to include department details via JOIN
     result = supabase.table("work_orders").select("""
         *,
+        departments!work_orders_department_id_fkey (
+            id,
+            name,
+            is_active
+        ),
         work_order_assignments (
             fixer_id,
             assigned_at,
@@ -194,10 +202,16 @@ async def list_work_orders(
     user_role: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     type: Optional[str] = Query(None),
-    department: Optional[str] = Query(None),
+    department_id: Optional[str] = Query(None),  # Changed from 'department' to 'department_id'
 ):
+    # Updated query to include department details
     query = supabase.table("work_orders").select("""
         *,
+        departments!work_orders_department_id_fkey (
+            id,
+            name,
+            is_active
+        ),
         work_order_assignments (
             fixer_id,
             assigned_at,
@@ -214,8 +228,8 @@ async def list_work_orders(
         query = query.eq("status", status)
     if type:
         query = query.eq("type", type)
-    if department:
-        query = query.eq("department", department)
+    if department_id:  # Changed from 'department' to 'department_id'
+        query = query.eq("department_id", department_id)
 
     try:
         result = query.execute()
@@ -237,10 +251,10 @@ async def list_work_orders(
         fixer_user = _get_user_by_email(email)
         if fixer_user:
             fixer_id = str(fixer_user.get("id") or "")
-            fixer_departments = _get_fixer_departments(fixer_id)
-            if fixer_departments:
+            fixer_department_ids = _get_fixer_departments(fixer_id)
+            if fixer_department_ids:
                 # Fixers see work orders in departments they handle
-                work_orders = [wo for wo in work_orders if wo.get("department") in fixer_departments]
+                work_orders = [wo for wo in work_orders if wo.get("department_id") in fixer_department_ids]
             else:
                 # Fixer with no assigned departments - show nothing
                 work_orders = []
@@ -263,54 +277,48 @@ async def get_work_order(work_order_id: str):
 async def create_work_order(body: CreateWorkOrderBody):
     _validate_type(body.type)
     _validate_status(body.status)
+    
+    # Verify department exists and is active
+    dept_result = supabase.table("departments").select("id, name, is_active").eq("id", body.department_id).execute()
+    if not dept_result.data:
+        raise HTTPException(status_code=400, detail="Invalid department_id: department not found")
+    if not dept_result.data[0].get("is_active", True):
+        raise HTTPException(status_code=400, detail="Cannot create work order for inactive department")
 
-    try:
-        supabase.table("work_orders").insert({
-            "job_no": body.job_no,
-            "title": body.title,
-            "description": body.description,
-            "location": body.location,
-            "mobile_number": body.mobile_number,
-            "department": body.department,
-            "type": body.type,
-            "status": body.status,
-            "created_by": body.created_by,
-        }).execute()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"DB insert failed: {e}")
+    payload = {
+        "job_no": body.job_no,
+        "title": body.title,
+        "description": body.description,
+        "location": body.location,
+        "mobile_number": body.mobile_number,
+        "department_id": body.department_id,  # Changed from 'department' to 'department_id'
+        "type": body.type,
+        "status": body.status,
+        "created_by": body.created_by,
+        "created_by_email": body.created_by_email.strip().lower() if body.created_by_email else "",
+    }
+    result = supabase.table("work_orders").insert(payload).execute()
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Failed to create work order")
 
-    fetch = supabase.table("work_orders").select("id").eq("job_no", body.job_no).single().execute()
-    if not fetch.data:
-        raise HTTPException(status_code=500, detail="Work order created but could not retrieve ID")
+    work_order_id = result.data[0].get("id")
+    
+    # Sync assignments
+    fixer_ids = body.assigned_fixer_ids or []
+    if not fixer_ids:
+        fixer_ids = _get_fixers_by_department(body.department_id)
+    
+    if fixer_ids:
+        _sync_assignments(work_order_id, fixer_ids, body.created_by)
 
-    work_order_id = fetch.data["id"]
-
-    if body.assigned_fixer_ids:
-        try:
-            _sync_assignments(work_order_id, body.assigned_fixer_ids, body.created_by)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Assignment sync failed: {e}")
-
-    try:
-        supabase.table("work_order_comments").insert({
-            "work_order_id": work_order_id,
-            "author_email": body.created_by_email or body.created_by,
-            "author_name": (body.created_by_email or "").split("@")[0] or body.created_by[:8],
-            "body": "Work order created.",
-            "type": "system",
-            "meta": None,
-        }).execute()
-    except Exception:
-        pass
-
-    log_activity(body.created_by_email or body.created_by, "work_order", "created",
-        target_label=body.title, target_id=work_order_id,
-        detail=body.job_no)
+    created_user_email = body.created_by_email or "unknown"
+    log_activity(created_user_email, "work_order", "created",
+        target_label=body.title, target_id=work_order_id)
 
     return {"work_order": _fetch_full_work_order(work_order_id)}
 
 
-@router.patch("/work-orders/{work_order_id}")
+@router.put("/work-orders/{work_order_id}")
 async def update_work_order(
     work_order_id: str,
     body: UpdateWorkOrderBody,
@@ -321,57 +329,48 @@ async def update_work_order(
     _validate_status(body.status)
 
     existing = supabase.table("work_orders") \
-        .select("id, created_by, status") \
+        .select("id, status") \
         .eq("id", work_order_id) \
         .execute()
+
     if not existing.data:
         raise HTTPException(status_code=404, detail="Work order not found")
 
-    existing_status = existing.data[0].get("status")
-    updater_id = _get_user_id_by_email(user_email)
+    old_status = existing.data[0]["status"]
+    
+    # Verify department exists and is active
+    dept_result = supabase.table("departments").select("id, name, is_active").eq("id", body.department_id).execute()
+    if not dept_result.data:
+        raise HTTPException(status_code=400, detail="Invalid department_id: department not found")
+    if not dept_result.data[0].get("is_active", True):
+        raise HTTPException(status_code=400, detail="Cannot update work order to inactive department")
 
-    supabase.table("work_orders").update({
+    payload = {
         "job_no": body.job_no,
         "title": body.title,
         "description": body.description,
         "location": body.location,
         "mobile_number": body.mobile_number,
-        "department": body.department,
+        "department_id": body.department_id,  # Changed from 'department' to 'department_id'
         "type": body.type,
         "status": body.status,
         "updated_at": datetime.utcnow().isoformat(),
-    }).eq("id", work_order_id).execute()
+    }
+    supabase.table("work_orders").update(payload).eq("id", work_order_id).execute()
 
-    _sync_assignments(work_order_id, body.assigned_fixer_ids or [], updater_id or "")
+    user_id = _get_user_id_by_email(user_email) or "unknown"
+    _sync_assignments(work_order_id, body.assigned_fixer_ids or [], user_id)
 
-    if existing_status and existing_status != body.status:
-        _log_status_change(
-            work_order_id,
-            existing_status,
-            body.status,
-            updater_id or "",
-            None
-        )
-        try:
-            supabase.table("work_order_comments").insert({
-                "work_order_id": work_order_id,
-                "author_email": user_email,
-                "author_name": user_email.split("@")[0],
-                "body": f"Status changed from {existing_status} to {body.status}",
-                "type": "status_change",
-                "meta": {"from": existing_status, "to": body.status},
-            }).execute()
-        except Exception:
-            pass
+    if old_status != body.status:
+        _log_status_change(work_order_id, old_status, body.status, user_id)
 
     log_activity(user_email, "work_order", "updated",
-        target_label=body.title, target_id=work_order_id,
-        detail=f"status: {body.status}")
+        target_label=body.title, target_id=work_order_id)
 
     return {"work_order": _fetch_full_work_order(work_order_id)}
 
 
-@router.patch("/work-orders/{work_order_id}/close")
+@router.post("/work-orders/{work_order_id}/close")
 async def close_work_order(
     work_order_id: str,
     body: CloseWorkOrderBody,
