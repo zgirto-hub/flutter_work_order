@@ -357,6 +357,7 @@ async def update_work_order(
     if not dept_result.data[0].get("is_active", True):
         raise HTTPException(status_code=400, detail="Cannot update work order to inactive department")
 
+    now = datetime.utcnow().isoformat()
     payload = {
         "job_no": body.job_no,
         "title": body.title,
@@ -366,8 +367,10 @@ async def update_work_order(
         "department_id": body.department_id,  # Changed from 'department' to 'department_id'
         "type": body.type,
         "status": body.status,
-        "updated_at": datetime.utcnow().isoformat(),
+        "updated_at": now,
     }
+    if body.status == "Closed" and old_status != "Closed":
+        payload["closed_at"] = now
     supabase.table("work_orders").update(payload).eq("id", work_order_id).execute()
 
     user_id = _get_user_id_by_email(user_email) or "unknown"

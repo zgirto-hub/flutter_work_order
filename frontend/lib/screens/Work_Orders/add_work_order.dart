@@ -222,14 +222,19 @@ Future<void> _loadDepartments() async {
   }
 
   Future<void> _loadEmployees() async {
-    final data = await _userService.fetchTechnicians();
-    setState(() {
-      _employees = data;
-      if (widget.workOrder != null) {
-        _selectedEmployeeIds =
-            widget.workOrder!.assignedTechnicians.map((t) => t.id).toList();
-      }
-    });
+    try {
+      final data = await _userService.fetchTechnicians();
+      if (!mounted) return;
+      setState(() {
+        _employees = data;
+        if (widget.workOrder != null) {
+          _selectedEmployeeIds =
+              widget.workOrder!.assignedTechnicians.map((t) => t.id).toList();
+        }
+      });
+    } catch (e) {
+      debugPrint('_loadEmployees error: $e');
+    }
   }
 
   Future<void> _loadComments() async {
@@ -684,7 +689,7 @@ Future<void> _loadDepartments() async {
               if (canEdit)
                 ElevatedButton.icon(
                   icon: Icon(Icons.people),
-                  label: Text("Select Employees"),
+                  label: Text("Select Technician"),
                   onPressed: _openEmployeeSelector,
                 ),
               SizedBox(height: 10),

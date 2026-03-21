@@ -175,7 +175,7 @@ class UserService {
 
   Future<List<AppUser>> fetchTechnicians() async {
     final users = await fetchUsers();
-    return users.where((u) => u.userType == UserType.technician && u.isActive).toList();
+    return users.where((u) => (u.userType == UserType.technician || u.userType == UserType.admin) && u.isActive).toList();
   }
 
   Future<List<String>> fetchDepartments() async {

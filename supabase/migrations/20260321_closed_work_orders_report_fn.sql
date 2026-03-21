@@ -18,3 +18,5 @@ AS $$
     AND wo.closed_at::date <= end_date
   ORDER BY wo.closed_at DESC;
 $$;
+
+GRANT EXECUTE ON FUNCTION get_closed_work_orders_report(UUID, DATE, DATE) TO authenticated;
