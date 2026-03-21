@@ -28,6 +28,12 @@ jobs:
         working-directory: frontend
         run: C:\flutter\bin\flutter.bat pub get
 
+      - name: Clean build artifacts
+        working-directory: frontend
+        run: |
+          if (Test-Path ".dart_tool") { Remove-Item -Recurse -Force ".dart_tool" }
+          if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
+
       - name: Analyze code
         working-directory: frontend
         run: C:\flutter\bin\flutter.bat analyze --no-fatal-infos
