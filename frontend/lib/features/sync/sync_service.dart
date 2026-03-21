@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../offline/offline_storage.dart';
+import '../../config.dart';
 
 enum SyncStatus { idle, syncing, success, error, offline }
 
@@ -55,7 +56,7 @@ class SyncService {
   })  : _client = client ?? http.Client(),
         _offlineStorage = offlineStorage ?? OfflineStorage(),
         _connectivity = connectivity ?? Connectivity(),
-        baseUrl = baseUrl ?? 'https://zorin.taila92fe8.ts.net/api',
+        baseUrl = baseUrl ?? AppConfig.baseUrl,
         _timeout = timeout ?? const Duration(seconds: 30);
 
   Future<bool> get isOnline async {
