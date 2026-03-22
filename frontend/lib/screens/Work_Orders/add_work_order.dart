@@ -659,12 +659,6 @@ Future<void> _loadDepartments() async {
                 } : null,
                 decoration: InputDecoration(labelText: "Department"),
               ),
-            if (_isTechnician)
-              TextFormField(
-                initialValue: selectedDepartment,
-                readOnly: true,
-                decoration: InputDecoration(labelText: "Department"),
-              ),
             SizedBox(height: 10),
 
             // ── Type dropdown with icons ───────────────────────────
