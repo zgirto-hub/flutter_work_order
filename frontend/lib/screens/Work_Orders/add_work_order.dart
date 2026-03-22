@@ -76,6 +76,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   bool _sending = false;
   bool _roleLoaded = false;
   String _userRole = 'admin';
+  bool _isTechnician = false;
   final TextEditingController _commentCtrl = TextEditingController();
   final ScrollController _activityScrollCtrl = ScrollController();
   PlatformFile? _pendingAttachment;
@@ -98,7 +99,6 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   void initState() {
     super.initState();
     _loadUserRole();
-    _loadEmployees();
     _loadDepartments();
     if (widget.workOrder != null) {
       jobNoController.text = widget.workOrder!.jobNo;
@@ -140,6 +140,8 @@ Future<void> _loadDepartments() async {
           selectedDepartmentId = _departments.first.id;
         }
       });
+      // Load employees filtered by resolved department (technicians will reload in _loadUserRole)
+      _loadEmployees();
     }
   } catch (_) {}
 }
@@ -167,9 +169,21 @@ Future<void> _loadDepartments() async {
           _roleLoaded = true;
           _userRole = role;
         });
-        // Load profile for requesters
         if (role == 'requester') {
           _loadUserProfile(email);
+        } else if (role == 'technician') {
+          _isTechnician = true;
+          final currentUser = await _userService.fetchCurrentUser();
+          if (currentUser != null && currentUser.technicianDepartments.isNotEmpty) {
+            final dept = currentUser.technicianDepartments.first;
+            if (mounted) {
+              setState(() {
+                selectedDepartmentId = dept['id']!;
+                selectedDepartment = dept['name']!;
+              });
+              _loadEmployees(departmentId: dept['id']);
+            }
+          }
         }
       } else {
         if (!mounted) return;
@@ -221,8 +235,10 @@ Future<void> _loadDepartments() async {
     super.dispose();
   }
 
-  Future<void> _loadEmployees() async {
-    final data = await _userService.fetchTechnicians();
+  Future<void> _loadEmployees({String? departmentId}) async {
+    final deptId = departmentId ?? (selectedDepartmentId.isNotEmpty ? selectedDepartmentId : null);
+    final data = await _userService.fetchTechnicians(departmentId: deptId);
+    if (!mounted) return;
     setState(() {
       _employees = data;
       if (widget.workOrder != null) {
@@ -625,22 +641,30 @@ Future<void> _loadDepartments() async {
               textInputAction: TextInputAction.next,
             ),
             SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              initialValue: _departments.isEmpty ? 'General' : selectedDepartment,
-              items: _departments.isEmpty
-                  ? [DropdownMenuItem(value: 'General', child: Text('General'))]
-                  : _departments.map((d) => DropdownMenuItem(value: d.name, child: Text(d.name))).toList(),
-              onChanged: canEdit ? (v) {
-                if (v != null) {
-                  final dept = _departments.firstWhere((d) => d.name == v, orElse: () => _departments.first);
-                  setState(() {
-                    selectedDepartment = dept.name;
-                    selectedDepartmentId = dept.id;
-                  });
-                }
-              } : null,
-              decoration: InputDecoration(labelText: "Department"),
-            ),
+            if (!_isTechnician)
+              DropdownButtonFormField<String>(
+                initialValue: _departments.isEmpty ? 'General' : selectedDepartment,
+                items: _departments.isEmpty
+                    ? [DropdownMenuItem(value: 'General', child: Text('General'))]
+                    : _departments.map((d) => DropdownMenuItem(value: d.name, child: Text(d.name))).toList(),
+                onChanged: canEdit ? (v) {
+                  if (v != null) {
+                    final dept = _departments.firstWhere((d) => d.name == v, orElse: () => _departments.first);
+                    setState(() {
+                      selectedDepartment = dept.name;
+                      selectedDepartmentId = dept.id;
+                    });
+                    _loadEmployees(departmentId: dept.id);
+                  }
+                } : null,
+                decoration: InputDecoration(labelText: "Department"),
+              ),
+            if (_isTechnician)
+              TextFormField(
+                initialValue: selectedDepartment,
+                readOnly: true,
+                decoration: InputDecoration(labelText: "Department"),
+              ),
             SizedBox(height: 10),
 
             // ── Type dropdown with icons ───────────────────────────

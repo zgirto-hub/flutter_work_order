@@ -67,8 +67,15 @@ async def get_current_user(email: str = Query(...)):
     """Get current user profile"""
     user = _get_user_by_email(email)
     if user:
-        return {"user": user}
-    return {"user": None}
+        td_rows = supabase.table("technician_departments") \
+            .select("department_id, departments(id, name)") \
+            .eq("technician_id", user.get("id")) \
+            .execute().data or []
+        user["technician_departments"] = [
+            {"id": row["departments"]["id"], "name": row["departments"]["name"]}
+            for row in td_rows if row.get("departments")
+        ]
+    return {"user": user}
 
 
 # ================================================
@@ -76,23 +83,31 @@ async def get_current_user(email: str = Query(...)):
 # ================================================
 
 @router.get("/users")
-async def list_users():
-    """Get all users"""
-    result = supabase.table("users").select("*").execute()
-    users = result.data or []
-
-    # Bulk fetch in 2 queries instead of N+1
-    all_td = supabase.table("technician_departments").select("technician_id, department_id").execute().data or []
-    all_depts = supabase.table("departments").select("id, name").execute().data or []
-    dept_name_map = {d["id"]: d["name"] for d in all_depts}
-
-    td_by_technician: dict = {}
-    for row in all_td:
-        td_by_technician.setdefault(row["technician_id"], []).append(row["department_id"])
-
-    for user in users:
-        dept_ids = td_by_technician.get(user.get("id"), [])
-        user["departments"] = [dept_name_map[d] for d in dept_ids if d in dept_name_map]
+async def list_users(department_id: Optional[str] = Query(None)):
+    """Get all users, optionally filtered by department"""
+    if department_id:
+        td_rows = supabase.table("technician_departments") \
+            .select("technician_id, departments(name), users!technician_id(*)") \
+            .eq("department_id", department_id) \
+            .execute().data or []
+        users = []
+        for row in td_rows:
+            user = row.get("users")
+            if user:
+                user["departments"] = [row["departments"]["name"]] if row.get("departments") else []
+                users.append(user)
+    else:
+        result = supabase.table("users") \
+            .select("*, technician_departments(department_id, departments(name))") \
+            .execute()
+        users = result.data or []
+        for user in users:
+            td_rows = user.pop("technician_departments", []) or []
+            user["departments"] = [
+                row["departments"]["name"]
+                for row in td_rows
+                if row.get("departments") and row["departments"].get("name")
+            ]
 
     return {"users": users}
 
