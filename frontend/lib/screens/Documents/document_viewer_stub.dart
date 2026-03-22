@@ -21,3 +21,11 @@ class PdfEmbedViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const SizedBox();
 }
+
+class HtmlBlobViewer extends StatelessWidget {
+  final String html;
+  const HtmlBlobViewer({super.key, required this.html});
+
+  @override
+  Widget build(BuildContext context) => const SizedBox();
+}

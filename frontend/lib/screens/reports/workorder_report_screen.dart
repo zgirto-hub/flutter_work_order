@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/user_service.dart';
 import '../../services/pdf/work_order_pdf_service.dart';
 import '../../theme/app_theme.dart';
+import 'html_preview_screen.dart';
 
 class WorkOrderReportScreen extends StatefulWidget {
   const WorkOrderReportScreen({super.key});
@@ -921,7 +922,27 @@ class _PdfThemeTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                        builder: (_) => HtmlPreviewScreen(
+                          assetPath: theme.previewAsset,
+                          title: theme.label,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Icon(
+                      Icons.visibility_outlined,
+                      size: 18,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   width: 22,

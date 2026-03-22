@@ -1,4 +1,5 @@
 // Web implementation - renders PDF via blob URL in an iframe
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:js_interop';
 import 'package:web/web.dart' as web;
@@ -40,6 +41,43 @@ class _PdfWebViewerState extends State<PdfWebViewer> {
         ..style.height = '100%'
         ..style.display = 'block';
       iframe.setAttribute('allowfullscreen', 'true');
+      return iframe;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.expand(child: HtmlElementView(viewType: _viewId));
+  }
+}
+
+/// Renders an HTML string as a blob URL inside an iframe — web only
+class HtmlBlobViewer extends StatefulWidget {
+  final String html;
+  const HtmlBlobViewer({super.key, required this.html});
+
+  @override
+  State<HtmlBlobViewer> createState() => _HtmlBlobViewerState();
+}
+
+class _HtmlBlobViewerState extends State<HtmlBlobViewer> {
+  late final String _viewId;
+  late final String _blobUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final bytes = Uint8List.fromList(utf8.encode(widget.html));
+    _blobUrl = createBlobUrl(bytes, 'text/html');
+    _viewId = 'html-preview-${_blobUrl.hashCode}';
+
+    ui.platformViewRegistry.registerViewFactory(_viewId, (int id) {
+      final iframe = web.document.createElement('iframe') as web.HTMLIFrameElement
+        ..src = _blobUrl
+        ..style.border = 'none'
+        ..style.width = '100%'
+        ..style.height = '100%'
+        ..style.display = 'block';
       return iframe;
     });
   }

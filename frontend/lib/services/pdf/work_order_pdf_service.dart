@@ -40,6 +40,19 @@ extension WorkOrderPdfThemeX on WorkOrderPdfTheme {
         return 'Clean serif typography with a refined rule-based layout.';
     }
   }
+
+  String get previewAsset {
+    switch (this) {
+      case WorkOrderPdfTheme.copperNight:
+        return 'assets/report_preview.html';
+      case WorkOrderPdfTheme.forestLedger:
+        return 'assets/report_preview_green.html';
+      case WorkOrderPdfTheme.signalOrange:
+        return 'assets/report_preview_teal.html';
+      case WorkOrderPdfTheme.formalElegant:
+        return 'assets/report_preview_burgundy.html';
+    }
+  }
 }
 
 class WorkOrderPdfService {

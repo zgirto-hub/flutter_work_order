@@ -86,16 +86,19 @@ async def get_current_user(email: str = Query(...)):
 async def list_users(department_id: Optional[str] = Query(None)):
     """Get all users, optionally filtered by department"""
     if department_id:
+        # Get technician IDs for this department
         td_rows = supabase.table("technician_departments") \
-            .select("technician_id, departments(name), users!technician_id(*)") \
+            .select("technician_id") \
             .eq("department_id", department_id) \
             .execute().data or []
-        users = []
-        for row in td_rows:
-            user = row.get("users")
-            if user:
-                user["departments"] = [row["departments"]["name"]] if row.get("departments") else []
-                users.append(user)
+        technician_ids = [r["technician_id"] for r in td_rows if r.get("technician_id")]
+        if not technician_ids:
+            return {"users": []}
+        # Fetch those users in one query
+        result = supabase.table("users").select("*").in_("id", technician_ids).execute()
+        users = result.data or []
+        for user in users:
+            user["departments"] = []  # dept name not needed here
     else:
         result = supabase.table("users") \
             .select("*, technician_departments(department_id, departments(name))") \
