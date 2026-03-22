@@ -298,6 +298,7 @@ async def create_work_order(body: CreateWorkOrderBody):
     if not dept_result.data[0].get("is_active", True):
         raise HTTPException(status_code=400, detail="Cannot create work order for inactive department")
 
+    now = datetime.utcnow().isoformat()
     payload = {
         "job_no": body.job_no,
         "title": body.title,
@@ -309,6 +310,9 @@ async def create_work_order(body: CreateWorkOrderBody):
         "status": body.status or "Pending",
         "created_by": body.created_by,
     }
+    if (body.status or "Pending") == "Closed":
+        payload["closed_at"] = now
+        payload["closed_by"] = body.created_by
     result = supabase.table("work_orders").insert(payload).execute()
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create work order")
