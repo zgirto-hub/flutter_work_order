@@ -327,6 +327,19 @@ async def create_work_order(body: CreateWorkOrderBody):
     log_activity(created_user_email, "work_order", "created",
         target_label=body.title, target_id=work_order_id)
 
+    # Insert system comment so Activity tab shows "Work order created"
+    user_name = created_user_email.split("@")[0]
+    try:
+        supabase.table("work_order_comments").insert({
+            "work_order_id": work_order_id,
+            "author_email": created_user_email,
+            "author_name": user_name,
+            "body": "Work order created",
+            "type": "system",
+        }).execute()
+    except Exception as e:
+        print(f"[create_work_order] Failed to insert system comment: {e}")
+
     return {"work_order": _fetch_full_work_order(work_order_id)}
 
 
