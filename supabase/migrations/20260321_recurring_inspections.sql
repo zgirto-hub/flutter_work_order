@@ -8,9 +8,10 @@ CREATE TABLE recurring_inspections (
     description     TEXT DEFAULT '',
     location        TEXT DEFAULT '',
     department_id   UUID NOT NULL REFERENCES departments(id),
-    frequency       TEXT NOT NULL CHECK (frequency IN ('daily', 'weekly', 'monthly')),
+    frequency       TEXT NOT NULL CHECK (frequency IN ('daily', 'weekly', 'monthly', 'yearly')),
     day_of_week     INT,          -- 0=Mon..6=Sun (for weekly)
     day_of_month    INT,          -- 1-31 (for monthly)
+    interval        INT NOT NULL DEFAULT 1, -- repeat every N units
     start_date      DATE NOT NULL,
     end_date        DATE,         -- NULL = no end
     next_due_date   DATE NOT NULL,

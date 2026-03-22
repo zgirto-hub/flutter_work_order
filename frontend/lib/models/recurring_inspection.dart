@@ -7,9 +7,10 @@ class RecurringInspection {
   final String location;
   final String departmentId;
   final String? departmentName;
-  final String frequency; // daily, weekly, monthly
+  final String frequency; // daily, weekly, monthly, yearly
   final int? dayOfWeek; // 0=Mon..6=Sun
   final int? dayOfMonth; // 1-31
+  final int? interval; // repeat every N units (default 1)
   final String startDate;
   final String? endDate;
   final String nextDueDate;
@@ -29,6 +30,7 @@ class RecurringInspection {
     required this.frequency,
     this.dayOfWeek,
     this.dayOfMonth,
+    this.interval,
     required this.startDate,
     this.endDate,
     required this.nextDueDate,
@@ -70,6 +72,7 @@ class RecurringInspection {
       frequency: json['frequency'] ?? 'daily',
       dayOfWeek: json['day_of_week'],
       dayOfMonth: json['day_of_month'],
+      interval: json['interval'],
       startDate: json['start_date'] ?? '',
       endDate: json['end_date'],
       nextDueDate: json['next_due_date'] ?? '',
@@ -90,6 +93,7 @@ class RecurringInspection {
       'frequency': frequency,
       'day_of_week': dayOfWeek,
       'day_of_month': dayOfMonth,
+      'interval': interval,
       'start_date': startDate,
       'end_date': endDate,
       'is_active': isActive,
@@ -105,24 +109,29 @@ class RecurringInspection {
         return 'Weekly';
       case 'monthly':
         return 'Monthly';
+      case 'yearly':
+        return 'Yearly';
       default:
         return frequency;
     }
   }
 
   String get scheduleDescription {
+    final n = interval ?? 1;
     switch (frequency) {
       case 'daily':
-        return 'Every day';
+        return n == 1 ? 'Every day' : 'Every $n days';
       case 'weekly':
         final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         final day = (dayOfWeek != null && dayOfWeek! >= 0 && dayOfWeek! < 7)
             ? days[dayOfWeek!]
             : 'Mon';
-        return 'Every $day';
+        return n == 1 ? 'Every $day' : 'Every $n weeks';
       case 'monthly':
         final dom = dayOfMonth ?? 1;
-        return 'Every month on day $dom';
+        return n == 1 ? 'Every month on day $dom' : 'Every $n months';
+      case 'yearly':
+        return n == 1 ? 'Every year' : 'Every $n years';
       default:
         return frequency;
     }

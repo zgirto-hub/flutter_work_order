@@ -40,6 +40,8 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
   String _frequency = 'weekly';
   int _dayOfWeek = 0; // Mon
   int _dayOfMonth = 1;
+  String _customFrequency = 'daily';
+  int _customInterval = 1;
   DateTime _startDate = DateTime.now();
   DateTime? _endDate;
   bool _isActive = true;
@@ -59,13 +61,19 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
       _descCtrl.text = e.description;
       _locationCtrl.text = e.location;
       _selectedDeptId = e.departmentId;
-      _frequency = e.frequency;
       _dayOfWeek = e.dayOfWeek ?? 0;
       _dayOfMonth = e.dayOfMonth ?? 1;
       _startDate = DateTime.tryParse(e.startDate) ?? DateTime.now();
       _endDate = e.endDate != null ? DateTime.tryParse(e.endDate!) : null;
       _isActive = e.isActive;
       _selectedTechIds = e.assignees.map((a) => a.id).toList();
+      if (e.frequency == 'yearly' || (e.interval != null && e.interval! > 1)) {
+        _frequency = 'custom';
+        _customFrequency = e.frequency;
+        _customInterval = e.interval ?? 1;
+      } else {
+        _frequency = e.frequency;
+      }
     }
     _loadFormData();
   }
@@ -93,6 +101,8 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _saving = true);
+    final sendFreq = _frequency == 'custom' ? _customFrequency : _frequency;
+    final sendInterval = _frequency == 'custom' ? _customInterval : null;
     try {
       if (_isEditing) {
         await _service.update(
@@ -101,9 +111,10 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
           description: _descCtrl.text.trim(),
           location: _locationCtrl.text.trim(),
           departmentId: _selectedDeptId,
-          frequency: _frequency,
-          dayOfWeek: _frequency == 'weekly' ? _dayOfWeek : null,
-          dayOfMonth: _frequency == 'monthly' ? _dayOfMonth : null,
+          frequency: sendFreq,
+          dayOfWeek: sendFreq == 'weekly' ? _dayOfWeek : null,
+          dayOfMonth: sendFreq == 'monthly' ? _dayOfMonth : null,
+          interval: sendInterval,
           startDate: _formatDate(_startDate),
           endDate: _endDate != null ? _formatDate(_endDate!) : null,
           isActive: _isActive,
@@ -115,9 +126,10 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
           description: _descCtrl.text.trim(),
           location: _locationCtrl.text.trim(),
           departmentId: _selectedDeptId,
-          frequency: _frequency,
-          dayOfWeek: _frequency == 'weekly' ? _dayOfWeek : null,
-          dayOfMonth: _frequency == 'monthly' ? _dayOfMonth : null,
+          frequency: sendFreq,
+          dayOfWeek: sendFreq == 'weekly' ? _dayOfWeek : null,
+          dayOfMonth: sendFreq == 'monthly' ? _dayOfMonth : null,
+          interval: sendInterval,
           startDate: _formatDate(_startDate),
           endDate: _endDate != null ? _formatDate(_endDate!) : null,
           assignedFixerIds: _selectedTechIds,
@@ -300,6 +312,11 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
                             _buildLabel('Frequency'),
                             const SizedBox(height: 6),
                             _buildFrequencySelector(),
+
+                            if (_frequency == 'custom') ...[
+                              const SizedBox(height: 8),
+                              _buildCustomSummary(),
+                            ],
 
                             const SizedBox(height: 16),
 
@@ -506,15 +523,21 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
   }
 
   Widget _buildFrequencySelector() {
+    const options = ['daily', 'weekly', 'monthly', 'custom'];
     return Row(
-      children: ['daily', 'weekly', 'monthly'].map((f) {
+      children: options.asMap().entries.map((entry) {
+        final i = entry.key;
+        final f = entry.value;
         final selected = _frequency == f;
         final label = f[0].toUpperCase() + f.substring(1);
         return Expanded(
           child: Padding(
-            padding: EdgeInsets.only(right: f != 'monthly' ? 8 : 0),
+            padding: EdgeInsets.only(right: i < options.length - 1 ? 6 : 0),
             child: GestureDetector(
-              onTap: () => setState(() => _frequency = f),
+              onTap: () {
+                setState(() => _frequency = f);
+                if (f == 'custom') _openCustomSheet();
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
@@ -529,7 +552,7 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
                   child: Text(
                     label,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: selected ? Colors.white : AppColors.textSecondary,
                     ),
@@ -540,6 +563,228 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
           ),
         );
       }).toList(),
+    );
+  }
+
+  void _openCustomSheet() {
+    String sheetFreq = _customFrequency;
+    int sheetInterval = _customInterval;
+
+    final freqOptions = ['daily', 'weekly', 'monthly', 'yearly'];
+    final unitLabels = {
+      'daily': 'day(s)',
+      'weekly': 'week(s)',
+      'monthly': 'month(s)',
+      'yearly': 'year(s)',
+    };
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Container(
+          decoration: BoxDecoration(
+            color: AppColors.bgSurface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                'Custom Frequency',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Frequency chips
+              Text(
+                'Frequency',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: freqOptions.asMap().entries.map((e) {
+                  final fi = e.key;
+                  final f = e.value;
+                  final sel = sheetFreq == f;
+                  final lbl = f[0].toUpperCase() + f.substring(1);
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(right: fi < freqOptions.length - 1 ? 6 : 0),
+                      child: GestureDetector(
+                        onTap: () => setSheet(() => sheetFreq = f),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 9),
+                          decoration: BoxDecoration(
+                            color: sel ? AppColors.accent : AppColors.bgPrimary,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: sel ? AppColors.accent : AppColors.border,
+                              width: sel ? 1.5 : 0.5,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              lbl,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: sel ? Colors.white : AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 20),
+              // Every stepper
+              Text(
+                'Every',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _sheetStepBtn(
+                    icon: Icons.remove,
+                    onTap: () => setSheet(() {
+                      if (sheetInterval > 1) sheetInterval--;
+                    }),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgPrimary,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.border, width: 0.5),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$sheetInterval',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _sheetStepBtn(
+                    icon: Icons.add,
+                    onTap: () => setSheet(() {
+                      if (sheetInterval < 999) sheetInterval++;
+                    }),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    unitLabels[sheetFreq] ?? '',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              // Done button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _customFrequency = sheetFreq;
+                      _customInterval = sheetInterval;
+                    });
+                    Navigator.pop(ctx);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetStepBtn({required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: AppColors.bgPrimary,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.border, width: 0.5),
+        ),
+        child: Icon(icon, size: 18, color: AppColors.textPrimary),
+      ),
+    );
+  }
+
+  Widget _buildCustomSummary() {
+    final unitLabels = {
+      'daily': _customInterval == 1 ? 'day' : 'days',
+      'weekly': _customInterval == 1 ? 'week' : 'weeks',
+      'monthly': _customInterval == 1 ? 'month' : 'months',
+      'yearly': _customInterval == 1 ? 'year' : 'years',
+    };
+    final unit = unitLabels[_customFrequency] ?? _customFrequency;
+    final label = 'Every $_customInterval $unit';
+    return GestureDetector(
+      onTap: _openCustomSheet,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.bgSurface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.accent.withValues(alpha: 0.4), width: 1),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.repeat_rounded, size: 14, color: AppColors.accent),
+            const SizedBox(width: 8),
+            Text(label, style: TextStyle(fontSize: 13, color: AppColors.textPrimary, fontWeight: FontWeight.w500)),
+            const Spacer(),
+            Icon(Icons.edit_rounded, size: 13, color: AppColors.textTertiary),
+          ],
+        ),
+      ),
     );
   }
 

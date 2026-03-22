@@ -8,7 +8,7 @@ from utils.activity import log_activity
 
 router = APIRouter()
 
-ALLOWED_FREQUENCIES = {"daily", "weekly", "monthly"}
+ALLOWED_FREQUENCIES = {"daily", "weekly", "monthly", "yearly"}
 
 
 # --------------------
@@ -20,9 +20,10 @@ class CreateRecurringInspection(BaseModel):
     description: Optional[str] = ""
     location: Optional[str] = ""
     department_id: str
-    frequency: str  # daily, weekly, monthly
+    frequency: str  # daily, weekly, monthly, yearly
     day_of_week: Optional[int] = None  # 0=Mon..6=Sun
     day_of_month: Optional[int] = None  # 1-31
+    interval: Optional[int] = 1  # repeat every N units
     start_date: str  # YYYY-MM-DD
     end_date: Optional[str] = None
     assigned_fixer_ids: Optional[List[str]] = []
@@ -37,6 +38,7 @@ class UpdateRecurringInspection(BaseModel):
     frequency: str
     day_of_week: Optional[int] = None
     day_of_month: Optional[int] = None
+    interval: Optional[int] = 1
     start_date: str
     end_date: Optional[str] = None
     is_active: Optional[bool] = True
@@ -55,13 +57,15 @@ def _validate_frequency(frequency: str):
         )
 
 
-def _compute_next_due(frequency: str, start_date: str, day_of_week: Optional[int], day_of_month: Optional[int]) -> str:
+def _compute_next_due(frequency: str, start_date: str, day_of_week: Optional[int], day_of_month: Optional[int], interval: int = 1) -> str:
     """Compute the next due date based on frequency starting from start_date."""
     today = date.today()
     start = date.fromisoformat(start_date)
 
     if start > today:
         return start.isoformat()
+
+    n = max(1, interval or 1)
 
     if frequency == "daily":
         return today.isoformat()
@@ -70,46 +74,56 @@ def _compute_next_due(frequency: str, start_date: str, day_of_week: Optional[int
         dow = day_of_week if day_of_week is not None else 0
         days_ahead = dow - today.weekday()
         if days_ahead <= 0:
-            days_ahead += 7
+            days_ahead += 7 * n
         return (today + timedelta(days=days_ahead)).isoformat()
 
     if frequency == "monthly":
         dom = day_of_month if day_of_month is not None else 1
-        # Next occurrence of this day
         year, month = today.year, today.month
         if today.day >= dom:
-            month += 1
-            if month > 12:
-                month = 1
+            month += n
+            while month > 12:
+                month -= 12
                 year += 1
         try:
             return date(year, month, min(dom, 28)).isoformat()
         except ValueError:
             return date(year, month, 28).isoformat()
 
+    if frequency == "yearly":
+        year = today.year
+        if today.month > 1 or today.day > 1:
+            year += n
+        return date(year, 1, 1).isoformat()
+
     return today.isoformat()
 
 
-def _advance_next_due(frequency: str, current_due: str, day_of_week: Optional[int], day_of_month: Optional[int]) -> str:
+def _advance_next_due(frequency: str, current_due: str, day_of_week: Optional[int], day_of_month: Optional[int], interval: int = 1) -> str:
     """Advance the next_due_date by one period."""
     current = date.fromisoformat(current_due)
+    n = max(1, interval or 1)
 
     if frequency == "daily":
-        return (current + timedelta(days=1)).isoformat()
+        return (current + timedelta(days=n)).isoformat()
 
     if frequency == "weekly":
-        return (current + timedelta(weeks=1)).isoformat()
+        return (current + timedelta(weeks=n)).isoformat()
 
     if frequency == "monthly":
-        year, month = current.year, current.month + 1
-        if month > 12:
-            month = 1
+        month = current.month + n
+        year = current.year
+        while month > 12:
+            month -= 12
             year += 1
         dom = day_of_month if day_of_month is not None else current.day
         try:
             return date(year, month, min(dom, 28)).isoformat()
         except ValueError:
             return date(year, month, 28).isoformat()
+
+    if frequency == "yearly":
+        return date(current.year + n, current.month, current.day).isoformat()
 
     return current.isoformat()
 
@@ -183,7 +197,8 @@ async def get_recurring_inspection(ri_id: str):
 async def create_recurring_inspection(body: CreateRecurringInspection):
     _validate_frequency(body.frequency)
 
-    next_due = _compute_next_due(body.frequency, body.start_date, body.day_of_week, body.day_of_month)
+    interval = max(1, body.interval or 1)
+    next_due = _compute_next_due(body.frequency, body.start_date, body.day_of_week, body.day_of_month, interval)
 
     payload = {
         "title": body.title,
@@ -193,6 +208,7 @@ async def create_recurring_inspection(body: CreateRecurringInspection):
         "frequency": body.frequency,
         "day_of_week": body.day_of_week,
         "day_of_month": body.day_of_month,
+        "interval": interval,
         "start_date": body.start_date,
         "end_date": body.end_date,
         "next_due_date": next_due,
@@ -220,7 +236,8 @@ async def update_recurring_inspection(ri_id: str, body: UpdateRecurringInspectio
     if not existing.data:
         raise HTTPException(status_code=404, detail="Recurring inspection not found")
 
-    next_due = _compute_next_due(body.frequency, body.start_date, body.day_of_week, body.day_of_month)
+    interval = max(1, body.interval or 1)
+    next_due = _compute_next_due(body.frequency, body.start_date, body.day_of_week, body.day_of_month, interval)
 
     payload = {
         "title": body.title,
@@ -230,6 +247,7 @@ async def update_recurring_inspection(ri_id: str, body: UpdateRecurringInspectio
         "frequency": body.frequency,
         "day_of_week": body.day_of_week,
         "day_of_month": body.day_of_month,
+        "interval": interval,
         "start_date": body.start_date,
         "end_date": body.end_date,
         "next_due_date": next_due,
@@ -330,7 +348,8 @@ async def generate_due_inspections():
         # Advance next_due_date
         new_next = _advance_next_due(
             ri["frequency"], ri["next_due_date"],
-            ri.get("day_of_week"), ri.get("day_of_month")
+            ri.get("day_of_week"), ri.get("day_of_month"),
+            ri.get("interval", 1) or 1,
         )
         supabase.table("recurring_inspections").update({
             "next_due_date": new_next,

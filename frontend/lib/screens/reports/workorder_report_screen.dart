@@ -35,7 +35,13 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
 
   Future<void> _loadEmployees() async {
     try {
-      final employees = await UserService().fetchTechnicians();
+      final allUsers = await UserService().fetchUsers();
+      final employees = allUsers
+          .where((u) =>
+              (u.userType == UserType.technician ||
+                  u.userType == UserType.admin) &&
+              u.isActive)
+          .toList();
       setState(() {
         _employees = employees;
         _employeesLoading = false;

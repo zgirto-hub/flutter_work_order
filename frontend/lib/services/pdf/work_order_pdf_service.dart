@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../models/workorder_report.dart';
 
@@ -64,10 +65,18 @@ class WorkOrderPdfService {
         results.isEmpty ? 'N/A' : _fmtLong(_latestClosed(results));
 
     if (theme == WorkOrderPdfTheme.formalElegant) {
+      await _EF.load();
       pdf.addPage(
         pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          margin: pw.EdgeInsets.zero,
+          pageTheme: pw.PageTheme(
+            pageFormat: PdfPageFormat.a4,
+            margin: pw.EdgeInsets.zero,
+            buildBackground: (context) => pw.Container(
+              width: PdfPageFormat.a4.width,
+              height: PdfPageFormat.a4.height,
+              decoration: const pw.BoxDecoration(color: _EP.paper),
+            ),
+          ),
           footer: (context) => _elegantFooter(context, generatedStr),
           build: (context) => [
             _elegantPageHeader(
@@ -237,7 +246,7 @@ class WorkOrderPdfService {
               pw.Text(
                 'WORK ORDER SYSTEM',
                 style: pw.TextStyle(
-                  font: pw.Font.helveticaBold(),
+                  font: _EF.sansBold,
                   fontSize: 7.5,
                   color: const PdfColor(1, 1, 1, 0.55),
                   letterSpacing: 2.0,
@@ -246,7 +255,7 @@ class WorkOrderPdfService {
               pw.Text(
                 'Field Closure Report  ·  Confidential',
                 style: pw.TextStyle(
-                  font: pw.Font.helvetica(),
+                  font: _EF.sans,
                   fontSize: 7.5,
                   color: const PdfColor(1, 1, 1, 0.38),
                 ),
@@ -269,7 +278,7 @@ class WorkOrderPdfService {
                     pw.Text(
                       'OPERATIONAL REPORT',
                       style: pw.TextStyle(
-                        font: pw.Font.helveticaBold(),
+                        font: _EF.sansBold,
                         fontSize: 7.5,
                         color: _EP.accent,
                         letterSpacing: 2.2,
@@ -279,7 +288,7 @@ class WorkOrderPdfService {
                     pw.Text(
                       'Field Closure',
                       style: pw.TextStyle(
-                        font: pw.Font.times(),
+                        font: _EF.serif,
                         fontSize: 30,
                         color: _EP.ink,
                       ),
@@ -287,9 +296,8 @@ class WorkOrderPdfService {
                     pw.Text(
                       'Summary',
                       style: pw.TextStyle(
-                        font: pw.Font.times(),
+                        font: _EF.serifItalic,
                         fontSize: 30,
-                        fontStyle: pw.FontStyle.italic,
                         color: _EP.ink,
                       ),
                     ),
@@ -297,7 +305,7 @@ class WorkOrderPdfService {
                     pw.Text(
                       'A concise operational snapshot for $employeeName covering $startStr to $endStr across $uniqueLocations location${uniqueLocations == 1 ? '' : 's'}.',
                       style: pw.TextStyle(
-                        font: pw.Font.helvetica(),
+                        font: _EF.sans,
                         fontSize: 9,
                         color: _EP.inkSoft,
                         height: 1.5,
@@ -307,13 +315,13 @@ class WorkOrderPdfService {
                 ),
               ),
               pw.SizedBox(width: 20),
-              pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
+              pw.Row(
+                mainAxisSize: pw.MainAxisSize.min,
                 children: [
                   _elegantMetaPill('EMPLOYEE', employeeName),
-                  pw.SizedBox(height: 5),
+                  pw.SizedBox(width: 6),
                   _elegantMetaPill('PERIOD', '$startStr – $endStr'),
-                  pw.SizedBox(height: 5),
+                  pw.SizedBox(width: 6),
                   _elegantMetaPill('GENERATED', generatedStr),
                 ],
               ),
@@ -366,7 +374,7 @@ class WorkOrderPdfService {
 
   static pw.Widget _elegantMetaPill(String label, String value) {
     return pw.Container(
-      padding: const pw.EdgeInsets.fromLTRB(10, 7, 10, 7),
+      padding: const pw.EdgeInsets.fromLTRB(12, 9, 12, 9),
       decoration: pw.BoxDecoration(
         color: _EP.paperWarm,
         border: pw.Border.all(color: _EP.rule, width: 0.7),
@@ -377,19 +385,20 @@ class WorkOrderPdfService {
           pw.Text(
             label,
             style: pw.TextStyle(
-              font: pw.Font.helveticaBold(),
-              fontSize: 6.5,
+              font: _EF.sansBold,
+              fontSize: 7,
               color: _EP.inkGhost,
-              letterSpacing: 1.4,
+              letterSpacing: 1.6,
             ),
           ),
           pw.SizedBox(height: 3),
           pw.Text(
             value,
             style: pw.TextStyle(
-              font: pw.Font.times(),
-              fontSize: 10.5,
+              font: _EF.serif,
+              fontSize: 11.5,
               color: _EP.ink,
+              letterSpacing: 0.1,
             ),
           ),
         ],
@@ -420,7 +429,7 @@ class WorkOrderPdfService {
             pw.Text(
               label,
               style: pw.TextStyle(
-                font: pw.Font.helveticaBold(),
+                font: _EF.sansBold,
                 fontSize: 6.5,
                 color: _EP.inkGhost,
                 letterSpacing: 1.6,
@@ -430,7 +439,7 @@ class WorkOrderPdfService {
             pw.Text(
               value,
               style: pw.TextStyle(
-                font: pw.Font.times(),
+                font: _EF.serif,
                 fontSize: 26,
                 color: useAccent ? _EP.accent : _EP.ink,
               ),
@@ -440,7 +449,7 @@ class WorkOrderPdfService {
               pw.Text(
                 caption,
                 style: pw.TextStyle(
-                  font: pw.Font.helvetica(),
+                  font: _EF.sans,
                   fontSize: 8,
                   color: _EP.inkSoft,
                 ),
@@ -462,7 +471,7 @@ class WorkOrderPdfService {
         pw.Text(
           title.toUpperCase(),
           style: pw.TextStyle(
-            font: pw.Font.helveticaBold(),
+            font: _EF.sansBold,
             fontSize: 7,
             color: _EP.inkSoft,
             letterSpacing: 1.8,
@@ -476,7 +485,7 @@ class WorkOrderPdfService {
         pw.Text(
           count,
           style: pw.TextStyle(
-            font: pw.Font.helvetica(),
+            font: _EF.sans,
             fontSize: 7,
             color: _EP.inkGhost,
             letterSpacing: 0.5,
@@ -505,7 +514,7 @@ class WorkOrderPdfService {
                 child: pw.Text(
                   'LOCATION',
                   style: pw.TextStyle(
-                    font: pw.Font.helveticaBold(),
+                    font: _EF.sansBold,
                     fontSize: 6.5,
                     color: _EP.inkGhost,
                     letterSpacing: 1.4,
@@ -519,7 +528,7 @@ class WorkOrderPdfService {
                   'COUNT',
                   textAlign: pw.TextAlign.right,
                   style: pw.TextStyle(
-                    font: pw.Font.helveticaBold(),
+                    font: _EF.sansBold,
                     fontSize: 6.5,
                     color: _EP.inkGhost,
                     letterSpacing: 1.4,
@@ -555,7 +564,7 @@ class WorkOrderPdfService {
                   child: pw.Text(
                     stat.name,
                     style: pw.TextStyle(
-                      font: pw.Font.helvetica(),
+                      font: _EF.sans,
                       fontSize: 10,
                       color: _EP.ink,
                     ),
@@ -589,7 +598,7 @@ class WorkOrderPdfService {
                     '${stat.count}  ·  $share%',
                     textAlign: pw.TextAlign.right,
                     style: pw.TextStyle(
-                      font: pw.Font.helvetica(),
+                      font: _EF.sans,
                       fontSize: 9,
                       color: _EP.inkSoft,
                     ),
@@ -605,7 +614,7 @@ class WorkOrderPdfService {
             child: pw.Text(
               '+${stats.length - 5} more location${stats.length - 5 == 1 ? '' : 's'} included in the detailed ledger.',
               style: pw.TextStyle(
-                font: pw.Font.helvetica(),
+                font: _EF.sans,
                 fontSize: 8,
                 color: _EP.inkSoft,
               ),
@@ -630,7 +639,7 @@ class WorkOrderPdfService {
                 child: pw.Text(
                   'NO.',
                   style: pw.TextStyle(
-                    font: pw.Font.helveticaBold(),
+                    font: _EF.sansBold,
                     fontSize: 6.5,
                     color: _EP.inkGhost,
                     letterSpacing: 1.4,
@@ -642,7 +651,7 @@ class WorkOrderPdfService {
                 child: pw.Text(
                   'WORK ORDER',
                   style: pw.TextStyle(
-                    font: pw.Font.helveticaBold(),
+                    font: _EF.sansBold,
                     fontSize: 6.5,
                     color: _EP.inkGhost,
                     letterSpacing: 1.4,
@@ -654,7 +663,7 @@ class WorkOrderPdfService {
                 child: pw.Text(
                   'LOCATION',
                   style: pw.TextStyle(
-                    font: pw.Font.helveticaBold(),
+                    font: _EF.sansBold,
                     fontSize: 6.5,
                     color: _EP.inkGhost,
                     letterSpacing: 1.4,
@@ -667,7 +676,7 @@ class WorkOrderPdfService {
                   'CLOSED',
                   textAlign: pw.TextAlign.right,
                   style: pw.TextStyle(
-                    font: pw.Font.helveticaBold(),
+                    font: _EF.sansBold,
                     fontSize: 6.5,
                     color: _EP.inkGhost,
                     letterSpacing: 1.4,
@@ -703,7 +712,7 @@ class WorkOrderPdfService {
                   child: pw.Text(
                     '${index + 1}'.padLeft(2, '0'),
                     style: pw.TextStyle(
-                      font: pw.Font.times(),
+                      font: _EF.serif,
                       fontSize: 9.5,
                       color: _EP.inkGhost,
                     ),
@@ -714,7 +723,7 @@ class WorkOrderPdfService {
                   child: pw.Text(
                     item.title,
                     style: pw.TextStyle(
-                      font: pw.Font.helvetica(),
+                      font: _EF.sans,
                       fontSize: 10,
                       color: _EP.ink,
                       height: 1.35,
@@ -726,7 +735,7 @@ class WorkOrderPdfService {
                   child: pw.Text(
                     loc,
                     style: pw.TextStyle(
-                      font: pw.Font.helvetica(),
+                      font: _EF.sans,
                       fontSize: 9.5,
                       color: _EP.inkMid,
                     ),
@@ -738,7 +747,7 @@ class WorkOrderPdfService {
                     _fmtShort(item.modifiedDate),
                     textAlign: pw.TextAlign.right,
                     style: pw.TextStyle(
-                      font: pw.Font.helvetica(),
+                      font: _EF.sans,
                       fontSize: 9.5,
                       color: _EP.inkSoft,
                     ),
@@ -761,7 +770,7 @@ class WorkOrderPdfService {
       child: pw.Text(
         message,
         style: pw.TextStyle(
-          font: pw.Font.helvetica(),
+          font: _EF.sans,
           fontSize: 9,
           color: _EP.inkSoft,
           height: 1.45,
@@ -786,7 +795,7 @@ class WorkOrderPdfService {
               pw.Text(
                 'Work Order System',
                 style: pw.TextStyle(
-                  font: pw.Font.helveticaBold(),
+                  font: _EF.sansBold,
                   fontSize: 7.5,
                   color: _EP.inkSoft,
                 ),
@@ -794,7 +803,7 @@ class WorkOrderPdfService {
               pw.Text(
                 '  ·  Generated $generatedStr  ·  Operational · Confidential',
                 style: pw.TextStyle(
-                  font: pw.Font.helvetica(),
+                  font: _EF.sans,
                   fontSize: 7.5,
                   color: _EP.inkGhost,
                 ),
@@ -804,7 +813,7 @@ class WorkOrderPdfService {
           pw.Text(
             'Page ${context.pageNumber} of ${context.pagesCount}',
             style: pw.TextStyle(
-              font: pw.Font.times(),
+              font: _EF.serif,
               fontSize: 8,
               color: _EP.inkGhost,
             ),
@@ -1438,9 +1447,30 @@ class _EP {
   static const inkMid = PdfColor(0.290, 0.290, 0.243);
   static const inkSoft = PdfColor(0.541, 0.541, 0.478);
   static const inkGhost = PdfColor(0.769, 0.769, 0.706);
+  static const paper = PdfColor(0.980, 0.980, 0.969); // #FAFAF7
   static const paperWarm = PdfColor(0.961, 0.957, 0.937);
   static const rule = PdfColor(0.886, 0.878, 0.847);
   static const accent = PdfColor(0.545, 0.435, 0.306);
+}
+
+// Elegant theme fonts — loaded once per buildReport call via PdfGoogleFonts
+class _EF {
+  static pw.Font _serif = _EF.serif;
+  static pw.Font _serifItalic = pw.Font.timesItalic();
+  static pw.Font _sans = _EF.sans;
+  static pw.Font _sansBold = _EF.sansBold;
+
+  static pw.Font get serif => _serif;
+  static pw.Font get serifItalic => _serifItalic;
+  static pw.Font get sans => _sans;
+  static pw.Font get sansBold => _sansBold;
+
+  static Future<void> load() async {
+    _serif = await PdfGoogleFonts.cormorantGaramondRegular();
+    _serifItalic = await PdfGoogleFonts.cormorantGaramondItalic();
+    _sans = await PdfGoogleFonts.dMSansRegular();
+    _sansBold = await PdfGoogleFonts.dMSansMedium();
+  }
 }
 
 // ── Location stat model ────────────────────────────────────────────────────────
