@@ -21,6 +21,7 @@ async def upload_file(
     is_private: bool = Form(False),
     uploaded_by: str = Form(...),
     folder_id: Optional[str] = Form(None),
+    expiration_date: Optional[str] = Form(None),
 ):
     file_id = str(uuid.uuid4())
     extension = file.filename.split(".")[-1].lower()
@@ -48,6 +49,8 @@ async def upload_file(
     }
     if folder_id:
         record["folder_id"] = folder_id
+    if expiration_date:
+        record["expiration_date"] = expiration_date
 
     supabase.table("documents").insert(record).execute()
 
@@ -182,6 +185,42 @@ async def remove_share(
         .execute()
 
     return {"status": "access removed"}
+
+
+@router.patch("/documents/{doc_id}/expiration")
+async def update_expiration(
+    doc_id: str,
+    expiration_date: Optional[str] = Query(None),
+    user_email: str = Query(...),
+):
+    """Set or clear the expiration date on a document."""
+    doc = supabase.table("documents") \
+        .select("uploaded_by, folder_id") \
+        .eq("id", doc_id) \
+        .execute()
+
+    if not doc.data:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    d = doc.data[0]
+
+    if not can(
+        user_email, "edit", doc_id, "document",
+        folder_id=d.get("folder_id"),
+        resource_owner=d["uploaded_by"]
+    ):
+        raise HTTPException(status_code=403, detail="Not allowed to edit this document")
+
+    supabase.table("documents") \
+        .update({"expiration_date": expiration_date}) \
+        .eq("id", doc_id) \
+        .execute()
+
+    log_activity(user_email, "document", "updated_expiration",
+        target_label=doc_id, target_id=doc_id,
+        detail=f"expiration set to {expiration_date or 'none'}")
+
+    return {"status": "updated", "expiration_date": expiration_date}
 
 
 @router.get("/document-uploaders")

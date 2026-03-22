@@ -30,14 +30,32 @@ class DocumentFilterEngine {
       }).toList();
     }
     // DOCUMENT TYPE FILTER
-if (filter.selectedDocumentType != null &&
-    filter.selectedDocumentType!.isNotEmpty) {
+    if (filter.selectedDocumentType != null &&
+        filter.selectedDocumentType!.isNotEmpty) {
+      filtered = filtered.where((doc) {
+        return doc.documentType == filter.selectedDocumentType;
+      }).toList();
+    }
 
-  filtered = filtered.where((doc) {
-    return doc.documentType == filter.selectedDocumentType;
-  }).toList();
-
-}
+    // EXPIRATION FILTER
+    if (filter.expirationFilter != null) {
+      switch (filter.expirationFilter) {
+        case 'expired':
+          filtered = filtered.where((doc) => doc.isExpired).toList();
+          break;
+        case 'expiring_soon':
+          filtered = filtered.where((doc) => doc.isExpiringSoon).toList();
+          break;
+        case 'active':
+          filtered = filtered
+              .where((doc) =>
+                  doc.expirationDate != null &&
+                  !doc.isExpired &&
+                  !doc.isExpiringSoon)
+              .toList();
+          break;
+      }
+    }
 
     return filtered;
   }

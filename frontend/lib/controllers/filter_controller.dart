@@ -8,12 +8,18 @@ class FilterController extends ChangeNotifier {
   String? selectedEmployeeId;
 
   String? selectedDocumentType;
+  String? expirationFilter; // 'expired' | 'expiring_soon' | 'active' | null
 
   
   void setDocumentType(String? type) {
-  selectedDocumentType = type;
-  notifyListeners();
-}
+    selectedDocumentType = type;
+    notifyListeners();
+  }
+
+  void setExpirationFilter(String? filter) {
+    expirationFilter = filter;
+    notifyListeners();
+  }
 
   void setSearchQuery(String value) {
     searchQuery = value;
@@ -40,6 +46,7 @@ class FilterController extends ChangeNotifier {
     statusFilter = "All";
     selectedDate = null;
     selectedEmployeeId = null;
+    expirationFilter = null;
     notifyListeners();
   }
 }

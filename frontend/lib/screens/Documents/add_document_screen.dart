@@ -21,6 +21,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
   bool isPrivate = false;
   bool _isLoading = false;
+  DateTime? _expirationDate;
 
   // Single file mode
   PlatformFile? _selectedFile;
@@ -134,6 +135,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       request.fields['is_private'] = isPrivate ? '1' : '0';
       request.fields['uploaded_by'] = _userEmail;
       if (widget.folderId != null) request.fields['folder_id'] = widget.folderId!;
+      if (_expirationDate != null) request.fields['expiration_date'] = _expirationDate!.toIso8601String();
 
       final response = await request.send();
 
@@ -201,6 +203,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         request.fields['is_private'] = isPrivate ? '1' : '0';
         request.fields['uploaded_by'] = _userEmail;
         if (widget.folderId != null) request.fields['folder_id'] = widget.folderId!;
+        if (_expirationDate != null) request.fields['expiration_date'] = _expirationDate!.toIso8601String();
 
         final response = await request.send();
         if (response.statusCode == 200) successCount++;
@@ -309,6 +312,72 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                   value: isPrivate,
                   activeColor: AppColors.accent,
                   onChanged: (v) => setState(() => isPrivate = v),
+                ),
+              ),
+
+              SizedBox(height: 14),
+
+              // ── Expiration date ───────────────────────────
+              _Label('Expiration date (optional)'),
+              SizedBox(height: 6),
+              GestureDetector(
+                onTap: _isLoading ? null : () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _expirationDate ?? DateTime.now().add(const Duration(days: 30)),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: Theme.of(context).colorScheme.copyWith(
+                            primary: AppColors.accent,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    setState(() => _expirationDate = picked);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: _expirationDate != null ? AppColors.pendingBg.withOpacity(0.3) : AppColors.bgSurface2,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _expirationDate != null ? AppColors.pendingText.withOpacity(0.3) : AppColors.border2,
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.event_outlined,
+                        size: 16,
+                        color: _expirationDate != null ? AppColors.pendingText : AppColors.textSecondary,
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _expirationDate != null
+                              ? 'Expires: ${_expirationDate!.day}/${_expirationDate!.month}/${_expirationDate!.year}'
+                              : 'No expiration date',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _expirationDate != null ? AppColors.pendingText : AppColors.textTertiary,
+                          ),
+                        ),
+                      ),
+                      if (_expirationDate != null)
+                        GestureDetector(
+                          onTap: () => setState(() => _expirationDate = null),
+                          child: Icon(Icons.close_rounded, size: 16, color: AppColors.pendingText),
+                        ),
+                    ],
+                  ),
                 ),
               ),
 
