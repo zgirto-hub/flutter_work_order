@@ -81,19 +81,18 @@ async def list_users():
     result = supabase.table("users").select("*").execute()
     users = result.data or []
 
-    for user in users:
-        dept_result = supabase.table("technician_departments") \
-            .select("department_id") \
-            .eq("technician_id", user.get("id")) \
-            .execute()
-        dept_ids = [r.get("department_id") for r in (dept_result.data or []) if r.get("department_id")]
+    # Bulk fetch in 2 queries instead of N+1
+    all_td = supabase.table("technician_departments").select("technician_id, department_id").execute().data or []
+    all_depts = supabase.table("departments").select("id, name").execute().data or []
+    dept_name_map = {d["id"]: d["name"] for d in all_depts}
 
-        dept_names = []
-        for dept_id in dept_ids:
-            d_result = supabase.table("departments").select("name").eq("id", dept_id).execute()
-            if d_result.data:
-                dept_names.append(d_result.data[0].get("name"))
-        user["departments"] = dept_names
+    td_by_technician: dict = {}
+    for row in all_td:
+        td_by_technician.setdefault(row["technician_id"], []).append(row["department_id"])
+
+    for user in users:
+        dept_ids = td_by_technician.get(user.get("id"), [])
+        user["departments"] = [dept_name_map[d] for d in dept_ids if d in dept_name_map]
 
     return {"users": users}
 
