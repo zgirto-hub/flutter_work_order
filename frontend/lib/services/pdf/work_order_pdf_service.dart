@@ -1,6 +1,6 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
-import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -10,6 +10,7 @@ enum WorkOrderPdfTheme {
   copperNight,
   forestLedger,
   signalOrange,
+  formalElegant,
 }
 
 extension WorkOrderPdfThemeX on WorkOrderPdfTheme {
@@ -21,6 +22,8 @@ extension WorkOrderPdfThemeX on WorkOrderPdfTheme {
         return 'Forest Ledger';
       case WorkOrderPdfTheme.signalOrange:
         return 'Signal Orange';
+      case WorkOrderPdfTheme.formalElegant:
+        return 'Formal Elegant';
     }
   }
 
@@ -32,6 +35,8 @@ extension WorkOrderPdfThemeX on WorkOrderPdfTheme {
         return 'Calm, grounded greens with paper-ledger warmth.';
       case WorkOrderPdfTheme.signalOrange:
         return 'Industrial slate with bold orange energy.';
+      case WorkOrderPdfTheme.formalElegant:
+        return 'Clean serif typography with a refined rule-based layout.';
     }
   }
 }
@@ -56,76 +61,127 @@ class WorkOrderPdfService {
     final busiestLocation =
         locationStats.isEmpty ? 'No location data' : locationStats.first.name;
     final latestClosed =
-        results.isEmpty ? 'No work orders' : _fmtLong(_latestClosed(results));
+        results.isEmpty ? 'N/A' : _fmtLong(_latestClosed(results));
 
-    final logoBytes = await rootBundle.load('assets/images/logo.png');
-    final logoImage = pw.MemoryImage(logoBytes.buffer.asUint8List());
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(32, 24, 32, 28),
-        footer: (context) => _footer(context, palette, generatedStr),
-        build: (context) => [
-          _heroSection(
-            palette: palette,
-            logo: logoImage,
-            employeeName: employeeName,
-            startStr: startStr,
-            endStr: endStr,
-            generatedStr: generatedStr,
-            total: results.length,
-            uniqueLocations: uniqueLocations,
-          ),
-          pw.SizedBox(height: 20),
-          _metricsRow(
-            palette: palette,
-            employeeName: employeeName,
-            uniqueLocations: uniqueLocations,
-            busiestLocation: busiestLocation,
-            latestClosed: latestClosed,
-          ),
-          pw.SizedBox(height: 20),
-          _sectionTitle(
-            palette: palette,
-            eyebrow: 'Activity Snapshot',
-            title: 'Where the closures happened',
-            subtitle:
-                'A ranked breakdown makes the busiest locations visible at a glance before the full ledger begins.',
-          ),
-          pw.SizedBox(height: 12),
-          if (locationStats.isEmpty)
-            _emptyCard(
-              palette: palette,
-              message:
-                  'No closed work orders were found for this employee in the selected period.',
-            )
-          else
-            _locationBoard(
-              palette: palette,
-              stats: locationStats,
+    if (theme == WorkOrderPdfTheme.formalElegant) {
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.zero,
+          footer: (context) => _elegantFooter(context, generatedStr),
+          build: (context) => [
+            _elegantPageHeader(
+              employeeName: employeeName,
+              startStr: startStr,
+              endStr: endStr,
+              generatedStr: generatedStr,
               total: results.length,
+              uniqueLocations: uniqueLocations,
+              latestClosed: latestClosed,
+              isEmpty: results.isEmpty,
             ),
-          pw.SizedBox(height: 22),
-          _sectionTitle(
-            palette: palette,
-            eyebrow: 'Detailed Ledger',
-            title: 'Closed work orders',
-            subtitle:
-                'Each row lists the completed work order, its site, and the closure date for audit and review.',
-          ),
-          pw.SizedBox(height: 12),
-          if (results.isEmpty)
-            _emptyCard(
+            pw.Padding(
+              padding: const pw.EdgeInsets.fromLTRB(28, 22, 28, 0),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.SizedBox(height: 4),
+                  _elegantSectionLabel(
+                    title: 'Activity Snapshot',
+                    count:
+                        '${locationStats.length} site${locationStats.length == 1 ? '' : 's'}',
+                  ),
+                  pw.SizedBox(height: 10),
+                  if (locationStats.isEmpty)
+                    _elegantEmptyCard(
+                        'No closed work orders were found for this employee in the selected period.')
+                  else
+                    _elegantLocationBoard(
+                        stats: locationStats, total: results.length),
+                  pw.SizedBox(height: 22),
+                  _elegantSectionLabel(
+                    title: 'Detailed Ledger',
+                    count:
+                        '${results.length} entr${results.length == 1 ? 'y' : 'ies'}',
+                  ),
+                  pw.SizedBox(height: 10),
+                  if (results.isEmpty)
+                    _elegantEmptyCard(
+                        'Generate a report with matching records to populate the ledger.')
+                  else
+                    _elegantResultsTable(results: results),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.fromLTRB(32, 24, 32, 28),
+          footer: (context) => _footer(context, palette, generatedStr),
+          build: (context) => [
+            _heroSection(
               palette: palette,
-              message:
-                  'Generate a report with matching records to populate the ledger.',
-            )
-          else
-            _resultsTable(palette: palette, results: results),
-        ],
-      ),
-    );
+              employeeName: employeeName,
+              startStr: startStr,
+              endStr: endStr,
+              generatedStr: generatedStr,
+              total: results.length,
+              uniqueLocations: uniqueLocations,
+            ),
+            pw.SizedBox(height: 20),
+            _metricsRow(
+              palette: palette,
+              employeeName: employeeName,
+              uniqueLocations: uniqueLocations,
+              busiestLocation: busiestLocation,
+              latestClosed: latestClosed,
+            ),
+            pw.SizedBox(height: 20),
+            _sectionTitle(
+              palette: palette,
+              eyebrow: 'Activity Snapshot',
+              title: 'Where the closures happened',
+              subtitle:
+                  'A ranked breakdown makes the busiest locations visible at a glance before the full ledger begins.',
+            ),
+            pw.SizedBox(height: 12),
+            if (locationStats.isEmpty)
+              _emptyCard(
+                palette: palette,
+                message:
+                    'No closed work orders were found for this employee in the selected period.',
+              )
+            else
+              _locationBoard(
+                palette: palette,
+                stats: locationStats,
+                total: results.length,
+              ),
+            pw.SizedBox(height: 22),
+            _sectionTitle(
+              palette: palette,
+              eyebrow: 'Detailed Ledger',
+              title: 'Closed work orders',
+              subtitle:
+                  'Each row lists the completed work order, its site, and the closure date for audit and review.',
+            ),
+            pw.SizedBox(height: 12),
+            if (results.isEmpty)
+              _emptyCard(
+                palette: palette,
+                message:
+                    'Generate a report with matching records to populate the ledger.',
+              )
+            else
+              _resultsTable(palette: palette, results: results),
+          ],
+        ),
+      );
+    }
 
     return pdf.save();
   }
@@ -156,9 +212,612 @@ class WorkOrderPdfService {
         (latest, current) => current.isAfter(latest) ? current : latest);
   }
 
+  // ── Elegant theme widgets ──────────────────────────────────────────────────
+
+  static pw.Widget _elegantPageHeader({
+    required String employeeName,
+    required String startStr,
+    required String endStr,
+    required String generatedStr,
+    required int total,
+    required int uniqueLocations,
+    required String latestClosed,
+    required bool isEmpty,
+  }) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // Top bar
+        pw.Container(
+          color: _EP.ink,
+          padding: const pw.EdgeInsets.fromLTRB(28, 11, 28, 11),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'WORK ORDER SYSTEM',
+                style: pw.TextStyle(
+                  font: pw.Font.helveticaBold(),
+                  fontSize: 7.5,
+                  color: const PdfColor(1, 1, 1, 0.55),
+                  letterSpacing: 2.0,
+                ),
+              ),
+              pw.Text(
+                'Field Closure Report  ·  Confidential',
+                style: pw.TextStyle(
+                  font: pw.Font.helvetica(),
+                  fontSize: 7.5,
+                  color: const PdfColor(1, 1, 1, 0.38),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Header content
+        pw.Padding(
+          padding: const pw.EdgeInsets.fromLTRB(28, 24, 28, 20),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Expanded(
+                flex: 6,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'OPERATIONAL REPORT',
+                      style: pw.TextStyle(
+                        font: pw.Font.helveticaBold(),
+                        fontSize: 7.5,
+                        color: _EP.accent,
+                        letterSpacing: 2.2,
+                      ),
+                    ),
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      'Field Closure',
+                      style: pw.TextStyle(
+                        font: pw.Font.times(),
+                        fontSize: 30,
+                        color: _EP.ink,
+                      ),
+                    ),
+                    pw.Text(
+                      'Summary',
+                      style: pw.TextStyle(
+                        font: pw.Font.times(),
+                        fontSize: 30,
+                        fontStyle: pw.FontStyle.italic,
+                        color: _EP.ink,
+                      ),
+                    ),
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      'A concise operational snapshot for $employeeName covering $startStr to $endStr across $uniqueLocations location${uniqueLocations == 1 ? '' : 's'}.',
+                      style: pw.TextStyle(
+                        font: pw.Font.helvetica(),
+                        fontSize: 9,
+                        color: _EP.inkSoft,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(width: 20),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  _elegantMetaPill('EMPLOYEE', employeeName),
+                  pw.SizedBox(height: 5),
+                  _elegantMetaPill('PERIOD', '$startStr – $endStr'),
+                  pw.SizedBox(height: 5),
+                  _elegantMetaPill('GENERATED', generatedStr),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Divider
+        pw.Container(height: 0.7, color: _EP.rule),
+
+        // Stats strip
+        pw.Row(
+          children: [
+            _elegantStatCell(
+              label: 'TOTAL CLOSED',
+              value: total.toString().padLeft(2, '0'),
+              caption: 'Work orders',
+              hasRightBorder: true,
+              useAccent: false,
+            ),
+            _elegantStatCell(
+              label: 'LOCATIONS',
+              value: uniqueLocations.toString().padLeft(2, '0'),
+              caption: 'Sites covered',
+              hasRightBorder: true,
+              useAccent: false,
+            ),
+            _elegantStatCell(
+              label: 'LATEST CLOSED',
+              value: latestClosed,
+              caption: '',
+              hasRightBorder: true,
+              useAccent: false,
+            ),
+            _elegantStatCell(
+              label: 'STATUS',
+              value: isEmpty ? 'Pending' : 'Complete',
+              caption: isEmpty ? '' : 'All resolved',
+              hasRightBorder: false,
+              useAccent: !isEmpty,
+            ),
+          ],
+        ),
+
+        // Divider
+        pw.Container(height: 0.7, color: _EP.rule),
+      ],
+    );
+  }
+
+  static pw.Widget _elegantMetaPill(String label, String value) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.fromLTRB(10, 7, 10, 7),
+      decoration: pw.BoxDecoration(
+        color: _EP.paperWarm,
+        border: pw.Border.all(color: _EP.rule, width: 0.7),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.end,
+        children: [
+          pw.Text(
+            label,
+            style: pw.TextStyle(
+              font: pw.Font.helveticaBold(),
+              fontSize: 6.5,
+              color: _EP.inkGhost,
+              letterSpacing: 1.4,
+            ),
+          ),
+          pw.SizedBox(height: 3),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              font: pw.Font.times(),
+              fontSize: 10.5,
+              color: _EP.ink,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _elegantStatCell({
+    required String label,
+    required String value,
+    required String caption,
+    required bool hasRightBorder,
+    required bool useAccent,
+  }) {
+    return pw.Expanded(
+      child: pw.Container(
+        padding: const pw.EdgeInsets.fromLTRB(20, 14, 20, 14),
+        decoration: hasRightBorder
+            ? pw.BoxDecoration(
+                border: pw.Border(
+                  right: pw.BorderSide(color: _EP.rule, width: 0.7),
+                ),
+              )
+            : null,
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              label,
+              style: pw.TextStyle(
+                font: pw.Font.helveticaBold(),
+                fontSize: 6.5,
+                color: _EP.inkGhost,
+                letterSpacing: 1.6,
+              ),
+            ),
+            pw.SizedBox(height: 5),
+            pw.Text(
+              value,
+              style: pw.TextStyle(
+                font: pw.Font.times(),
+                fontSize: 26,
+                color: useAccent ? _EP.accent : _EP.ink,
+              ),
+            ),
+            if (caption.isNotEmpty) ...[
+              pw.SizedBox(height: 2),
+              pw.Text(
+                caption,
+                style: pw.TextStyle(
+                  font: pw.Font.helvetica(),
+                  fontSize: 8,
+                  color: _EP.inkSoft,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  static pw.Widget _elegantSectionLabel({
+    required String title,
+    required String count,
+  }) {
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
+      children: [
+        pw.Text(
+          title.toUpperCase(),
+          style: pw.TextStyle(
+            font: pw.Font.helveticaBold(),
+            fontSize: 7,
+            color: _EP.inkSoft,
+            letterSpacing: 1.8,
+          ),
+        ),
+        pw.SizedBox(width: 10),
+        pw.Expanded(
+          child: pw.Container(height: 0.7, color: _EP.rule),
+        ),
+        pw.SizedBox(width: 10),
+        pw.Text(
+          count,
+          style: pw.TextStyle(
+            font: pw.Font.helvetica(),
+            fontSize: 7,
+            color: _EP.inkGhost,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _elegantLocationBoard({
+    required List<_LocationStat> stats,
+    required int total,
+  }) {
+    final topStats = stats.take(5).toList();
+    final maxCount = topStats.isEmpty ? 1 : topStats.first.count;
+
+    return pw.Column(
+      children: [
+        // Header row
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 6),
+          child: pw.Row(
+            children: [
+              pw.Expanded(
+                flex: 5,
+                child: pw.Text(
+                  'LOCATION',
+                  style: pw.TextStyle(
+                    font: pw.Font.helveticaBold(),
+                    fontSize: 6.5,
+                    color: _EP.inkGhost,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+              ),
+              pw.Expanded(flex: 4, child: pw.SizedBox()),
+              pw.SizedBox(
+                width: 60,
+                child: pw.Text(
+                  'COUNT',
+                  textAlign: pw.TextAlign.right,
+                  style: pw.TextStyle(
+                    font: pw.Font.helveticaBold(),
+                    fontSize: 6.5,
+                    color: _EP.inkGhost,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        pw.Container(height: 0.7, color: _EP.rule),
+        ...topStats.asMap().entries.map((entry) {
+          final index = entry.key;
+          final stat = entry.value;
+          final ratio = stat.count / maxCount;
+          final share =
+              total == 0 ? 0 : ((stat.count / total) * 100).round();
+          final isLast = index == topStats.length - 1;
+
+          return pw.Container(
+            decoration: isLast
+                ? null
+                : pw.BoxDecoration(
+                    border: pw.Border(
+                      bottom: pw.BorderSide(color: _EP.rule, width: 0.5),
+                    ),
+                  ),
+            padding: const pw.EdgeInsets.symmetric(vertical: 10),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Expanded(
+                  flex: 5,
+                  child: pw.Text(
+                    stat.name,
+                    style: pw.TextStyle(
+                      font: pw.Font.helvetica(),
+                      fontSize: 10,
+                      color: _EP.ink,
+                    ),
+                  ),
+                ),
+                pw.Expanded(
+                  flex: 4,
+                  child: pw.Stack(
+                    children: [
+                      pw.Container(
+                        height: 5,
+                        decoration: pw.BoxDecoration(
+                          color: _EP.rule,
+                          borderRadius: pw.BorderRadius.circular(3),
+                        ),
+                      ),
+                      pw.Container(
+                        height: 5,
+                        width: math.max(8, ratio * 120),
+                        decoration: pw.BoxDecoration(
+                          color: _EP.accent,
+                          borderRadius: pw.BorderRadius.circular(3),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(
+                  width: 60,
+                  child: pw.Text(
+                    '${stat.count}  ·  $share%',
+                    textAlign: pw.TextAlign.right,
+                    style: pw.TextStyle(
+                      font: pw.Font.helvetica(),
+                      fontSize: 9,
+                      color: _EP.inkSoft,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+        if (stats.length > 5)
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(top: 8),
+            child: pw.Text(
+              '+${stats.length - 5} more location${stats.length - 5 == 1 ? '' : 's'} included in the detailed ledger.',
+              style: pw.TextStyle(
+                font: pw.Font.helvetica(),
+                fontSize: 8,
+                color: _EP.inkSoft,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  static pw.Widget _elegantResultsTable({
+    required List<WorkOrderReport> results,
+  }) {
+    return pw.Column(
+      children: [
+        // Header row
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 6),
+          child: pw.Row(
+            children: [
+              pw.SizedBox(
+                width: 26,
+                child: pw.Text(
+                  'NO.',
+                  style: pw.TextStyle(
+                    font: pw.Font.helveticaBold(),
+                    fontSize: 6.5,
+                    color: _EP.inkGhost,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+              ),
+              pw.Expanded(
+                flex: 6,
+                child: pw.Text(
+                  'WORK ORDER',
+                  style: pw.TextStyle(
+                    font: pw.Font.helveticaBold(),
+                    fontSize: 6.5,
+                    color: _EP.inkGhost,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+              ),
+              pw.Expanded(
+                flex: 3,
+                child: pw.Text(
+                  'LOCATION',
+                  style: pw.TextStyle(
+                    font: pw.Font.helveticaBold(),
+                    fontSize: 6.5,
+                    color: _EP.inkGhost,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+              ),
+              pw.SizedBox(
+                width: 64,
+                child: pw.Text(
+                  'CLOSED',
+                  textAlign: pw.TextAlign.right,
+                  style: pw.TextStyle(
+                    font: pw.Font.helveticaBold(),
+                    fontSize: 6.5,
+                    color: _EP.inkGhost,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        pw.Container(height: 0.7, color: _EP.rule),
+        ...results.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
+          final isLast = index == results.length - 1;
+          final loc = item.location.trim().isEmpty
+              ? 'Unspecified'
+              : item.location;
+
+          return pw.Container(
+            decoration: isLast
+                ? null
+                : pw.BoxDecoration(
+                    border: pw.Border(
+                      bottom: pw.BorderSide(color: _EP.rule, width: 0.5),
+                    ),
+                  ),
+            padding: const pw.EdgeInsets.symmetric(vertical: 9),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.SizedBox(
+                  width: 26,
+                  child: pw.Text(
+                    '${index + 1}'.padLeft(2, '0'),
+                    style: pw.TextStyle(
+                      font: pw.Font.times(),
+                      fontSize: 9.5,
+                      color: _EP.inkGhost,
+                    ),
+                  ),
+                ),
+                pw.Expanded(
+                  flex: 6,
+                  child: pw.Text(
+                    item.title,
+                    style: pw.TextStyle(
+                      font: pw.Font.helvetica(),
+                      fontSize: 10,
+                      color: _EP.ink,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+                pw.Expanded(
+                  flex: 3,
+                  child: pw.Text(
+                    loc,
+                    style: pw.TextStyle(
+                      font: pw.Font.helvetica(),
+                      fontSize: 9.5,
+                      color: _EP.inkMid,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(
+                  width: 64,
+                  child: pw.Text(
+                    _fmtShort(item.modifiedDate),
+                    textAlign: pw.TextAlign.right,
+                    style: pw.TextStyle(
+                      font: pw.Font.helvetica(),
+                      fontSize: 9.5,
+                      color: _EP.inkSoft,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  static pw.Widget _elegantEmptyCard(String message) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(14),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: _EP.rule, width: 0.7),
+      ),
+      child: pw.Text(
+        message,
+        style: pw.TextStyle(
+          font: pw.Font.helvetica(),
+          fontSize: 9,
+          color: _EP.inkSoft,
+          height: 1.45,
+        ),
+      ),
+    );
+  }
+
+  static pw.Widget _elegantFooter(pw.Context context, String generatedStr) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.fromLTRB(28, 8, 28, 12),
+      decoration: pw.BoxDecoration(
+        border: pw.Border(
+          top: pw.BorderSide(color: _EP.rule, width: 0.7),
+        ),
+      ),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Row(
+            children: [
+              pw.Text(
+                'Work Order System',
+                style: pw.TextStyle(
+                  font: pw.Font.helveticaBold(),
+                  fontSize: 7.5,
+                  color: _EP.inkSoft,
+                ),
+              ),
+              pw.Text(
+                '  ·  Generated $generatedStr  ·  Operational · Confidential',
+                style: pw.TextStyle(
+                  font: pw.Font.helvetica(),
+                  fontSize: 7.5,
+                  color: _EP.inkGhost,
+                ),
+              ),
+            ],
+          ),
+          pw.Text(
+            'Page ${context.pageNumber} of ${context.pagesCount}',
+            style: pw.TextStyle(
+              font: pw.Font.times(),
+              fontSize: 8,
+              color: _EP.inkGhost,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Original theme widgets ─────────────────────────────────────────────────
+
   static pw.Widget _heroSection({
     required _ReportPalette palette,
-    required pw.ImageProvider logo,
     required String employeeName,
     required String startStr,
     required String endStr,
@@ -204,51 +863,9 @@ class WorkOrderPdfService {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: pw.MainAxisAlignment.end,
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Row(
-                      children: [
-                        pw.Container(
-                          width: 48,
-                          height: 48,
-                          padding: const pw.EdgeInsets.all(8),
-                          decoration: pw.BoxDecoration(
-                            color: PdfColors.white,
-                            borderRadius: pw.BorderRadius.circular(14),
-                            border: pw.Border.all(
-                              color: palette.border,
-                              width: 0.7,
-                            ),
-                          ),
-                          child: pw.Image(logo, fit: pw.BoxFit.contain),
-                        ),
-                        pw.SizedBox(width: 12),
-                        pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              'WORK ORDER SYSTEM',
-                              style: pw.TextStyle(
-                                color: palette.textSoft,
-                                fontSize: 8,
-                                fontWeight: pw.FontWeight.bold,
-                                letterSpacing: 1.3,
-                              ),
-                            ),
-                            pw.SizedBox(height: 4),
-                            pw.Text(
-                              'Field closure report',
-                              style: pw.TextStyle(
-                                color: palette.text,
-                                fontSize: 13,
-                                fontWeight: pw.FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
                     pw.Container(
                       padding: const pw.EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
@@ -526,7 +1143,8 @@ class WorkOrderPdfService {
             final index = entry.key;
             final stat = entry.value;
             final ratio = maxCount == 0 ? 0.0 : stat.count / maxCount;
-            final share = total == 0 ? 0 : ((stat.count / total) * 100).round();
+            final share =
+                total == 0 ? 0 : ((stat.count / total) * 100).round();
 
             return pw.Padding(
               padding: pw.EdgeInsets.only(
@@ -545,7 +1163,8 @@ class WorkOrderPdfService {
                     child: pw.Text(
                       '${index + 1}',
                       style: pw.TextStyle(
-                        color: index == 0 ? palette.ink : palette.text,
+                        color:
+                            index == 0 ? palette.ink : palette.text,
                         fontSize: 10,
                         fontWeight: pw.FontWeight.bold,
                       ),
@@ -580,7 +1199,10 @@ class WorkOrderPdfService {
                           width: math.max(18, ratio * 220),
                           decoration: pw.BoxDecoration(
                             gradient: pw.LinearGradient(
-                              colors: [palette.accent, palette.accentStrong],
+                              colors: [
+                                palette.accent,
+                                palette.accentStrong
+                              ],
                             ),
                             borderRadius: pw.BorderRadius.circular(10),
                           ),
@@ -670,8 +1292,8 @@ class WorkOrderPdfService {
                 border: isLast
                     ? null
                     : pw.Border(
-                        bottom:
-                            pw.BorderSide(color: palette.border, width: 0.7),
+                        bottom: pw.BorderSide(
+                            color: palette.border, width: 0.7),
                       ),
               ),
               child: pw.Row(
@@ -809,12 +1431,28 @@ class WorkOrderPdfService {
   }
 }
 
+// ── Elegant palette constants ──────────────────────────────────────────────────
+
+class _EP {
+  static const ink = PdfColor(0.094, 0.094, 0.059);
+  static const inkMid = PdfColor(0.290, 0.290, 0.243);
+  static const inkSoft = PdfColor(0.541, 0.541, 0.478);
+  static const inkGhost = PdfColor(0.769, 0.769, 0.706);
+  static const paperWarm = PdfColor(0.961, 0.957, 0.937);
+  static const rule = PdfColor(0.886, 0.878, 0.847);
+  static const accent = PdfColor(0.545, 0.435, 0.306);
+}
+
+// ── Location stat model ────────────────────────────────────────────────────────
+
 class _LocationStat {
   const _LocationStat({required this.name, required this.count});
 
   final String name;
   final int count;
 }
+
+// ── Report palette ─────────────────────────────────────────────────────────────
 
 class _ReportPalette {
   const _ReportPalette({
@@ -860,6 +1498,8 @@ class _ReportPalette {
         return _ReportPalette._forestLedger(primary);
       case WorkOrderPdfTheme.signalOrange:
         return _ReportPalette._signalOrange(primary);
+      case WorkOrderPdfTheme.formalElegant:
+        return _ReportPalette._formalElegant();
     }
   }
 
@@ -942,6 +1582,28 @@ class _ReportPalette {
       textSoft: const PdfColor(0.39, 0.39, 0.40),
       textOnDark: const PdfColor(0.986, 0.975, 0.955),
       textOnDarkSoft: const PdfColor(0.84, 0.84, 0.82),
+    );
+  }
+
+  factory _ReportPalette._formalElegant() {
+    const accent = PdfColor(0.545, 0.435, 0.306);
+    const ink = PdfColor(0.094, 0.094, 0.059);
+
+    return _ReportPalette(
+      accent: accent,
+      accentStrong: const PdfColor(0.400, 0.310, 0.210),
+      accentMuted: const PdfColor(0.941, 0.918, 0.886),
+      accentGlow: const PdfColor(0.960, 0.945, 0.920),
+      ink: ink,
+      panel: const PdfColor(0.961, 0.957, 0.937),
+      card: const PdfColor(0.980, 0.980, 0.969),
+      surface: const PdfColor(0.961, 0.957, 0.937),
+      border: const PdfColor(0.886, 0.878, 0.847),
+      borderStrong: const PdfColor(0.769, 0.769, 0.706),
+      text: ink,
+      textSoft: const PdfColor(0.541, 0.541, 0.478),
+      textOnDark: const PdfColor(1, 1, 1, 0.85),
+      textOnDarkSoft: const PdfColor(1, 1, 1, 0.55),
     );
   }
 

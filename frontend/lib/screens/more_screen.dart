@@ -5,6 +5,7 @@ import '../widgets/claude_widgets.dart';
 import '../services/notification_service.dart';
 import '../screens/Documents/documents_screen.dart';
 import '../screens/reports/workorder_report_screen.dart';
+import '../screens/reports/monthly_task_report_screen.dart';
 import '../screens/settings_page.dart';
 import '../screens/settings/activity_log_screen.dart';
 import '../screens/notifications_screen.dart';
@@ -190,6 +191,17 @@ class _MoreScreenState extends State<MoreScreen> {
           context,
           MaterialPageRoute(
               builder: (_) => const WorkOrderReportScreen()),
+        ),
+      ),
+      _MoreItem(
+        title: 'Monthly Report',
+        subtitle: 'Task summary PDF',
+        icon: Icons.assignment_outlined,
+        color: const Color(0xFF0369A1),
+        bgColor: const Color(0xFFE0F2FE),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MonthlyTaskReportScreen()),
         ),
       ),
       _MoreItem(

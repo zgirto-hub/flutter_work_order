@@ -949,6 +949,8 @@ class _PdfThemeTile extends StatelessWidget {
         return 'Soft';
       case WorkOrderPdfTheme.signalOrange:
         return 'Bold';
+      case WorkOrderPdfTheme.formalElegant:
+        return 'Formal';
     }
   }
 
@@ -960,6 +962,8 @@ class _PdfThemeTile extends StatelessWidget {
         return const [Color(0xFF334235), Color(0xFF6F866E), Color(0xFFF0EBDD)];
       case WorkOrderPdfTheme.signalOrange:
         return const [Color(0xFF24303A), Color(0xFFE17336), Color(0xFFF4E7D2)];
+      case WorkOrderPdfTheme.formalElegant:
+        return const [Color(0xFF18180F), Color(0xFF8B6F4E), Color(0xFFFAFAF7)];
     }
   }
 }
