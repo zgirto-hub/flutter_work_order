@@ -187,6 +187,21 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                           ],
                         ),
 
+                        // Description (if present)
+                        if (widget.workOrder.description.isNotEmpty) ...[
+                          SizedBox(height: 3),
+                          Text(
+                            widget.workOrder.description,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                              height: 1.4,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+
                         SizedBox(height: 5),
 
                         // Location

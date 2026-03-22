@@ -284,21 +284,32 @@ class WorkOrderPdfService {
                         letterSpacing: 2.2,
                       ),
                     ),
-                    pw.SizedBox(height: 8),
+                    pw.SizedBox(height: 6),
                     pw.Text(
-                      'Field Closure',
+                      'Field',
                       style: pw.TextStyle(
                         font: _EF.serif,
-                        fontSize: 30,
+                        fontSize: 44,
                         color: _EP.ink,
+                        lineSpacing: -2,
+                      ),
+                    ),
+                    pw.Text(
+                      'Closure',
+                      style: pw.TextStyle(
+                        font: _EF.serif,
+                        fontSize: 44,
+                        color: _EP.ink,
+                        lineSpacing: -2,
                       ),
                     ),
                     pw.Text(
                       'Summary',
                       style: pw.TextStyle(
                         font: _EF.serifItalic,
-                        fontSize: 30,
+                        fontSize: 44,
                         color: _EP.ink,
+                        lineSpacing: -2,
                       ),
                     ),
                     pw.SizedBox(height: 8),

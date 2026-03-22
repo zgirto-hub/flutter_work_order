@@ -69,14 +69,27 @@ class _CalendarScreenState extends State<CalendarScreen> {
         if (end != null && day.isAfter(end)) return false;
       }
 
+      final n = ri.interval ?? 1;
       switch (ri.frequency) {
         case 'daily':
-          return true;
+          if (n <= 1) return true;
+          final diffDays = day.difference(start).inDays;
+          return diffDays >= 0 && diffDays % n == 0;
         case 'weekly':
           // day.weekday: 1=Mon..7=Sun, ri.dayOfWeek: 0=Mon..6=Sun
-          return day.weekday == (ri.dayOfWeek ?? 0) + 1;
+          if (day.weekday != (ri.dayOfWeek ?? 0) + 1) return false;
+          if (n <= 1) return true;
+          final diffWeeks = day.difference(start).inDays ~/ 7;
+          return diffWeeks % n == 0;
         case 'monthly':
-          return day.day == (ri.dayOfMonth ?? 1);
+          if (day.day != (ri.dayOfMonth ?? 1)) return false;
+          if (n <= 1) return true;
+          final diffMonths = (day.year - start.year) * 12 + (day.month - start.month);
+          return diffMonths >= 0 && diffMonths % n == 0;
+        case 'yearly':
+          if (day.month != start.month || day.day != start.day) return false;
+          final diffYears = day.year - start.year;
+          return diffYears >= 0 && diffYears % n == 0;
         default:
           return false;
       }
