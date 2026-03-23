@@ -427,9 +427,15 @@ When adding a new theme: add the enum value, add cases in `label`, `description`
 
 ### Recurring Inspections
 - Frequency options: `daily`, `weekly`, `monthly`, `yearly` (with `interval` and `day_of_week`/`day_of_month` fields)
-- `POST /api/recurring-inspections/generate` advances `next_due` for all overdue records — intended for periodic invocation (cron or manual trigger)
+- `POST /api/recurring-inspections/generate` advances `next_due` for all overdue records — intended for periodic invocation (cron or manual trigger). **The "Generate" button has been removed from the calendar UI header** — generation must be triggered externally.
 - The calendar screen does **not** use `GET /api/recurring-inspections/calendar`. Instead it loads all active inspections once (`GET /api/recurring-inspections?is_active=true`) and computes event placements entirely client-side. A bounded cache (`Map<DateTime, List<RecurringInspection>>`) covering 60 days past to 120 days future is built after load and on page-change when the user scrolls outside that window. The `eventLoader` callback is an O(1) map lookup against this cache.
 - The backend `/api/recurring-inspections/calendar` endpoint still exists but is currently unused by the Flutter frontend. `RecurringInspectionService.fetchCalendar()` wraps it if a future screen needs it.
+- `RecurringInspection.generatedToday` (bool) is populated from `json['generated_today']` returned by the API. When `true`, a green "Generated" badge is shown on the inspection card in the calendar event list.
+- The add/edit screen (`AddRecurringInspectionScreen`) uses a `_RepeatOption` enum with inline pickers to select repeat frequency — **no separate bottom sheets for repeat or custom frequency**. When creating (not editing), a tab selector lets users choose between creating a one-off work order or a new recurring inspection from the same screen.
+- The "Add recurring inspection" button in the calendar header is accessible to both `admin` and `technician` roles (previously admin-only).
+
+### Document Sidebar
+- The folder sidebar on the documents screen has a user-resizable width (60–280 px, default 116 px). The divider between sidebar and content is a drag handle — `MouseRegion(cursor: SystemMouseCursors.resizeColumn)` wrapping a `GestureDetector` that updates `_sidebarWidth` state. Do not replace this with a fixed `VerticalDivider`.
 
 ### URL Opening in PWA Context
 Use `openInNewTab()` from the conditional import of `download_helper_web.dart` to open URLs in the PWA. Do **not** use the `url_launcher` package for this purpose — it breaks the PWA gesture context. The conditional import pattern (`// ignore: uri_does_not_exist` stub for non-web + real web implementation) is already established in `download_helper_web.dart` and should be reused for any new URL-opening needs in the web/PWA target.
@@ -515,9 +521,11 @@ if not prefs.in_app_enabled: skip inbox (still send push if push_enabled)
 - **`closed_by` is a UUID, not an email**: The `work_orders.closed_by` column stores the user's UUID from the `users` table, resolved at close time. Do not store email here.
 - **Department filter uses `technician_departments`**: `GET /api/users?department_id=` filters by the many-to-many mapping, not by `users.department_id`. Technicians do not have a `department_id` on their user row.
 - **HTML preview files are not the PDF output**: `frontend/assets/report_preview*.html` are design reference files used for the in-app theme picker preview only. The actual PDF is built by `WorkOrderPdfService` (Dart) or `reportlab` (Python).
-- **Recurring inspection generation**: The `POST /api/recurring-inspections/generate` endpoint is not called automatically — it must be triggered externally or manually to advance due dates.
+- **Recurring inspection generation**: The `POST /api/recurring-inspections/generate` endpoint is not called automatically and the calendar UI no longer has a "Generate" button — it must be triggered externally or manually to advance due dates.
 - **Calendar markers are computed client-side**: `CalendarScreen` builds its own recurrence schedule from the raw `RecurringInspection` list — it does not query the backend calendar endpoint. If recurrence logic in `_computeEventsForDay` diverges from the backend's `_compute_next_due()`, calendar markers and actual due-date generation will disagree. Keep both in sync when changing frequency semantics.
 - **`yearly` not `custom`**: The `RecurringInspection.frequency` field uses `'yearly'` as the fourth frequency value. Older documentation and some comments may say `'custom'` — that is incorrect.
+- **`_RepeatOption` vs raw `frequency`**: The add/edit screen uses a `_RepeatOption` enum internally and derives the raw `frequency`/`interval` values from it. The enum is private to that screen — do not confuse it with the `RecurringInspection.frequency` string values stored in the database.
+- **`AddRecurringInspectionScreen` creates work orders too**: When the "Work order" tab is selected (new-only mode), the screen calls `WorkOrderService.addWorkOrder()` directly. The tab is hidden in edit mode.
 
 ---
 
@@ -563,6 +571,10 @@ if not prefs.in_app_enabled: skip inbox (still send push if push_enabled)
 - `frontend/lib/screens/admin/user_management_screen.dart` — admin user CRUD
 - `frontend/lib/screens/admin/technician_departments_screen.dart` — technician-department mapping UI
 - `frontend/lib/screens/admin/departments_screen.dart` — department management
+- `frontend/lib/screens/calendar/calendar_screen.dart` — recurring inspections calendar with client-side event cache and "Generated" badge
+- `frontend/lib/screens/calendar/add_recurring_inspection_screen.dart` — iOS Calendar-style add/edit screen; also creates one-off work orders (tab-switched when creating new)
+- `frontend/lib/models/recurring_inspection.dart` — RecurringInspection model, includes `generatedToday` bool
+- `frontend/lib/services/recurring_inspection_service.dart` — recurring inspection API client
 - `frontend/lib/screens/settings_page.dart` — notification toggles, admin panels
 - `frontend/lib/screens/settings/activity_log_screen.dart` — activity audit log viewer with category filtering
 - `frontend/lib/screens/login_screen.dart` — login (no self-registration)

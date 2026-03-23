@@ -298,6 +298,10 @@ Nginx enforces a separate 50 MB ceiling (`client_max_body_size 50M`).
 
 ## Document Management System
 
+### Folder Sidebar (Desktop/Web Layout)
+
+The documents screen uses a two-column layout on wider viewports: a left folder sidebar and a right content area. The sidebar width is user-adjustable via a drag handle (the `VerticalDivider` was replaced by a `MouseRegion` + `GestureDetector` resize handle). Width is clamped to 60–280 px (default 116 px) and stored in `_sidebarWidth` state on `DocumentsScreen`.
+
 ### Upload & Text Extraction
 - Files uploaded via `POST /api/upload`, saved to `uploaded_files/` on the Linux server
 - Auto text extraction on upload using `backend/utils/text_extraction.py`:
@@ -378,7 +382,7 @@ Each HTML file in `frontend/assets/` is a self-contained design reference render
 Recurring inspections are scheduled maintenance tasks that repeat on a defined frequency. They are distinct from one-off work orders and have their own calendar-driven UI.
 
 ### Database Tables
-- `recurring_inspections`: core record — title, department, frequency (`daily`/`weekly`/`monthly`/`yearly`), interval, `day_of_week`, `day_of_month`, `next_due`, `start_date`
+- `recurring_inspections`: core record — title, department, frequency (`daily`/`weekly`/`monthly`/`yearly`), interval, `day_of_week`, `day_of_month`, `next_due`, `start_date`. The API may return a computed `generated_today` boolean indicating a work order was created from this inspection today.
 - `recurring_inspection_assignees`: many-to-many link between inspection and assigned technicians (`fixer_id → users.id`)
 - `recurring_inspection_logs`: completion records per due instance
 
@@ -409,15 +413,45 @@ The calendar screen computes all event placements entirely on the client. It doe
 Days before `startDate` and after `endDate` (when set) are always excluded.
 
 **Role-gated actions in header:**
-- `admin` or `fixer` role: "Generate due inspections" button — calls `RecurringInspectionService.generateDue()` (`POST /api/recurring-inspections/generate`) and reloads
-- `admin` role only: "Add recurring inspection" button — navigates to `AddRecurringInspectionScreen`
+- `admin` or `technician` role: "Add recurring inspection" button — navigates to `AddRecurringInspectionScreen`
+
+The "Generate due inspections" button has been removed from the calendar header. Due-instance generation (`POST /api/recurring-inspections/generate`) must be triggered externally or via a manual API call.
 
 Tapping an inspection card in the day's event list navigates to `AddRecurringInspectionScreen` with the existing `RecurringInspection` passed as `existing`, enabling inline editing.
+
+**"Generated" badge:** Each inspection card in the event list shows a green "Generated" badge when `RecurringInspection.generatedToday == true`. This field is populated from the `generated_today` boolean returned by the API.
 
 **Other files:**
 - Add/Edit screen: `frontend/lib/screens/calendar/add_recurring_inspection_screen.dart`
 - Model: `frontend/lib/models/recurring_inspection.dart`
 - Service: `frontend/lib/services/recurring_inspection_service.dart`
+
+#### Add/Edit Screen (`frontend/lib/screens/calendar/add_recurring_inspection_screen.dart`)
+
+Redesigned with an iOS Calendar-style header (circular X cancel, checkmark save, and delete buttons). When **creating** a new entry, the screen shows a two-tab selector:
+
+| Tab | Purpose |
+|-----|---------|
+| `workOrder` | Create a one-off work order directly from the calendar screen |
+| `inspection` | Create a new recurring inspection |
+
+When **editing** an existing inspection (`existing != null`), the tab selector is hidden and the form always opens in inspection mode.
+
+**Repeat options** are expressed via the `_RepeatOption` enum and rendered as inline picker rows (no bottom sheet):
+
+| `_RepeatOption` | Maps to frequency/interval |
+|---|---|
+| `never` | One-time (end date = start date) |
+| `everyDay` | `daily`, interval 1 |
+| `everyWeek` | `weekly`, interval 1 |
+| `every2Weeks` | `weekly`, interval 2 |
+| `everyMonth` | `monthly`, interval 1 |
+| `everyYear` | `yearly`, interval 1 |
+| `custom` | User-specified frequency string + interval |
+
+Department and work-order type selections still open as modal bottom sheets (`_showDepartmentPicker`, `_showTypePicker`). Technician selection uses the shared `TechnicianSelector` bottom sheet.
+
+The screen imports and uses `WorkOrderService` to create a work order when the Work Order tab is saved.
 
 ---
 

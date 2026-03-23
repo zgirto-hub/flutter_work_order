@@ -52,8 +52,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   int _deleteProgress = 0;
   int _deleteTotal = 0;
   bool _fabExpanded = false;
+  bool _homeExpanded = true;
   bool _loading = true;
   String _userRole = '';
+  double _sidebarWidth = 116.0;
 
   @override
   void initState() {
@@ -1221,10 +1223,26 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       : Row(
                           children: [
                             _buildFolderSidebar(),
-                            VerticalDivider(
-                                width: 0.5,
-                                thickness: 0.5,
-                                color: AppColors.border),
+                            MouseRegion(
+                              cursor: SystemMouseCursors.resizeColumn,
+                              child: GestureDetector(
+                                onHorizontalDragUpdate: (details) {
+                                  setState(() {
+                                    _sidebarWidth = (_sidebarWidth + details.delta.dx).clamp(60.0, 280.0);
+                                  });
+                                },
+                                child: Container(
+                                  width: 8,
+                                  color: Colors.transparent,
+                                  child: Center(
+                                    child: Container(
+                                      width: 0.5,
+                                      color: AppColors.border,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                             Expanded(
                               child: isSearching
                                   ? _buildSearchResults()
@@ -1399,41 +1417,67 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   Widget _buildFolderSidebar() {
     return SizedBox(
-      width: 116,
+      width: _sidebarWidth,
       child: Container(
         color: AppColors.bgSurface,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-              child: Text(
-                'FOLDERS',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textTertiary,
-                  letterSpacing: 0.06,
+            // Home row — collapses/expands everything below
+            GestureDetector(
+              onTap: () => setState(() => _homeExpanded = !_homeExpanded),
+              child: Container(
+                height: 34,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                color: Colors.transparent,
+                child: Row(
+                  children: [
+                    AnimatedRotation(
+                      turns: _homeExpanded ? 0.25 : 0.0,
+                      duration: const Duration(milliseconds: 150),
+                      child: Icon(Icons.chevron_right_rounded,
+                          size: 13, color: AppColors.textTertiary),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.home_outlined, size: 13, color: AppColors.textTertiary),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        'Home',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            _SidebarFolderRow(
-              label: 'All files',
-              depth: 0,
-              isActive: _selectedFolderId == null,
-              isExpanded: false,
-              hasChildren: false,
-              isPrivate: false,
-              isShared: false,
-              onTap: () => setState(() => _selectedFolderId = null),
-              onChevronTap: null,
-            ),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: _buildSidebarNodes(null, 0),
+
+            if (_homeExpanded) ...[
+              _SidebarFolderRow(
+                label: 'All files',
+                depth: 0,
+                isActive: _selectedFolderId == null,
+                isExpanded: false,
+                hasChildren: false,
+                isPrivate: false,
+                isShared: false,
+                onTap: () => setState(() => _selectedFolderId = null),
+                onChevronTap: null,
               ),
-            ),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: _buildSidebarNodes(null, 0),
+                ),
+              ),
+            ] else
+              const Spacer(),
           ],
         ),
       ),

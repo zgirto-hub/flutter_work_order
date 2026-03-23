@@ -216,7 +216,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     ),
                   ),
-                  if (widget.userRole == 'admin')
+                  if (widget.userRole == 'admin' || widget.userRole == 'technician')
                     IconButton(
                       icon: Icon(Icons.add_rounded,
                           size: 22, color: AppColors.accent),
