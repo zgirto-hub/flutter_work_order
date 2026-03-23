@@ -53,10 +53,7 @@ class _LoginScreenState extends State<LoginScreen>
     super.initState();
     _loadAppInfo();
     _loadSavedCredentials();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _entranceCtrl.forward();
-      _openIntro();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _entranceCtrl.forward());
   }
 
   @override
@@ -203,6 +200,19 @@ class _LoginScreenState extends State<LoginScreen>
                               fontSize: 14,
                               color: AppColors.textSecondary,
                               fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          GestureDetector(
+                            onTap: _openIntro,
+                            child: Text(
+                              'About this system',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textTertiary,
+                                decoration: TextDecoration.underline,
+                                decorationColor: AppColors.textTertiary,
+                              ),
                             ),
                           ),
                         ],
