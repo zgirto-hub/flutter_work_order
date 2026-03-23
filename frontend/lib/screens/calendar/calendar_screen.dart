@@ -171,12 +171,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<void> _generateDue() async {
     try {
       final result = await _service.generateDue();
-      final count = result['count'] ?? 0;
+      final count   = result['count']         ?? 0;
+      final skipped = result['skipped_today'] ?? 0;
       if (!mounted) return;
+      final message = count > 0
+          ? '$count inspection${count > 1 ? 's' : ''} generated'
+          : skipped > 0
+              ? 'Already generated today'
+              : 'No inspections due today';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(count > 0
-            ? '$count inspection(s) generated'
-            : 'No inspections due today'),
+        content: Text(message),
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.textPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -297,7 +301,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     shape: BoxShape.circle,
                   ),
                   todayDecoration: BoxDecoration(
-                    color: AppColors.accent.withOpacity(0.3),
+                    color: AppColors.accent.withValues(alpha: 0.3),
                     shape: BoxShape.circle,
                   ),
                   selectedDecoration: BoxDecoration(
@@ -331,7 +335,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       TextStyle(fontSize: 11, color: AppColors.accent),
                   formatButtonDecoration: BoxDecoration(
                     border: Border.all(
-                        color: AppColors.accent.withOpacity(0.5)),
+                        color: AppColors.accent.withValues(alpha: 0.5)),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   leftChevronIcon: Icon(Icons.chevron_left,
@@ -384,7 +388,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 children: [
                                   Icon(Icons.event_busy_rounded,
                                       color: AppColors.textTertiary
-                                          .withOpacity(0.5),
+                                          .withValues(alpha: 0.5),
                                       size: 44),
                                   const SizedBox(height: 8),
                                   Text(

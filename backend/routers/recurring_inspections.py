@@ -303,6 +303,7 @@ async def generate_due_inspections():
 
     inspections = result.data or []
     generated = []
+    skipped_today = 0
 
     for ri in inspections:
         # Check end_date
@@ -320,6 +321,7 @@ async def generate_due_inspections():
             .gte("generated_at", f"{today}T00:00:00") \
             .execute()
         if existing_log.data:
+            skipped_today += 1
             continue
 
         # Create work order
@@ -379,7 +381,7 @@ async def generate_due_inspections():
 
         generated.append({"recurring_inspection_id": ri["id"], "work_order_id": wo_id})
 
-    return {"generated": generated, "count": len(generated)}
+    return {"generated": generated, "count": len(generated), "skipped_today": skipped_today}
 
 
 # --------------------
