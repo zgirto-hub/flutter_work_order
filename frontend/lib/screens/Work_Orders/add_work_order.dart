@@ -641,24 +641,23 @@ Future<void> _loadDepartments() async {
               textInputAction: TextInputAction.next,
             ),
             SizedBox(height: 10),
-            if (!_isTechnician)
-              DropdownButtonFormField<String>(
-                initialValue: _departments.isEmpty ? 'General' : selectedDepartment,
-                items: _departments.isEmpty
-                    ? [DropdownMenuItem(value: 'General', child: Text('General'))]
-                    : _departments.map((d) => DropdownMenuItem(value: d.name, child: Text(d.name))).toList(),
-                onChanged: canEdit ? (v) {
-                  if (v != null) {
-                    final dept = _departments.firstWhere((d) => d.name == v, orElse: () => _departments.first);
-                    setState(() {
-                      selectedDepartment = dept.name;
-                      selectedDepartmentId = dept.id;
-                    });
-                    _loadEmployees(departmentId: dept.id);
-                  }
-                } : null,
-                decoration: InputDecoration(labelText: "Department"),
-              ),
+            DropdownButtonFormField<String>(
+              initialValue: _departments.isEmpty ? 'General' : selectedDepartment,
+              items: _departments.isEmpty
+                  ? [DropdownMenuItem(value: 'General', child: Text('General'))]
+                  : _departments.map((d) => DropdownMenuItem(value: d.name, child: Text(d.name))).toList(),
+              onChanged: (canEdit && !_isTechnician) ? (v) {
+                if (v != null) {
+                  final dept = _departments.firstWhere((d) => d.name == v, orElse: () => _departments.first);
+                  setState(() {
+                    selectedDepartment = dept.name;
+                    selectedDepartmentId = dept.id;
+                  });
+                  _loadEmployees(departmentId: dept.id);
+                }
+              } : null,
+              decoration: InputDecoration(labelText: "Department"),
+            ),
             SizedBox(height: 10),
 
             // ── Type dropdown with icons ───────────────────────────
