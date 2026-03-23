@@ -17,11 +17,13 @@ import 'add_work_order.dart';
 class WorkOrderHome extends StatefulWidget {
   final String userRole;
   final bool isRequesterView;
+  final VoidCallback? onWorkOrderCreated;
 
   const WorkOrderHome({
     super.key,
     this.userRole = 'admin',
     this.isRequesterView = false,
+    this.onWorkOrderCreated,
   });
 
   @override
@@ -242,6 +244,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
     if (!mounted) return;
     if (result is WorkOrder) {
       setState(() => _workOrders.insert(0, result));
+      widget.onWorkOrderCreated?.call();
     }
     if (result == 'updated' || result == 'deleted') await _load();
   }
