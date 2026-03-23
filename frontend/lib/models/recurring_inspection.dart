@@ -19,6 +19,7 @@ class RecurringInspection {
   final String? createdAt;
   final String? updatedAt;
   final List<TechnicianAssignment> assignees;
+  final bool generatedToday;
 
   const RecurringInspection({
     required this.id,
@@ -39,6 +40,7 @@ class RecurringInspection {
     this.createdAt,
     this.updatedAt,
     this.assignees = const [],
+    this.generatedToday = false,
   });
 
   factory RecurringInspection.fromJson(Map<String, dynamic> json) {
@@ -81,6 +83,7 @@ class RecurringInspection {
       createdAt: json['created_at']?.toString(),
       updatedAt: json['updated_at']?.toString(),
       assignees: assigneeList,
+      generatedToday: json['generated_today'] == true,
     );
   }
 

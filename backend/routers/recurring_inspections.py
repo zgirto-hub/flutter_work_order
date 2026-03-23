@@ -182,7 +182,19 @@ async def list_recurring_inspections(
         query = query.eq("is_active", is_active)
 
     result = query.execute()
-    return {"recurring_inspections": result.data or []}
+    data = result.data or []
+
+    # Annotate each inspection with whether a WO was generated today
+    today_str = date.today().isoformat()
+    logs_res = supabase.table("recurring_inspection_logs") \
+        .select("recurring_inspection_id") \
+        .eq("generated_date", today_str) \
+        .execute()
+    generated_today_ids = {log["recurring_inspection_id"] for log in (logs_res.data or [])}
+    for ri in data:
+        ri["generated_today"] = ri["id"] in generated_today_ids
+
+    return {"recurring_inspections": data}
 
 
 @router.get("/recurring-inspections/{ri_id}")
