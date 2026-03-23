@@ -22,11 +22,14 @@ A full-stack work order management system with document management, built with:
 | `departments` | Department list (Operations, ATC, Finance, etc.) |
 | `users` | All users with `user_type`, `department_id`, auth link |
 | `technician_departments` | Maps technicians to departments they handle (many-to-many) |
-| `work_orders` | Work orders with status, department, creator tracking |
+| `work_orders` | Work orders with status, department, creator tracking; includes `closed_by` (user UUID) and `closed_at` |
 | `work_order_assignments` | Maps WOs to assigned technicians |
 | `work_order_status_logs` | Audit trail of status changes |
 | `work_order_comments` | Comments on WOs (comment, status_change, system) |
 | `work_order_attachments` | File attachments on WOs |
+| `recurring_inspections` | Scheduled recurring inspection tasks with frequency, department, and `next_due` date |
+| `recurring_inspection_assignees` | Maps recurring inspections to assigned technicians (many-to-many) |
+| `recurring_inspection_logs` | Completion log for each due instance of a recurring inspection |
 
 ### Document Tables
 
@@ -54,8 +57,12 @@ technician_departments.technician_id → users.id   (technician handles departme
 technician_departments.department_id → departments.id
 work_orders.department_id → departments.id     (WO targets a department)
 work_orders.created_by → users.id              (who reported it)
+work_orders.closed_by  → users.id              (who closed it — UUID, set on close)
 work_order_assignments.technician_id → users.id (who's assigned)
 work_order_assignments.work_order_id → work_orders.id
+recurring_inspections.department_id → departments.id
+recurring_inspection_assignees.recurring_inspection_id → recurring_inspections.id
+recurring_inspection_assignees.fixer_id → users.id
 documents.folder_id → document_folders.id      (document in folder)
 document_folders.parent_id → document_folders.id (folder hierarchy)
 resource_permissions.resource_id → documents.id or document_folders.id
@@ -103,7 +110,7 @@ Documents and folders use a separate role-based permission system via `resource_
 |--------|------|------|-------------|
 | GET | `/api/user-role?email=` | Public | Get user role |
 | GET | `/api/users/me?email=` | Public | Get current user profile |
-| GET | `/api/users` | Any | List all users |
+| GET | `/api/users?department_id=` | Any | List users; optional `department_id` filters to technicians assigned to that department |
 | GET | `/api/users/{id}` | Any | Get user by ID |
 | POST | `/api/users?admin_email=` | Admin | Create user |
 | PATCH | `/api/users/{id}?admin_email=` | Admin | Update user |
@@ -197,6 +204,25 @@ Documents and folders use a separate role-based permission system via `resource_
 | POST | `/api/activity-log/sign-in` | Log sign-in |
 | POST | `/api/activity-log/sign-out` | Log sign-out |
 | POST | `/api/activity-log/update-check` | Log app update check |
+
+### Reports
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/reports/closed-work-orders?technician_id=&start_date=&end_date=` | List closed WOs for a technician in a date range |
+| POST | `/api/reports/monthly-tasks` | Generate monthly task PDF; returns raw PDF bytes (streams inline) |
+
+The `/api/reports/monthly-tasks` endpoint accepts a JSON body with `name`, `start_date`, `end_date`, `tasks`, `department`, `section`, `title`, `dgca_id`, `civil_id`. Rendered by `reportlab` on the backend using logos from `backend/assets/`. The Flutter `ReportService` wraps both endpoints.
+
+### Recurring Inspections
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/recurring-inspections?department_id=` | List all recurring inspections (optional department filter) |
+| GET | `/api/recurring-inspections/{ri_id}` | Get single recurring inspection |
+| POST | `/api/recurring-inspections` | Create recurring inspection |
+| PUT | `/api/recurring-inspections/{ri_id}?user_email=` | Update recurring inspection |
+| DELETE | `/api/recurring-inspections/{ri_id}?user_email=` | Delete recurring inspection |
+| POST | `/api/recurring-inspections/generate` | Auto-generate due inspection instances |
+| GET | `/api/recurring-inspections/calendar?month=&year=` | Calendar view of due dates for a given month |
 
 ---
 
@@ -295,6 +321,67 @@ Nginx enforces a separate 50 MB ceiling (`client_max_body_size 50M`).
 
 ---
 
+## Work Order Closure Tracking
+
+When a work order is closed — either at creation time (created directly as "Closed") or via the `POST /close` endpoint — the backend records:
+- `closed_at`: UTC timestamp of the closure
+- `closed_by`: UUID of the user who closed it (resolved from `user_email` via `_get_user_id_by_email()`)
+
+Both fields are set in `backend/routers/work_orders.py`. The `closed_by` UUID is used by the Reports feature to query each technician's closed work history.
+
+---
+
+## PDF Report Generation
+
+Two report types are available, each with a separate generation path.
+
+### Work Order Report (client-side PDF)
+- Screen: `frontend/lib/screens/reports/workorder_report_screen.dart`
+- Service: `frontend/lib/services/pdf/work_order_pdf_service.dart` + `ReportService.getClosedWorkOrders()`
+- Data source: `GET /api/reports/closed-work-orders` returns WOs closed by a technician in a date range
+- PDF is built in-browser using the `pdf` Flutter package (no server rendering)
+- Theme is selected from `WorkOrderPdfTheme` enum (four variants)
+
+#### PDF Theme Variants
+
+| Enum value | Label | Preview asset |
+|---|---|---|
+| `copperNight` | Claude Minimal | `assets/report_preview.html` |
+| `forestLedger` | Forest Ledger | `assets/report_preview_green.html` |
+| `signalOrange` | Signal Orange | `assets/report_preview_teal.html` |
+| `formalElegant` | Formal Elegant | `assets/report_preview_burgundy.html` |
+
+Each HTML file in `frontend/assets/` is a self-contained design reference rendered inside `HtmlPreviewScreen` (web `iframe` via `html_unescape`). The enum's `previewAsset` getter maps each theme to its file. The `formalElegant` theme uses a full-bleed dark top bar with Times Roman serif typography; all others share a card-based layout with palette-specific accent colors.
+
+### Monthly Task Report (server-side PDF)
+- Screen: `frontend/lib/screens/reports/monthly_task_report_screen.dart`
+- Service: `frontend/lib/services/report_service.dart` (`ReportService.generateMonthlyTasksReport()`)
+- Data flow: Flutter POSTs task list JSON to `POST /api/reports/monthly-tasks`; backend renders PDF via `reportlab` and streams it back as `application/pdf`
+- Backend logos (`backend/assets/logo_civilaviation.png`, `logo_emblem.png`, `logo_newkuwait.png`) are embedded into the PDF header
+
+---
+
+## Recurring Inspections
+
+### Overview
+Recurring inspections are scheduled maintenance tasks that repeat on a defined frequency. They are distinct from one-off work orders and have their own calendar-driven UI.
+
+### Database Tables
+- `recurring_inspections`: core record — title, department, frequency (`daily`/`weekly`/`monthly`/`custom`), interval, `day_of_week`, `day_of_month`, `next_due`, `start_date`
+- `recurring_inspection_assignees`: many-to-many link between inspection and assigned technicians (`fixer_id → users.id`)
+- `recurring_inspection_logs`: completion records per due instance
+
+### Frequency Computation
+`_compute_next_due()` and `_advance_next_due()` in `backend/routers/recurring_inspections.py` calculate the next due date from frequency parameters. The `POST /api/recurring-inspections/generate` endpoint should be called periodically (e.g., via cron) to advance `next_due` for overdue inspections and write log entries.
+
+### Frontend
+- Calendar screen: `frontend/lib/screens/calendar/calendar_screen.dart` — uses `table_calendar` package; fetches events from `/api/recurring-inspections/calendar?month=&year=`
+- Add/Edit screen: `frontend/lib/screens/calendar/add_recurring_inspection_screen.dart`
+- Model: `frontend/lib/models/recurring_inspection.dart`
+- Service: `frontend/lib/services/recurring_inspection_service.dart`
+
+---
+
 ## Notification System
 
 ### Comment Notifications
@@ -352,18 +439,36 @@ RLS is enabled on `work_orders` as defense-in-depth:
 
 ### Frontend (`frontend/lib/`)
 ```
-models/            Data classes (WorkOrder, AppUser, TechnicianAssignment, DocumentModel, FolderModel, ActivityLogEntry, WorkOrderReport)
-services/          API clients (WorkOrderService, UserService, DocumentService, FolderService, ActivityLogService, etc.)
+models/            Data classes (WorkOrder, AppUser, TechnicianAssignment, DocumentModel,
+                   FolderModel, ActivityLogEntry, WorkOrderReport, RecurringInspection)
+services/          API clients
+  WorkOrderService, UserService, DocumentService, FolderService,
+  ActivityLogService, RecurringInspectionService,
+  ReportService              (closed-WO query + monthly-task PDF generation)
+  pdf/work_order_pdf_service.dart  (client-side PDF builder with 4 themes)
 screens/           UI pages
-  Work_Orders/     WO list, create/edit
+  Work_Orders/     WO list, create/edit (add_work_order.dart: department-filtered technician load)
   Documents/       Document list, upload, details, viewer (with web-specific viewer)
   admin/           User management, technician departments, departments
-  reports/         PDF report generation
+  calendar/        Recurring inspections calendar + add/edit screen
+  reports/         workorder_report_screen.dart  (WO PDF with theme picker)
+                   monthly_task_report_screen.dart  (monthly PDF, server-rendered)
+                   html_preview_screen.dart  (PDF theme preview via HTML iframe)
   settings/        Activity log, app settings
-widgets/           Reusable components (TechnicianSelector, work_order_card, document_card, move_to_folder_dialog, etc.)
+widgets/           Reusable components (TechnicianSelector, work_order_card, document_card,
+                   move_to_folder_dialog, pdf_preview_screen, etc.)
 filters/           WO filter engine
 theme/             Colors, typography, theme controller
 config.dart        API base URL configuration
+```
+
+**Frontend assets (`frontend/assets/`)**
+```
+images/                       Logo PNGs (logo_civilaviation, logo_emblem, logo_newkuwait)
+report_preview.html           Claude Minimal PDF theme design reference
+report_preview_green.html     Forest Ledger PDF theme design reference
+report_preview_teal.html      Signal Orange PDF theme design reference
+report_preview_burgundy.html  Formal Elegant PDF theme design reference
 ```
 
 ### Backend (`backend/`)
@@ -371,13 +476,20 @@ config.dart        API base URL configuration
 main.py            FastAPI app, router registration, CORS
 db.py              Supabase client initialization
 routers/
-  work_orders.py   WO CRUD, comments, attachments, status history
-  users.py         User management (admin-only creation), activity log
+  work_orders.py   WO CRUD, comments, attachments, status history; sets closed_by + closed_at on close
+  users.py         User management; GET /users accepts ?department_id for server-side technician filter;
+                   list_users() uses 2-query bulk fetch (no N+1) for technician departments
   departments.py   Department CRUD, technician/WO counts
   technician_departments.py  Technician-department mapping
   notifications.py Notification endpoints, watchers, preferences
   documents.py     Document upload, delete, sharing, permissions
   folders.py       Folder CRUD, move documents/folders
+  reports.py       GET /reports/closed-work-orders; POST /reports/monthly-tasks (reportlab PDF)
+  recurring_inspections.py  Recurring inspection CRUD, calendar view, due-instance generation
+assets/
+  logo_civilaviation.png    Embedded in monthly task PDF header
+  logo_emblem.png
+  logo_newkuwait.png
 utils/
   notification_service.py  Recipient resolution + dispatch orchestration
   notifications.py         OneSignal HTTP helpers
@@ -398,6 +510,8 @@ rollback_frontend.sh     Frontend rollback
 ### Supabase (`supabase/`)
 ```
 migrations/        Schema migrations (run in order by timestamp)
+  20260321_recurring_inspections.sql  Adds recurring_inspections, recurring_inspection_assignees,
+                                      recurring_inspection_logs tables
 seed.sql           Initial seed data (departments, sample users, sample WOs)
 ```
 
