@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work Order Report — Deep Burgundy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+
+<style>
+  /* ── Design tokens ─────────────────────────────────── */
+  :root {
+    --ink:         #1E0F14;
+    --ink-mid:     #4A2832;
+    --ink-soft:    #8A5560;
+    --ink-ghost:   #BF949C;
+    --paper:       #FAF8F8;
+    --paper-warm:  #F5EEEF;
+    --rule:        #E2D0D3;
+    --accent:      #8B2252;
+    --accent-pale: #F7E4EC;
+
+    --f-display: 'Cormorant', Georgia, serif;
+    --f-text:    'DM Sans', system-ui, sans-serif;
+
+    --page-w: 860px;
+    --gap: 2rem;
+  }
+
+  /* ── Reset ─────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    background: #DEC8CC;
+    min-height: 100%;
+  }
+
+  body {
+    font-family: var(--f-text);
+    color: var(--ink);
+    background: #DEC8CC;
+    padding: 3rem 1.5rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Page shell ────────────────────────────────────── */
+  .page {
+    max-width: var(--page-w);
+    margin: 0 auto;
+    background: var(--paper);
+    box-shadow:
+      0 2px 4px rgba(30,15,20,.06),
+      0 8px 32px rgba(30,15,20,.12),
+      0 0 0 1px rgba(30,15,20,.08);
+    animation: rise .6s cubic-bezier(.22,.68,0,1.1) both;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0);    }
+  }
+
+  /* ── Top bar ────────────────────────────────────────── */
+  .top-bar {
+    background: var(--ink);
+    padding: 0 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+  }
+
+  .top-bar__brand {
+    font-family: var(--f-display);
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.55);
+  }
+
+  .top-bar__meta {
+    font-size: 11px;
+    font-weight: 300;
+    letter-spacing: .08em;
+    color: rgba(255,255,255,.38);
+  }
+
+  /* ── Header block ────────────────────────────────────── */
+  .header {
+    padding: 3.5rem 3rem 2.5rem;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2rem;
+    align-items: end;
+  }
+
+  .header__eyebrow {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: .75rem;
+  }
+
+  .header__title {
+    font-family: var(--f-display);
+    font-size: 48px;
+    font-weight: 300;
+    line-height: 1.06;
+    color: var(--ink);
+    letter-spacing: -.02em;
+  }
+
+  .header__title em {
+    font-style: italic;
+    font-weight: 300;
+  }
+
+  .header__sub {
+    margin-top: 1rem;
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    max-width: 38ch;
+  }
+
+  .header__meta {
+    text-align: right;
+  }
+
+  .header__meta-row {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
+
+  .meta-pill {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding: .75rem 1.1rem;
+    background: var(--paper-warm);
+    border: 1px solid var(--rule);
+  }
+
+  .meta-pill + .meta-pill {
+    margin-top: .5rem;
+  }
+
+  .meta-pill__label {
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--ink-ghost);
+    margin-bottom: .25rem;
+  }
+
+  .meta-pill__value {
+    font-family: var(--f-display);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: .01em;
+  }
+
+  /* ── Summary strip ───────────────────────────────────── */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .stat {
+    padding: 1.75rem 3rem 1.75rem;
+    border-right: 1px solid var(--rule);
+    animation: fade-up .5s both;
+  }
+
+  .stat:last-child { border-right: none; }
+
+  .stat:nth-child(1) { animation-delay: .05s; }
+  .stat:nth-child(2) { animation-delay: .10s; }
+  .stat:nth-child(3) { animation-delay: .15s; }
+  .stat:nth-child(4) { animation-delay: .20s; }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0);   }
+  }
+
+  .stat__label {
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ink-ghost);
+    margin-bottom: .6rem;
+  }
+
+  .stat__value {
+    font-family: var(--f-display);
+    font-size: 36px;
+    font-weight: 300;
+    line-height: 1;
+    color: var(--ink);
+    letter-spacing: -.02em;
+  }
+
+  .stat__value.accent { color: var(--accent); }
+
+  .stat__caption {
+    margin-top: .4rem;
+    font-size: 11px;
+    font-weight: 300;
+    color: var(--ink-soft);
+  }
+
+  /* ── Body layout ─────────────────────────────────────── */
+  .body {
+    padding: 2.5rem 3rem;
+  }
+
+  /* ── Section heading ─────────────────────────────────── */
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .section-head__title {
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .section-head__rule {
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  .section-head__count {
+    font-size: 9.5px;
+    font-weight: 300;
+    color: var(--ink-ghost);
+    letter-spacing: .06em;
+  }
+
+  /* ── Table ───────────────────────────────────────────── */
+  .wo-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .wo-table thead tr {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .wo-table th {
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--ink-ghost);
+    padding: .6rem 0 .6rem;
+    text-align: left;
+  }
+
+  .wo-table th:last-child { text-align: right; }
+
+  .wo-table tbody tr {
+    border-bottom: 1px solid var(--rule);
+    transition: background .15s;
+  }
+
+  .wo-table tbody tr:last-child { border-bottom: none; }
+
+  .wo-table tbody tr:hover { background: var(--paper-warm); }
+
+  .wo-table td {
+    padding: 1rem 0;
+    vertical-align: middle;
+  }
+
+  .wo-table td:last-child { text-align: right; }
+
+  .cell-num {
+    font-family: var(--f-display);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--ink-ghost);
+    width: 2.5rem;
+    letter-spacing: .05em;
+  }
+
+  .cell-title {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--ink);
+    line-height: 1.4;
+    padding-right: 2rem;
+  }
+
+  .cell-title small {
+    display: block;
+    font-size: 11px;
+    font-weight: 300;
+    color: var(--ink-soft);
+    margin-top: .2rem;
+  }
+
+  .cell-loc {
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--ink-mid);
+    min-width: 120px;
+  }
+
+  .cell-loc .loc-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-right: .5rem;
+    opacity: .6;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+  }
+
+  .cell-date {
+    font-size: 11.5px;
+    font-weight: 300;
+    color: var(--ink-soft);
+    letter-spacing: .04em;
+    white-space: nowrap;
+  }
+
+  .status-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    padding: .25rem .6rem;
+    background: var(--accent-pale);
+    color: var(--accent);
+    border: 1px solid rgba(139,34,82,.2);
+  }
+
+  /* ── Footer ───────────────────────────────────────────── */
+  .footer {
+    border-top: 1px solid var(--rule);
+    padding: 1.4rem 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .footer__left {
+    font-size: 10px;
+    font-weight: 300;
+    color: var(--ink-ghost);
+    letter-spacing: .06em;
+  }
+
+  .footer__left strong {
+    font-weight: 500;
+    color: var(--ink-soft);
+  }
+
+  .footer__pages {
+    font-family: var(--f-display);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--ink-ghost);
+    letter-spacing: .06em;
+  }
+
+  /* ── Print ────────────────────────────────────────────── */
+  @media print {
+    html, body { background: white; padding: 0; }
+    .page { box-shadow: none; }
+    .wo-table tbody tr:hover { background: transparent; }
+    @page { margin: 0; size: A4; }
+  }
+</style>
+</head>
+<body>
+
+<article class="page">
+
+  <!-- Top bar -->
+  <div class="top-bar">
+    <span class="top-bar__brand">Work Order System</span>
+    <span class="top-bar__meta">Field Closure Report &nbsp;·&nbsp; Confidential</span>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header__left">
+      <p class="header__eyebrow">Operational Report</p>
+      <h1 class="header__title">
+        Field Closure<br><em>Summary</em>
+      </h1>
+      <p class="header__sub">
+        A concise operational snapshot for <strong>James Holloway</strong>
+        covering 1 March 2025 to 31 March 2025 across 4 locations.
+      </p>
+    </div>
+
+    <div class="header__meta">
+      <div class="meta-pill">
+        <span class="meta-pill__label">Employee</span>
+        <span class="meta-pill__value">James Holloway</span>
+      </div>
+      <div class="meta-pill">
+        <span class="meta-pill__label">Period</span>
+        <span class="meta-pill__value">Mar 1 – Mar 31, 2025</span>
+      </div>
+      <div class="meta-pill">
+        <span class="meta-pill__label">Generated</span>
+        <span class="meta-pill__value">22 March 2025</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Summary stats -->
+  <section class="summary">
+    <div class="stat">
+      <p class="stat__label">Total Closed</p>
+      <p class="stat__value">08</p>
+      <p class="stat__caption">Work orders</p>
+    </div>
+    <div class="stat">
+      <p class="stat__label">Locations</p>
+      <p class="stat__value">04</p>
+      <p class="stat__caption">Sites covered</p>
+    </div>
+    <div class="stat">
+      <p class="stat__label">Latest Closed</p>
+      <p class="stat__value" style="font-size:22px; padding-top:.4rem;">28 Mar</p>
+      <p class="stat__caption">2025</p>
+    </div>
+    <div class="stat">
+      <p class="stat__label">Status</p>
+      <p class="stat__value accent" style="font-size:22px; padding-top:.4rem;">Complete</p>
+      <p class="stat__caption">All items resolved</p>
+    </div>
+  </section>
+
+  <!-- Table -->
+  <div class="body">
+    <div class="section-head">
+      <span class="section-head__title">Work Orders</span>
+      <span class="section-head__rule"></span>
+      <span class="section-head__count">8 entries</span>
+    </div>
+
+    <table class="wo-table">
+      <thead>
+        <tr>
+          <th class="cell-num">No.</th>
+          <th>Work Order</th>
+          <th>Location</th>
+          <th>Status</th>
+          <th>Closed</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="cell-num">01</td>
+          <td class="cell-title">
+            HVAC Inspection — Unit 4B
+            <small>Routine maintenance &amp; filter replacement</small>
+          </td>
+          <td class="cell-loc"><span class="loc-dot"></span>Riverside Tower</td>
+          <td><span class="status-badge">Closed</span></td>
+          <td class="cell-date">2025-03-04</td>
+        </tr>
+        <tr>
+          <td class="cell-num">02</td>
+          <td class="cell-title">
+            Elevator Shaft Safety Check
+            <small>Annual compliance inspection per code §14.2</small>
+          </td>
+          <td class="cell-loc"><span class="loc-dot"></span>Riverside Tower</td>
+          <td><span class="status-badge">Closed</span></td>
+          <td class="cell-date">2025-03-07</td>
+        </tr>
+        <tr>
+          <td class="cell-num">03</td>
+          <td class="cell-title">
+            Plumbing Repair — Floor 3 Restroom
+            <small>Leak detection and pipe seal replacement</small>
+          </td>
+          <td class="cell-loc"><span class="loc-dot"></span>Meridian Office</td>
+          <td><span class="status-badge">Closed</span></td>
+          <td class="cell-date">2025-03-10</td>
+        </tr>
+        <tr>
+          <td class="cell-num">04</td>
+          <td class="cell-title">
+            Emergency Generator Test
+            <small>Scheduled monthly load test — 4-hour cycle</small>
+          </td>
+          <td class="cell-loc"><span class="loc-dot"></span>Central Depot</td>
+          <td><span class="status-badge">Closed</span></td>
+          <td class="cell-date">2025-03-12</td>
+        </tr>
+        <tr>
+          <td class="cell-num">05</td>
+          <td class="cell-title">
+            Roof Membrane Patch — Section C
+            <small>Water ingress repair following storm damage</small>
+          </td>
+          <td class="cell-loc"><span class="loc-dot"></span>Westfield Annex</td>
+          <td><span class="status-badge">Closed</span></td>
+          <td class="cell-date">2025-03-15</td>
+        </tr>
+        <tr>
+          <td class="cell-num">06</td>
+          <td class="cell-title">
+            Fire Suppression System — Annual Test
+            <small>Full system discharge test &amp; certification</small>
+          </td>
+          <td class="cell-loc"><span class="loc-dot"></span>Central Depot</td>
+          <td><span class="status-badge">Closed</span></td>
+          <td class="cell-date">2025-03-18</td>
+        </tr>
+        <tr>
+          <td class="cell-num">07</td>
+          <td class="cell-title">
+            Electrical Panel Replacement — B2
+            <small>Upgrade to 400A three-phase distribution board</small>
+          </td>
+          <td class="cell-loc"><span class="loc-dot"></span>Meridian Office</td>
+          <td><span class="status-badge">Closed</span></td>
+          <td class="cell-date">2025-03-22</td>
+        </tr>
+        <tr>
+          <td class="cell-num">08</td>
+          <td class="cell-title">
+            Parking Structure Lighting Retrofit
+            <small>LED conversion across all 6 parking levels</small>
+          </td>
+          <td class="cell-loc"><span class="loc-dot"></span>Westfield Annex</td>
+          <td><span class="status-badge">Closed</span></td>
+          <td class="cell-date">2025-03-28</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p class="footer__left">
+      <strong>Work Order System</strong>
+      &nbsp;·&nbsp; Generated 22 March 2025 at 09:14
+      &nbsp;·&nbsp; Operational · Confidential
+    </p>
+    <span class="footer__pages">Page 1 of 1</span>
+  </footer>
+
+</article>
+
+</body>
+</html>

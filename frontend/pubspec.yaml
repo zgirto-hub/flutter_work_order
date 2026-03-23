@@ -2,7 +2,7 @@ name: work_order
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.10.18+64
+version: 1.10.19+65
 
 environment:
   sdk: ^3.3.0
@@ -34,6 +34,7 @@ dependencies:
   connectivity_plus: ^5.0.2
   sqflite: ^2.3.0
   flutter_slidable: ^3.0.0
+  table_calendar: ^3.1.2
 
 dev_dependencies:
   flutter_test:
@@ -44,4 +45,8 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/logo.png
+    - assets/images/
+    - assets/report_preview.html
+    - assets/report_preview_green.html
+    - assets/report_preview_burgundy.html
+    - assets/report_preview_teal.html

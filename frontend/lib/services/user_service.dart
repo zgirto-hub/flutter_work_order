@@ -173,9 +173,19 @@ class UserService {
     }
   }
 
-  Future<List<AppUser>> fetchTechnicians() async {
-    final users = await fetchUsers();
-    return users.where((u) => (u.userType == UserType.technician || u.userType == UserType.admin) && u.isActive).toList();
+  Future<List<AppUser>> fetchTechnicians({String? departmentId}) async {
+    final url = departmentId != null
+        ? '${AppConfig.baseUrl}/users?department_id=${Uri.encodeComponent(departmentId)}'
+        : '${AppConfig.baseUrl}/users';
+    final res = await http.get(Uri.parse(url));
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to fetch users'));
+    }
+    final data = jsonDecode(res.body);
+    return (data['users'] as List)
+        .map((j) => AppUser.fromJson(j as Map<String, dynamic>))
+        .where((u) => (u.userType == UserType.technician || u.userType == UserType.admin) && u.isActive)
+        .toList();
   }
 
   Future<List<String>> fetchDepartments() async {

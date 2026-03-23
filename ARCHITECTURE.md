@@ -8,7 +8,7 @@ A full-stack work order management system with document management, built with:
 - **Database**: Supabase (PostgreSQL)
 - **Auth**: Supabase Authentication
 - **Push**: OneSignal
-- **Storage**: Supabase Storage (document files)
+- **Storage**: Local filesystem on Linux server (`backend/uploaded_files/`), served via FastAPI static mount
 - **OCR**: pytesseract + pdf2image (Arabic + English)
 
 ---
@@ -214,10 +214,64 @@ Documents and folders use a separate role-based permission system via `resource_
 
 ---
 
+## File Storage & Upload
+
+### Where Files Live
+
+All uploaded files — both documents and work order attachments — are stored on the **local Linux server filesystem**, not in a cloud object store.
+
+```
+backend/
+└── uploaded_files/          ← runtime directory, created on startup
+    ├── <uuid>.<ext>         ← documents (e.g. a1b2c3d4.pdf)
+    └── wo_<uuid>.<ext>      ← work order attachments (e.g. wo_a1b2c3d4.jpg)
+```
+
+FastAPI mounts this directory as a static file server on startup (`main.py`):
+```python
+UPLOAD_DIR = "uploaded_files"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/files", StaticFiles(directory=UPLOAD_DIR), name="files")
+```
+
+Files are served at `GET /files/<filename>` and opened by the Flutter client via `url_launcher`.
+
+### Upload Flow
+
+```
+Flutter (FilePicker)
+  │  multipart/form-data POST
+  ▼
+Nginx (port 80, client_max_body_size 50MB)
+  │  proxy_pass → http://127.0.0.1:8000
+  ▼
+FastAPI backend (port 8000)
+  ├─ Validate: extension allowlist, 10 MB size limit
+  ├─ Images: compress/resize to max 1920 px (Pillow), convert to JPEG if needed
+  ├─ Generate filename: wo_<uuid>.<ext>  or  <uuid>.<ext>
+  ├─ Write to  uploaded_files/<filename>
+  └─ Insert metadata row in Supabase (work_order_attachments or documents)
+  │  returns { file_url: "/files/<filename>" }
+  ▼
+Flutter stores the URL and renders AttachmentWidget
+User opens → launchUrl(baseUrl + file_url)
+```
+
+### Allowed File Types & Limits
+
+| Upload type | Extensions | Max size (backend) | Notes |
+|---|---|---|---|
+| Work order attachment | pdf, doc, docx, jpg, jpeg, png, gif | 10 MB | Images auto-compressed |
+| Document | pdf, doc, docx, txt, jpg, jpeg, png | — | Text extracted for search |
+
+Nginx enforces a separate 50 MB ceiling (`client_max_body_size 50M`).
+
+---
+
 ## Document Management System
 
 ### Upload & Text Extraction
-- Files uploaded via `POST /api/upload` to Supabase Storage
+- Files uploaded via `POST /api/upload`, saved to `uploaded_files/` on the Linux server
 - Auto text extraction on upload using `backend/utils/text_extraction.py`:
   - **PDF**: PyPDF2
   - **DOCX**: python-docx
@@ -346,3 +400,76 @@ rollback_frontend.sh     Frontend rollback
 migrations/        Schema migrations (run in order by timestamp)
 seed.sql           Initial seed data (departments, sample users, sample WOs)
 ```
+
+---
+
+## Deployment & Infrastructure
+
+### Linux Server
+
+The backend and web frontend are hosted on a single Linux server. Nginx acts as the reverse proxy, and the Flutter web build is served as static files.
+
+```
+Internet / Tailscale
+        │
+        ▼
+   Nginx (port 80 / 443)
+   ┌─────────────────────────────────────────────────────┐
+   │  /              → serve Flutter web build (static)  │
+   │  /api/*         → proxy_pass http://127.0.0.1:8000  │
+   │  /files/*       → proxy_pass http://127.0.0.1:8000  │
+   │  client_max_body_size 50M                           │
+   └─────────────────────────────────────────────────────┘
+        │
+        ▼
+   FastAPI / Uvicorn (port 8000)
+   ├─ API routes  (/api/*)
+   └─ Static files (/files/* → uploaded_files/)
+```
+
+### Environments
+
+| Environment | API Base URL | Notes |
+|---|---|---|
+| Development | `http://100.85.73.37:8000/api` | Direct to FastAPI, no Nginx |
+| Production | `https://zorin.taila92fe8.ts.net/api` | Via Tailscale, through Nginx |
+
+Configured in `frontend/lib/config.dart` — toggle `kIsProduction` to switch.
+
+### Nginx Key Settings (`nginx_flutter_app.conf`)
+
+```nginx
+client_max_body_size 50M;          # upload ceiling
+
+location /api/ {
+    proxy_pass http://127.0.0.1:8000;
+}
+
+location /files/ {
+    proxy_pass http://127.0.0.1:8000;  # served by FastAPI StaticFiles
+}
+
+location / {
+    root /path/to/flutter/build/web;   # Flutter web build
+    try_files $uri $uri/ /index.html;
+}
+```
+
+### Deployment Scripts (`scripts/`)
+
+| Script | Purpose |
+|---|---|
+| `deploy_frontend.sh` | Build Flutter web and copy to Nginx root |
+| `bump_version.sh` | Bump app version in pubspec.yaml |
+| `update_nginx_config.sh` | Apply updated Nginx config and reload |
+| `rollback_frontend.sh` | Roll back to previous frontend build |
+
+### Key Runtime Directories on Server
+
+```
+backend/
+└── uploaded_files/     ← all uploaded files (documents + WO attachments)
+                          persisted on disk; not backed up to cloud storage
+```
+
+> **Note**: Files in `uploaded_files/` are not replicated or backed up automatically. Server disk is the single source of truth for binary files; metadata is in Supabase.

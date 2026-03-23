@@ -298,6 +298,7 @@ async def create_work_order(body: CreateWorkOrderBody):
     if not dept_result.data[0].get("is_active", True):
         raise HTTPException(status_code=400, detail="Cannot create work order for inactive department")
 
+    now = datetime.utcnow().isoformat()
     payload = {
         "job_no": body.job_no,
         "title": body.title,
@@ -309,6 +310,9 @@ async def create_work_order(body: CreateWorkOrderBody):
         "status": body.status or "Pending",
         "created_by": body.created_by,
     }
+    if (body.status or "Pending") == "Closed":
+        payload["closed_at"] = now
+        payload["closed_by"] = body.created_by
     result = supabase.table("work_orders").insert(payload).execute()
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create work order")
@@ -326,6 +330,19 @@ async def create_work_order(body: CreateWorkOrderBody):
     created_user_email = body.created_by_email or "unknown"
     log_activity(created_user_email, "work_order", "created",
         target_label=body.title, target_id=work_order_id)
+
+    # Insert system comment so Activity tab shows "Work order created"
+    user_name = created_user_email.split("@")[0]
+    try:
+        supabase.table("work_order_comments").insert({
+            "work_order_id": work_order_id,
+            "author_email": created_user_email,
+            "author_name": user_name,
+            "body": "Work order created",
+            "type": "system",
+        }).execute()
+    except Exception as e:
+        print(f"[create_work_order] Failed to insert system comment: {e}")
 
     return {"work_order": _fetch_full_work_order(work_order_id)}
 
@@ -364,16 +381,17 @@ async def update_work_order(
         "description": body.description,
         "location": body.location,
         "mobile_number": body.mobile_number,
-        "department_id": body.department_id,  # Changed from 'department' to 'department_id'
+        "department_id": body.department_id,
         "type": body.type,
         "status": body.status,
         "updated_at": now,
     }
+    user_id = _get_user_id_by_email(user_email) or "unknown"
     if body.status == "Closed" and old_status != "Closed":
         payload["closed_at"] = now
+        payload["closed_by"] = user_id
     supabase.table("work_orders").update(payload).eq("id", work_order_id).execute()
 
-    user_id = _get_user_id_by_email(user_email) or "unknown"
     _sync_assignments(work_order_id, body.assigned_technician_ids or [], user_id)
 
     if old_status != body.status:

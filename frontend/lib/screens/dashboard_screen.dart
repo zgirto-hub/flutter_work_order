@@ -204,6 +204,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _signOut() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Sign out',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to sign out?',
+          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel',
+                style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Sign out',
+                style: TextStyle(
+                    color: Colors.red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await Supabase.instance.client.auth.signOut();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final hour = DateTime.now().hour;
@@ -254,24 +292,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ],
                     ),
-                    // Date badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.bgSurface,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: AppColors.border, width: 0.5),
-                      ),
-                      child: Text(
-                        _formatDate(DateTime.now()),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary,
+                    Row(
+                      children: [
+                        // Date badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.bgSurface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: AppColors.border, width: 0.5),
+                          ),
+                          child: Text(
+                            _formatDate(DateTime.now()),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ),
-                      ),
+                        SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: _signOut,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSurface,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color: AppColors.border, width: 0.5),
+                            ),
+                            child: Icon(
+                              Icons.logout_rounded,
+                              size: 16,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -345,26 +405,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // ── Quick actions ──────────────────────────
                   SectionLabel(text: 'Quick Actions'),
                   SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _QuickAction(
-                          label: 'New Work Order',
-                          icon: Icons.add_circle_outline_rounded,
-                          color: AppColors.accent,
-                          onTap: () => widget.onNavigate(1),
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: _QuickAction(
-                          label: 'New Request',
-                          icon: Icons.inbox_outlined,
-                          color: AppColors.inProgressText,
-                          onTap: () => widget.onNavigate(2),
-                        ),
-                      ),
-                    ],
+                  _QuickAction(
+                    label: 'New Work Order',
+                    icon: Icons.add_circle_outline_rounded,
+                    color: AppColors.accent,
+                    onTap: () => widget.onNavigate(1),
+                    trailing: Icon(Icons.chevron_right_rounded,
+                        size: 16, color: AppColors.textTertiary),
                   ),
                   SizedBox(height: 10),
                   _QuickAction(

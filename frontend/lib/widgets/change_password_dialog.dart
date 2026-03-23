@@ -15,11 +15,16 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
 
   String message = "";
   bool loading = false;
+  bool _obscureOld = true;
+  bool _obscureNew = true;
+  bool _obscureConfirm = true;
+  bool _isSuccess = false;
 
 Future<void> changePassword() async {
   setState(() {
     loading = true;
     message = "";
+    _isSuccess = false;
   });
 
   if (newController.text != confirmController.text) {
@@ -30,8 +35,30 @@ Future<void> changePassword() async {
     return;
   }
 
-  try {
+  final user = Supabase.instance.client.auth.currentUser;
+  if (user == null || user.email == null) {
+    setState(() {
+      message = "Unable to verify current user";
+      loading = false;
+    });
+    return;
+  }
 
+  try {
+    // Verify old password by re-authenticating
+    await Supabase.instance.client.auth.signInWithPassword(
+      email: user.email!,
+      password: oldController.text,
+    );
+  } catch (e) {
+    setState(() {
+      message = "Old password is incorrect";
+      loading = false;
+    });
+    return;
+  }
+
+  try {
     await Supabase.instance.client.auth.updateUser(
       UserAttributes(
         password: newController.text,
@@ -40,6 +67,7 @@ Future<void> changePassword() async {
 
     setState(() {
       message = "Password changed successfully";
+      _isSuccess = true;
       loading = false;
     });
 
@@ -60,27 +88,45 @@ Future<void> changePassword() async {
         children: [
           TextField(
             controller: oldController,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: "Old Password"),
+            obscureText: _obscureOld,
+            decoration: InputDecoration(
+              labelText: "Old Password",
+              suffixIcon: IconButton(
+                icon: Icon(_obscureOld ? Icons.visibility_off : Icons.visibility),
+                onPressed: () => setState(() => _obscureOld = !_obscureOld),
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: newController,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: "New Password"),
+            obscureText: _obscureNew,
+            decoration: InputDecoration(
+              labelText: "New Password",
+              suffixIcon: IconButton(
+                icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility),
+                onPressed: () => setState(() => _obscureNew = !_obscureNew),
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: confirmController,
-            obscureText: true,
-            decoration:
-                const InputDecoration(labelText: "Confirm Password"),
+            obscureText: _obscureConfirm,
+            decoration: InputDecoration(
+              labelText: "Confirm Password",
+              suffixIcon: IconButton(
+                icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
+                onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+              ),
+            ),
           ),
           const SizedBox(height: 10),
-          Text(
-            message,
-            style: const TextStyle(color: Colors.red),
-          ),
+          if (message.isNotEmpty)
+            Text(
+              message,
+              style: TextStyle(color: _isSuccess ? Colors.green : Colors.red),
+            ),
         ],
       ),
       actions: [

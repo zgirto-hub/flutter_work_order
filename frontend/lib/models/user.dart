@@ -12,6 +12,7 @@ class AppUser {
   final bool isActive;
   final String createdAt;
   final List<String> departments;
+  final List<Map<String, String>> technicianDepartments; // [{id, name}] from /users/me
 
   const AppUser({
     required this.id,
@@ -25,6 +26,7 @@ class AppUser {
     this.isActive = true,
     this.createdAt = '',
     this.departments = const [],
+    this.technicianDepartments = const [],
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -40,6 +42,9 @@ class AppUser {
       isActive: json['is_active'] ?? true,
       createdAt: json['created_at'] ?? '',
       departments: List<String>.from(json['departments'] ?? []),
+      technicianDepartments: (json['technician_departments'] as List<dynamic>? ?? [])
+          .map((e) => Map<String, String>.from(e as Map))
+          .toList(),
     );
   }
 

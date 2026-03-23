@@ -5,9 +5,11 @@ import '../widgets/claude_widgets.dart';
 import '../services/notification_service.dart';
 import '../screens/Documents/documents_screen.dart';
 import '../screens/reports/workorder_report_screen.dart';
+import '../screens/reports/monthly_task_report_screen.dart';
 import '../screens/settings_page.dart';
 import '../screens/settings/activity_log_screen.dart';
 import '../screens/notifications_screen.dart';
+import '../screens/calendar/calendar_screen.dart';
 
 class MoreScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -192,6 +194,17 @@ class _MoreScreenState extends State<MoreScreen> {
         ),
       ),
       _MoreItem(
+        title: 'Monthly Report',
+        subtitle: 'Task summary PDF',
+        icon: Icons.assignment_outlined,
+        color: const Color(0xFF0369A1),
+        bgColor: const Color(0xFFE0F2FE),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MonthlyTaskReportScreen()),
+        ),
+      ),
+      _MoreItem(
         title: 'Employees',
         subtitle: 'Manage team',
         icon: Icons.people_outline_rounded,
@@ -202,12 +215,16 @@ class _MoreScreenState extends State<MoreScreen> {
       ),
       _MoreItem(
         title: 'Calendar',
-        subtitle: 'Schedule & events',
+        subtitle: 'Recurring inspections',
         icon: Icons.calendar_month_outlined,
         color: const Color(0xFF1D4ED8),
         bgColor: const Color(0xFFDBEAFE),
-        onTap: () => _comingSoon(context, 'Calendar'),
-        comingSoon: true,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CalendarScreen(userRole: widget.userRole),
+          ),
+        ),
       ),
       _MoreItem(
         title: 'Notifications',

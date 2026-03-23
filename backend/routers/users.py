@@ -67,8 +67,15 @@ async def get_current_user(email: str = Query(...)):
     """Get current user profile"""
     user = _get_user_by_email(email)
     if user:
-        return {"user": user}
-    return {"user": None}
+        td_rows = supabase.table("technician_departments") \
+            .select("department_id, departments(id, name)") \
+            .eq("technician_id", user.get("id")) \
+            .execute().data or []
+        user["technician_departments"] = [
+            {"id": row["departments"]["id"], "name": row["departments"]["name"]}
+            for row in td_rows if row.get("departments")
+        ]
+    return {"user": user}
 
 
 # ================================================
@@ -76,24 +83,34 @@ async def get_current_user(email: str = Query(...)):
 # ================================================
 
 @router.get("/users")
-async def list_users():
-    """Get all users"""
-    result = supabase.table("users").select("*").execute()
-    users = result.data or []
-
-    for user in users:
-        dept_result = supabase.table("technician_departments") \
-            .select("department_id") \
-            .eq("technician_id", user.get("id")) \
+async def list_users(department_id: Optional[str] = Query(None)):
+    """Get all users, optionally filtered by department"""
+    if department_id:
+        # Get technician IDs for this department
+        td_rows = supabase.table("technician_departments") \
+            .select("technician_id") \
+            .eq("department_id", department_id) \
+            .execute().data or []
+        technician_ids = [r["technician_id"] for r in td_rows if r.get("technician_id")]
+        if not technician_ids:
+            return {"users": []}
+        # Fetch those users in one query
+        result = supabase.table("users").select("*").in_("id", technician_ids).execute()
+        users = result.data or []
+        for user in users:
+            user["departments"] = []  # dept name not needed here
+    else:
+        result = supabase.table("users") \
+            .select("*, technician_departments(department_id, departments(name))") \
             .execute()
-        dept_ids = [r.get("department_id") for r in (dept_result.data or []) if r.get("department_id")]
-
-        dept_names = []
-        for dept_id in dept_ids:
-            d_result = supabase.table("departments").select("name").eq("id", dept_id).execute()
-            if d_result.data:
-                dept_names.append(d_result.data[0].get("name"))
-        user["departments"] = dept_names
+        users = result.data or []
+        for user in users:
+            td_rows = user.pop("technician_departments", []) or []
+            user["departments"] = [
+                row["departments"]["name"]
+                for row in td_rows
+                if row.get("departments") and row["departments"].get("name")
+            ]
 
     return {"users": users}
 
