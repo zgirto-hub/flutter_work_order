@@ -298,6 +298,13 @@ async def create_work_order(body: CreateWorkOrderBody):
     if not dept_result.data[0].get("is_active", True):
         raise HTTPException(status_code=400, detail="Cannot create work order for inactive department")
 
+    # Resolve the public.users.id from email (frontend sends auth UUID which differs)
+    resolved_created_by = body.created_by
+    if body.created_by_email:
+        resolved_id = _get_user_id_by_email(body.created_by_email)
+        if resolved_id:
+            resolved_created_by = resolved_id
+
     now = datetime.utcnow().isoformat()
     payload = {
         "job_no": body.job_no,
@@ -308,11 +315,11 @@ async def create_work_order(body: CreateWorkOrderBody):
         "department_id": body.department_id,
         "type": body.type or "Technical",
         "status": body.status or "Pending",
-        "created_by": body.created_by,
+        "created_by": resolved_created_by,
     }
     if (body.status or "Pending") == "Closed":
         payload["closed_at"] = now
-        payload["closed_by"] = body.created_by
+        payload["closed_by"] = resolved_created_by
     result = supabase.table("work_orders").insert(payload).execute()
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create work order")
@@ -333,7 +340,7 @@ async def create_work_order(body: CreateWorkOrderBody):
             if creator_user:
                 technician_ids = [str(creator_user.get("id"))]
     if technician_ids:
-        _sync_assignments(work_order_id, technician_ids, body.created_by)
+        _sync_assignments(work_order_id, technician_ids, resolved_created_by)
 
     created_user_email = body.created_by_email or "unknown"
     log_activity(created_user_email, "work_order", "created",
