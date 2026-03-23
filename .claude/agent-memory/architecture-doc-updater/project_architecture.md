@@ -35,3 +35,5 @@ Flutter + FastAPI work order management system for civil aviation (Kuwait).
 - `work_orders.closed_by` is a UUID (not email); resolved at close time via `_get_user_id_by_email()`
 - `POST /api/recurring-inspections/generate` must be triggered externally — not automatic
 - `backend/version.json` must never be committed (server-managed file)
+- `CalendarScreen` computes recurrence client-side from the full inspection list (fetchAll); does NOT use `/api/recurring-inspections/calendar`. Cache window: 60 days past to 120 days future. `RecurringInspectionService.fetchCalendar()` exists but is unused by Flutter.
+- Frequency values are `daily`, `weekly`, `monthly`, `yearly` — NOT `custom`; `yearly` matches month+day of startDate

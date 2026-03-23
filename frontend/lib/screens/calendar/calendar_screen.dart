@@ -22,6 +22,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
 
   List<RecurringInspection> _inspections = [];
+
+  /// Pre-computed cache: normalized DateTime (year/month/day only) → events.
+  /// Built once after load, and rebuilt whenever inspections change.
+  /// Only covers [_cacheStart, _cacheEnd] to avoid unbounded iteration.
+  Map<DateTime, List<RecurringInspection>> _eventCache = {};
+
+  // Cache window: 60 days back, 120 days forward from today.
+  static const int _cachePastDays   = 60;
+  static const int _cacheFutureDays = 120;
+
   bool _loading = true;
   String? _error;
 
@@ -30,6 +40,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     super.initState();
     _loadInspections();
   }
+
+  // ---------------------------------------------------------------------------
+  // Data loading
+  // ---------------------------------------------------------------------------
 
   Future<void> _loadInspections() async {
     setState(() {
@@ -43,6 +57,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _inspections = list;
         _loading = false;
       });
+      _buildEventCache();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -52,49 +67,106 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  List<RecurringInspection> _getEventsForDay(DateTime day) {
+  // ---------------------------------------------------------------------------
+  // Cache builder — runs once after load, O(days × inspections) but bounded
+  // ---------------------------------------------------------------------------
+
+  void _buildEventCache() {
+    final cache = <DateTime, List<RecurringInspection>>{};
+
+    final today      = DateTime.now();
+    final rangeStart = DateTime(today.year, today.month, today.day)
+        .subtract(Duration(days: _cachePastDays));
+    final rangeEnd   = DateTime(today.year, today.month, today.day)
+        .add(Duration(days: _cacheFutureDays));
+
+    for (var d = rangeStart;
+        !d.isAfter(rangeEnd);
+        d = d.add(const Duration(days: 1))) {
+      final events = _computeEventsForDay(d);
+      if (events.isNotEmpty) {
+        cache[DateTime(d.year, d.month, d.day)] = events;
+      }
+    }
+
+    setState(() => _eventCache = cache);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Core matching logic — called only from _buildEventCache, not per-render
+  // ---------------------------------------------------------------------------
+
+  List<RecurringInspection> _computeEventsForDay(DateTime day) {
+    final normalDay = DateTime(day.year, day.month, day.day);
+
     return _inspections.where((ri) {
+      // Must have a valid next-due date
       final nextDue = DateTime.tryParse(ri.nextDueDate);
       if (nextDue == null) return false;
 
-      // Check if this recurring inspection falls on this day
-      if (isSameDay(nextDue, day)) return true;
-
-      // Also check pattern match for the calendar view
       final start = DateTime.tryParse(ri.startDate);
-      if (start == null || day.isBefore(start)) return false;
+      if (start == null) return false;
 
+      final normalStart = DateTime(start.year, start.month, start.day);
+
+      // Don't show before start date
+      if (normalDay.isBefore(normalStart)) return false;
+
+      // Don't show after end date
       if (ri.endDate != null) {
         final end = DateTime.tryParse(ri.endDate!);
-        if (end != null && day.isAfter(end)) return false;
+        if (end != null) {
+          final normalEnd = DateTime(end.year, end.month, end.day);
+          if (normalDay.isAfter(normalEnd)) return false;
+        }
       }
 
       final n = ri.interval ?? 1;
+
       switch (ri.frequency) {
         case 'daily':
           if (n <= 1) return true;
-          final diffDays = day.difference(start).inDays;
+          final diffDays = normalDay.difference(normalStart).inDays;
           return diffDays >= 0 && diffDays % n == 0;
+
         case 'weekly':
-          // day.weekday: 1=Mon..7=Sun, ri.dayOfWeek: 0=Mon..6=Sun
-          if (day.weekday != (ri.dayOfWeek ?? 0) + 1) return false;
+          // day.weekday: 1=Mon..7=Sun  |  ri.dayOfWeek: 0=Mon..6=Sun
+          if (normalDay.weekday != (ri.dayOfWeek ?? 0) + 1) return false;
           if (n <= 1) return true;
-          final diffWeeks = day.difference(start).inDays ~/ 7;
-          return diffWeeks % n == 0;
+          final diffWeeks = normalDay.difference(normalStart).inDays ~/ 7;
+          return diffWeeks >= 0 && diffWeeks % n == 0;
+
         case 'monthly':
-          if (day.day != (ri.dayOfMonth ?? 1)) return false;
+          if (normalDay.day != (ri.dayOfMonth ?? 1)) return false;
           if (n <= 1) return true;
-          final diffMonths = (day.year - start.year) * 12 + (day.month - start.month);
+          final diffMonths = (normalDay.year - normalStart.year) * 12 +
+              (normalDay.month - normalStart.month);
           return diffMonths >= 0 && diffMonths % n == 0;
+
         case 'yearly':
-          if (day.month != start.month || day.day != start.day) return false;
-          final diffYears = day.year - start.year;
+          if (normalDay.month != normalStart.month ||
+              normalDay.day   != normalStart.day) return false;
+          final diffYears = normalDay.year - normalStart.year;
           return diffYears >= 0 && diffYears % n == 0;
+
         default:
           return false;
       }
     }).toList();
   }
+
+  // ---------------------------------------------------------------------------
+  // Fast O(1) lookup used by TableCalendar's eventLoader
+  // ---------------------------------------------------------------------------
+
+  List<RecurringInspection> _getEventsForDay(DateTime day) {
+    final key = DateTime(day.year, day.month, day.day);
+    return _eventCache[key] ?? [];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Actions
+  // ---------------------------------------------------------------------------
 
   Future<void> _generateDue() async {
     try {
@@ -133,6 +205,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (result == true) _loadInspections();
   }
 
+  // ---------------------------------------------------------------------------
+  // UI
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     final eventsForSelected = _getEventsForDay(_selectedDay);
@@ -149,7 +225,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+                    icon: Icon(Icons.arrow_back_ios_new_rounded,
+                        size: 18, color: AppColors.textPrimary),
                     onPressed: () => Navigator.pop(context),
                   ),
                   Expanded(
@@ -165,13 +242,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                   if (widget.userRole == 'admin' || widget.userRole == 'fixer')
                     IconButton(
-                      icon: Icon(Icons.play_circle_outline_rounded, size: 22, color: AppColors.accent),
+                      icon: Icon(Icons.play_circle_outline_rounded,
+                          size: 22, color: AppColors.accent),
                       tooltip: 'Generate due inspections',
                       onPressed: _generateDue,
                     ),
                   if (widget.userRole == 'admin')
                     IconButton(
-                      icon: Icon(Icons.add_rounded, size: 22, color: AppColors.accent),
+                      icon: Icon(Icons.add_rounded,
+                          size: 22, color: AppColors.accent),
                       tooltip: 'Add recurring inspection',
                       onPressed: () => _openAddScreen(),
                     ),
@@ -189,7 +268,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 focusedDay: _focusedDay,
                 selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
                 calendarFormat: _calendarFormat,
-                eventLoader: _getEventsForDay,
+                eventLoader: _getEventsForDay, // now O(1)
                 startingDayOfWeek: StartingDayOfWeek.monday,
                 onDaySelected: (selectedDay, focusedDay) {
                   setState(() {
@@ -201,6 +280,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   setState(() => _calendarFormat = format);
                 },
                 onPageChanged: (focusedDay) {
+                  // Rebuild cache if user navigates outside the current window
+                  final today = DateTime.now();
+                  final cacheStart = today.subtract(Duration(days: _cachePastDays));
+                  final cacheEnd   = today.add(Duration(days: _cacheFutureDays));
+                  if (focusedDay.isBefore(cacheStart) ||
+                      focusedDay.isAfter(cacheEnd)) {
+                    _buildEventCache();
+                  }
                   _focusedDay = focusedDay;
                 },
                 calendarStyle: CalendarStyle(
@@ -218,10 +305,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     shape: BoxShape.circle,
                   ),
                   outsideDaysVisible: false,
-                  defaultTextStyle: TextStyle(color: AppColors.textPrimary, fontSize: 13),
-                  weekendTextStyle: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                  todayTextStyle: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                  selectedTextStyle: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                  defaultTextStyle:
+                      TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                  weekendTextStyle:
+                      TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  todayTextStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600),
+                  selectedTextStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600),
                 ),
                 headerStyle: HeaderStyle(
                   formatButtonVisible: true,
@@ -232,17 +327,27 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
-                  formatButtonTextStyle: TextStyle(fontSize: 11, color: AppColors.accent),
+                  formatButtonTextStyle:
+                      TextStyle(fontSize: 11, color: AppColors.accent),
                   formatButtonDecoration: BoxDecoration(
-                    border: Border.all(color: AppColors.accent.withOpacity(0.5)),
+                    border: Border.all(
+                        color: AppColors.accent.withOpacity(0.5)),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  leftChevronIcon: Icon(Icons.chevron_left, color: AppColors.textSecondary, size: 20),
-                  rightChevronIcon: Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 20),
+                  leftChevronIcon: Icon(Icons.chevron_left,
+                      color: AppColors.textSecondary, size: 20),
+                  rightChevronIcon: Icon(Icons.chevron_right,
+                      color: AppColors.textSecondary, size: 20),
                 ),
                 daysOfWeekStyle: DaysOfWeekStyle(
-                  weekdayStyle: TextStyle(fontSize: 11, color: AppColors.textTertiary, fontWeight: FontWeight.w500),
-                  weekendStyle: TextStyle(fontSize: 11, color: AppColors.textTertiary, fontWeight: FontWeight.w500),
+                  weekdayStyle: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textTertiary,
+                      fontWeight: FontWeight.w500),
+                  weekendStyle: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textTertiary,
+                      fontWeight: FontWeight.w500),
                 ),
               ),
             ),
@@ -258,11 +363,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.error_outline, color: AppColors.textTertiary, size: 40),
+                              Icon(Icons.error_outline,
+                                  color: AppColors.textTertiary, size: 40),
                               const SizedBox(height: 8),
-                              Text('Failed to load', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                              Text('Failed to load',
+                                  style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 13)),
                               const SizedBox(height: 8),
-                              TextButton(onPressed: _loadInspections, child: const Text('Retry')),
+                              TextButton(
+                                  onPressed: _loadInspections,
+                                  child: const Text('Retry')),
                             ],
                           ),
                         )
@@ -271,11 +382,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.event_busy_rounded, color: AppColors.textTertiary.withOpacity(0.5), size: 44),
+                                  Icon(Icons.event_busy_rounded,
+                                      color: AppColors.textTertiary
+                                          .withOpacity(0.5),
+                                      size: 44),
                                   const SizedBox(height: 8),
                                   Text(
                                     'No inspections on this day',
-                                    style: TextStyle(color: AppColors.textTertiary, fontSize: 13),
+                                    style: TextStyle(
+                                        color: AppColors.textTertiary,
+                                        fontSize: 13),
                                   ),
                                 ],
                               ),
@@ -283,11 +399,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           : ListView.separated(
                               padding: const EdgeInsets.all(16),
                               itemCount: eventsForSelected.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 8),
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 8),
                               itemBuilder: (context, index) {
                                 return _InspectionCard(
                                   inspection: eventsForSelected[index],
-                                  onTap: () => _openAddScreen(eventsForSelected[index]),
+                                  onTap: () =>
+                                      _openAddScreen(eventsForSelected[index]),
                                 );
                               },
                             ),
@@ -298,6 +416,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 }
+
+// -----------------------------------------------------------------------------
+// Inspection card — unchanged
+// -----------------------------------------------------------------------------
 
 class _InspectionCard extends StatelessWidget {
   final RecurringInspection inspection;
@@ -328,7 +450,8 @@ class _InspectionCard extends StatelessWidget {
                     color: const Color(0xFFDBEAFE),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.checklist_rounded, size: 16, color: Color(0xFF1D4ED8)),
+                  child: const Icon(Icons.checklist_rounded,
+                      size: 16, color: Color(0xFF1D4ED8)),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -348,15 +471,18 @@ class _InspectionCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         inspection.scheduleDescription,
-                        style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                        style: TextStyle(
+                            fontSize: 11, color: AppColors.textTertiary),
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: _frequencyColor(inspection.frequency).withOpacity(0.1),
+                    color: _frequencyColor(inspection.frequency)
+                        .withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -370,26 +496,31 @@ class _InspectionCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (inspection.location.isNotEmpty || inspection.departmentName != null) ...[
+            if (inspection.location.isNotEmpty ||
+                inspection.departmentName != null) ...[
               const SizedBox(height: 10),
               Row(
                 children: [
                   if (inspection.departmentName != null) ...[
-                    Icon(Icons.business_rounded, size: 12, color: AppColors.textTertiary),
+                    Icon(Icons.business_rounded,
+                        size: 12, color: AppColors.textTertiary),
                     const SizedBox(width: 4),
                     Text(
                       inspection.departmentName!,
-                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      style: TextStyle(
+                          fontSize: 11, color: AppColors.textSecondary),
                     ),
                     const SizedBox(width: 12),
                   ],
                   if (inspection.location.isNotEmpty) ...[
-                    Icon(Icons.location_on_outlined, size: 12, color: AppColors.textTertiary),
+                    Icon(Icons.location_on_outlined,
+                        size: 12, color: AppColors.textTertiary),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         inspection.location,
-                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        style: TextStyle(
+                            fontSize: 11, color: AppColors.textSecondary),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -402,12 +533,14 @@ class _InspectionCard extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.people_outline_rounded, size: 12, color: AppColors.textTertiary),
+                  Icon(Icons.people_outline_rounded,
+                      size: 12, color: AppColors.textTertiary),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       inspection.assignees.map((a) => a.fullName).join(', '),
-                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      style: TextStyle(
+                          fontSize: 11, color: AppColors.textSecondary),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

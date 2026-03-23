@@ -367,7 +367,7 @@ Each HTML file in `frontend/assets/` is a self-contained design reference render
 Recurring inspections are scheduled maintenance tasks that repeat on a defined frequency. They are distinct from one-off work orders and have their own calendar-driven UI.
 
 ### Database Tables
-- `recurring_inspections`: core record — title, department, frequency (`daily`/`weekly`/`monthly`/`custom`), interval, `day_of_week`, `day_of_month`, `next_due`, `start_date`
+- `recurring_inspections`: core record — title, department, frequency (`daily`/`weekly`/`monthly`/`yearly`), interval, `day_of_week`, `day_of_month`, `next_due`, `start_date`
 - `recurring_inspection_assignees`: many-to-many link between inspection and assigned technicians (`fixer_id → users.id`)
 - `recurring_inspection_logs`: completion records per due instance
 
@@ -375,7 +375,35 @@ Recurring inspections are scheduled maintenance tasks that repeat on a defined f
 `_compute_next_due()` and `_advance_next_due()` in `backend/routers/recurring_inspections.py` calculate the next due date from frequency parameters. The `POST /api/recurring-inspections/generate` endpoint should be called periodically (e.g., via cron) to advance `next_due` for overdue inspections and write log entries.
 
 ### Frontend
-- Calendar screen: `frontend/lib/screens/calendar/calendar_screen.dart` — uses `table_calendar` package; fetches events from `/api/recurring-inspections/calendar?month=&year=`
+
+#### Calendar Screen (`frontend/lib/screens/calendar/calendar_screen.dart`)
+
+The calendar screen computes all event placements entirely on the client. It does **not** use the `/api/recurring-inspections/calendar` backend endpoint for rendering markers; that endpoint remains available but is unused by this screen.
+
+**Data flow:**
+1. On init, `_loadInspections()` calls `RecurringInspectionService.fetchAll(isActive: true)` — `GET /api/recurring-inspections?is_active=true` — loading the full active inspection list once.
+2. `_buildEventCache()` iterates a bounded window (60 days past → 120 days future from today) and calls `_computeEventsForDay()` for each day, storing results in `Map<DateTime, List<RecurringInspection>>`.
+3. `TableCalendar`'s `eventLoader` calls `_getEventsForDay()`, which is an O(1) map lookup against the pre-built cache.
+4. When the user pages the calendar outside the cache window, `_buildEventCache()` is triggered again to cover the new viewport.
+
+**Client-side recurrence matching (`_computeEventsForDay`):**
+
+| Frequency | Match condition |
+|-----------|----------------|
+| `daily` | Every `interval` days from `startDate` |
+| `weekly` | Matches `dayOfWeek` (0=Mon..6=Sun); every `interval` weeks from `startDate` |
+| `monthly` | Matches `dayOfMonth`; every `interval` months from `startDate` |
+| `yearly` | Matches month+day of `startDate`; every `interval` years |
+
+Days before `startDate` and after `endDate` (when set) are always excluded.
+
+**Role-gated actions in header:**
+- `admin` or `fixer` role: "Generate due inspections" button — calls `RecurringInspectionService.generateDue()` (`POST /api/recurring-inspections/generate`) and reloads
+- `admin` role only: "Add recurring inspection" button — navigates to `AddRecurringInspectionScreen`
+
+Tapping an inspection card in the day's event list navigates to `AddRecurringInspectionScreen` with the existing `RecurringInspection` passed as `existing`, enabling inline editing.
+
+**Other files:**
 - Add/Edit screen: `frontend/lib/screens/calendar/add_recurring_inspection_screen.dart`
 - Model: `frontend/lib/models/recurring_inspection.dart`
 - Service: `frontend/lib/services/recurring_inspection_service.dart`

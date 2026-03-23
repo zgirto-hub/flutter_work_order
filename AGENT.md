@@ -158,9 +158,10 @@ When adding a new theme: add the enum value, add cases in `label`, `description`
 `ReportService.generateMonthlyTasksReport()` POSTs task data to `POST /api/reports/monthly-tasks`. The backend (`backend/routers/reports.py`) renders a `reportlab` PDF using logos from `backend/assets/` and streams it back. The Flutter client receives raw bytes and passes them to `PdfPreviewScreen`.
 
 ### Recurring Inspections
-- Frequency options: `daily`, `weekly`, `monthly`, `custom` (with `interval` and `day_of_week`/`day_of_month` fields)
+- Frequency options: `daily`, `weekly`, `monthly`, `yearly` (with `interval` and `day_of_week`/`day_of_month` fields)
 - `POST /api/recurring-inspections/generate` advances `next_due` for all overdue records — intended for periodic invocation (cron or manual trigger)
-- Calendar data comes from `GET /api/recurring-inspections/calendar?month=&year=` which groups due dates for display in `table_calendar`
+- The calendar screen does **not** use `GET /api/recurring-inspections/calendar`. Instead it loads all active inspections once (`GET /api/recurring-inspections?is_active=true`) and computes event placements entirely client-side. A bounded cache (`Map<DateTime, List<RecurringInspection>>`) covering 60 days past to 120 days future is built after load and on page-change when the user scrolls outside that window. The `eventLoader` callback is an O(1) map lookup against this cache.
+- The backend `/api/recurring-inspections/calendar` endpoint still exists but is currently unused by the Flutter frontend. `RecurringInspectionService.fetchCalendar()` wraps it if a future screen needs it.
 
 ### N+1 Prevention in `GET /api/users`
 `list_users()` uses a 2-query bulk fetch for technician department names: one query for all `technician_departments` rows, one for all `departments`, then resolves names in Python. The per-user N+1 pattern was removed in commit `ec1ef0a`.
@@ -192,3 +193,5 @@ Files go to `backend/uploaded_files/` on the server filesystem — not cloud sto
 - **Department filter uses `technician_departments`**: `GET /api/users?department_id=` filters by the many-to-many mapping, not by `users.department_id`. Technicians do not have a `department_id` on their user row.
 - **HTML preview files are not the PDF output**: `frontend/assets/report_preview*.html` are design reference files used for the in-app theme picker preview only. The actual PDF is built by `WorkOrderPdfService` (Dart) or `reportlab` (Python).
 - **Recurring inspection generation**: The `POST /api/recurring-inspections/generate` endpoint is not called automatically — it must be triggered externally or manually to advance due dates.
+- **Calendar markers are computed client-side**: `CalendarScreen` builds its own recurrence schedule from the raw `RecurringInspection` list — it does not query the backend calendar endpoint. If recurrence logic in `_computeEventsForDay` diverges from the backend's `_compute_next_due()`, calendar markers and actual due-date generation will disagree. Keep both in sync when changing frequency semantics.
+- **`yearly` not `custom`**: The `RecurringInspection.frequency` field uses `'yearly'` as the fourth frequency value. Older documentation and some comments may say `'custom'` — that is incorrect.
