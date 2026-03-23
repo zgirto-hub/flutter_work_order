@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work Order System — Introduction</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F7F4EF;
+    --card: #FFFFFF;
+    --card2: #F1EFE9;
+    --border: #E4DED4;
+    --text: #1C1917;
+    --muted: #78716C;
+    --hint: #A8A29E;
+    --coral: #D85A30; --coral-50: #FAECE7; --coral-100: #F5C4B3; --coral-800: #712B13;
+    --teal: #1D9E75; --teal-50: #E1F5EE; --teal-100: #9FE1CB; --teal-800: #085041;
+    --blue: #378ADD; --blue-50: #E6F1FB; --blue-100: #B5D4F4; --blue-800: #0C447C;
+    --green: #639922; --green-50: #EAF3DE; --green-100: #C0DD97; --green-800: #27500A;
+    --purple: #7F77DD; --purple-50: #EEEDFE; --purple-100: #CECBF6; --purple-800: #3C3489;
+    --amber: #BA7517; --amber-50: #FAEEDA; --amber-100: #FAC775; --amber-800: #633806;
+    --gray-50: #F1EFE8; --gray-100: #D3D1C7; --gray-400: #888780; --gray-600: #5F5E5A;
+    --radius: 14px; --radius-sm: 8px; --radius-xs: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px 60px; }
+
+  /* HERO */
+  .hero { text-align: center; padding: 56px 24px 48px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+  .hero-badge { display: inline-flex; align-items: center; gap: 7px; background: var(--coral-50); color: var(--coral-800); font-size: 11px; font-weight: 600; padding: 5px 14px; border-radius: 20px; margin-bottom: 20px; border: 1px solid var(--coral-100); letter-spacing: 0.3px; }
+  .hero h1 { font-size: 36px; font-weight: 600; color: var(--text); margin-bottom: 14px; letter-spacing: -0.8px; line-height: 1.2; }
+  .hero h1 span { color: var(--coral); }
+  .hero p { font-size: 16px; color: var(--muted); max-width: 540px; margin: 0 auto 28px; line-height: 1.65; }
+  .hero-pills { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .pill { font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 20px; border: 1px solid; }
+  .pill-coral { background: var(--coral-50); color: var(--coral-800); border-color: var(--coral-100); }
+  .pill-teal { background: var(--teal-50); color: var(--teal-800); border-color: var(--teal-100); }
+  .pill-blue { background: var(--blue-50); color: var(--blue-800); border-color: var(--blue-100); }
+  .pill-green { background: var(--green-50); color: var(--green-800); border-color: var(--green-100); }
+  .pill-purple { background: var(--purple-50); color: var(--purple-800); border-color: var(--purple-100); }
+
+  /* SECTION */
+  .section { margin-bottom: 48px; }
+  .sec-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--hint); margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
+  .sec-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* WHO GRID */
+  .who-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .who-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm); }
+  .who-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+  .who-name { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+  .who-desc { font-size: 12px; color: var(--muted); line-height: 1.55; margin-bottom: 14px; }
+  .who-perms { display: flex; flex-direction: column; gap: 5px; }
+  .perm-item { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .perm-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; background: var(--green); }
+
+  /* FEATURES */
+  .feat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .feat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm); transition: box-shadow 0.2s; }
+  .feat-card:hover { box-shadow: var(--shadow); }
+  .feat-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+  .feat-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .feat-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .feat-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
+  .feat-tag { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 10px; }
+
+  /* FLOW */
+  .flow-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 24px; box-shadow: var(--shadow-sm); }
+  .flow-step { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .flow-step:last-child { border-bottom: none; }
+  .step-left { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+  .step-num { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+  .step-connector { width: 1px; background: var(--border); flex: 1; min-height: 18px; margin-top: 5px; }
+  .step-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; padding-top: 4px; }
+  .step-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+  /* PERMISSIONS */
+  .perm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .perm-card { border-radius: var(--radius-sm); padding: 16px; }
+
+  /* NOTIF */
+  .notif-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .notif-card { background: var(--card2); border-radius: var(--radius); padding: 16px 18px; }
+  .notif-title { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+  .notif-desc { font-size: 12px; color: var(--muted); line-height: 1.55; }
+
+  /* PLATFORM */
+  .plat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .plat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; box-shadow: var(--shadow-sm); }
+  .plat-icon { width: 48px; height: 48px; border-radius: var(--radius-sm); margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; }
+  .plat-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .plat-sub { font-size: 12px; color: var(--muted); }
+
+  /* STATS */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-card { background: var(--card2); border-radius: var(--radius); padding: 20px; text-align: center; }
+  .stat-num { font-size: 28px; font-weight: 600; margin-bottom: 4px; }
+  .stat-lbl { font-size: 12px; color: var(--muted); }
+
+  /* CTA */
+  .cta { background: var(--coral-50); border: 1px solid var(--coral-100); border-radius: var(--radius); padding: 36px 24px; text-align: center; }
+  .cta h3 { font-size: 20px; font-weight: 600; color: var(--coral-800); margin-bottom: 8px; }
+  .cta p { font-size: 13px; color: var(--muted); max-width: 440px; margin: 0 auto 20px; line-height: 1.6; }
+  .cta-steps { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+  .cta-step { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--coral-800); background: white; border: 1px solid var(--coral-100); border-radius: 20px; padding: 5px 14px; }
+  .cta-num { width: 18px; height: 18px; background: var(--coral); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+
+  /* FOOTER */
+  footer { text-align: center; padding: 24px; border-top: 1px solid var(--border); margin-top: 20px; }
+  footer p { font-size: 12px; color: var(--hint); }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .hero { animation: fadeUp 0.5s ease both; }
+  .section { animation: fadeUp 0.5s ease both; }
+  .section:nth-child(2) { animation-delay: 0.05s; }
+  .section:nth-child(3) { animation-delay: 0.1s; }
+  .section:nth-child(4) { animation-delay: 0.15s; }
+  .section:nth-child(5) { animation-delay: 0.2s; }
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 26px; }
+    .who-grid, .feat-grid, .perm-grid, .plat-grid { grid-template-columns: 1fr; }
+    .notif-grid { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .wrap { padding: 0 16px 48px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-badge">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="3" fill="#D85A30" opacity="0.25"/><rect x="5" y="5" width="6" height="6" rx="1.5" fill="#D85A30"/></svg>
+      Work Order Management System
+    </div>
+    <h1>Keep your operations running.<br><span>Nothing falls through the cracks.</span></h1>
+    <p>A unified platform for reporting, tracking, and closing work orders — with document management, recurring inspections, and real-time notifications built in.</p>
+    <div class="hero-pills">
+      <span class="pill pill-coral">Mobile + Web</span>
+      <span class="pill pill-teal">Real-time notifications</span>
+      <span class="pill pill-blue">Document management</span>
+      <span class="pill pill-green">Recurring inspections</span>
+      <span class="pill pill-purple">PDF reports</span>
+    </div>
+  </div>
+
+  <!-- WHO IS IT FOR -->
+  <div class="section">
+    <div class="sec-label">Who is it for</div>
+    <div class="who-grid">
+      <div class="who-card">
+        <div class="who-avatar" style="background:var(--coral-50);">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" fill="#D85A30" opacity="0.5"/><path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="#D85A30" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <div class="who-name" style="color:var(--coral-800);">Reporter</div>
+        <div class="who-desc">Any staff member who spots an issue and needs to report it quickly.</div>
+        <div class="who-perms">
+          <div class="perm-item"><div class="perm-dot"></div>Create work orders</div>
+          <div class="perm-item"><div class="perm-dot"></div>Track own submissions</div>
+          <div class="perm-item"><div class="perm-dot"></div>Upload documents</div>
+          <div class="perm-item"><div class="perm-dot"></div>Comment on WOs</div>
+        </div>
+      </div>
+      <div class="who-card">
+        <div class="who-avatar" style="background:var(--teal-50);">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><rect x="3" y="9" width="10" height="5" rx="1.5" fill="#1D9E75" opacity="0.4"/><path d="M5 9V6a3 3 0 016 0v3" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <div class="who-name" style="color:var(--teal-800);">Technician</div>
+        <div class="who-desc">Field technicians assigned to departments who handle the actual work.</div>
+        <div class="who-perms">
+          <div class="perm-item"><div class="perm-dot"></div>View department WOs</div>
+          <div class="perm-item"><div class="perm-dot"></div>Update &amp; close WOs</div>
+          <div class="perm-item"><div class="perm-dot"></div>Manage inspections</div>
+          <div class="perm-item"><div class="perm-dot"></div>Generate reports</div>
+        </div>
+      </div>
+      <div class="who-card">
+        <div class="who-avatar" style="background:var(--purple-50);">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><path d="M8 2l1.5 3 3.5.5-2.5 2.5.5 3.5L8 10l-3 1.5.5-3.5L3 5.5l3.5-.5z" fill="#7F77DD" opacity="0.5"/></svg>
+        </div>
+        <div class="who-name" style="color:var(--purple-800);">Admin</div>
+        <div class="who-desc">System administrators with full control over the entire platform.</div>
+        <div class="who-perms">
+          <div class="perm-item"><div class="perm-dot"></div>Full access to all WOs</div>
+          <div class="perm-item"><div class="perm-dot"></div>Create &amp; manage users</div>
+          <div class="perm-item"><div class="perm-dot"></div>Manage departments</div>
+          <div class="perm-item"><div class="perm-dot"></div>Delete &amp; bulk actions</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CORE FEATURES -->
+  <div class="section">
+    <div class="sec-label">Core features</div>
+    <div class="feat-grid">
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:var(--coral-50);">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="2" stroke="#D85A30" stroke-width="1.2"/><path d="M5 7h6M5 9.5h4" stroke="#D85A30" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="feat-title">Work order management</div>
+        <div class="feat-desc">Create, assign, track, and close work orders from any device. Each order logs its full history — who created it, who worked on it, and when it was resolved.</div>
+        <div class="feat-tags">
+          <span class="feat-tag" style="background:var(--coral-50);color:var(--coral-800);">Create &amp; assign</span>
+          <span class="feat-tag" style="background:var(--coral-50);color:var(--coral-800);">Status tracking</span>
+          <span class="feat-tag" style="background:var(--coral-50);color:var(--coral-800);">Audit trail</span>
+          <span class="feat-tag" style="background:var(--coral-50);color:var(--coral-800);">Bulk actions</span>
+          <span class="feat-tag" style="background:var(--coral-50);color:var(--coral-800);">File attachments</span>
+        </div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:var(--teal-50);">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="8" height="10" rx="1.5" stroke="#1D9E75" stroke-width="1.2"/><path d="M5 5h4M5 7.5h3M10 9l1.5 1.5L14 8" stroke="#1D9E75" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="feat-title">Document management</div>
+        <div class="feat-desc">Upload and organise files in a hierarchical folder structure. Documents are automatically scanned for text — including Arabic and English — so they're instantly searchable.</div>
+        <div class="feat-tags">
+          <span class="feat-tag" style="background:var(--teal-50);color:var(--teal-800);">Folder hierarchy</span>
+          <span class="feat-tag" style="background:var(--teal-50);color:var(--teal-800);">OCR search</span>
+          <span class="feat-tag" style="background:var(--teal-50);color:var(--teal-800);">Arabic + English</span>
+          <span class="feat-tag" style="background:var(--teal-50);color:var(--teal-800);">Share &amp; permissions</span>
+          <span class="feat-tag" style="background:var(--teal-50);color:var(--teal-800);">PDF · DOCX · Images</span>
+        </div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:var(--green-50);">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="1.5" stroke="#639922" stroke-width="1.2"/><path d="M5 2v2M11 2v2M2 7h12" stroke="#639922" stroke-width="1.2" stroke-linecap="round"/><rect x="5" y="9" width="2" height="2" rx="0.5" fill="#639922"/><rect x="9" y="9" width="2" height="2" rx="0.5" fill="#639922" opacity="0.4"/></svg>
+        </div>
+        <div class="feat-title">Recurring inspections</div>
+        <div class="feat-desc">Schedule regular maintenance tasks that repeat daily, weekly, monthly, or on a custom interval. A built-in calendar gives every technician a clear view of what's due and when.</div>
+        <div class="feat-tags">
+          <span class="feat-tag" style="background:var(--green-50);color:var(--green-800);">Calendar view</span>
+          <span class="feat-tag" style="background:var(--green-50);color:var(--green-800);">Auto-scheduling</span>
+          <span class="feat-tag" style="background:var(--green-50);color:var(--green-800);">Assignee management</span>
+          <span class="feat-tag" style="background:var(--green-50);color:var(--green-800);">Completion logs</span>
+        </div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:var(--purple-50);">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><path d="M4 2h8a1 1 0 011 1v11l-2-1.5L9 14l-1.5-1.5L6 14l-2-1.5L2 14V3a1 1 0 012-1z" stroke="#7F77DD" stroke-width="1.2" stroke-linejoin="round"/><path d="M5 6h6M5 8.5h4" stroke="#7F77DD" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="feat-title">PDF reports</div>
+        <div class="feat-desc">Generate professional PDF reports of closed work orders per technician. Choose from four visual themes and filter by any date range to produce printable summaries instantly.</div>
+        <div class="feat-tags">
+          <span class="feat-tag" style="background:var(--purple-50);color:var(--purple-800);">4 design themes</span>
+          <span class="feat-tag" style="background:var(--purple-50);color:var(--purple-800);">Date range filter</span>
+          <span class="feat-tag" style="background:var(--purple-50);color:var(--purple-800);">Per-technician view</span>
+          <span class="feat-tag" style="background:var(--purple-50);color:var(--purple-800);">Instant download</span>
+        </div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:var(--blue-50);">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><path d="M8 2C5.5 2 3 4 3 7c0 2 1 3.5 2.5 4.5V13h5v-1.5C12 10.5 13 9 13 7c0-3-2.5-5-5-5z" stroke="#378ADD" stroke-width="1.2"/><path d="M6 13h4" stroke="#378ADD" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="feat-title">Smart notifications</div>
+        <div class="feat-desc">Never miss an update. Get notified in-app and via push when a work order you're involved in receives a comment, a status change, or is assigned to you.</div>
+        <div class="feat-tags">
+          <span class="feat-tag" style="background:var(--blue-50);color:var(--blue-800);">In-app alerts</span>
+          <span class="feat-tag" style="background:var(--blue-50);color:var(--blue-800);">Push notifications</span>
+          <span class="feat-tag" style="background:var(--blue-50);color:var(--blue-800);">Watch any WO</span>
+          <span class="feat-tag" style="background:var(--blue-50);color:var(--blue-800);">Mute controls</span>
+        </div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:var(--amber-50);">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="#BA7517" stroke-width="1.2"/><path d="M8 5v3.5l2 2" stroke="#BA7517" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="feat-title">Activity log &amp; audit trail</div>
+        <div class="feat-desc">Every action in the system is recorded — sign-ins, work order changes, document uploads, and more. Admins get a full audit trail for compliance and accountability.</div>
+        <div class="feat-tags">
+          <span class="feat-tag" style="background:var(--amber-50);color:var(--amber-800);">Full history</span>
+          <span class="feat-tag" style="background:var(--amber-50);color:var(--amber-800);">Admin visibility</span>
+          <span class="feat-tag" style="background:var(--amber-50);color:var(--amber-800);">Category filters</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- HOW A WO FLOWS -->
+  <div class="section">
+    <div class="sec-label">How a work order flows</div>
+    <div class="flow-card">
+      <div class="flow-step">
+        <div class="step-left">
+          <div class="step-num" style="background:var(--coral-50);color:var(--coral-800);">1</div>
+          <div class="step-connector"></div>
+        </div>
+        <div>
+          <div class="step-title">Issue is reported</div>
+          <div class="step-desc">Any staff member spots an issue and creates a work order from the app — describing the problem, selecting the target department, and optionally attaching photos or files.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-left">
+          <div class="step-num" style="background:var(--blue-50);color:var(--blue-800);">2</div>
+          <div class="step-connector"></div>
+        </div>
+        <div>
+          <div class="step-title">Technician is notified &amp; assigned</div>
+          <div class="step-desc">Technicians in the relevant department receive an instant push notification. An admin or the system assigns the right technician to take ownership.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-left">
+          <div class="step-num" style="background:var(--amber-50);color:var(--amber-800);">3</div>
+          <div class="step-connector"></div>
+        </div>
+        <div>
+          <div class="step-title">Work is done — updates posted</div>
+          <div class="step-desc">The technician updates the work order status, adds comments, and uploads evidence. The reporter and any watchers are notified of every change in real time.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-left">
+          <div class="step-num" style="background:var(--green-50);color:var(--green-800);">4</div>
+        </div>
+        <div>
+          <div class="step-title">Work order is closed &amp; logged</div>
+          <div class="step-desc">Once complete, the technician closes the WO. The closure time and responsible person are recorded permanently — ready to appear in the next report.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOCUMENT PERMISSIONS -->
+  <div class="section">
+    <div class="sec-label">Document sharing &amp; permissions</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm);">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.65;">Documents and folders can be shared with colleagues at three permission levels. Permissions automatically inherit down through folder hierarchies — share a folder once and everything inside is covered.</p>
+      <div class="perm-grid">
+        <div class="perm-card" style="background:var(--coral-50);border:1px solid var(--coral-100);">
+          <div style="font-size:13px;font-weight:600;color:var(--coral-800);margin-bottom:8px;">Owner</div>
+          <div style="font-size:12px;color:var(--coral-800);opacity:0.85;line-height:1.8;">View · Download<br>Rename · Move<br>Delete · Share</div>
+        </div>
+        <div class="perm-card" style="background:var(--amber-50);border:1px solid var(--amber-100);">
+          <div style="font-size:13px;font-weight:600;color:var(--amber-800);margin-bottom:8px;">Editor</div>
+          <div style="font-size:12px;color:var(--amber-800);opacity:0.85;line-height:1.8;">View · Download<br>Rename · Move<br>Share · No delete</div>
+        </div>
+        <div class="perm-card" style="background:var(--gray-50);border:1px solid var(--gray-100);">
+          <div style="font-size:13px;font-weight:600;color:var(--gray-600);margin-bottom:8px;">Viewer</div>
+          <div style="font-size:12px;color:var(--gray-600);opacity:0.85;line-height:1.8;">View only<br>Download only<br>Read access</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS -->
+  <div class="section">
+    <div class="sec-label">Notification controls</div>
+    <div class="notif-grid">
+      <div class="notif-card">
+        <div class="notif-title" style="color:var(--teal-800);">In-app notifications</div>
+        <div class="notif-desc">A notification bell shows your unread count, updated every 20 seconds. A sound plays when new activity arrives while you have the app open.</div>
+      </div>
+      <div class="notif-card">
+        <div class="notif-title" style="color:var(--blue-800);">Push notifications</div>
+        <div class="notif-desc">Get alerted on your phone even when the app is closed. Sent the moment a comment or status change happens on a WO you're watching.</div>
+      </div>
+      <div class="notif-card">
+        <div class="notif-title" style="color:var(--purple-800);">Watch any work order</div>
+        <div class="notif-desc">Follow any work order as a watcher to stay updated, even if you're not assigned to it. Remove yourself at any time.</div>
+      </div>
+      <div class="notif-card">
+        <div class="notif-title" style="color:var(--amber-800);">Personal preferences</div>
+        <div class="notif-desc">Mute all notifications, or toggle specific types independently — comment alerts, status updates, push, and in-app — per your preference.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLATFORMS -->
+  <div class="section">
+    <div class="sec-label">Available on every platform</div>
+    <div class="plat-grid">
+      <div class="plat-card">
+        <div class="plat-icon" style="background:var(--blue-50);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="5" y="2" width="14" height="20" rx="3" stroke="#378ADD" stroke-width="1.5"/><circle cx="12" cy="18" r="1.2" fill="#378ADD"/></svg>
+        </div>
+        <div class="plat-name">iOS</div>
+        <div class="plat-sub">iPhone &amp; iPad</div>
+      </div>
+      <div class="plat-card">
+        <div class="plat-icon" style="background:var(--green-50);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M6 3l12 9-12 9V3z" stroke="#639922" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="plat-name">Android</div>
+        <div class="plat-sub">Phone &amp; tablet</div>
+      </div>
+      <div class="plat-card">
+        <div class="plat-icon" style="background:var(--teal-50);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="20" height="14" rx="2" stroke="#1D9E75" stroke-width="1.5"/><path d="M8 22h8M12 18v4" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <div class="plat-name">Web browser</div>
+        <div class="plat-sub">Any modern browser</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="section">
+    <div class="sec-label">At a glance</div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--coral);">3</div>
+        <div class="stat-lbl">User roles</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--teal);">6+</div>
+        <div class="stat-lbl">Core modules</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--blue);">2</div>
+        <div class="stat-lbl">Languages (AR+EN)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--purple);">4</div>
+        <div class="stat-lbl">Report themes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta">
+    <h3>Ready to get started?</h3>
+    <p>Contact your system administrator to create your account. No self-registration required — your admin sets you up with the right role and access.</p>
+    <div class="cta-steps">
+      <div class="cta-step"><div class="cta-num">1</div>Contact your admin</div>
+      <div class="cta-step"><div class="cta-num">2</div>Receive your credentials</div>
+      <div class="cta-step"><div class="cta-num">3</div>Log in &amp; get started</div>
+    </div>
+  </div>
+
+  <footer>
+    <p>Work Order Management System &mdash; Built with Flutter &amp; FastAPI</p>
+  </footer>
+
+</div>
+</body>
+</html>
