@@ -319,11 +319,8 @@ async def create_work_order(body: CreateWorkOrderBody):
 
     work_order_id = result.data[0].get("id")
     
-    # Sync assignments
+    # Sync assignments (only what was explicitly selected — no auto-assign)
     technician_ids = body.assigned_technician_ids or []
-    if not technician_ids:
-        technician_ids = _get_technicians_by_department(body.department_id)
-
     if technician_ids:
         _sync_assignments(work_order_id, technician_ids, body.created_by)
 
