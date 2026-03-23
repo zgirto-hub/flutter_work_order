@@ -246,7 +246,10 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       setState(() => _workOrders.insert(0, result));
       widget.onWorkOrderCreated?.call();
     }
-    if (result == 'updated' || result == 'deleted') await _load();
+    if (result == 'updated' || result == 'deleted') {
+      await _load();
+      widget.onWorkOrderCreated?.call();
+    }
   }
 
   void _toggleSearch() {
@@ -559,7 +562,10 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                   ),
                 );
                 if (!mounted) return;
-                if (result == 'updated' || result == 'deleted') await _load();
+                if (result == 'updated' || result == 'deleted') {
+                  await _load();
+                  widget.onWorkOrderCreated?.call();
+                }
                 await _refreshUnreadNotifications(playSoundIfIncreased: false);
               } finally {
                 _navigatingToActivity = false;
@@ -577,7 +583,10 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                   ),
                 );
                 if (!mounted) return;
-                if (result == 'updated' || result == 'deleted') await _load();
+                if (result == 'updated' || result == 'deleted') {
+                  await _load();
+                  widget.onWorkOrderCreated?.call();
+                }
                 await _refreshUnreadNotifications(playSoundIfIncreased: false);
               } finally {
                 _navigatingToEdit = false;
