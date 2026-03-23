@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../services/download_helper_mobile.dart'
+    if (dart.library.js_interop) '../services/download_helper_web.dart';
 import '../theme/app_theme.dart';
 import '../config.dart';
 // Registration removed - admin creates all accounts
@@ -64,11 +65,8 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  Future<void> _openIntro() async {
-    final uri = Uri.parse('${AppConfig.downloadUrl}/intro.html');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+  void _openIntro() {
+    openInNewTab('${AppConfig.downloadUrl}/intro.html');
   }
 
   Future<void> _loadAppInfo() async {
