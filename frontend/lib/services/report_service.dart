@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models/workorder_report.dart';
 import '../config.dart';
@@ -34,41 +33,5 @@ class ReportService {
     }
     final data = jsonDecode(res.body) as List;
     return data.map((e) => WorkOrderReport.fromJson(e as Map<String, dynamic>)).toList();
-  }
-
-  /// Generate the monthly tasks PDF on the backend and return the raw bytes.
-  /// Pass the bytes directly to PdfPreviewScreen — no second network call needed.
-  Future<Uint8List> generateMonthlyTasksReport({
-    required String name,
-    required String startDate,  // e.g. "01 Jan 2026"
-    required String endDate,    // e.g. "31 Jan 2026"
-    required List<Map<String, String>> tasks,
-    // Optional profile fields — kept for future use when users table is extended:
-    String department = 'Navigational Equipment Department',
-    String section    = 'AFTN/AMHS Section',
-    String title      = '',
-    String dgcaId     = '—',
-    String civilId    = '—',
-  }) async {
-    final uri = Uri.parse('${AppConfig.baseUrl}/reports/monthly-tasks');
-    final res = await http.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'name':       name,
-        'start_date': startDate,
-        'end_date':   endDate,
-        'tasks':      tasks,
-        'department': department,
-        'section':    section,
-        'title':      title,
-        'dgca_id':    dgcaId,
-        'civil_id':   civilId,
-      }),
-    );
-    if (res.statusCode != 200) {
-      throw Exception(_errorDetail(res, 'Failed to generate report'));
-    }
-    return res.bodyBytes;
   }
 }
