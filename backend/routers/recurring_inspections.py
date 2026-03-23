@@ -323,7 +323,20 @@ async def generate_due_inspections():
         }
 
         wo_result = supabase.table("work_orders").insert(wo_payload).execute()
+
+        new_next = _advance_next_due(
+            ri["frequency"], ri["next_due_date"],
+            ri.get("day_of_week"), ri.get("day_of_month"),
+            ri.get("interval", 1) or 1,
+        )
+
         if not wo_result.data:
+            # WO already exists (job_no unique violation) — advance next_due_date to
+            # prevent this inspection from being picked up again on the next generate call.
+            supabase.table("recurring_inspections").update({
+                "next_due_date": new_next,
+                "updated_at": datetime.utcnow().isoformat(),
+            }).eq("id", ri["id"]).execute()
             continue
 
         wo_id = wo_result.data[0]["id"]
@@ -339,18 +352,14 @@ async def generate_due_inspections():
             ]
             supabase.table("work_order_assignments").insert(assignments).execute()
 
-        # Log generation
+        # Log generation (generated_date enables DB-level unique constraint per day)
         supabase.table("recurring_inspection_logs").insert({
             "recurring_inspection_id": ri["id"],
             "work_order_id": wo_id,
+            "generated_date": today,
         }).execute()
 
         # Advance next_due_date
-        new_next = _advance_next_due(
-            ri["frequency"], ri["next_due_date"],
-            ri.get("day_of_week"), ri.get("day_of_month"),
-            ri.get("interval", 1) or 1,
-        )
         supabase.table("recurring_inspections").update({
             "next_due_date": new_next,
             "updated_at": datetime.utcnow().isoformat(),
