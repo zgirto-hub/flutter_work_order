@@ -11,6 +11,7 @@ class DocumentModel {
   final String? folderId;
   final int? fileSize;
   final String? role; // 'owner' | 'editor' | 'viewer' | null
+  final DateTime? expirationDate;
 
   DocumentModel({
     required this.id,
@@ -25,6 +26,7 @@ class DocumentModel {
     this.folderId,
     this.fileSize,
     this.role,
+    this.expirationDate,
   });
 
   factory DocumentModel.fromJson(Map<String, dynamic> json) {
@@ -40,13 +42,28 @@ class DocumentModel {
       folderId: json['folder_id']?.toString(),
       fileSize: (json['file_size'] as num?)?.toInt(),
       role: json['role'] as String?,
+      expirationDate: json['expiration_date'] != null
+          ? DateTime.tryParse(json['expiration_date'])
+          : null,
     );
   }
+
+  /// Whether this document has passed its expiration date.
+  bool get isExpired =>
+      expirationDate != null && expirationDate!.isBefore(DateTime.now());
+
+  /// Whether the document expires within the next 7 days.
+  bool get isExpiringSoon =>
+      expirationDate != null &&
+      !isExpired &&
+      expirationDate!.isBefore(DateTime.now().add(const Duration(days: 7)));
 
   DocumentModel copyWith({
     bool? isShared,
     String? folderId,
     String? role,
+    DateTime? expirationDate,
+    bool clearExpiration = false,
   }) {
     return DocumentModel(
       id: id,
@@ -61,6 +78,7 @@ class DocumentModel {
       folderId: folderId ?? this.folderId,
       fileSize: fileSize,
       role: role ?? this.role,
+      expirationDate: clearExpiration ? null : (expirationDate ?? this.expirationDate),
     );
   }
 }

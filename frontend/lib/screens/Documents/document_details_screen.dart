@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import '../../services/document_service.dart';
 
 // Conditional import — dart:html only exists on web
 import 'package:work_order/services/platform_ua.dart';
@@ -315,6 +316,14 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
+
+            // ── Expiration date ──────────────────────────────────────────
+            SizedBox(height: 12),
+            _ExpirationRow(
+              document: widget.document,
+              isOwner: isOwner,
+            ),
+
             SizedBox(height: 16),
 
             // ── Open / Download buttons ──────────────────────────────────
@@ -444,6 +453,122 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
         const SnackBar(content: Text("Failed to remove access")),
       );
     }
+  }
+}
+
+class _ExpirationRow extends StatefulWidget {
+  final DocumentModel document;
+  final bool isOwner;
+
+  const _ExpirationRow({required this.document, required this.isOwner});
+
+  @override
+  State<_ExpirationRow> createState() => _ExpirationRowState();
+}
+
+class _ExpirationRowState extends State<_ExpirationRow> {
+  late DateTime? _expDate;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _expDate = widget.document.expirationDate;
+  }
+
+  bool get _isExpired => _expDate != null && _expDate!.isBefore(DateTime.now());
+  bool get _isExpiringSoon =>
+      _expDate != null &&
+      !_isExpired &&
+      _expDate!.isBefore(DateTime.now().add(const Duration(days: 7)));
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _expDate ?? DateTime.now().add(const Duration(days: 30)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+    );
+    if (picked == null) return;
+    setState(() => _saving = true);
+    try {
+      await DocumentService().updateExpirationDate(widget.document.id, picked);
+      if (mounted) setState(() { _expDate = picked; _saving = false; });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update expiration: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _clearDate() async {
+    setState(() => _saving = true);
+    try {
+      await DocumentService().updateExpirationDate(widget.document.id, null);
+      if (mounted) setState(() { _expDate = null; _saving = false; });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to clear expiration: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color statusColor;
+    final String statusText;
+
+    if (_expDate == null) {
+      statusColor = Colors.grey;
+      statusText = 'No expiration date';
+    } else if (_isExpired) {
+      statusColor = Colors.red;
+      statusText = 'Expired on ${_expDate!.day}/${_expDate!.month}/${_expDate!.year}';
+    } else if (_isExpiringSoon) {
+      statusColor = Colors.orange;
+      statusText = 'Expiring soon: ${_expDate!.day}/${_expDate!.month}/${_expDate!.year}';
+    } else {
+      statusColor = Colors.green;
+      statusText = 'Expires: ${_expDate!.day}/${_expDate!.month}/${_expDate!.year}';
+    }
+
+    return Row(
+      children: [
+        Icon(Icons.event_outlined, size: 16, color: statusColor),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            statusText,
+            style: TextStyle(fontSize: 13, color: statusColor, fontWeight: FontWeight.w500),
+          ),
+        ),
+        if (_saving)
+          const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+        else if (widget.isOwner) ...[
+          IconButton(
+            icon: Icon(Icons.edit_calendar_outlined, size: 18, color: Colors.grey.shade600),
+            onPressed: _pickDate,
+            tooltip: 'Set expiration date',
+            constraints: const BoxConstraints(),
+            padding: const EdgeInsets.all(4),
+          ),
+          if (_expDate != null)
+            IconButton(
+              icon: Icon(Icons.clear_rounded, size: 18, color: Colors.grey.shade600),
+              onPressed: _clearDate,
+              tooltip: 'Remove expiration',
+              constraints: const BoxConstraints(),
+              padding: const EdgeInsets.all(4),
+            ),
+        ],
+      ],
+    );
   }
 }
 

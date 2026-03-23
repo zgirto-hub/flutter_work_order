@@ -147,6 +147,12 @@ class DocumentService {
         .eq('id', id);
   }
 
+  Future<void> updateExpirationDate(String id, DateTime? date) async {
+    await _client.from('documents').update({
+      'expiration_date': date?.toIso8601String(),
+    }).eq('id', id);
+  }
+
   Future<List<DocumentModel>> filterByType(String type) async {
     final response =
         await _client.from('documents').select().eq('document_type', type);

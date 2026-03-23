@@ -132,17 +132,25 @@ class DocumentCard extends StatelessWidget {
                   const SizedBox(height: 4),
 
                   // Badges row
-                  Row(
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
                     children: [
                       if (document.isPrivate) _DocBadge(label: 'Private', color: AppColors.pendingBg, textColor: AppColors.pendingText),
-                      if (document.isShared) ...[
-                        if (document.isPrivate) const SizedBox(width: 4),
+                      if (document.isShared)
                         _DocBadge(label: 'Shared', color: AppColors.inProgressBg, textColor: AppColors.inProgressText),
-                      ],
-                      if (isOwner) ...[
-                        if (document.isPrivate || document.isShared) const SizedBox(width: 4),
+                      if (isOwner)
                         _DocBadge(label: 'Mine', color: AppColors.closedBg, textColor: AppColors.closedText),
-                      ],
+                      if (document.isExpired)
+                        _DocBadge(label: 'Expired', color: AppColors.dangerBg, textColor: AppColors.dangerText)
+                      else if (document.isExpiringSoon)
+                        _DocBadge(label: 'Expiring soon', color: AppColors.pendingBg, textColor: AppColors.pendingText),
+                      if (document.expirationDate != null && !document.isExpired && !document.isExpiringSoon)
+                        _DocBadge(
+                          label: 'Exp ${document.expirationDate!.day}/${document.expirationDate!.month}/${document.expirationDate!.year}',
+                          color: AppColors.bgSurface2,
+                          textColor: AppColors.textTertiary,
+                        ),
                     ],
                   ),
 

@@ -1363,6 +1363,32 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   _filter.setDocumentType(
                       t == 'All' ? null : t)),
             ),
+            SizedBox(height: 6),
+            FilterChipRow(
+              filters: const ['All', 'Expired', 'Expiring soon', 'Active'],
+              selected: _filter.expirationFilter == null
+                  ? 'All'
+                  : _filter.expirationFilter == 'expired'
+                      ? 'Expired'
+                      : _filter.expirationFilter == 'expiring_soon'
+                          ? 'Expiring soon'
+                          : 'Active',
+              onSelected: (t) => setState(() {
+                switch (t) {
+                  case 'Expired':
+                    _filter.setExpirationFilter('expired');
+                    break;
+                  case 'Expiring soon':
+                    _filter.setExpirationFilter('expiring_soon');
+                    break;
+                  case 'Active':
+                    _filter.setExpirationFilter('active');
+                    break;
+                  default:
+                    _filter.setExpirationFilter(null);
+                }
+              }),
+            ),
           ],
         ],
       ),
