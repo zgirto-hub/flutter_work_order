@@ -319,8 +319,19 @@ async def create_work_order(body: CreateWorkOrderBody):
 
     work_order_id = result.data[0].get("id")
     
-    # Sync assignments (only what was explicitly selected — no auto-assign)
+    # Sync assignments
     technician_ids = body.assigned_technician_ids or []
+    if not technician_ids and body.created_by_email:
+        # Auto-assign creator if technician preference is enabled
+        pref_res = supabase.table("notification_preferences") \
+            .select("technician_auto_assign_self") \
+            .eq("user_email", body.created_by_email.strip().lower()) \
+            .limit(1).execute()
+        auto_assign = (pref_res.data or [{}])[0].get("technician_auto_assign_self", False)
+        if auto_assign:
+            creator_user = _get_user_by_email(body.created_by_email)
+            if creator_user:
+                technician_ids = [str(creator_user.get("id"))]
     if technician_ids:
         _sync_assignments(work_order_id, technician_ids, body.created_by)
 

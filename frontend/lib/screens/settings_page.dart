@@ -40,6 +40,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = false;
   bool _adminAllWorkOrderComments = false;
   bool _savingAdminNotifPref = false;
+  bool _techAutoAssignSelf = false;
+  bool _savingTechAutoAssign = false;
   static const _fontScales = [0.85, 1.0, 1.15, 1.3];
   static const _fontLabels = ['Small', 'Default', 'Large', 'X-Large'];
 
@@ -67,6 +69,8 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() {
         _adminAllWorkOrderComments =
             prefs['admin_all_workorder_comments'] as bool? ?? false;
+        _techAutoAssignSelf =
+            prefs['technician_auto_assign_self'] as bool? ?? false;
       });
     } catch (_) {}
   }
@@ -90,6 +94,27 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } catch (_) {}
     if (mounted) setState(() => _savingAdminNotifPref = false);
+  }
+
+  Future<void> _setTechAutoAssignSelf(bool enabled) async {
+    final email = Supabase.instance.client.auth.currentUser?.email;
+    if (email == null || email.trim().isEmpty || _savingTechAutoAssign) return;
+
+    setState(() => _savingTechAutoAssign = true);
+    try {
+      final res = await http.patch(
+        Uri.parse('${AppConfig.baseUrl}/notification-preferences'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email.trim().toLowerCase(),
+          'technician_auto_assign_self': enabled,
+        }),
+      );
+      if (res.statusCode == 200 && mounted) {
+        setState(() => _techAutoAssignSelf = enabled);
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _savingTechAutoAssign = false);
   }
 
   Future<void> _loadVersion() async {
@@ -327,7 +352,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       subtitle: widget.userRole == 'requester'
                           ? 'Get updates on your work orders and comments'
                           : 'Get request and work order update notifications',
-                      showDivider: widget.userRole == 'admin',
+                      showDivider: widget.userRole == 'admin' || widget.userRole == 'technician',
                       onTap: () async {
                         final messenger = ScaffoldMessenger.of(context);
                         if (_notificationsEnabled) {
@@ -380,6 +405,22 @@ class _SettingsPageState extends State<SettingsPage> {
                             : () => _setAdminAllWorkOrderComments(
                                   !_adminAllWorkOrderComments,
                                 ),
+                      ),
+                    if (widget.userRole == 'technician')
+                      SettingsRow(
+                        icon: Icons.assignment_ind_outlined,
+                        label: 'Auto-assign me to my work orders',
+                        subtitle: 'Automatically assign yourself to WOs you create',
+                        showDivider: false,
+                        trailing: Switch(
+                          value: _techAutoAssignSelf,
+                          onChanged: _savingTechAutoAssign
+                              ? null
+                              : (v) => _setTechAutoAssignSelf(v),
+                        ),
+                        onTap: _savingTechAutoAssign
+                            ? null
+                            : () => _setTechAutoAssignSelf(!_techAutoAssignSelf),
                       ),
                   ],
                 ),
