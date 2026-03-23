@@ -168,34 +168,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // Actions
   // ---------------------------------------------------------------------------
 
-  Future<void> _generateDue() async {
-    try {
-      final result = await _service.generateDue();
-      final count   = result['count']         ?? 0;
-      final skipped = result['skipped_today'] ?? 0;
-      if (!mounted) return;
-      final message = count > 0
-          ? '$count inspection${count > 1 ? 's' : ''} generated'
-          : skipped > 0
-              ? 'Already generated today'
-              : 'No inspections due today';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.textPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
-      _loadInspections();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error: $e'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.red,
-      ));
-    }
-  }
-
   void _openAddScreen([RecurringInspection? existing]) async {
     final result = await Navigator.push<bool>(
       context,
@@ -244,13 +216,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     ),
                   ),
-                  if (widget.userRole == 'admin' || widget.userRole == 'fixer')
-                    IconButton(
-                      icon: Icon(Icons.play_circle_outline_rounded,
-                          size: 22, color: AppColors.accent),
-                      tooltip: 'Generate due inspections',
-                      onPressed: _generateDue,
-                    ),
                   if (widget.userRole == 'admin')
                     IconButton(
                       icon: Icon(Icons.add_rounded,
