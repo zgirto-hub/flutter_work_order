@@ -7,6 +7,7 @@ import '../services/download_helper_mobile.dart'
     if (dart.library.js_interop) '../services/download_helper_web.dart';
 import '../theme/app_theme.dart';
 import '../config.dart';
+import 'reports/html_preview_screen.dart';
 // Registration removed - admin creates all accounts
 
 class LoginScreen extends StatefulWidget {
@@ -66,7 +67,12 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _openIntro() {
-    openInNewTab('${AppConfig.downloadUrl}/intro.html');
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const HtmlPreviewScreen(
+        assetPath: 'assets/work_order_system_intro.html',
+        title: 'About this system',
+      ),
+    ));
   }
 
   Future<void> _loadAppInfo() async {
