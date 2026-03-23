@@ -400,6 +400,9 @@ When opening the "Assign Technician" flow in `add_work_order.dart`:
 3. The backend queries `technician_departments` for that department and returns only those technicians in one query (no N+1)
 4. Falls back to full list when no department is selected
 
+### Work Order Assignment on Creation
+Assignment during WO creation is always explicit — there is **no automatic fallback** that assigns all technicians in a department when none are selected. The only automatic assignment that occurs is when the creating user is a technician with `technician_auto_assign_self = true` in their notification preferences; in that case the backend adds only that technician. If no technician is selected and the preference is off (or the creator is not a technician), the WO is created unassigned.
+
 ### Work Order Closure
 Both the `PUT /api/work-orders/{id}` (update) and `POST /api/work-orders/{id}/close` endpoints, as well as `POST /api/work-orders` when created directly as "Closed", set:
 - `closed_at`: UTC timestamp
@@ -428,6 +431,9 @@ When adding a new theme: add the enum value, add cases in `label`, `description`
 - The calendar screen does **not** use `GET /api/recurring-inspections/calendar`. Instead it loads all active inspections once (`GET /api/recurring-inspections?is_active=true`) and computes event placements entirely client-side. A bounded cache (`Map<DateTime, List<RecurringInspection>>`) covering 60 days past to 120 days future is built after load and on page-change when the user scrolls outside that window. The `eventLoader` callback is an O(1) map lookup against this cache.
 - The backend `/api/recurring-inspections/calendar` endpoint still exists but is currently unused by the Flutter frontend. `RecurringInspectionService.fetchCalendar()` wraps it if a future screen needs it.
 
+### URL Opening in PWA Context
+Use `openInNewTab()` from the conditional import of `download_helper_web.dart` to open URLs in the PWA. Do **not** use the `url_launcher` package for this purpose — it breaks the PWA gesture context. The conditional import pattern (`// ignore: uri_does_not_exist` stub for non-web + real web implementation) is already established in `download_helper_web.dart` and should be reused for any new URL-opening needs in the web/PWA target.
+
 ### N+1 Prevention in `GET /api/users`
 `list_users()` uses a 2-query bulk fetch for technician department names: one query for all `technician_departments` rows, one for all `departments`, then resolves names in Python. The per-user N+1 pattern was removed in commit `ec1ef0a`.
 
@@ -437,6 +443,23 @@ Files go to `backend/uploaded_files/` on the server filesystem — not cloud sto
 ---
 
 ## Notifications System
+
+### Notification Preferences
+
+The `notification_preferences` table stores per-user toggles. Current preference columns:
+
+| Column | Applies to | Purpose |
+|--------|-----------|---------|
+| `mute_all` | All | Suppress all notifications |
+| `push_enabled` | All | Enable/disable push channel |
+| `in_app_enabled` | All | Enable/disable in-app inbox |
+| `comment_notifications` | All | Toggle comment notifications |
+| `status_notifications` | All | Toggle status-change notifications |
+| `system_notifications` | All | Toggle system notifications |
+| `admin_all_workorder_comments` | Admin | Opt in to all WO comment notifications |
+| `technician_auto_assign_self` | Technician | Automatically assign the technician to any work order they create |
+
+The `technician_auto_assign_self` preference is surfaced as an "Auto-assign me" toggle in Settings > Notifications, visible to technicians only. When enabled, the backend's `POST /api/work-orders` handler checks this flag and adds the creating technician to `work_order_assignments` automatically.
 
 ### Comment Notification Routing
 

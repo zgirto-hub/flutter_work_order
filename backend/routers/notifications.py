@@ -76,6 +76,10 @@ async def patch_notification_preferences(body: NotificationPreferencesPatchBody)
         if value is not None:
             update_data[key] = value
 
+    user_res = supabase.table("users").select("id").eq("email", normalized).limit(1).execute()
+    if user_res.data:
+        update_data["user_id"] = user_res.data[0]["id"]
+
     supabase.table("notification_preferences") \
         .upsert(update_data, on_conflict="user_email") \
         .execute()

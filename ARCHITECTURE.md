@@ -238,6 +238,8 @@ The `/api/reports/monthly-tasks` endpoint accepts a JSON body with `name`, `star
 
 **Account creation**: Admin-only. No self-registration. Admin calls `POST /api/users?admin_email=` which creates both the Supabase auth user and the `users` table record.
 
+**PWA link handling**: The login screen opens external URLs (e.g., the system intro page) using `openInNewTab()` from `frontend/lib/utils/download_helper_web.dart` via conditional import, not `url_launcher`. This preserves the PWA gesture context. Any screen that needs to open a URL in the web/PWA build should follow this same pattern.
+
 ---
 
 ## File Storage & Upload
@@ -318,6 +320,15 @@ Nginx enforces a separate 50 MB ceiling (`client_max_body_size 50M`).
 - For documents in folders, permission walks up the folder chain
 - Role priority: viewer(1) < editor(2) < owner(3)
 - Owner is determined by `uploaded_by` (documents) or `created_by` (folders)
+
+---
+
+## Work Order Assignment
+
+Technician assignment is always explicit. When a WO is created via `POST /api/work-orders`:
+- If the request body includes technician IDs, those technicians are inserted into `work_order_assignments`.
+- If no technicians are selected and the creating user is a technician with `technician_auto_assign_self = true` in `notification_preferences`, the backend automatically assigns only that technician.
+- There is no fallback that assigns all technicians in a department. If neither condition above is met, the WO is created unassigned.
 
 ---
 
@@ -431,6 +442,8 @@ Each user can control via `notification_preferences`:
 - `comment_notifications` — toggle comment notifications
 - `status_notifications` — toggle status change notifications
 - `push_enabled` / `in_app_enabled` — per-channel toggles
+- `admin_all_workorder_comments` — admin opt-in for all WO comment notifications
+- `technician_auto_assign_self` — (technician only) auto-assign the technician to any work order they create; surfaced as "Auto-assign me" in Settings > Notifications
 
 ### OneSignal Integration
 - App ID: `760f00e5-fb08-4c0c-b898-ea35737bcc21`
