@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../config.dart';
 // Registration removed - admin creates all accounts
@@ -52,7 +53,10 @@ class _LoginScreenState extends State<LoginScreen>
     super.initState();
     _loadAppInfo();
     _loadSavedCredentials();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _entranceCtrl.forward());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _entranceCtrl.forward();
+      _openIntro();
+    });
   }
 
   @override
@@ -61,6 +65,13 @@ class _LoginScreenState extends State<LoginScreen>
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _openIntro() async {
+    final uri = Uri.parse('${AppConfig.downloadUrl}/intro.html');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _loadAppInfo() async {
