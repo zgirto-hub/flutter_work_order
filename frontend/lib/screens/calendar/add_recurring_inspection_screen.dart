@@ -81,6 +81,7 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
   @override
   void initState() {
     super.initState();
+    if (widget.userRole == 'technician') _tab = _Tab.inspection;
     if (_isEditing) {
       _tab = _Tab.inspection;
       final e = widget.existing!;
@@ -693,7 +694,8 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        _tabUnderline('Work order', _Tab.workOrder),
+                        if (widget.userRole != 'technician')
+                          _tabUnderline('Work order', _Tab.workOrder),
                         _tabUnderline('Inspection', _Tab.inspection),
                       ],
                     ),
