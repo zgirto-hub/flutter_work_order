@@ -334,7 +334,7 @@ async def generate_due_inspections():
             fixer_ids = _get_technicians_by_department(ri["department_id"])
         if fixer_ids:
             assignments = [
-                {"work_order_id": wo_id, "fixer_id": fid, "assigned_by": ri.get("created_by")}
+                {"work_order_id": wo_id, "technician_id": fid, "assigned_by": ri.get("created_by")}
                 for fid in fixer_ids
             ]
             supabase.table("work_order_assignments").insert(assignments).execute()
