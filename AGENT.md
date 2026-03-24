@@ -427,15 +427,22 @@ When adding a new theme: add the enum value, add cases in `label`, `description`
 
 ### Recurring Inspections
 - Frequency options: `daily`, `weekly`, `monthly`, `yearly` (with `interval` and `day_of_week`/`day_of_month` fields)
-- `POST /api/recurring-inspections/generate` advances `next_due` for all overdue records — intended for periodic invocation (cron or manual trigger). **The "Generate" button has been removed from the calendar UI header** — generation must be triggered externally.
+- `POST /api/recurring-inspections/generate` advances `next_due` for all overdue records. The calendar header now exposes this as a bolt icon button visible to both `admin` and `technician` roles — it calls `RecurringInspectionService.generateDue()` directly and shows a snackbar with the result. The button is separate from the "Add" icon button.
 - The calendar screen does **not** use `GET /api/recurring-inspections/calendar`. Instead it loads all active inspections once (`GET /api/recurring-inspections?is_active=true`) and computes event placements entirely client-side. A bounded cache (`Map<DateTime, List<RecurringInspection>>`) covering 60 days past to 120 days future is built after load and on page-change when the user scrolls outside that window. The `eventLoader` callback is an O(1) map lookup against this cache.
 - The backend `/api/recurring-inspections/calendar` endpoint still exists but is currently unused by the Flutter frontend. `RecurringInspectionService.fetchCalendar()` wraps it if a future screen needs it.
 - `RecurringInspection.generatedToday` (bool) is populated from `json['generated_today']` returned by the API. When `true`, a green "Generated" badge is shown on the inspection card in the calendar event list.
-- The add/edit screen (`AddRecurringInspectionScreen`) uses a `_RepeatOption` enum with inline pickers to select repeat frequency — **no separate bottom sheets for repeat or custom frequency**. When creating (not editing), a tab selector lets users choose between creating a one-off work order or a new recurring inspection from the same screen.
-- The "Add recurring inspection" button in the calendar header is accessible to both `admin` and `technician` roles (previously admin-only).
+- The add/edit screen (`AddRecurringInspectionScreen`) uses a `_RepeatOption` enum with inline pickers to select repeat frequency — **no separate bottom sheets for repeat or custom frequency**. When creating (not editing), a tab selector lets `admin` users choose between creating a one-off work order or a new recurring inspection from the same screen. **Technician role skips the Work Order tab entirely** — the screen opens directly in inspection mode.
+- Inspections have a **`type` field** (values: `Technical`, `Inspection`, `Other`) separate from the work order type. It is shown as a tap-row that opens `_showInspectionTypePicker()` — a modal bottom sheet. The selected type is passed to both create and update API calls.
+- **`TechnicianSelector` no longer auto-dismisses**: the `Navigator.pop` that fired on selection was removed from `onChanged`. Users now close the bottom sheet manually after making selections.
+- The "Add recurring inspection" button in the calendar header is accessible to both `admin` and `technician` roles.
 
 ### Document Sidebar
 - The folder sidebar on the documents screen has a user-resizable width (60–280 px, default 116 px). The divider between sidebar and content is a drag handle — `MouseRegion(cursor: SystemMouseCursors.resizeColumn)` wrapping a `GestureDetector` that updates `_sidebarWidth` state. Do not replace this with a fixed `VerticalDivider`.
+
+### Document Folder Navigation
+- Navigating between folders triggers an animated horizontal slide (`SharedAxisTransition` from the `animations` package, via `PageTransitionSwitcher`). Direction is determined by folder depth: going deeper slides forward; going to a parent slides backward.
+- All folder navigation (sidebar, breadcrumb, subfolder chips) must use `_navigateTo(folderId)` instead of directly setting `_selectedFolderId`. Direct setState assignment will bypass the direction calculation and break the animation.
+- The `animations` package is listed in `frontend/pubspec.yaml`.
 
 ### URL Opening in PWA Context
 Use `openInNewTab()` from the conditional import of `download_helper_web.dart` to open URLs in the PWA. Do **not** use the `url_launcher` package for this purpose — it breaks the PWA gesture context. The conditional import pattern (`// ignore: uri_does_not_exist` stub for non-web + real web implementation) is already established in `download_helper_web.dart` and should be reused for any new URL-opening needs in the web/PWA target.
@@ -521,7 +528,7 @@ if not prefs.in_app_enabled: skip inbox (still send push if push_enabled)
 - **`closed_by` is a UUID, not an email**: The `work_orders.closed_by` column stores the user's UUID from the `users` table, resolved at close time. Do not store email here.
 - **Department filter uses `technician_departments`**: `GET /api/users?department_id=` filters by the many-to-many mapping, not by `users.department_id`. Technicians do not have a `department_id` on their user row.
 - **HTML preview files are not the PDF output**: `frontend/assets/report_preview*.html` are design reference files used for the in-app theme picker preview only. The actual PDF is built by `WorkOrderPdfService` (Dart) or `reportlab` (Python).
-- **Recurring inspection generation**: The `POST /api/recurring-inspections/generate` endpoint is not called automatically and the calendar UI no longer has a "Generate" button — it must be triggered externally or manually to advance due dates.
+- **Recurring inspection generation**: The `POST /api/recurring-inspections/generate` endpoint is exposed in the calendar header as a bolt icon button (visible to `admin` and `technician`). It is not called automatically — it must be triggered by the user or externally. The button shows a spinner while running and a snackbar with the result.
 - **Calendar markers are computed client-side**: `CalendarScreen` builds its own recurrence schedule from the raw `RecurringInspection` list — it does not query the backend calendar endpoint. If recurrence logic in `_computeEventsForDay` diverges from the backend's `_compute_next_due()`, calendar markers and actual due-date generation will disagree. Keep both in sync when changing frequency semantics.
 - **`yearly` not `custom`**: The `RecurringInspection.frequency` field uses `'yearly'` as the fourth frequency value. Older documentation and some comments may say `'custom'` — that is incorrect.
 - **`_RepeatOption` vs raw `frequency`**: The add/edit screen uses a `_RepeatOption` enum internally and derives the raw `frequency`/`interval` values from it. The enum is private to that screen — do not confuse it with the `RecurringInspection.frequency` string values stored in the database.

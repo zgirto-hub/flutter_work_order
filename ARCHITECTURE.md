@@ -302,6 +302,10 @@ Nginx enforces a separate 50 MB ceiling (`client_max_body_size 50M`).
 
 The documents screen uses a two-column layout on wider viewports: a left folder sidebar and a right content area. The sidebar width is user-adjustable via a drag handle (the `VerticalDivider` was replaced by a `MouseRegion` + `GestureDetector` resize handle). Width is clamped to 60–280 px (default 116 px) and stored in `_sidebarWidth` state on `DocumentsScreen`.
 
+### Folder Navigation Transitions
+
+Navigating between folders uses an animated horizontal slide transition powered by the `animations` package (`PageTransitionSwitcher` + `SharedAxisTransition`). The transition direction is determined by comparing the depth of the destination folder with the current folder: going deeper (or staying at the same level) slides forward; navigating to a parent slides backward. The `_navigateTo(String? folderId)` helper computes direction via `_folderDepth()` and updates `_navigatingForward` before changing `_selectedFolderId`. All folder tap handlers in the sidebar, breadcrumb, and subfolder chips use `_navigateTo()` instead of directly setting `_selectedFolderId`. The `animations` package is required in `pubspec.yaml`.
+
 ### Upload & Text Extraction
 - Files uploaded via `POST /api/upload`, saved to `uploaded_files/` on the Linux server
 - Auto text extraction on upload using `backend/utils/text_extraction.py`:
@@ -412,10 +416,9 @@ The calendar screen computes all event placements entirely on the client. It doe
 
 Days before `startDate` and after `endDate` (when set) are always excluded.
 
-**Role-gated actions in header:**
-- `admin` or `technician` role: "Add recurring inspection" button — navigates to `AddRecurringInspectionScreen`
-
-The "Generate due inspections" button has been removed from the calendar header. Due-instance generation (`POST /api/recurring-inspections/generate`) must be triggered externally or via a manual API call.
+**Role-gated actions in header (both require `admin` or `technician` role):**
+- Bolt icon button: calls `_generateDue()`, which invokes `RecurringInspectionService.generateDue()` → `POST /api/recurring-inspections/generate`. Shows a spinner while in-flight and a floating snackbar with the count of work orders created or skipped. Reloads the inspection list if any were created.
+- Plus icon button: navigates to `AddRecurringInspectionScreen`.
 
 Tapping an inspection card in the day's event list navigates to `AddRecurringInspectionScreen` with the existing `RecurringInspection` passed as `existing`, enabling inline editing.
 
@@ -428,14 +431,14 @@ Tapping an inspection card in the day's event list navigates to `AddRecurringIns
 
 #### Add/Edit Screen (`frontend/lib/screens/calendar/add_recurring_inspection_screen.dart`)
 
-Redesigned with an iOS Calendar-style header (circular X cancel, checkmark save, and delete buttons). When **creating** a new entry, the screen shows a two-tab selector:
+Redesigned with an iOS Calendar-style header (circular X cancel, checkmark save, and delete buttons). When **creating** a new entry, the screen shows a two-tab selector — but only for `admin` role. `technician` role always opens directly in inspection mode.
 
-| Tab | Purpose |
-|-----|---------|
-| `workOrder` | Create a one-off work order directly from the calendar screen |
-| `inspection` | Create a new recurring inspection |
+| Tab | Role visibility | Purpose |
+|-----|----------------|---------|
+| `workOrder` | `admin` only | Create a one-off work order directly from the calendar screen |
+| `inspection` | `admin` and `technician` | Create a new recurring inspection |
 
-When **editing** an existing inspection (`existing != null`), the tab selector is hidden and the form always opens in inspection mode.
+When **editing** an existing inspection (`existing != null`), the tab selector is hidden regardless of role and the form always opens in inspection mode.
 
 **Repeat options** are expressed via the `_RepeatOption` enum and rendered as inline picker rows (no bottom sheet):
 
@@ -449,7 +452,9 @@ When **editing** an existing inspection (`existing != null`), the tab selector i
 | `everyYear` | `yearly`, interval 1 |
 | `custom` | User-specified frequency string + interval |
 
-Department and work-order type selections still open as modal bottom sheets (`_showDepartmentPicker`, `_showTypePicker`). Technician selection uses the shared `TechnicianSelector` bottom sheet.
+**Inspection type** is a separate picker (`_showInspectionTypePicker`) that opens as a modal bottom sheet. Valid values are `Technical`, `Inspection`, and `Other`. The selected type is stored in `_inspectionType` and submitted as `type` in both create and update calls. When editing, the existing `type` value is restored from `widget.existing!.type`.
+
+Department and work-order type selections open as modal bottom sheets (`_showDepartmentPicker`, `_showTypePicker`). Technician selection uses the shared `TechnicianSelector` bottom sheet; selecting technicians no longer auto-dismisses the bottom sheet (the `Navigator.pop` in `onChanged` was removed — the user must close it manually).
 
 The screen imports and uses `WorkOrderService` to create a work order when the Work Order tab is saved.
 

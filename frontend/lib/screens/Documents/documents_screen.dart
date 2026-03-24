@@ -1523,22 +1523,20 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   }
 
   List<Widget> _buildSidebarNodes(String? parentId, int depth) {
-    final items = <Widget>[];
-    for (final folder in _childFolders(parentId)) {
+    return _childFolders(parentId).map((folder) {
       final hasKids = _childFolders(folder.id).isNotEmpty;
       final isExpanded = _expandedSidebarFolders.contains(folder.id);
       final isActive = _selectedFolderId == folder.id;
 
-      items.add(_SidebarFolderRow(
-        label: folder.name,
+      return _SidebarFolderNode(
+        key: ValueKey(folder.id),
+        folder: folder,
         depth: depth,
         isActive: isActive,
         isExpanded: isExpanded,
         hasChildren: hasKids,
-        isPrivate: folder.isPrivate,
-        isShared: false,
         onTap: () => _navigateTo(folder.id),
-        onChevronTap: hasKids
+        onToggle: hasKids
             ? () => setState(() {
                   if (isExpanded) {
                     _expandedSidebarFolders.remove(folder.id);
@@ -1548,13 +1546,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 })
             : null,
         onLongPress: () => _showFolderActions(folder),
-      ));
-
-      if (isExpanded) {
-        items.addAll(_buildSidebarNodes(folder.id, depth + 1));
-      }
-    }
-    return items;
+        children: _buildSidebarNodes(folder.id, depth + 1),
+      );
+    }).toList();
   }
 
   // ── Docs area ─────────────────────────────────────────────────────────────
@@ -1787,6 +1781,66 @@ class _SidebarFolderRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Sidebar Folder Node (row + animated children) ─────────────────────────────
+
+class _SidebarFolderNode extends StatelessWidget {
+  final FolderModel folder;
+  final int depth;
+  final bool isActive;
+  final bool isExpanded;
+  final bool hasChildren;
+  final List<Widget> children;
+  final VoidCallback onTap;
+  final VoidCallback? onToggle;
+  final VoidCallback onLongPress;
+
+  const _SidebarFolderNode({
+    super.key,
+    required this.folder,
+    required this.depth,
+    required this.isActive,
+    required this.isExpanded,
+    required this.hasChildren,
+    required this.children,
+    required this.onTap,
+    required this.onToggle,
+    required this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _SidebarFolderRow(
+          label: folder.name,
+          depth: depth,
+          isActive: isActive,
+          isExpanded: isExpanded,
+          hasChildren: hasChildren,
+          isPrivate: folder.isPrivate,
+          isShared: false,
+          onTap: onTap,
+          onChevronTap: onToggle,
+          onLongPress: onLongPress,
+        ),
+        if (hasChildren)
+          ClipRect(
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: isExpanded ? children : const [],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

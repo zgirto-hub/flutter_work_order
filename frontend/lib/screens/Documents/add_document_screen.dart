@@ -135,7 +135,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       request.fields['is_private'] = isPrivate ? '1' : '0';
       request.fields['uploaded_by'] = _userEmail;
       if (widget.folderId != null) request.fields['folder_id'] = widget.folderId!;
-      if (_expirationDate != null) request.fields['expiration_date'] = _expirationDate!.toIso8601String();
+      if (_expirationDate != null) {
+        final d = _expirationDate!;
+        request.fields['expiration_date'] =
+            '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      }
 
       final response = await request.send();
 
@@ -145,7 +149,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       if (response.statusCode == 200) {
         Navigator.pop(context, true);
       } else {
-        _showSnack('Upload failed (${response.statusCode})');
+        final body = await response.stream.bytesToString();
+        _showSnack('Upload failed (${response.statusCode}): $body');
       }
     } catch (e) {
       if (!mounted) return;
@@ -203,7 +208,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         request.fields['is_private'] = isPrivate ? '1' : '0';
         request.fields['uploaded_by'] = _userEmail;
         if (widget.folderId != null) request.fields['folder_id'] = widget.folderId!;
-        if (_expirationDate != null) request.fields['expiration_date'] = _expirationDate!.toIso8601String();
+        if (_expirationDate != null) {
+          final d = _expirationDate!;
+          request.fields['expiration_date'] =
+              '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+        }
 
         final response = await request.send();
         if (response.statusCode == 200) successCount++;
