@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
 import 'package:http/http.dart' as http;
@@ -54,6 +55,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   bool _fabExpanded = false;
   bool _homeExpanded = true;
   bool _loading = true;
+  bool _navigatingForward = true;
   String _userRole = '';
   double _sidebarWidth = 116.0;
 
@@ -161,6 +163,28 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       id = f.parentId;
     }
     return path;
+  }
+
+  int _folderDepth(String? folderId) {
+    if (folderId == null) return 0;
+    int depth = 0;
+    String? id = folderId;
+    while (id != null) {
+      final f = _allFolders.firstWhereOrNull((f) => f.id == id);
+      if (f == null) break;
+      depth++;
+      id = f.parentId;
+    }
+    return depth;
+  }
+
+  void _navigateTo(String? folderId) {
+    final newDepth = _folderDepth(folderId);
+    final currentDepth = _folderDepth(_selectedFolderId);
+    setState(() {
+      _navigatingForward = newDepth >= currentDepth;
+      _selectedFolderId = folderId;
+    });
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -1246,7 +1270,21 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                             Expanded(
                               child: isSearching
                                   ? _buildSearchResults()
-                                  : _buildDocsArea(),
+                                  : PageTransitionSwitcher(
+                                      duration: const Duration(milliseconds: 280),
+                                      reverse: !_navigatingForward,
+                                      transitionBuilder: (child, animation, secondaryAnimation) =>
+                                          SharedAxisTransition(
+                                            animation: animation,
+                                            secondaryAnimation: secondaryAnimation,
+                                            transitionType: SharedAxisTransitionType.horizontal,
+                                            child: child,
+                                          ),
+                                      child: KeyedSubtree(
+                                        key: ValueKey(_selectedFolderId),
+                                        child: _buildDocsArea(),
+                                      ),
+                                    ),
                             ),
                           ],
                         ),
@@ -1467,7 +1505,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 hasChildren: false,
                 isPrivate: false,
                 isShared: false,
-                onTap: () => setState(() => _selectedFolderId = null),
+                onTap: () => _navigateTo(null),
                 onChevronTap: null,
               ),
               Expanded(
@@ -1499,7 +1537,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         hasChildren: hasKids,
         isPrivate: folder.isPrivate,
         isShared: false,
-        onTap: () => setState(() => _selectedFolderId = folder.id),
+        onTap: () => _navigateTo(folder.id),
         onChevronTap: hasKids
             ? () => setState(() {
                   if (isExpanded) {
@@ -1539,7 +1577,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               child: Wrap(
                 children: [
                   GestureDetector(
-                    onTap: () => setState(() => _selectedFolderId = null),
+                    onTap: () => _navigateTo(null),
                     child: Text('All files',
                         style: TextStyle(
                             fontSize: 11, color: AppColors.textSecondary)),
@@ -1551,8 +1589,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                           style: TextStyle(
                               fontSize: 10, color: AppColors.textSecondary)),
                       GestureDetector(
-                        onTap: () =>
-                            setState(() => _selectedFolderId = f.id),
+                        onTap: () => _navigateTo(f.id),
                         child: Text(
                           f.name,
                           style: TextStyle(
@@ -1580,10 +1617,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 spacing: 6,
                 runSpacing: 6,
                 children: subFolders.map((f) => GestureDetector(
-                  onTap: () => setState(() {
-                    _selectedFolderId = f.id;
+                  onTap: () {
                     _expandedSidebarFolders.add(f.id);
-                  }),
+                    _navigateTo(f.id);
+                  },
                   onLongPress: () => _showFolderActions(f),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
