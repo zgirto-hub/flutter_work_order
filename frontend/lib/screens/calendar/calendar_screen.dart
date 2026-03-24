@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../models/recurring_inspection.dart';
-import '../../services/recurring_inspection_service.dart';
+import '../../services/schedule_service.dart';
 import '../../theme/app_theme.dart';
-import 'add_recurring_inspection_screen.dart';
+import 'add_schedule_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   final String userRole;
@@ -15,7 +15,7 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  final _service = RecurringInspectionService();
+  final _service = ScheduleService();
 
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
@@ -200,7 +200,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => AddRecurringInspectionScreen(
+        builder: (_) => AddScheduleScreen(
           userRole: widget.userRole,
           existing: existing,
         ),

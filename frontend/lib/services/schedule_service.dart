@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/recurring_inspection.dart';
 import '../config.dart';
 
-class RecurringInspectionService {
+class ScheduleService {
   String get _email =>
       Supabase.instance.client.auth.currentUser?.email ?? '';
 

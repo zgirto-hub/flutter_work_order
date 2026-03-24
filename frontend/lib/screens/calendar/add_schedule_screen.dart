@@ -4,7 +4,7 @@ import '../../models/department.dart';
 import '../../models/user.dart';
 import '../../models/work_order.dart';
 import '../../models/technician_assignment.dart';
-import '../../services/recurring_inspection_service.dart';
+import '../../services/schedule_service.dart';
 import '../../services/department_service.dart';
 import '../../services/user_service.dart';
 import '../../services/work_order_service.dart';
@@ -14,22 +14,22 @@ import '../../theme/app_theme.dart';
 enum _RepeatOption { never, everyDay, everyWeek, every2Weeks, everyMonth, everyYear, custom }
 enum _Tab { workOrder, inspection }
 
-class AddRecurringInspectionScreen extends StatefulWidget {
+class AddScheduleScreen extends StatefulWidget {
   final String userRole;
   final RecurringInspection? existing;
 
-  const AddRecurringInspectionScreen({
+  const AddScheduleScreen({
     super.key,
     required this.userRole,
     this.existing,
   });
 
   @override
-  State<AddRecurringInspectionScreen> createState() => _AddRecurringInspectionScreenState();
+  State<AddScheduleScreen> createState() => _AddScheduleScreenState();
 }
 
-class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScreen> {
-  final _service           = RecurringInspectionService();
+class _AddScheduleScreenState extends State<AddScheduleScreen> {
+  final _service           = ScheduleService();
   final _departmentService = DepartmentService();
   final _userService       = UserService();
   final _woService         = WorkOrderService();
@@ -322,7 +322,7 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
         );
       } else {
         // Single WO
-        final now   = DateTime.now();
+        final now   = DateTime.now().toUtc();
         final jobNo = 'WO-${now.year}${now.month.toString().padLeft(2,'0')}${now.day.toString().padLeft(2,'0')}-${now.millisecondsSinceEpoch % 10000}';
         await _woService.addWorkOrder(WorkOrder(
           id: '',
