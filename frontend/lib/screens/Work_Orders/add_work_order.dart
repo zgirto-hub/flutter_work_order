@@ -387,7 +387,7 @@ Future<void> _loadDepartments() async {
       return;
     }
     try {
-      final now = DateTime.now().toIso8601String();
+      final now = DateTime.now().toUtc().toIso8601String();
       final newWorkOrder = WorkOrder(
         id: widget.workOrder?.id ?? '',
         jobNo: jobNoController.text.trim(),
