@@ -51,6 +51,7 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
   final _descCtrl     = TextEditingController();
   final _locationCtrl = TextEditingController();
   String        _selectedDeptId   = '';
+  String        _inspectionType   = 'Inspection';
   List<String>  _selectedTechIds  = [];
   DateTime      _date             = DateTime.now();
   DateTime?     _endDate;
@@ -89,6 +90,7 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
       _descCtrl.text     = e.description;
       _locationCtrl.text = e.location;
       _selectedDeptId    = e.departmentId;
+      _inspectionType    = e.type;
       _isActive          = e.isActive;
       _selectedTechIds   = e.assignees.map((a) => a.id).toList();
       _date = DateTime.tryParse(e.startDate) ?? DateTime.now();
@@ -368,6 +370,7 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
           startDate:        _formatDate(_date),
           endDate:          _computedEndDate,
           isActive:         _isActive,
+          type:             _inspectionType,
           assignedFixerIds: _selectedTechIds,
         );
       } else {
@@ -382,6 +385,7 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
           interval:         _interval,
           startDate:        _formatDate(_date),
           endDate:          _computedEndDate,
+          type:             _inspectionType,
           assignedFixerIds: _selectedTechIds,
         );
       }
@@ -521,6 +525,60 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
                     Text(d.name, style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
                     const Spacer(),
                     if ((isWO ? _woDeptId : _selectedDeptId) == d.id)
+                      Icon(Icons.check_rounded, size: 18, color: AppColors.accent),
+                  ],
+                ),
+              ),
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showInspectionTypePicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.bgSurface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.only(top: 16, bottom: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(color: AppColors.border2, borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Type',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              ),
+            ),
+            ..._woTypes.map((t) => InkWell(
+              onTap: () {
+                setState(() => _inspectionType = t);
+                Navigator.pop(ctx);
+              },
+              child: Container(
+                height: 50,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Icon(_typeIcon(t), size: 16, color: _typeColor(t)),
+                    const SizedBox(width: 10),
+                    Text(t, style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
+                    const Spacer(),
+                    if (_inspectionType == t)
                       Icon(Icons.check_rounded, size: 18, color: AppColors.accent),
                   ],
                 ),
@@ -1037,8 +1095,15 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
 
           const SizedBox(height: 8),
 
-          // Group 3: Department
+          // Group 3: Type / Department
           _group([
+            _tapRow(
+              label: 'Type',
+              value: _inspectionType,
+              leading: Icon(_typeIcon(_inspectionType), size: 15, color: _typeColor(_inspectionType)),
+              onTap: _showInspectionTypePicker,
+            ),
+            _divider(),
             _tapRow(
               label: 'Department',
               value: _departments.where((d) => d.id == _selectedDeptId).firstOrNull?.name ?? 'Select',

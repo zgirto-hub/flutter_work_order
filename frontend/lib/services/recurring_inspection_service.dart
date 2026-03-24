@@ -51,6 +51,7 @@ class RecurringInspectionService {
     int? interval,
     required String startDate,
     String? endDate,
+    String type = 'Inspection',
     List<String> assignedFixerIds = const [],
   }) async {
     final res = await http.post(
@@ -67,6 +68,7 @@ class RecurringInspectionService {
         'interval': interval,
         'start_date': startDate,
         'end_date': endDate,
+        'type': type,
         'assigned_fixer_ids': assignedFixerIds,
         'created_by': _userId,
       }),
@@ -92,6 +94,7 @@ class RecurringInspectionService {
     required String startDate,
     String? endDate,
     bool isActive = true,
+    String type = 'Inspection',
     List<String> assignedFixerIds = const [],
   }) async {
     final res = await http.put(
@@ -109,6 +112,7 @@ class RecurringInspectionService {
         'start_date': startDate,
         'end_date': endDate,
         'is_active': isActive,
+        'type': type,
         'assigned_fixer_ids': assignedFixerIds,
       }),
     );

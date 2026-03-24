@@ -33,6 +33,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   static const int _cacheFutureDays = 120;
 
   bool _loading = true;
+  bool _generating = false;
   String? _error;
 
   @override
@@ -168,6 +169,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // Actions
   // ---------------------------------------------------------------------------
 
+  Future<void> _generateDue() async {
+    setState(() => _generating = true);
+    try {
+      final result = await _service.generateDue();
+      if (!mounted) return;
+      final created = result['created'] ?? 0;
+      final skipped = result['skipped'] ?? 0;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(created == 0
+            ? 'Nothing to generate today'
+            : '$created work order${created == 1 ? '' : 's'} generated${skipped > 0 ? ', $skipped skipped' : ''}'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: created == 0 ? AppColors.textTertiary : AppColors.closedText,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+      if (created > 0) _loadInspections();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Generate failed: $e'),
+        behavior: SnackBarBehavior.floating,
+      ));
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
+  }
+
   void _openAddScreen([RecurringInspection? existing]) async {
     final result = await Navigator.push<bool>(
       context,
@@ -216,13 +244,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     ),
                   ),
-                  if (widget.userRole == 'admin' || widget.userRole == 'technician')
+                  if (widget.userRole == 'admin' || widget.userRole == 'technician') ...[
+                    IconButton(
+                      icon: _generating
+                          ? SizedBox(
+                              width: 18, height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: AppColors.accent))
+                          : Icon(Icons.bolt_rounded,
+                              size: 22, color: AppColors.accent),
+                      tooltip: 'Generate due work orders',
+                      onPressed: _generating ? null : _generateDue,
+                    ),
                     IconButton(
                       icon: Icon(Icons.add_rounded,
                           size: 22, color: AppColors.accent),
                       tooltip: 'Add recurring inspection',
                       onPressed: () => _openAddScreen(),
                     ),
+                  ],
                 ],
               ),
             ),
