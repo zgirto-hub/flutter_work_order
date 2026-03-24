@@ -478,7 +478,6 @@ class _AddRecurringInspectionScreenState extends State<AddRecurringInspectionScr
         selectedIds: isWO ? _woTechIds : _selectedTechIds,
         onChanged: (ids) {
           setState(() => isWO ? _woTechIds = ids : _selectedTechIds = ids);
-          Navigator.pop(context);
         },
       ),
     );
