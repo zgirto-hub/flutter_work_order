@@ -96,9 +96,30 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   bool get _isRequester => _roleLoaded && _userRole == 'requester';
   bool get _isReporter => _roleLoaded && _userRole == 'reporter';
 
+  void _ensureVisible(FocusNode node) {
+    node.addListener(() {
+      if (node.hasFocus) {
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (node.context != null) {
+            Scrollable.ensureVisible(
+              node.context!,
+              alignment: 0.3,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        });
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    _ensureVisible(_titleFocusNode);
+    _ensureVisible(_descriptionFocusNode);
+    _ensureVisible(_locationFocusNode);
+    _ensureVisible(_mobileFocusNode);
     _loadUserRole();
     _loadDepartments();
     if (widget.workOrder != null) {
@@ -477,6 +498,8 @@ Future<void> _loadDepartments() async {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       resizeToAvoidBottomInset: true,
+      bottomNavigationBar:
+          (isEditing && _tabIndex == 1) ? _buildComposeBar() : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -546,10 +569,7 @@ Future<void> _loadDepartments() async {
                         _Tab(
                           label: 'Details',
                           active: _tabIndex == 0,
-                          onTap: () {
-                            FocusScope.of(context).unfocus();
-                            setState(() => _tabIndex = 0);
-                          },
+                          onTap: () => setState(() => _tabIndex = 0),
                         ),
                         _Tab(
                           label: 'Activity',
@@ -557,10 +577,7 @@ Future<void> _loadDepartments() async {
                           badge: _comments
                               .where((c) => c.type == 'comment')
                               .length,
-                          onTap: () {
-                            FocusScope.of(context).unfocus();
-                            setState(() => _tabIndex = 1);
-                          },
+                          onTap: () => setState(() => _tabIndex = 1),
                         ),
                       ],
                     ),
@@ -578,7 +595,6 @@ Future<void> _loadDepartments() async {
                   ? _buildActivityTab()
                   : _buildDetailsTab(),
             ),
-            if (isEditing && _tabIndex == 1) _buildComposeBar(),
           ],
         ),
       ),
@@ -845,7 +861,6 @@ Future<void> _loadDepartments() async {
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       child: SafeArea(
         top: false,
-        bottom: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
