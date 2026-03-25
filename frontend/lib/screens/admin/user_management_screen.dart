@@ -13,7 +13,7 @@ class UserManagementScreen extends StatefulWidget {
 class _UserManagementScreenState extends State<UserManagementScreen> {
   final _userService = UserService();
   List<AppUser> _users = [];
-  List<String> _departments = [];
+  Map<String, String> _departments = {}; // name → id
   bool _loading = true;
   String? _error;
   String _searchQuery = '';
@@ -33,11 +33,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     try {
       final results = await Future.wait([
         _userService.fetchUsers(),
-        _userService.fetchDepartments(),
+        _userService.fetchDepartmentsWithIds(),
       ]);
       setState(() {
         _users = results[0] as List<AppUser>;
-        _departments = results[1] as List<String>;
+        _departments = results[1] as Map<String, String>;
         _loading = false;
       });
     } catch (e) {
@@ -372,7 +372,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       value: selectedDept,
                       isExpanded: true,
                       hint: Text('Select department', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
-                      items: _departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                      items: _departments.keys.map((name) => DropdownMenuItem(value: name, child: Text(name))).toList(),
                       onChanged: (v) => setDlg(() => selectedDept = v),
                     ),
                   ),
@@ -394,14 +394,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   loading = true;
                 });
                 try {
+                  final deptId = selectedDept != null ? _departments[selectedDept] : null;
                   final userId = await _userService.createUser(
                     email: emailCtrl.text.trim(),
                     password: passCtrl.text,
                     userType: selectedRole,
                     fullName: nameCtrl.text.trim(),
                     mobile: mobileCtrl.text.trim(),
+                    departmentId: selectedRole != 'technician' ? deptId : null,
                   );
-                  if (userId != null && selectedRole == 'technician' && (selectedDept?.isNotEmpty ?? false)) {
+                  if (userId != null && selectedRole == 'technician' && deptId != null) {
                     await _userService.setTechnicianDepartments(userId, [selectedDept!]);
                   }
                   if (mounted) Navigator.pop(ctx, true);
@@ -549,7 +551,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       value: selectedDept,
                       isExpanded: true,
                       hint: Text('Select department', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
-                      items: _departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                      items: _departments.keys.map((name) => DropdownMenuItem(value: name, child: Text(name))).toList(),
                       onChanged: (v) => setDlg(() => selectedDept = v),
                     ),
                   ),
@@ -611,6 +613,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               onPressed: loading ? null : () async {
                 setDlg(() => loading = true);
                 try {
+                  final deptId = selectedDept != null ? _departments[selectedDept] : null;
                   await _userService.changeUserRole(
                     userId: user.id,
                     userType: selectedRole,
@@ -619,8 +622,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     userId: user.id,
                     fullName: nameCtrl.text.trim(),
                     mobile: mobileCtrl.text.trim(),
+                    departmentId: selectedRole != 'technician' ? deptId : null,
                   );
-                  if (selectedRole == 'technician' && (selectedDept?.isNotEmpty ?? false)) {
+                  if (selectedRole == 'technician' && deptId != null) {
                     await _userService.setTechnicianDepartments(user.id, [selectedDept!]);
                   }
                   if (ctx.mounted) Navigator.pop(ctx);

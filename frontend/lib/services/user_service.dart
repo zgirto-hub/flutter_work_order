@@ -207,4 +207,20 @@ class UserService {
       'General',
     ];
   }
+
+  /// Returns a map of department name → department UUID.
+  Future<Map<String, String>> fetchDepartmentsWithIds() async {
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/departments'),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      final list = data['departments'] as List? ?? [];
+      return {
+        for (final d in list)
+          if (d['name'] != null && d['id'] != null) d['name'] as String: d['id'] as String,
+      };
+    }
+    return {};
+  }
 }
