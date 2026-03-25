@@ -78,7 +78,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   String _userRole = 'admin';
   bool _isTechnician = false;
   bool _fieldHasFocus = false;
+  bool _commentHasFocus = false;
   final TextEditingController _commentCtrl = TextEditingController();
+  final FocusNode _commentFocusNode = FocusNode();
   final ScrollController _activityScrollCtrl = ScrollController();
   PlatformFile? _pendingAttachment;
 
@@ -129,6 +131,11 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     _ensureVisible(_descriptionFocusNode);
     _ensureVisible(_locationFocusNode);
     _ensureVisible(_mobileFocusNode);
+    _commentFocusNode.addListener(() {
+      if (_commentHasFocus != _commentFocusNode.hasFocus) {
+        setState(() => _commentHasFocus = _commentFocusNode.hasFocus);
+      }
+    });
     _loadUserRole();
     _loadDepartments();
     if (widget.workOrder != null) {
@@ -262,6 +269,7 @@ Future<void> _loadDepartments() async {
     locationController.dispose();
     mobileController.dispose();
     _commentCtrl.dispose();
+    _commentFocusNode.dispose();
     _activityScrollCtrl.dispose();
     super.dispose();
   }
@@ -868,9 +876,12 @@ Future<void> _loadDepartments() async {
         ? initials.substring(0, 2).toUpperCase()
         : initials.toUpperCase();
 
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final extraBottom = _commentHasFocus && bottomInset == 0 ? 350.0 : bottomInset;
+
     return Container(
       color: AppColors.bgSurface,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      padding: EdgeInsets.fromLTRB(12, 10, 12, 12 + extraBottom),
       child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -912,6 +923,7 @@ Future<void> _loadDepartments() async {
                     ),
                     child: TextField(
                       controller: _commentCtrl,
+                      focusNode: _commentFocusNode,
                       maxLines: null,
                       keyboardType: TextInputType.multiline,
                       textInputAction: TextInputAction.newline,
