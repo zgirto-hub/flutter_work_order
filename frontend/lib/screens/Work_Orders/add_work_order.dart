@@ -94,6 +94,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   ];
 
   bool get _isRequester => _roleLoaded && _userRole == 'requester';
+  bool get _isReporter => _roleLoaded && _userRole == 'reporter';
 
   @override
   void initState() {
@@ -580,6 +581,9 @@ Future<void> _loadDepartments() async {
   }
 
   Widget _buildDetailsTab() {
+    if (!_roleLoaded) {
+      return const Center(child: CircularProgressIndicator());
+    }
     // Requesters can CREATE new work orders, but cannot EDIT existing ones
     final isNewWorkOrder = widget.workOrder == null;
     final canEdit = !_isRequester || isNewWorkOrder;
@@ -612,15 +616,17 @@ Future<void> _loadDepartments() async {
               validator: (v) => v!.isEmpty ? "Enter Title" : null,
             ),
             SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              initialValue: selectedStatus,
-              items: _allowedStatuses
-                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                  .toList(),
-              onChanged: canEdit ? (v) => setState(() => selectedStatus = v!) : null,
-              decoration: InputDecoration(labelText: "Status"),
-            ),
-            SizedBox(height: 10),
+            if (!_isReporter) ...[
+              DropdownButtonFormField<String>(
+                initialValue: selectedStatus,
+                items: _allowedStatuses
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .toList(),
+                onChanged: canEdit ? (v) => setState(() => selectedStatus = v!) : null,
+                decoration: InputDecoration(labelText: "Status"),
+              ),
+              SizedBox(height: 10),
+            ],
             TextFormField(
               controller: locationController,
               focusNode: _locationFocusNode,
@@ -661,25 +667,27 @@ Future<void> _loadDepartments() async {
             SizedBox(height: 10),
 
             // ── Type dropdown with icons ───────────────────────────
-            DropdownButtonFormField<String>(
-              initialValue: selectedType,
-              items: _allowedTypes.map((type) {
-                return DropdownMenuItem(
-                  value: type,
-                  child: Row(
-                    children: [
-                      Icon(_typeIcon(type),
-                          size: 16, color: _typeColor(type)),
-                      SizedBox(width: 8),
-                      Text(type),
-                    ],
-                  ),
-                );
-              }).toList(),
-              onChanged: canEdit ? (v) => setState(() => selectedType = v!) : null,
-              decoration: InputDecoration(labelText: "Type"),
-            ),
-            SizedBox(height: 10),
+            if (!_isReporter) ...[
+              DropdownButtonFormField<String>(
+                initialValue: selectedType,
+                items: _allowedTypes.map((type) {
+                  return DropdownMenuItem(
+                    value: type,
+                    child: Row(
+                      children: [
+                        Icon(_typeIcon(type),
+                            size: 16, color: _typeColor(type)),
+                        SizedBox(width: 8),
+                        Text(type),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: canEdit ? (v) => setState(() => selectedType = v!) : null,
+                decoration: InputDecoration(labelText: "Type"),
+              ),
+              SizedBox(height: 10),
+            ],
 
             TextFormField(
               controller: descriptionController,
@@ -691,7 +699,7 @@ Future<void> _loadDepartments() async {
             ),
             SizedBox(height: 25),
             // Only show Assign Employees for admin/tech (not for requesters)
-            if (!_isRequester) ...[
+            if (!_isRequester && !_isReporter) ...[
               Text(
                 "Assign Technician",
                 style:

@@ -368,20 +368,26 @@ async def update_work_order(
     body: UpdateWorkOrderBody,
     user_email: str = Query(...),
 ):
-    _ensure_not_reporter(user_email)
-    _validate_type(body.type)
-    _validate_status(body.status)
+    user_role = _get_user_role(user_email)
+    user_id = _get_user_id_by_email(user_email) or "unknown"
 
     existing = supabase.table("work_orders") \
-        .select("id, status") \
+        .select("id, status, type, created_by") \
         .eq("id", work_order_id) \
         .execute()
 
     if not existing.data:
         raise HTTPException(status_code=404, detail="Work order not found")
 
+    if user_role == "reporter":
+        if existing.data[0].get("created_by") != user_id:
+            raise HTTPException(status_code=403, detail="Reporters can only edit their own work orders")
+    else:
+        _validate_type(body.type)
+        _validate_status(body.status)
+
     old_status = existing.data[0]["status"]
-    
+
     # Verify department exists and is active
     dept_result = supabase.table("departments").select("id, name, is_active").eq("id", body.department_id).execute()
     if not dept_result.data:
@@ -390,27 +396,40 @@ async def update_work_order(
         raise HTTPException(status_code=400, detail="Cannot update work order to inactive department")
 
     now = datetime.utcnow().isoformat()
-    payload = {
-        "job_no": body.job_no,
-        "title": body.title,
-        "description": body.description,
-        "location": body.location,
-        "mobile_number": body.mobile_number,
-        "department_id": body.department_id,
-        "type": body.type,
-        "status": body.status,
-        "updated_at": now,
-    }
-    user_id = _get_user_id_by_email(user_email) or "unknown"
-    if body.status == "Closed" and old_status != "Closed":
-        payload["closed_at"] = now
-        payload["closed_by"] = user_id
+
+    if user_role == "reporter":
+        # Reporters can only update basic fields; status/type/assignments are preserved
+        payload = {
+            "job_no": body.job_no,
+            "title": body.title,
+            "description": body.description,
+            "location": body.location,
+            "mobile_number": body.mobile_number,
+            "department_id": body.department_id,
+            "updated_at": now,
+        }
+    else:
+        payload = {
+            "job_no": body.job_no,
+            "title": body.title,
+            "description": body.description,
+            "location": body.location,
+            "mobile_number": body.mobile_number,
+            "department_id": body.department_id,
+            "type": body.type,
+            "status": body.status,
+            "updated_at": now,
+        }
+        if body.status == "Closed" and old_status != "Closed":
+            payload["closed_at"] = now
+            payload["closed_by"] = user_id
+
     supabase.table("work_orders").update(payload).eq("id", work_order_id).execute()
 
-    _sync_assignments(work_order_id, body.assigned_technician_ids or [], user_id)
-
-    if old_status != body.status:
-        _log_status_change(work_order_id, old_status, body.status, user_id)
+    if user_role != "reporter":
+        _sync_assignments(work_order_id, body.assigned_technician_ids or [], user_id)
+        if old_status != body.status:
+            _log_status_change(work_order_id, old_status, body.status, user_id)
 
     log_activity(user_email, "work_order", "updated",
         target_label=body.title, target_id=work_order_id)
@@ -460,13 +479,18 @@ async def delete_work_order(
     work_order_id: str,
     user_email: str = Query(...),
 ):
-    _ensure_not_reporter(user_email)
+    user_role = _get_user_role(user_email)
     existing = supabase.table("work_orders") \
-        .select("id") \
+        .select("id, created_by") \
         .eq("id", work_order_id) \
         .execute()
     if not existing.data:
         raise HTTPException(status_code=404, detail="Work order not found")
+
+    if user_role == "reporter":
+        reporter_id = _get_user_id_by_email(user_email)
+        if existing.data[0].get("created_by") != reporter_id:
+            raise HTTPException(status_code=403, detail="Reporters can only delete their own work orders")
 
     supabase.table("work_orders").delete().eq("id", work_order_id).execute()
     log_activity(user_email, "work_order", "deleted",
@@ -479,10 +503,17 @@ async def delete_work_orders_bulk(
     ids: str = Query(..., description="Comma-separated work order IDs"),
     user_email: str = Query(...),
 ):
-    _ensure_not_reporter(user_email)
     id_list = [i.strip() for i in ids.split(",") if i.strip()]
     if not id_list:
         raise HTTPException(status_code=400, detail="No IDs provided")
+
+    user_role = _get_user_role(user_email)
+    if user_role == "reporter":
+        reporter_id = _get_user_id_by_email(user_email)
+        wo_check = supabase.table("work_orders").select("id, created_by").in_("id", id_list).execute()
+        not_owned = [w["id"] for w in (wo_check.data or []) if w.get("created_by") != reporter_id]
+        if not_owned:
+            raise HTTPException(status_code=403, detail="Reporters can only delete their own work orders")
 
     supabase.table("work_orders").delete().in_("id", id_list).execute()
     return {"status": "deleted", "count": len(id_list)}

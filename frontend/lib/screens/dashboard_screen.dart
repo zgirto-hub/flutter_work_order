@@ -87,8 +87,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadWorkOrderStats() async {
     try {
-      final res =
-          await http.get(Uri.parse('${AppConfig.baseUrl}/work-orders'));
+      final uri = Uri.parse('${AppConfig.baseUrl}/work-orders').replace(
+        queryParameters: {
+          'email': _email,
+          'user_role': widget.userRole,
+        },
+      );
+      final res = await http.get(uri);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final orders =
@@ -352,7 +357,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       Expanded(
                         child: _StatCard(
-                          label: 'Open Requests',
+                          label: 'Pending',
                           value: widget.openRequestCount,
                           icon: Icons.inbox_outlined,
                           color: AppColors.pendingText,
@@ -386,17 +391,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           onTap: () => widget.onNavigate(1),
                         ),
                       ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: _StatCard(
-                          label: 'Inspections',
-                          value: _inspectionsToday,
-                          icon: Icons.checklist_rounded,
-                          color: AppColors.closedText,
-                          bgColor: AppColors.closedBg,
-                          onTap: () => widget.onNavigate(1),
+                      if (widget.userRole != 'reporter') ...[
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: _StatCard(
+                            label: 'Inspections',
+                            value: _inspectionsToday,
+                            icon: Icons.checklist_rounded,
+                            color: AppColors.closedText,
+                            bgColor: AppColors.closedBg,
+                            onTap: () => widget.onNavigate(1),
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
 
