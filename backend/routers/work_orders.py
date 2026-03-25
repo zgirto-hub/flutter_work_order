@@ -200,6 +200,56 @@ def _sync_assignments(work_order_id: str, technician_ids: List[str], assigned_by
         supabase.table("work_order_assignments").insert(assignments).execute()
 
 
+def _log_assignment_changes(
+    work_order_id: str,
+    old_ids: List[str],
+    new_ids: List[str],
+    changed_by_email: str,
+    changed_by_name: str,
+):
+    """Insert system comments for added/removed technician assignments."""
+    old_set = set(old_ids)
+    new_set = set(new_ids)
+    added = new_set - old_set
+    removed = old_set - new_set
+
+    if not added and not removed:
+        return
+
+    # Fetch names for affected IDs in one query
+    affected_ids = list(added | removed)
+    users_result = supabase.table("users").select("id, full_name, email") \
+        .in_("id", affected_ids).execute()
+    user_map = {u["id"]: (u.get("full_name") or u.get("email") or "Unknown")
+                for u in (users_result.data or [])}
+
+    comments = []
+    for uid in added:
+        name = user_map.get(uid, "Unknown")
+        comments.append({
+            "work_order_id": work_order_id,
+            "author_email": changed_by_email,
+            "author_name": changed_by_name,
+            "body": f"Assigned technician: {name}",
+            "type": "system",
+        })
+    for uid in removed:
+        name = user_map.get(uid, "Unknown")
+        comments.append({
+            "work_order_id": work_order_id,
+            "author_email": changed_by_email,
+            "author_name": changed_by_name,
+            "body": f"Removed technician: {name}",
+            "type": "system",
+        })
+
+    if comments:
+        try:
+            supabase.table("work_order_comments").insert(comments).execute()
+        except Exception as e:
+            print(f"[_log_assignment_changes] Failed to insert comments: {e}")
+
+
 def _log_status_change(work_order_id: str, old_status: str, new_status: str, changed_by: str, note: Optional[str] = None):
     """Log status change to audit trail"""
     supabase.table("work_order_status_logs").insert({
@@ -409,7 +459,9 @@ async def update_work_order(
     user_email: str = Query(...),
 ):
     user_role = _get_user_role(user_email)
-    user_id = _get_user_id_by_email(user_email) or "unknown"
+    editor_user = _get_user_by_email(user_email)
+    user_id = editor_user.get("id", "unknown") if editor_user else "unknown"
+    editor_name = (editor_user.get("full_name") or user_email.split("@")[0]) if editor_user else user_email.split("@")[0]
 
     existing = supabase.table("work_orders") \
         .select("id, status, type, created_by") \
@@ -467,7 +519,20 @@ async def update_work_order(
     supabase.table("work_orders").update(payload).eq("id", work_order_id).execute()
 
     if user_role != "reporter":
-        _sync_assignments(work_order_id, body.assigned_technician_ids or [], user_id)
+        new_ids = body.assigned_technician_ids or []
+        # Fetch current assignments before syncing so we can diff them
+        old_assignments = supabase.table("work_order_assignments") \
+            .select("technician_id") \
+            .eq("work_order_id", work_order_id) \
+            .execute()
+        old_ids = [r["technician_id"] for r in (old_assignments.data or [])]
+
+        _sync_assignments(work_order_id, new_ids, user_id)
+        _log_assignment_changes(
+            work_order_id, old_ids, new_ids,
+            changed_by_email=user_email,
+            changed_by_name=editor_name,
+        )
         if old_status != body.status:
             _log_status_change(work_order_id, old_status, body.status, user_id)
 
