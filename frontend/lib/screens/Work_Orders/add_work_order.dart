@@ -77,6 +77,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   bool _roleLoaded = false;
   String _userRole = 'admin';
   bool _isTechnician = false;
+  bool _fieldHasFocus = false;
   final TextEditingController _commentCtrl = TextEditingController();
   final ScrollController _activityScrollCtrl = ScrollController();
   PlatformFile? _pendingAttachment;
@@ -96,9 +97,16 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   bool get _isRequester => _roleLoaded && _userRole == 'requester';
   bool get _isReporter => _roleLoaded && _userRole == 'reporter';
 
-  /// Scroll the focused field into view when the keyboard appears (iOS PWA fix).
+  /// Track focus & scroll the focused field into view (iOS PWA keyboard fix).
   void _ensureVisible(FocusNode node) {
-    void listener() {
+    node.addListener(() {
+      final anyFocused = _titleFocusNode.hasFocus ||
+          _descriptionFocusNode.hasFocus ||
+          _locationFocusNode.hasFocus ||
+          _mobileFocusNode.hasFocus;
+      if (_fieldHasFocus != anyFocused) {
+        setState(() => _fieldHasFocus = anyFocused);
+      }
       if (node.hasFocus && node.context != null) {
         Future.delayed(const Duration(milliseconds: 400), () {
           if (node.hasFocus && node.context != null) {
@@ -111,8 +119,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
           }
         });
       }
-    }
-    node.addListener(listener);
+    });
   }
 
   @override
@@ -609,8 +616,12 @@ Future<void> _loadDepartments() async {
     // Requesters can CREATE new work orders, but cannot EDIT existing ones
     final isNewWorkOrder = widget.workOrder == null;
     final canEdit = !_isRequester || isNewWorkOrder;
+    // Extra bottom padding when keyboard is open so fields can scroll above it
+    // (iOS PWA doesn't resize the viewport for the keyboard)
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final extraBottom = _fieldHasFocus && bottomInset == 0 ? 350.0 : bottomInset;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + extraBottom),
       child: Form(
         key: _formKey,
         child: Column(
