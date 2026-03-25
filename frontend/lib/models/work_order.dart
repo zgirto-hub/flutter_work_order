@@ -15,6 +15,7 @@ class WorkOrder {
   final String? techNotes;
   final String? createdBy;
   final String? createdByEmail;
+  final String? createdByName;
   final String departmentId;
   final String? departmentName;
   final String? mobileNumber;
@@ -35,6 +36,7 @@ class WorkOrder {
     this.techNotes,
     this.createdBy,
     this.createdByEmail,
+    this.createdByName,
     this.departmentId = '',
     this.departmentName,
     this.mobileNumber,
@@ -61,7 +63,8 @@ class WorkOrder {
       closedBy: json['closed_by'],
       techNotes: json['tech_notes'],
       createdBy: json['created_by'],
-      createdByEmail: json['created_by_email'] as String?,
+      createdByEmail: (json['creator'] is Map ? json['creator']['email'] : json['created_by_email']) as String?,
+      createdByName: (json['creator'] is Map ? json['creator']['full_name'] : null) as String?,
       departmentId: json['department_id'] ?? '',
       departmentName: deptName,
       mobileNumber: json['mobile_number'],
@@ -104,6 +107,7 @@ class WorkOrder {
     String? techNotes,
     String? createdBy,
     String? createdByEmail,
+    String? createdByName,
     String? departmentId,
     String? departmentName,
     String? mobileNumber,
@@ -124,6 +128,7 @@ class WorkOrder {
       techNotes: techNotes ?? this.techNotes,
       createdBy: createdBy ?? this.createdBy,
       createdByEmail: createdByEmail ?? this.createdByEmail,
+      createdByName: createdByName ?? this.createdByName,
       departmentId: departmentId ?? this.departmentId,
       departmentName: departmentName ?? this.departmentName,
       mobileNumber: mobileNumber ?? this.mobileNumber,

@@ -418,12 +418,12 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
 
                                 // ── Status + Type filter chips ─────────────────
                                 FilterChipRow(
-                                  filters: const [
+                                  filters: [
                                     'All',
                                     'Pending',
                                     'In Progress',
                                     'Closed',
-                                    'Inspection',
+                                    if (_userRole != 'reporter') 'Inspection',
                                   ],
                                   selected: _filter.statusFilter == 'All' &&
                                           _filter.selectedDocumentType ==

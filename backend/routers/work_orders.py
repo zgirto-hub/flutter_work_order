@@ -141,6 +141,10 @@ def _fetch_full_work_order(work_order_id: str):
     # Updated query to include department details via JOIN
     result = supabase.table("work_orders").select("""
         *,
+        creator:users!work_orders_created_by_fkey (
+            full_name,
+            email
+        ),
         departments!work_orders_department_id_fkey (
             id,
             name,
@@ -205,6 +209,10 @@ async def list_work_orders(
     # Updated query to include department details
     query = supabase.table("work_orders").select("""
         *,
+        creator:users!work_orders_created_by_fkey (
+            full_name,
+            email
+        ),
         departments!work_orders_department_id_fkey (
             id,
             name,

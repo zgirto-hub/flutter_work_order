@@ -59,6 +59,23 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   String _userRole = '';
   double _sidebarWidth = 116.0;
 
+  String get _currentEmail =>
+      Supabase.instance.client.auth.currentUser?.email ?? '';
+
+  List<DocumentModel> get _visibleDocuments {
+    if (_userRole == 'reporter') {
+      return _allDocuments.where((d) => d.uploadedBy == _currentEmail).toList();
+    }
+    return _allDocuments;
+  }
+
+  List<FolderModel> get _visibleFolders {
+    if (_userRole == 'reporter') {
+      return _allFolders.where((f) => f.createdBy == _currentEmail).toList();
+    }
+    return _allFolders;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -122,21 +139,21 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   Set<String> _collectDescendantIds(String folderId) {
     final ids = <String>{folderId};
-    for (final f in _allFolders.where((f) => f.parentId == folderId)) {
+    for (final f in _visibleFolders.where((f) => f.parentId == folderId)) {
       ids.addAll(_collectDescendantIds(f.id));
     }
     return ids;
   }
 
   List<FolderModel> _childFolders(String? parentId) {
-    return _allFolders
+    return _visibleFolders
         .where((f) => f.parentId == parentId)
         .toList()
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   }
 
   List<String> get _docTypes {
-    final types = _allDocuments.map((d) => d.documentType).toSet().toList()
+    final types = _visibleDocuments.map((d) => d.documentType).toSet().toList()
       ..sort();
     return ['All', ...types];
   }
@@ -147,9 +164,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       _collectDescendantIds(folderId);
 
   List<DocumentModel> _docsForSelectedFolder() {
-    if (_selectedFolderId == null) return _allDocuments;
+    if (_selectedFolderId == null) return _visibleDocuments;
     final scope = {_selectedFolderId!, ..._descendantIds(_selectedFolderId!)};
-    return _allDocuments.where((d) => scope.contains(d.folderId)).toList();
+    return _visibleDocuments.where((d) => scope.contains(d.folderId)).toList();
   }
 
   List<FolderModel> _breadcrumbPath() {
@@ -157,7 +174,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     final path = <FolderModel>[];
     String? id = _selectedFolderId;
     while (id != null) {
-      final f = _allFolders.firstWhereOrNull((f) => f.id == id);
+      final f = _visibleFolders.firstWhereOrNull((f) => f.id == id);
       if (f == null) break;
       path.insert(0, f);
       id = f.parentId;
@@ -170,7 +187,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     int depth = 0;
     String? id = folderId;
     while (id != null) {
-      final f = _allFolders.firstWhereOrNull((f) => f.id == id);
+      final f = _visibleFolders.firstWhereOrNull((f) => f.id == id);
       if (f == null) break;
       depth++;
       id = f.parentId;
@@ -641,7 +658,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   // ── Search results ────────────────────────────────────────────────────────
 
   Widget _buildSearchResults() {
-    final docs = DocumentFilterEngine.applyFilters(_allDocuments, _filter);
+    final docs = DocumentFilterEngine.applyFilters(_visibleDocuments, _filter);
     if (docs.isEmpty) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -718,7 +735,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   void _showDocActions(DocumentModel doc) {
     final caps = DocumentCapabilities.fromRole(doc.role);
     final currentUser = Supabase.instance.client.auth.currentUser?.email;
-    final folderName = _allFolders
+    final folderName = _visibleFolders
         .firstWhereOrNull((f) => f.id == doc.folderId)
         ?.name ?? 'Root';
 
@@ -1074,7 +1091,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   void _showPermissionsOverview() {
     int ownerCount = 0, editorCount = 0, viewerCount = 0;
-    for (final doc in _allDocuments) {
+    for (final doc in _visibleDocuments) {
       switch (doc.role) {
         case 'owner':  ownerCount++;  break;
         case 'editor': editorCount++; break;
@@ -1152,7 +1169,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                           color: AppColors.textTertiary,
                           letterSpacing: 0.06)),
                   SizedBox(height: 8),
-                  ..._allDocuments
+                  ..._visibleDocuments
                       .where((d) => d.role != null)
                       .map((doc) => Padding(
                             padding: const EdgeInsets.symmetric(vertical: 9),
@@ -1182,7 +1199,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis),
                                       Text(
-                                        _allFolders
+                                        _visibleFolders
                                                 .firstWhereOrNull(
                                                     (f) => f.id == doc.folderId)
                                                 ?.name ??

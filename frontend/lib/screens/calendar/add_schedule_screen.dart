@@ -59,7 +59,6 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
   String        _customFrequency  = 'daily';
   int           _customInterval   = 1;
   bool          _isActive         = true;
-  bool          _showRepeatPicker = false;
 
   // ── Work Order state ─────────────────────────────────────────────────────────
   final _woTitleCtrl    = TextEditingController();
@@ -73,7 +72,12 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
   _RepeatOption _woRepeat          = _RepeatOption.never;
   String        _woCustomFrequency = 'daily';
   int           _woCustomInterval  = 1;
-  bool          _woShowRepeatPicker = false;
+
+  // Display controllers for date fields (TextFormField needs controller to update on setState)
+  final _dateCtrl      = TextEditingController();
+  final _woDateCtrl    = TextEditingController();
+  final _endDateCtrl   = TextEditingController();
+  final _woEndDateCtrl = TextEditingController();
 
   static const _woTypes = ['Technical', 'Inspection', 'Other'];
 
@@ -116,6 +120,8 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
         _customInterval  = e.interval ?? 1;
       }
     }
+    _dateCtrl.text   = _displayDate(_date);
+    _woDateCtrl.text = _displayDate(_woDate);
     _loadFormData();
   }
 
@@ -144,6 +150,10 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
     _woTitleCtrl.dispose();
     _woDescCtrl.dispose();
     _woLocationCtrl.dispose();
+    _dateCtrl.dispose();
+    _woDateCtrl.dispose();
+    _endDateCtrl.dispose();
+    _woEndDateCtrl.dispose();
     super.dispose();
   }
 
@@ -177,24 +187,6 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
           ? null
           : _woEndDate != null ? _formatDate(_woEndDate!) : null;
 
-  String get _woRepeatLabel {
-    const wd = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    switch (_woRepeat) {
-      case _RepeatOption.never:       return 'Does not repeat';
-      case _RepeatOption.everyDay:    return 'Daily';
-      case _RepeatOption.everyWeek:   return 'Every week on ${wd[_woDate.weekday - 1]}';
-      case _RepeatOption.every2Weeks: return 'Every 2 weeks on ${wd[_woDate.weekday - 1]}';
-      case _RepeatOption.everyMonth:  return 'Monthly on day ${_woDate.day}';
-      case _RepeatOption.everyYear:
-        return 'Annually on ${mo[_woDate.month - 1]} ${_woDate.day}';
-      case _RepeatOption.custom:
-        final base = {'daily':'day','weekly':'week','monthly':'month','yearly':'year'}[_woCustomFrequency] ?? _woCustomFrequency;
-        final unit = _woCustomInterval == 1 ? base : '${base}s';
-        return 'Every $_woCustomInterval $unit';
-    }
-  }
-
   // ── Derived params (inspection) ───────────────────────────────────────────────
 
   String get _frequency {
@@ -224,26 +216,6 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
       _repeat == _RepeatOption.never
           ? _formatDate(_date)
           : _endDate != null ? _formatDate(_endDate!) : null;
-
-  // ── Labels ────────────────────────────────────────────────────────────────────
-
-  String get _repeatLabel {
-    const wd = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    switch (_repeat) {
-      case _RepeatOption.never:       return 'Does not repeat';
-      case _RepeatOption.everyDay:    return 'Daily';
-      case _RepeatOption.everyWeek:   return 'Every week on ${wd[_date.weekday - 1]}';
-      case _RepeatOption.every2Weeks: return 'Every 2 weeks on ${wd[_date.weekday - 1]}';
-      case _RepeatOption.everyMonth:  return 'Monthly on day ${_date.day}';
-      case _RepeatOption.everyYear:
-        return 'Annually on ${mo[_date.month - 1]} ${_date.day}';
-      case _RepeatOption.custom:
-        final base = {'daily':'day','weekly':'week','monthly':'month','yearly':'year'}[_customFrequency] ?? _customFrequency;
-        final unit = _customInterval == 1 ? base : '${base}s';
-        return 'Every $_customInterval $unit';
-    }
-  }
 
   static const _repeatOptions = [
     (_RepeatOption.never,       'Does not repeat'),
@@ -433,7 +405,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
       firstDate: DateTime(2024),
       lastDate: DateTime(2035),
     );
-    if (picked != null) setState(() => _date = picked);
+    if (picked != null) setState(() { _date = picked; _dateCtrl.text = _displayDate(picked); });
   }
 
   Future<void> _pickEndDate() async {
@@ -443,7 +415,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
       firstDate: _date,
       lastDate: DateTime(2035),
     );
-    if (picked != null) setState(() => _endDate = picked);
+    if (picked != null) setState(() { _endDate = picked; _endDateCtrl.text = _displayDate(picked); });
   }
 
   Future<void> _pickWODate() async {
@@ -453,7 +425,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
       firstDate: DateTime(2024),
       lastDate: DateTime(2035),
     );
-    if (picked != null) setState(() => _woDate = picked);
+    if (picked != null) setState(() { _woDate = picked; _woDateCtrl.text = _displayDate(picked); });
   }
 
   Future<void> _pickWOEndDate() async {
@@ -463,7 +435,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
       firstDate: _woDate,
       lastDate: DateTime(2035),
     );
-    if (picked != null) setState(() => _woEndDate = picked);
+    if (picked != null) setState(() { _woEndDate = picked; _woEndDateCtrl.text = _displayDate(picked); });
   }
 
   void _openTechSelector({bool isWO = false}) {
@@ -479,166 +451,6 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
         onChanged: (ids) {
           setState(() => isWO ? _woTechIds = ids : _selectedTechIds = ids);
         },
-      ),
-    );
-  }
-
-  void _showDepartmentPicker({bool isWO = false}) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: AppColors.bgSurface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.only(top: 16, bottom: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(color: AppColors.border2, borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Department',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-              ),
-            ),
-            ..._departments.map((d) => InkWell(
-              onTap: () {
-                setState(() => isWO ? _woDeptId = d.id : _selectedDeptId = d.id);
-                Navigator.pop(ctx);
-              },
-              child: Container(
-                height: 50,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Text(d.name, style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
-                    const Spacer(),
-                    if ((isWO ? _woDeptId : _selectedDeptId) == d.id)
-                      Icon(Icons.check_rounded, size: 18, color: AppColors.accent),
-                  ],
-                ),
-              ),
-            )),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showInspectionTypePicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: AppColors.bgSurface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.only(top: 16, bottom: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(color: AppColors.border2, borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Type',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-              ),
-            ),
-            ..._woTypes.map((t) => InkWell(
-              onTap: () {
-                setState(() => _inspectionType = t);
-                Navigator.pop(ctx);
-              },
-              child: Container(
-                height: 50,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Icon(_typeIcon(t), size: 16, color: _typeColor(t)),
-                    const SizedBox(width: 10),
-                    Text(t, style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
-                    const Spacer(),
-                    if (_inspectionType == t)
-                      Icon(Icons.check_rounded, size: 18, color: AppColors.accent),
-                  ],
-                ),
-              ),
-            )),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showTypePicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: AppColors.bgSurface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.only(top: 16, bottom: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(color: AppColors.border2, borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Type',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-              ),
-            ),
-            ..._woTypes.map((t) => InkWell(
-              onTap: () {
-                setState(() => _woType = t);
-                Navigator.pop(ctx);
-              },
-              child: Container(
-                height: 50,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Icon(_typeIcon(t), size: 16, color: _typeColor(t)),
-                    const SizedBox(width: 10),
-                    Text(t, style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
-                    const Spacer(),
-                    if (_woType == t)
-                      Icon(Icons.check_rounded, size: 18, color: AppColors.accent),
-                  ],
-                ),
-              ),
-            )),
-          ],
-        ),
       ),
     );
   }
@@ -856,131 +668,129 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
   // ── Work Order form ───────────────────────────────────────────────────────────
 
   Widget _buildWOForm() {
+    final deptName = _departments.where((d) => d.id == _woDeptId).firstOrNull?.name;
+    final selectedWOTechs = _woTechIds
+        .map((id) => _technicians.where((t) => t.id == id).firstOrNull)
+        .whereType<AppUser>()
+        .toList();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _group([
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-              child: TextField(
-                controller: _woTitleCtrl,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Title',
-                  hintStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w400, color: AppColors.textTertiary),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                ),
+          TextFormField(
+            controller: _woTitleCtrl,
+            decoration: const InputDecoration(labelText: 'Title'),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _woDescCtrl,
+            maxLines: 3,
+            decoration: const InputDecoration(labelText: 'Description'),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _woLocationCtrl,
+            decoration: const InputDecoration(labelText: 'Location'),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<_RepeatOption>(
+            value: _woRepeat,
+            items: _repeatOptions
+                .map((o) => DropdownMenuItem(value: o.$1, child: Text(o.$2)))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) setState(() {
+                _woRepeat = v;
+                if (v == _RepeatOption.never) { _woEndDate = null; _woEndDateCtrl.clear(); }
+              });
+            },
+            decoration: const InputDecoration(labelText: 'Repeat'),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _woDateCtrl,
+            readOnly: true,
+            onTap: _pickWODate,
+            decoration: const InputDecoration(
+              labelText: 'Date',
+              suffixIcon: Icon(Icons.calendar_today_outlined, size: 18),
+            ),
+          ),
+          if (_woRepeat != _RepeatOption.never) ...[
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _woEndDateCtrl,
+              readOnly: true,
+              onTap: _pickWOEndDate,
+              decoration: InputDecoration(
+                labelText: 'End Date',
+                hintText: 'Never',
+                suffixIcon: _woEndDate != null
+                    ? GestureDetector(
+                        onTap: () => setState(() { _woEndDate = null; _woEndDateCtrl.clear(); }),
+                        child: const Icon(Icons.close_rounded, size: 18),
+                      )
+                    : const Icon(Icons.calendar_today_outlined, size: 18),
               ),
             ),
-            _divider(),
-            _inlineTextField(_woDescCtrl, 'Description', 'Add description', maxLines: 3),
-            _divider(),
-            _inlineTextField(_woLocationCtrl, 'Location', 'Add location'),
-          ]),
-
-          const SizedBox(height: 8),
-
-          _group([
-            _tapRow(
-              label: 'Date',
-              value: _displayDate(_woDate),
-              valueColor: AppColors.accent,
-              onTap: _pickWODate,
+          ],
+          if (_woRepeat == _RepeatOption.custom) ...[
+            const SizedBox(height: 10),
+            _inlineCustomPicker(
+              freq: _woCustomFrequency,
+              interval: _woCustomInterval,
+              onFreq: (f) => setState(() => _woCustomFrequency = f),
+              onInterval: (n) => setState(() => _woCustomInterval = n),
             ),
-            _divider(),
-
-            // Repeat row
-            InkWell(
-              onTap: () => setState(() => _woShowRepeatPicker = !_woShowRepeatPicker),
-              child: Container(
-                constraints: const BoxConstraints(minHeight: 52),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                child: Row(
-                  children: [
-                    Text('Repeat', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-                    const Spacer(),
-                    Flexible(
-                      child: Text(
-                        _woRepeatLabel,
-                        style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
-                        textAlign: TextAlign.right,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    AnimatedRotation(
-                      turns: _woShowRepeatPicker ? 0.25 : 0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(Icons.chevron_right, size: 16, color: AppColors.textTertiary),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            AnimatedSize(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              child: _woShowRepeatPicker
-                  ? Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Divider(height: 0, thickness: 0.5, color: AppColors.border),
-                        _inlineRepeatPicker(
-                          current: _woRepeat,
-                          onSelect: (opt) => setState(() {
-                            _woRepeat = opt;
-                            _woShowRepeatPicker = false;
-                            if (opt == _RepeatOption.never) _woEndDate = null;
-                          }),
-                        ),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
-            ),
-
-            if (_woRepeat == _RepeatOption.custom) ...[
-              _divider(),
-              _inlineCustomPicker(
-                freq: _woCustomFrequency,
-                interval: _woCustomInterval,
-                onFreq: (f) => setState(() => _woCustomFrequency = f),
-                onInterval: (n) => setState(() => _woCustomInterval = n),
-              ),
-            ],
-
-            if (_woRepeat != _RepeatOption.never) ...[
-              _divider(),
-              _woEndRepeatRow(),
-            ],
-          ]),
-
-          const SizedBox(height: 8),
-
-          _group([
-            _tapRow(
-              label: 'Type',
-              value: _woType,
-              leading: Icon(_typeIcon(_woType), size: 15, color: _typeColor(_woType)),
-              onTap: _showTypePicker,
-            ),
-            _divider(),
-            _tapRow(
-              label: 'Department',
-              value: _departments.where((d) => d.id == _woDeptId).firstOrNull?.name ?? 'Select',
-              valueColor: _woDeptId.isEmpty ? AppColors.textTertiary : null,
-              onTap: () => _showDepartmentPicker(isWO: true),
-            ),
-          ]),
-
-          const SizedBox(height: 8),
-
-          _group([
-            _techRow(isWO: true),
-          ]),
-
+          ],
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: _woType,
+            items: _woTypes.map((t) => DropdownMenuItem(
+              value: t,
+              child: Row(children: [
+                Icon(_typeIcon(t), size: 16, color: _typeColor(t)),
+                const SizedBox(width: 8),
+                Text(t),
+              ]),
+            )).toList(),
+            onChanged: (v) { if (v != null) setState(() => _woType = v); },
+            decoration: const InputDecoration(labelText: 'Type'),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: deptName,
+            items: _departments
+                .map((d) => DropdownMenuItem(value: d.name, child: Text(d.name)))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) {
+                final dept = _departments.firstWhere((d) => d.name == v);
+                setState(() => _woDeptId = dept.id);
+              }
+            },
+            decoration: const InputDecoration(labelText: 'Department'),
+          ),
+          const SizedBox(height: 25),
+          Text('Assign Technician',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.people),
+            label: const Text('Select Technician'),
+            onPressed: () => _openTechSelector(isWO: true),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: selectedWOTechs.map((tech) => Chip(
+              label: Text(tech.fullName ?? ''),
+              deleteIcon: const Icon(Icons.close),
+              onDeleted: () => setState(() => _woTechIds.remove(tech.id)),
+            )).toList(),
+          ),
           const SizedBox(height: 8),
         ],
       ),
@@ -990,156 +800,144 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
   // ── Inspection form ───────────────────────────────────────────────────────────
 
   Widget _buildInspectionForm() {
+    final deptName = _departments.where((d) => d.id == _selectedDeptId).firstOrNull?.name;
+    final selectedTechs = _selectedTechIds
+        .map((id) => _technicians.where((t) => t.id == id).firstOrNull)
+        .whereType<AppUser>()
+        .toList();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Group 1: Title / Description / Location
-          _group([
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-              child: TextField(
-                controller: _titleCtrl,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Title',
-                  hintStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w400, color: AppColors.textTertiary),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                ),
+          TextFormField(
+            controller: _titleCtrl,
+            decoration: const InputDecoration(labelText: 'Title'),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _descCtrl,
+            maxLines: 3,
+            decoration: const InputDecoration(labelText: 'Description'),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _locationCtrl,
+            decoration: const InputDecoration(labelText: 'Location'),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<_RepeatOption>(
+            value: _repeat,
+            items: _repeatOptions
+                .map((o) => DropdownMenuItem(value: o.$1, child: Text(o.$2)))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) setState(() {
+                _repeat = v;
+                if (v == _RepeatOption.never) { _endDate = null; _endDateCtrl.clear(); }
+              });
+            },
+            decoration: const InputDecoration(labelText: 'Repeat'),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _dateCtrl,
+            readOnly: true,
+            onTap: _pickDate,
+            decoration: const InputDecoration(
+              labelText: 'Date',
+              suffixIcon: Icon(Icons.calendar_today_outlined, size: 18),
+            ),
+          ),
+          if (_repeat != _RepeatOption.never) ...[
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _endDateCtrl,
+              readOnly: true,
+              onTap: _pickEndDate,
+              decoration: InputDecoration(
+                labelText: 'End Date',
+                hintText: 'Never',
+                suffixIcon: _endDate != null
+                    ? GestureDetector(
+                        onTap: () => setState(() { _endDate = null; _endDateCtrl.clear(); }),
+                        child: const Icon(Icons.close_rounded, size: 18),
+                      )
+                    : const Icon(Icons.calendar_today_outlined, size: 18),
               ),
             ),
-            _divider(),
-            _inlineTextField(_descCtrl, 'Description', 'Add description', maxLines: 3),
-            _divider(),
-            _inlineTextField(_locationCtrl, 'Location', 'Add location'),
-          ]),
-
-          const SizedBox(height: 8),
-
-          // Group 2: Date / Repeat
-          _group([
-            _tapRow(
-              label: 'Date',
-              value: _displayDate(_date),
-              valueColor: AppColors.accent,
-              onTap: _pickDate,
-            ),
-            _divider(),
-
-            InkWell(
-              onTap: () => setState(() => _showRepeatPicker = !_showRepeatPicker),
-              child: Container(
-                constraints: const BoxConstraints(minHeight: 52),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                child: Row(
-                  children: [
-                    Text('Repeat', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-                    const Spacer(),
-                    Flexible(
-                      child: Text(
-                        _repeatLabel,
-                        style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
-                        textAlign: TextAlign.right,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    AnimatedRotation(
-                      turns: _showRepeatPicker ? 0.25 : 0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(Icons.chevron_right, size: 16, color: AppColors.textTertiary),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            AnimatedSize(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              child: _showRepeatPicker
-                  ? Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Divider(height: 0, thickness: 0.5, color: AppColors.border),
-                        _inlineRepeatPicker(
-                          current: _repeat,
-                          onSelect: (opt) => setState(() {
-                            _repeat = opt;
-                            _showRepeatPicker = false;
-                            if (opt == _RepeatOption.never) _endDate = null;
-                          }),
-                        ),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
-            ),
-
-            if (_repeat == _RepeatOption.custom) ...[
-              _divider(),
-              _inlineCustomPicker(
-                freq: _customFrequency,
-                interval: _customInterval,
-                onFreq: (f) => setState(() => _customFrequency = f),
-                onInterval: (n) => setState(() => _customInterval = n),
-              ),
-            ],
-
-            if (_repeat != _RepeatOption.never) ...[
-              _divider(),
-              _endRepeatRow(),
-            ],
-          ]),
-
-          const SizedBox(height: 8),
-
-          // Group 3: Type / Department
-          _group([
-            _tapRow(
-              label: 'Type',
-              value: _inspectionType,
-              leading: Icon(_typeIcon(_inspectionType), size: 15, color: _typeColor(_inspectionType)),
-              onTap: _showInspectionTypePicker,
-            ),
-            _divider(),
-            _tapRow(
-              label: 'Department',
-              value: _departments.where((d) => d.id == _selectedDeptId).firstOrNull?.name ?? 'Select',
-              valueColor: _selectedDeptId.isEmpty ? AppColors.textTertiary : null,
-              onTap: () => _showDepartmentPicker(),
-            ),
-          ]),
-
-          const SizedBox(height: 8),
-
-          // Group 4: Technicians
-          _group([
-            _techRow(isWO: false),
-          ]),
-
-          if (_isEditing) ...[
-            const SizedBox(height: 8),
-            _group([
-              Container(
-                height: 52,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Text('Active', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-                    const Spacer(),
-                    Switch.adaptive(
-                      value: _isActive,
-                      onChanged: (v) => setState(() => _isActive = v),
-                      activeThumbColor: AppColors.accent,
-                      activeTrackColor: AppColors.accent.withValues(alpha: 0.4),
-                    ),
-                  ],
-                ),
-              ),
-            ]),
           ],
-
+          if (_repeat == _RepeatOption.custom) ...[
+            const SizedBox(height: 10),
+            _inlineCustomPicker(
+              freq: _customFrequency,
+              interval: _customInterval,
+              onFreq: (f) => setState(() => _customFrequency = f),
+              onInterval: (n) => setState(() => _customInterval = n),
+            ),
+          ],
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: _inspectionType,
+            items: _woTypes.map((t) => DropdownMenuItem(
+              value: t,
+              child: Row(children: [
+                Icon(_typeIcon(t), size: 16, color: _typeColor(t)),
+                const SizedBox(width: 8),
+                Text(t),
+              ]),
+            )).toList(),
+            onChanged: (v) { if (v != null) setState(() => _inspectionType = v); },
+            decoration: const InputDecoration(labelText: 'Type'),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: deptName,
+            items: _departments
+                .map((d) => DropdownMenuItem(value: d.name, child: Text(d.name)))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) {
+                final dept = _departments.firstWhere((d) => d.name == v);
+                setState(() => _selectedDeptId = dept.id);
+              }
+            },
+            decoration: const InputDecoration(labelText: 'Department'),
+          ),
+          const SizedBox(height: 25),
+          Text('Assign Technician',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.people),
+            label: const Text('Select Technician'),
+            onPressed: () => _openTechSelector(isWO: false),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: selectedTechs.map((tech) => Chip(
+              label: Text(tech.fullName ?? ''),
+              deleteIcon: const Icon(Icons.close),
+              onDeleted: () => setState(() => _selectedTechIds.remove(tech.id)),
+            )).toList(),
+          ),
+          if (_isEditing) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Text('Active', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                const Spacer(),
+                Switch.adaptive(
+                  value: _isActive,
+                  onChanged: (v) => setState(() => _isActive = v),
+                  activeThumbColor: AppColors.accent,
+                  activeTrackColor: AppColors.accent.withValues(alpha: 0.4),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 8),
         ],
       ),
@@ -1147,42 +945,6 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
   }
 
   // ── Inline pickers ────────────────────────────────────────────────────────────
-
-  Widget _inlineRepeatPicker({
-    required _RepeatOption current,
-    required void Function(_RepeatOption) onSelect,
-  }) {
-    return Container(
-      color: AppColors.bgSurface2,
-      child: Column(
-        children: _repeatOptions.map((item) {
-          final option   = item.$1;
-          final label    = item.$2;
-          final selected = current == option;
-          return InkWell(
-            onTap: () => onSelect(option),
-            child: Container(
-              height: 44,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  Text(label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: selected ? AppColors.accent : AppColors.textPrimary,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (selected) Icon(Icons.check_rounded, size: 16, color: AppColors.accent),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
 
   Widget _inlineCustomPicker({
     required String freq,
@@ -1287,178 +1049,4 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
     ),
   );
 
-  // ── Row / Group helpers ───────────────────────────────────────────────────────
-
-  Widget _group(List<Widget> rows) => Container(
-    decoration: BoxDecoration(
-      color: AppColors.bgSurface,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.border, width: 0.5),
-      boxShadow: AppShadows.cardLight,
-    ),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Column(children: rows),
-    ),
-  );
-
-  Widget _divider() => Divider(height: 0, thickness: 0.5, indent: 16, color: AppColors.border);
-
-  Widget _inlineTextField(TextEditingController ctrl, String label, String hint, {int maxLines = 1}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      child: Row(
-        crossAxisAlignment: maxLines > 1 ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Padding(
-              padding: EdgeInsets.only(top: maxLines > 1 ? 14 : 0),
-              child: Text(label, style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-            ),
-          ),
-          Expanded(
-            child: TextField(
-              controller: ctrl,
-              maxLines: maxLines,
-              style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
-              decoration: InputDecoration(
-                hintText: hint,
-                hintStyle: TextStyle(fontSize: 14, color: AppColors.textTertiary),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _tapRow({
-    required String label,
-    required String value,
-    required VoidCallback onTap,
-    Color? valueColor,
-    Widget? leading,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 52),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            if (leading != null) ...[leading, const SizedBox(width: 8)],
-            Text(label, style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-            const Spacer(),
-            Flexible(
-              child: Text(value,
-                style: TextStyle(fontSize: 14, color: valueColor ?? AppColors.textPrimary),
-                textAlign: TextAlign.right,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Icon(Icons.chevron_right, size: 16, color: AppColors.textTertiary),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _endRepeatRow() {
-    return Container(
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Text('End Repeat', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-          const Spacer(),
-          GestureDetector(
-            onTap: _pickEndDate,
-            child: Text(
-              _endDate != null ? _displayDate(_endDate!) : 'Never',
-              style: TextStyle(
-                fontSize: 14,
-                color: _endDate != null ? AppColors.accent : AppColors.textTertiary,
-              ),
-            ),
-          ),
-          if (_endDate != null) ...[
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () => setState(() => _endDate = null),
-              child: Icon(Icons.close_rounded, size: 16, color: AppColors.textTertiary),
-            ),
-          ],
-          const SizedBox(width: 2),
-        ],
-      ),
-    );
-  }
-
-  Widget _woEndRepeatRow() {
-    return Container(
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Text('End Repeat', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-          const Spacer(),
-          GestureDetector(
-            onTap: _pickWOEndDate,
-            child: Text(
-              _woEndDate != null ? _displayDate(_woEndDate!) : 'Never',
-              style: TextStyle(
-                fontSize: 14,
-                color: _woEndDate != null ? AppColors.accent : AppColors.textTertiary,
-              ),
-            ),
-          ),
-          if (_woEndDate != null) ...[
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () => setState(() => _woEndDate = null),
-              child: Icon(Icons.close_rounded, size: 16, color: AppColors.textTertiary),
-            ),
-          ],
-          const SizedBox(width: 2),
-        ],
-      ),
-    );
-  }
-
-  Widget _techRow({required bool isWO}) {
-    final ids   = isWO ? _woTechIds : _selectedTechIds;
-    final names = ids
-        .map((id) => _technicians.where((t) => t.id == id).firstOrNull?.fullName ?? id)
-        .toList();
-    return InkWell(
-      onTap: () => _openTechSelector(isWO: isWO),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 52),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Text('Technicians', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-            const Spacer(),
-            Flexible(
-              child: Text(
-                names.isEmpty ? 'Auto-assign' : names.join(', '),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: names.isEmpty ? AppColors.textTertiary : AppColors.textPrimary,
-                ),
-                textAlign: TextAlign.right,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Icon(Icons.chevron_right, size: 16, color: AppColors.textTertiary),
-          ],
-        ),
-      ),
-    );
-  }
 }

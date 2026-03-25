@@ -603,6 +603,17 @@ Future<void> _loadDepartments() async {
                 filled: true,
               ),
             ),
+            if (widget.workOrder != null && (widget.workOrder!.createdByName != null || widget.workOrder!.createdByEmail != null)) ...[
+              SizedBox(height: 10),
+              TextFormField(
+                initialValue: widget.workOrder!.createdByName ?? widget.workOrder!.createdByEmail,
+                readOnly: true,
+                decoration: InputDecoration(
+                  labelText: "Created By",
+                  filled: true,
+                ),
+              ),
+            ],
             SizedBox(height: 10),
             TextFormField(
               controller: clientController,

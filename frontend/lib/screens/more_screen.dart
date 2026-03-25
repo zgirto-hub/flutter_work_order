@@ -180,40 +180,42 @@ class _MoreScreenState extends State<MoreScreen> {
               builder: (_) => const DocumentsScreen()),
         ),
       ),
-      _MoreItem(
-        title: 'Reports',
-        subtitle: 'Work order reports',
-        icon: Icons.bar_chart_rounded,
-        color: const Color(0xFF15803D),
-        bgColor: const Color(0xFFDCFCE7),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (_) => const WorkOrderReportScreen()),
-        ),
-      ),
-      _MoreItem(
-        title: 'Employees',
-        subtitle: 'Manage team',
-        icon: Icons.people_outline_rounded,
-        color: const Color(0xFFCC785C),
-        bgColor: const Color(0xFFF5EBE6),
-        onTap: () => _comingSoon(context, 'Employees'),
-        comingSoon: true,
-      ),
-      _MoreItem(
-        title: 'Calendar',
-        subtitle: 'Recurring inspections',
-        icon: Icons.calendar_month_outlined,
-        color: const Color(0xFF1D4ED8),
-        bgColor: const Color(0xFFDBEAFE),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => CalendarScreen(userRole: widget.userRole),
+      if (widget.userRole != 'reporter') ...[
+        _MoreItem(
+          title: 'Reports',
+          subtitle: 'Work order reports',
+          icon: Icons.bar_chart_rounded,
+          color: const Color(0xFF15803D),
+          bgColor: const Color(0xFFDCFCE7),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => const WorkOrderReportScreen()),
           ),
         ),
-      ),
+        _MoreItem(
+          title: 'Employees',
+          subtitle: 'Manage team',
+          icon: Icons.people_outline_rounded,
+          color: const Color(0xFFCC785C),
+          bgColor: const Color(0xFFF5EBE6),
+          onTap: () => _comingSoon(context, 'Employees'),
+          comingSoon: true,
+        ),
+        _MoreItem(
+          title: 'Calendar',
+          subtitle: 'Recurring inspections',
+          icon: Icons.calendar_month_outlined,
+          color: const Color(0xFF1D4ED8),
+          bgColor: const Color(0xFFDBEAFE),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CalendarScreen(userRole: widget.userRole),
+            ),
+          ),
+        ),
+      ],
       _MoreItem(
         title: 'Notifications',
         subtitle: _unreadCount > 0 ? '$_unreadCount unread' : 'Alerts & updates',
