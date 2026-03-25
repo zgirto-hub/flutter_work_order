@@ -150,7 +150,7 @@ class _MoreScreenState extends State<MoreScreen> {
                     SizedBox(height: 24),
 
                     // Settings section at bottom
-                    SectionLabel(text: 'Account[1.0] & Settings'),
+                    SectionLabel(text: 'Account & Settings'),
                     SizedBox(height: 8),
                     _SettingsTile(
                       themeController: widget.themeController,
