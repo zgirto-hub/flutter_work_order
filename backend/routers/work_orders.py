@@ -8,7 +8,7 @@ import uuid
 import io
 import traceback
 
-from PIL import Image
+from PIL import Image, ImageOps
 from db import supabase
 from utils.activity import log_activity
 from utils.notification_service import dispatch_work_order_comment_notification
@@ -724,6 +724,8 @@ async def _validate_file(file: UploadFile) -> bytes:
 def _compress_image(content: bytes, extension: str) -> bytes:
     try:
         img = Image.open(io.BytesIO(content))
+        # Apply EXIF orientation so phone photos aren't rotated
+        img = ImageOps.exif_transpose(img)
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
         
