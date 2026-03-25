@@ -96,30 +96,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   bool get _isRequester => _roleLoaded && _userRole == 'requester';
   bool get _isReporter => _roleLoaded && _userRole == 'reporter';
 
-  void _ensureVisible(FocusNode node) {
-    node.addListener(() {
-      if (node.hasFocus) {
-        Future.delayed(const Duration(milliseconds: 400), () {
-          if (node.context != null) {
-            Scrollable.ensureVisible(
-              node.context!,
-              alignment: 0.3,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-            );
-          }
-        });
-      }
-    });
-  }
-
   @override
   void initState() {
     super.initState();
-    _ensureVisible(_titleFocusNode);
-    _ensureVisible(_descriptionFocusNode);
-    _ensureVisible(_locationFocusNode);
-    _ensureVisible(_mobileFocusNode);
     _loadUserRole();
     _loadDepartments();
     if (widget.workOrder != null) {
