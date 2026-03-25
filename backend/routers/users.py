@@ -101,16 +101,19 @@ async def list_users(department_id: Optional[str] = Query(None)):
             user["departments"] = []  # dept name not needed here
     else:
         result = supabase.table("users") \
-            .select("*, technician_departments(department_id, departments(name))") \
+            .select("*, dept:departments(name), technician_departments(department_id, departments(name))") \
             .execute()
         users = result.data or []
         for user in users:
             td_rows = user.pop("technician_departments", []) or []
+            direct_dept = user.pop("dept", None)
             user["departments"] = [
                 row["departments"]["name"]
                 for row in td_rows
                 if row.get("departments") and row["departments"].get("name")
             ]
+            if not user["departments"] and direct_dept and direct_dept.get("name"):
+                user["departments"] = [direct_dept["name"]]
 
     return {"users": users}
 
@@ -123,16 +126,18 @@ async def get_user(user_id: str):
         raise HTTPException(status_code=404, detail="User not found")
 
     dept_result = supabase.table("technician_departments") \
-        .select("department_id") \
+        .select("department_id, departments(name)") \
         .eq("technician_id", user.get("id")) \
         .execute()
-    dept_ids = [r.get("department_id") for r in (dept_result.data or []) if r.get("department_id")]
-
-    dept_names = []
-    for dept_id in dept_ids:
-        d_result = supabase.table("departments").select("name").eq("id", dept_id).execute()
+    dept_names = [
+        r["departments"]["name"]
+        for r in (dept_result.data or [])
+        if r.get("departments") and r["departments"].get("name")
+    ]
+    if not dept_names and user.get("department_id"):
+        d_result = supabase.table("departments").select("name").eq("id", user["department_id"]).execute()
         if d_result.data:
-            dept_names.append(d_result.data[0].get("name"))
+            dept_names = [d_result.data[0]["name"]]
     user["departments"] = dept_names
 
     return {"user": user}
