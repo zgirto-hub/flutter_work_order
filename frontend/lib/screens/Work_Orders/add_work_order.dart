@@ -477,8 +477,6 @@ Future<void> _loadDepartments() async {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       resizeToAvoidBottomInset: true,
-      bottomNavigationBar:
-          (isEditing && _tabIndex == 1) ? _buildComposeBar() : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -574,6 +572,7 @@ Future<void> _loadDepartments() async {
                   ? _buildActivityTab()
                   : _buildDetailsTab(),
             ),
+            if (isEditing && _tabIndex == 1) _buildComposeBar(),
           ],
         ),
       ),
@@ -603,10 +602,10 @@ Future<void> _loadDepartments() async {
                 filled: true,
               ),
             ),
-            if (widget.workOrder != null) ...[
+            if (widget.workOrder != null && (widget.workOrder!.createdByName != null || widget.workOrder!.createdByEmail != null)) ...[
               SizedBox(height: 10),
               TextFormField(
-                initialValue: widget.workOrder!.createdByName ?? widget.workOrder!.createdByEmail ?? 'Unknown',
+                initialValue: widget.workOrder!.createdByName ?? widget.workOrder!.createdByEmail,
                 readOnly: true,
                 decoration: InputDecoration(
                   labelText: "Created By",
@@ -840,6 +839,7 @@ Future<void> _loadDepartments() async {
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       child: SafeArea(
         top: false,
+        bottom: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
