@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
-import '../../services/technician_department_service.dart';
-import '../../models/user.dart';
+import '../../services/department_route_service.dart';
+import '../../services/department_service.dart';
+import '../../models/department.dart';
 import '../../theme/app_theme.dart';
 
-class TechnicianDepartmentsScreen extends StatefulWidget {
-  const TechnicianDepartmentsScreen({super.key});
+class DepartmentRoutesScreen extends StatefulWidget {
+  const DepartmentRoutesScreen({super.key});
 
   @override
-  State<TechnicianDepartmentsScreen> createState() => _TechnicianDepartmentsScreenState();
+  State<DepartmentRoutesScreen> createState() => _DepartmentRoutesScreenState();
 }
 
-class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScreen> {
-  final _service = TechnicianDepartmentService();
-  List<Map<String, dynamic>> _mappings = [];
-  List<AppUser> _technicians = [];
+class _DepartmentRoutesScreenState extends State<DepartmentRoutesScreen> {
+  final _routeService = DepartmentRouteService();
+  final _departmentService = DepartmentService();
+  List<Map<String, dynamic>> _routes = [];
+  List<Department> _departments = [];
   bool _loading = true;
   String? _error;
 
@@ -30,12 +32,12 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
     });
     try {
       final results = await Future.wait([
-        _service.fetchTechnicianDepartments(),
-        _service.fetchTechnicians(),
+        _routeService.fetchAllRoutes(),
+        _departmentService.fetchDepartments(isActive: true),
       ]);
       setState(() {
-        _mappings = (results[0] as List).cast<Map<String, dynamic>>();
-        _technicians = (results[1] as List).cast<AppUser>();
+        _routes = (results[0] as List).cast<Map<String, dynamic>>();
+        _departments = (results[1] as List).cast<Department>();
         _loading = false;
       });
     } catch (e) {
@@ -46,13 +48,20 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
     }
   }
 
-  Map<String, List<String>> get _groupedByTechnician {
-    final Map<String, List<String>> grouped = {};
-    for (final mapping in _mappings) {
-      final techEmail = mapping['users']?['email'] ?? '';
-      final dept = mapping['department'] as String? ?? '';
-      if (techEmail.isNotEmpty && dept.isNotEmpty) {
-        grouped.putIfAbsent(techEmail, () => []).add(dept);
+  /// Group routes by source department: { sourceDeptId: [targetDeptId, ...] }
+  Map<String, List<Map<String, String>>> get _groupedBySource {
+    final Map<String, List<Map<String, String>>> grouped = {};
+    for (final route in _routes) {
+      final sourceId = route['source_department_id'] as String? ?? '';
+      final sourceName = route['source_department_name'] as String? ?? '';
+      final targetId = route['target_department_id'] as String? ?? '';
+      final targetName = route['target_department_name'] as String? ?? '';
+      if (sourceId.isNotEmpty && targetId.isNotEmpty) {
+        grouped.putIfAbsent(sourceId, () => []).add({
+          'source_name': sourceName,
+          'target_id': targetId,
+          'target_name': targetName,
+        });
       }
     }
     return grouped;
@@ -95,7 +104,7 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
               ),
             ),
           Expanded(
-            child: Text('Technician Departments',
+            child: Text('Department Routing',
                 style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -130,7 +139,7 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
           children: [
             Icon(Icons.error_outline, size: 48, color: AppColors.dangerText),
             SizedBox(height: 12),
-            Text('Failed to load mappings', style: TextStyle(color: AppColors.textSecondary)),
+            Text('Failed to load routing rules', style: TextStyle(color: AppColors.textSecondary)),
             SizedBox(height: 8),
             ElevatedButton(
               onPressed: _loadData,
@@ -141,22 +150,25 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
       );
     }
 
-    final grouped = _groupedByTechnician;
+    final grouped = _groupedBySource;
 
     if (grouped.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.engineering_outlined, size: 48, color: AppColors.textTertiary),
+            Icon(Icons.alt_route_outlined, size: 48, color: AppColors.textTertiary),
             SizedBox(height: 12),
-            Text('No technician-department mappings',
+            Text('No routing rules configured',
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+            SizedBox(height: 4),
+            Text('Add rules to control which departments can send WOs where',
+                style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
             SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () => _showAddDialog(context),
               icon: Icon(Icons.add, size: 16),
-              label: Text('Add Mapping'),
+              label: Text('Add Routing Rule'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accent,
                 foregroundColor: Colors.white,
@@ -173,21 +185,16 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: grouped.length,
         itemBuilder: (context, index) {
-          final email = grouped.keys.elementAt(index);
-          final depts = grouped[email]!;
-          return _buildTechnicianCard(email, depts);
+          final sourceId = grouped.keys.elementAt(index);
+          final targets = grouped[sourceId]!;
+          final sourceName = targets.first['source_name'] ?? sourceId;
+          return _buildRouteCard(sourceId, sourceName, targets);
         },
       ),
     );
   }
 
-  Widget _buildTechnicianCard(String techEmail, List<String> departments) {
-    final technician = _technicians.firstWhere(
-      (t) => t.email == techEmail,
-      orElse: () => AppUser(id: '', email: techEmail, userType: UserType.technician),
-    );
-    final name = technician.fullName ?? techEmail.split('@').first;
-
+  Widget _buildRouteCard(String sourceId, String sourceName, List<Map<String, String>> targets) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -199,7 +206,7 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () => _showEditDialog(context, techEmail, departments),
+          onTap: () => _showEditDialog(context, sourceId, sourceName, targets),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -210,23 +217,18 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
                     CircleAvatar(
                       radius: 18,
                       backgroundColor: AppColors.accent.withValues(alpha: 0.15),
-                      child: Text(
-                        name.substring(0, 1).toUpperCase(),
-                        style: TextStyle(
-                          color: AppColors.accent,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: Icon(Icons.arrow_forward_rounded,
+                          size: 18, color: AppColors.accent),
                     ),
                     SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(name,
+                          Text(sourceName,
                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
                                   color: AppColors.textPrimary)),
-                          Text(techEmail,
+                          Text('Can send WOs to:',
                               style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
                         ],
                       ),
@@ -237,19 +239,16 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
                         color: AppColors.accent.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text('TECHNICIAN',
+                      child: Text('${targets.length} target${targets.length == 1 ? '' : 's'}',
                           style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.accent)),
                     ),
                   ],
                 ),
                 SizedBox(height: 12),
-                Text('Assigned Departments:',
-                    style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
-                SizedBox(height: 8),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
-                  children: departments.map((dept) {
+                  children: targets.map((t) {
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
@@ -257,7 +256,7 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: AppColors.border2, width: 0.5),
                       ),
-                      child: Text(dept,
+                      child: Text(t['target_name'] ?? '',
                           style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                     );
                   }).toList(),
@@ -271,134 +270,134 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
   }
 
   Future<void> _showAddDialog(BuildContext context) async {
-    if (_technicians.isEmpty) {
+    if (_departments.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No technicians available. Create a technician user first.'), backgroundColor: AppColors.dangerText),
+        SnackBar(content: Text('Need at least 2 departments to create routing rules.'), backgroundColor: AppColors.dangerText),
       );
       return;
     }
 
-    AppUser? selectedTechnician;
-    final selectedDepts = <String>[];
-    final allDepts = ['Operations', 'ATC', 'Finance', 'NOTAM', 'MET', 'IT-Support', 'Helpdesk', 'General'];
+    Department? selectedSource;
+    final selectedTargetIds = <String>[];
     bool loading = false;
 
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setDlg) => AlertDialog(
-          backgroundColor: AppColors.bgSurface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          title: Text('Add Technician Department',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Technician',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
-                SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.bgSurface2,
-                    borderRadius: BorderRadius.circular(9),
-                    border: Border.all(color: AppColors.border, width: 0.5),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<AppUser>(
-                      value: selectedTechnician,
-                      isExpanded: true,
-                      hint: Text('Select technician', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
-                      items: _technicians.map((t) {
-                        final name = t.fullName ?? t.email.split('@').first;
-                        return DropdownMenuItem(value: t, child: Text(name));
-                      }).toList(),
-                      onChanged: (v) => setDlg(() => selectedTechnician = v),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16),
-                Text('Departments',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
-                SizedBox(height: 8),
-                Flexible(
-                  child: Container(
-                    constraints: BoxConstraints(maxHeight: 200),
+        builder: (ctx, setDlg) {
+          final availableTargets = _departments.where((d) => d.id != selectedSource?.id).toList();
+          return AlertDialog(
+            backgroundColor: AppColors.bgSurface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            title: Text('Add Routing Rule',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Source Department',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
+                  SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
                       color: AppColors.bgSurface2,
                       borderRadius: BorderRadius.circular(9),
                       border: Border.all(color: AppColors.border, width: 0.5),
                     ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      itemCount: allDepts.length,
-                      separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.border),
-                      itemBuilder: (ctx, i) {
-                        final dept = allDepts[i];
-                        final isSelected = selectedDepts.contains(dept);
-                        return CheckboxListTile(
-                          value: isSelected,
-                          onChanged: (v) {
-                            setDlg(() {
-                              if (v == true) {
-                                selectedDepts.add(dept);
-                              } else {
-                                selectedDepts.remove(dept);
-                              }
-                            });
-                          },
-                          title: Text(dept, style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
-                          dense: true,
-                          controlAffinity: ListTileControlAffinity.leading,
-                          activeColor: AppColors.accent,
-                        );
-                      },
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<Department>(
+                        value: selectedSource,
+                        isExpanded: true,
+                        hint: Text('Select source department', style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
+                        items: _departments.map((d) {
+                          return DropdownMenuItem(value: d, child: Text(d.name));
+                        }).toList(),
+                        onChanged: (v) => setDlg(() {
+                          selectedSource = v;
+                          selectedTargetIds.clear();
+                        }),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                  SizedBox(height: 16),
+                  Text('Target Departments',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
+                  SizedBox(height: 8),
+                  Flexible(
+                    child: Container(
+                      constraints: BoxConstraints(maxHeight: 200),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgSurface2,
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(color: AppColors.border, width: 0.5),
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        itemCount: availableTargets.length,
+                        separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.border),
+                        itemBuilder: (ctx, i) {
+                          final dept = availableTargets[i];
+                          final isSelected = selectedTargetIds.contains(dept.id);
+                          return CheckboxListTile(
+                            value: isSelected,
+                            onChanged: (v) {
+                              setDlg(() {
+                                if (v == true) {
+                                  selectedTargetIds.add(dept.id);
+                                } else {
+                                  selectedTargetIds.remove(dept.id);
+                                }
+                              });
+                            },
+                            title: Text(dept.name, style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                            dense: true,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            activeColor: AppColors.accent,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
-            ElevatedButton(
-              onPressed: selectedTechnician == null || selectedDepts.isEmpty || loading
-                  ? null
-                  : () async {
-                      setDlg(() => loading = true);
-                      try {
-                        await _service.setTechnicianDepartments(selectedTechnician!.id, selectedDepts);
-                        if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-                        _loadData();
-                      } catch (e) {
-                        setDlg(() => loading = false);
-                        if (dialogCtx.mounted) ScaffoldMessenger.of(dialogCtx).showSnackBar(
-                            SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.dangerText));
-                      }
-                    },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
-              child: loading
-                  ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white))
-                  : Text('Add', style: TextStyle(fontSize: 13)),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
+              ElevatedButton(
+                onPressed: selectedSource == null || selectedTargetIds.isEmpty || loading
+                    ? null
+                    : () async {
+                        setDlg(() => loading = true);
+                        try {
+                          await _routeService.setTargetDepartments(selectedSource!.id, selectedTargetIds);
+                          if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                          _loadData();
+                        } catch (e) {
+                          setDlg(() => loading = false);
+                          if (dialogCtx.mounted) ScaffoldMessenger.of(dialogCtx).showSnackBar(
+                              SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.dangerText));
+                        }
+                      },
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
+                child: loading
+                    ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white))
+                    : Text('Add', style: TextStyle(fontSize: 13)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Future<void> _showEditDialog(BuildContext context, String techEmail, List<String> currentDepts) async {
-    final technician = _technicians.firstWhere(
-      (t) => t.email == techEmail,
-      orElse: () => AppUser(id: '', email: techEmail, userType: UserType.technician),
-    );
-    final allDepts = ['Operations', 'ATC', 'Finance', 'NOTAM', 'MET', 'IT-Support', 'Helpdesk', 'General'];
-    final selectedDepts = List<String>.from(currentDepts);
+  Future<void> _showEditDialog(BuildContext context, String sourceId, String sourceName, List<Map<String, String>> currentTargets) async {
+    final availableTargets = _departments.where((d) => d.id != sourceId).toList();
+    final selectedTargetIds = currentTargets.map((t) => t['target_id']!).toList();
     bool loading = false;
 
     await showDialog(
@@ -408,7 +407,7 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
         builder: (ctx, setDlg) => AlertDialog(
           backgroundColor: AppColors.bgSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          title: Text('Edit ${technician.fullName ?? techEmail}',
+          title: Text('Edit $sourceName Routes',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           content: SizedBox(
             width: double.maxFinite,
@@ -416,7 +415,7 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Departments',
+                Text('Target Departments',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
                 SizedBox(height: 8),
                 Flexible(
@@ -430,23 +429,23 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
                     child: ListView.separated(
                       shrinkWrap: true,
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      itemCount: allDepts.length,
+                      itemCount: availableTargets.length,
                       separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.border),
                       itemBuilder: (ctx, i) {
-                        final dept = allDepts[i];
-                        final isSelected = selectedDepts.contains(dept);
+                        final dept = availableTargets[i];
+                        final isSelected = selectedTargetIds.contains(dept.id);
                         return CheckboxListTile(
                           value: isSelected,
                           onChanged: (v) {
                             setDlg(() {
                               if (v == true) {
-                                selectedDepts.add(dept);
+                                selectedTargetIds.add(dept.id);
                               } else {
-                                selectedDepts.remove(dept);
+                                selectedTargetIds.remove(dept.id);
                               }
                             });
                           },
-                          title: Text(dept, style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                          title: Text(dept.name, style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
                           dense: true,
                           controlAffinity: ListTileControlAffinity.leading,
                           activeColor: AppColors.accent,
@@ -463,7 +462,7 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
               onPressed: () async {
                 setDlg(() => loading = true);
                 try {
-                  await _service.setTechnicianDepartments(technician.id, []);
+                  await _routeService.setTargetDepartments(sourceId, []);
                   if (dialogCtx.mounted) Navigator.pop(dialogCtx);
                   _loadData();
                 } catch (e) {
@@ -479,7 +478,7 @@ class _TechnicianDepartmentsScreenState extends State<TechnicianDepartmentsScree
                   : () async {
                       setDlg(() => loading = true);
                       try {
-                        await _service.setTechnicianDepartments(technician.id, selectedDepts);
+                        await _routeService.setTargetDepartments(sourceId, selectedTargetIds);
                         if (dialogCtx.mounted) Navigator.pop(dialogCtx);
                         _loadData();
                       } catch (e) {

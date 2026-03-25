@@ -92,12 +92,12 @@ async def delete_department(department_id: str):
     
     dept_name = dept_result.data[0]["name"]
     
-    # Check if any fixers are assigned to this department
-    fixers_result = supabase.table("technician_departments").select("id").eq("department_id", department_id).execute()
-    if fixers_result.data:
+    # Check if any technicians belong to this department
+    techs_result = supabase.table("users").select("id").eq("department_id", department_id).eq("user_type", "technician").execute()
+    if techs_result.data:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot delete department '{dept_name}' - {len(fixers_result.data)} technician(s) are assigned"
+            detail=f"Cannot delete department '{dept_name}' - {len(techs_result.data)} technician(s) are assigned"
         )
     
     # Check if any work orders use this department
@@ -117,7 +117,7 @@ async def delete_department(department_id: str):
 @router.get("/departments/{department_id}/technician-count")
 async def get_department_technician_count(department_id: str):
     """Get the number of technicians assigned to a department"""
-    result = supabase.table("technician_departments").select("technician_id").eq("department_id", department_id).execute()
+    result = supabase.table("users").select("id").eq("department_id", department_id).eq("user_type", "technician").eq("is_active", True).execute()
     return {"department_id": department_id, "technician_count": len(result.data or [])}
 
 
@@ -136,15 +136,15 @@ async def get_department_info(department_name: str):
         raise HTTPException(status_code=404, detail=f"Department '{department_name}' not found")
     dept_id = dept_result.data[0].get("id")
     
-    # Count technicians assigned to this department
-    tech_result = supabase.table("technician_departments").select("technician_id").eq("department_id", dept_id).execute()
-    tech_ids = [r.get("technician_id") for r in (tech_result.data or [])]
+    # Count technicians belonging to this department
+    tech_result = supabase.table("users").select("id").eq("department_id", dept_id).eq("user_type", "technician").eq("is_active", True).execute()
+    tech_count = len(tech_result.data or [])
 
     return {
         "department": department_name,
         "department_id": dept_id,
-        "user_count": len(tech_ids),
-        "technician_count": len(tech_ids),
+        "user_count": tech_count,
+        "technician_count": tech_count,
         "reporter_count": 0
     }
 
@@ -182,7 +182,7 @@ async def rename_department(department_name: str, body: RenameDepartmentBody):
     if new_existing.data:
         raise HTTPException(status_code=400, detail=f"Department '{new_name}' already exists")
     
-    # Just update the department name - technician_departments uses department_id FK
+    # Just update the department name - users.department_id FK handles the rest
     supabase.table("departments").update({"name": new_name}).eq("name", old_name).execute()
     
     return {
@@ -204,12 +204,12 @@ async def delete_department(department_name: str):
     
     dept_id = dept_result.data["id"]
     
-    # Check if any users are assigned to this department via technician_departments
-    fixers_result = supabase.table("technician_departments").select("id").eq("department_id", dept_id).execute()
-    if fixers_result.data:
+    # Check if any users belong to this department
+    techs_result = supabase.table("users").select("id").eq("department_id", dept_id).eq("user_type", "technician").execute()
+    if techs_result.data:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot delete department '{name}' - {len(fixers_result.data)} technician(s) are assigned"
+            detail=f"Cannot delete department '{name}' - {len(techs_result.data)} technician(s) are assigned"
         )
     
     # Check if any work orders use this department
@@ -235,6 +235,6 @@ async def get_department_user_count(department_name: str):
     
     dept_id = dept_result.data[0]["id"]
     
-    # Count fixers assigned to this department
-    result = supabase.table("technician_departments").select("technician_id").eq("department_id", dept_id).execute()
+    # Count users belonging to this department
+    result = supabase.table("users").select("id").eq("department_id", dept_id).eq("user_type", "technician").eq("is_active", True).execute()
     return {"department": department_name, "user_count": len(result.data or [])}

@@ -10,6 +10,7 @@ import '../../services/work_order_service.dart';
 import '../../models/user.dart';
 import '../../services/user_service.dart';
 import '../../services/department_service.dart';
+import '../../services/department_route_service.dart';
 import '../../models/department.dart';
 import '../../models/technician_assignment.dart';
 import '../../widgets/technician_selector.dart';
@@ -137,7 +138,6 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       }
     });
     _loadUserRole();
-    _loadDepartments();
     if (widget.workOrder != null) {
       jobNoController.text = widget.workOrder!.jobNo;
       clientController.text = widget.workOrder!.title;
@@ -165,7 +165,23 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
 Future<void> _loadDepartments() async {
   try {
-    final departments = await _departmentService.fetchDepartments(isActive: true);
+    List<Department> departments;
+
+    if (_userRole == 'admin') {
+      departments = await _departmentService.fetchDepartments(isActive: true);
+    } else {
+      // Non-admin: fetch only allowed target departments based on routing rules
+      final currentUser = await _userService.fetchCurrentUser();
+      final userDeptId = currentUser?.departmentId;
+      if (currentUser != null && userDeptId != null && userDeptId.isNotEmpty) {
+        final routeService = DepartmentRouteService();
+        departments = await routeService.fetchTargetDepartments(userDeptId);
+      } else {
+        // Fallback: show all if user has no department set
+        departments = await _departmentService.fetchDepartments(isActive: true);
+      }
+    }
+
     if (mounted) {
       setState(() {
         _departments = departments..sort((a, b) => a.name.compareTo(b.name));
@@ -178,7 +194,6 @@ Future<void> _loadDepartments() async {
           selectedDepartmentId = _departments.first.id;
         }
       });
-      // Load employees filtered by resolved department (technicians will reload in _loadUserRole)
       _loadEmployees();
     }
   } catch (_) {}
@@ -212,14 +227,18 @@ Future<void> _loadDepartments() async {
         } else if (role == 'technician') {
           _isTechnician = true;
           final currentUser = await _userService.fetchCurrentUser();
-          if (currentUser != null && currentUser.technicianDepartments.isNotEmpty) {
-            final dept = currentUser.technicianDepartments.first;
+          if (currentUser != null && currentUser.departmentId != null && currentUser.departmentId!.isNotEmpty) {
+            // Find department name for the technician's department
+            final deptId = currentUser.departmentId!;
             if (mounted) {
               setState(() {
-                selectedDepartmentId = dept['id']!;
-                selectedDepartment = dept['name']!;
+                selectedDepartmentId = deptId;
+                // Try to get name from departments list, or use a placeholder until departments load
+                selectedDepartment = currentUser.departments.isNotEmpty
+                    ? currentUser.departments.first
+                    : '';
               });
-              _loadEmployees(departmentId: dept['id']);
+              _loadEmployees(departmentId: deptId);
             }
           }
         }
@@ -237,6 +256,8 @@ Future<void> _loadDepartments() async {
         _userRole = 'admin';
       });
     }
+    // Load departments after role is known (routing rules depend on role)
+    _loadDepartments();
   }
 
   Future<void> _loadUserProfile(String email) async {

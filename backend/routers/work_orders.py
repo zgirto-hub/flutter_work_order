@@ -107,17 +107,17 @@ def _get_user_by_auth_id(auth_id: str) -> Optional[dict]:
 
 
 def _get_technicians_by_department(department_id: str) -> List[str]:
-    """Get list of technician user IDs that handle a specific department"""
-    result = supabase.table("technician_departments").select("technician_id").eq("department_id", department_id).execute()
-    return [r.get("technician_id") for r in (result.data or [])]
+    """Get list of technician user IDs that belong to a specific department"""
+    result = supabase.table("users").select("id").eq("department_id", department_id).eq("user_type", "technician").eq("is_active", True).execute()
+    return [str(r.get("id")) for r in (result.data or []) if r.get("id")]
 
 
-def _get_technician_departments(technician_id: str) -> List[str]:
-    """Get list of department IDs that a technician handles"""
-    if not technician_id:
-        return []
-    result = supabase.table("technician_departments").select("department_id").eq("technician_id", technician_id).execute()
-    return [r.get("department_id") for r in (result.data or []) if r.get("department_id")]
+def _get_user_department_id(user_id: str) -> Optional[str]:
+    """Get the department_id for a user"""
+    if not user_id:
+        return None
+    result = supabase.table("users").select("department_id").eq("id", user_id).execute()
+    return result.data[0].get("department_id") if result.data else None
 
 
 def _ensure_not_reporter(email: str):
@@ -322,10 +322,9 @@ async def list_work_orders(
     elif user_role == "technician" and email:
         tech_user = _get_user_by_email(email)
         if tech_user:
-            tech_id = str(tech_user.get("id") or "")
-            tech_department_ids = _get_technician_departments(tech_id)
-            if tech_department_ids:
-                work_orders = [wo for wo in work_orders if wo.get("department_id") in tech_department_ids]
+            tech_dept_id = tech_user.get("department_id")
+            if tech_dept_id:
+                work_orders = [wo for wo in work_orders if wo.get("department_id") == tech_dept_id]
             else:
                 work_orders = []
         else:
@@ -362,8 +361,7 @@ async def get_work_order(
     elif user_role == "technician" and email:
         tech_user = _get_user_by_email(email)
         if tech_user:
-            tech_dept_ids = _get_technician_departments(str(tech_user.get("id", "")))
-            if data.get("department_id") not in tech_dept_ids:
+            if data.get("department_id") != tech_user.get("department_id"):
                 raise HTTPException(status_code=403, detail="Access denied")
         else:
             raise HTTPException(status_code=403, detail="Access denied")
@@ -382,6 +380,23 @@ async def create_work_order(body: CreateWorkOrderBody):
         raise HTTPException(status_code=400, detail="Invalid department_id: department not found")
     if not dept_result.data[0].get("is_active", True):
         raise HTTPException(status_code=400, detail="Cannot create work order for inactive department")
+
+    # Validate department routing for non-admin users
+    if body.created_by_email:
+        creator = _get_user_by_email(body.created_by_email)
+        if creator and creator.get("user_type") != "admin":
+            creator_dept_id = creator.get("department_id")
+            if creator_dept_id and creator_dept_id != body.department_id:
+                route_check = supabase.table("department_routes") \
+                    .select("id") \
+                    .eq("source_department_id", creator_dept_id) \
+                    .eq("target_department_id", body.department_id) \
+                    .execute()
+                if not route_check.data:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Your department is not allowed to create work orders for this target department"
+                    )
 
     # Resolve the public.users.id from email (frontend sends auth UUID which differs)
     resolved_created_by = body.created_by

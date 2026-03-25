@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS work_order_attachments CASCADE;
 DROP TABLE IF EXISTS work_order_assignments CASCADE;
 DROP TABLE IF EXISTS work_order_status_logs CASCADE;
 DROP TABLE IF EXISTS work_orders CASCADE;
+DROP TABLE IF EXISTS department_routes CASCADE;
 DROP TABLE IF EXISTS technician_departments CASCADE;
 DROP TABLE IF EXISTS it_department_reporters CASCADE;
 DROP TABLE IF EXISTS it_teams CASCADE;
@@ -46,11 +47,13 @@ CREATE TABLE users (
     created_at  TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE technician_departments (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    technician_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    department_id UUID NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
-    UNIQUE (technician_id, department_id)
+CREATE TABLE department_routes (
+    id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    source_department_id  UUID NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+    target_department_id  UUID NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+    created_at            TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (source_department_id, target_department_id),
+    CHECK (source_department_id != target_department_id)
 );
 
 CREATE TABLE work_orders (
@@ -112,11 +115,11 @@ ON CONFLICT (name) DO NOTHING;
 CREATE INDEX IF NOT EXISTS idx_work_orders_department_id
     ON work_orders(department_id);
 
-CREATE INDEX IF NOT EXISTS idx_technician_departments_department_id
-    ON technician_departments(department_id);
+CREATE INDEX IF NOT EXISTS idx_department_routes_source
+    ON department_routes(source_department_id);
 
-CREATE INDEX IF NOT EXISTS idx_technician_departments_technician_id
-    ON technician_departments(technician_id);
+CREATE INDEX IF NOT EXISTS idx_department_routes_target
+    ON department_routes(target_department_id);
 
 -- =============================================================
 -- STEP 5 — RLS Policies (optional for development)
@@ -134,9 +137,8 @@ CREATE INDEX IF NOT EXISTS idx_technician_departments_technician_id
 -- CREATE POLICY "technician_department_wos" ON work_orders
 -- FOR SELECT USING (
 --     (SELECT user_type FROM users WHERE auth_id = auth.uid()) = 'technician'
---     AND department_id IN (
---         SELECT department_id FROM technician_departments
---         WHERE technician_id = (SELECT id FROM users WHERE auth_id = auth.uid())
+--     AND department_id = (
+--         SELECT department_id FROM users WHERE auth_id = auth.uid()
 --     )
 -- );
 

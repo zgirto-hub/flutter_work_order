@@ -154,8 +154,8 @@ def _fetch_full(ri_id: str):
 
 
 def _get_technicians_by_department(department_id: str) -> List[str]:
-    result = supabase.table("technician_departments").select("technician_id").eq("department_id", department_id).execute()
-    return [r.get("technician_id") for r in (result.data or [])]
+    result = supabase.table("users").select("id").eq("department_id", department_id).eq("user_type", "technician").eq("is_active", True).execute()
+    return [str(r.get("id")) for r in (result.data or []) if r.get("id")]
 
 
 # --------------------

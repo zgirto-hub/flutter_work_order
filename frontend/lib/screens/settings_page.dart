@@ -16,7 +16,7 @@ import '../services/onesignal_service.dart';
 import '../services/activity_log_service.dart';
 import 'settings/activity_log_screen.dart';
 import 'admin/user_management_screen.dart';
-import 'admin/technician_departments_screen.dart';
+import 'admin/department_routes_screen.dart';
 import 'admin/departments_screen.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -457,26 +457,26 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ),
                       SettingsRow(
-                        icon: Icons.account_tree_outlined,
-                        label: 'Technician Departments',
-                        subtitle: 'Assign departments to technicians',
+                        icon: Icons.business_outlined,
+                        label: 'Departments',
+                        subtitle: 'Manage departments',
                         showDivider: true,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const TechnicianDepartmentsScreen(),
+                            builder: (_) => const DepartmentsScreen(),
                           ),
                         ),
                       ),
                       SettingsRow(
-                        icon: Icons.business_outlined,
-                        label: 'Departments',
-                        subtitle: 'Manage departments',
+                        icon: Icons.alt_route_outlined,
+                        label: 'Department Routing',
+                        subtitle: 'Configure WO routing between departments',
                         showDivider: false,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const DepartmentsScreen(),
+                            builder: (_) => const DepartmentRoutesScreen(),
                           ),
                         ),
                       ),
