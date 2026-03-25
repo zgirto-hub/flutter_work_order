@@ -96,9 +96,32 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   bool get _isRequester => _roleLoaded && _userRole == 'requester';
   bool get _isReporter => _roleLoaded && _userRole == 'reporter';
 
+  /// Scroll the focused field into view when the keyboard appears (iOS PWA fix).
+  void _ensureVisible(FocusNode node) {
+    void listener() {
+      if (node.hasFocus && node.context != null) {
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (node.hasFocus && node.context != null) {
+            Scrollable.ensureVisible(
+              node.context!,
+              alignment: 0.3,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        });
+      }
+    }
+    node.addListener(listener);
+  }
+
   @override
   void initState() {
     super.initState();
+    _ensureVisible(_titleFocusNode);
+    _ensureVisible(_descriptionFocusNode);
+    _ensureVisible(_locationFocusNode);
+    _ensureVisible(_mobileFocusNode);
     _loadUserRole();
     _loadDepartments();
     if (widget.workOrder != null) {
@@ -477,8 +500,6 @@ Future<void> _loadDepartments() async {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       resizeToAvoidBottomInset: true,
-      bottomNavigationBar:
-          (isEditing && _tabIndex == 1) ? _buildComposeBar() : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -574,6 +595,7 @@ Future<void> _loadDepartments() async {
                   ? _buildActivityTab()
                   : _buildDetailsTab(),
             ),
+            if (isEditing && _tabIndex == 1) _buildComposeBar(),
           ],
         ),
       ),
@@ -838,9 +860,7 @@ Future<void> _loadDepartments() async {
     return Container(
       color: AppColors.bgSurface,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      child: SafeArea(
-        top: false,
-        child: Column(
+      child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (_pendingAttachment != null)
@@ -942,7 +962,6 @@ Future<void> _loadDepartments() async {
             ),
           ],
         ),
-      ),
     );
   }
 
