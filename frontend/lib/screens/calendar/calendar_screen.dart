@@ -216,6 +216,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final eventsForSelected = _getEventsForDay(_selectedDay);
+    final today = DateTime.now();
+    final isSelectedToday = _selectedDay.year == today.year &&
+        _selectedDay.month == today.month &&
+        _selectedDay.day == today.day;
 
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
@@ -413,6 +417,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               itemBuilder: (context, index) {
                                 return _InspectionCard(
                                   inspection: eventsForSelected[index],
+                                  isToday: isSelectedToday,
                                   onTap: () =>
                                       _openAddScreen(eventsForSelected[index]),
                                 );
@@ -432,9 +437,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
 class _InspectionCard extends StatelessWidget {
   final RecurringInspection inspection;
+  final bool isToday;
   final VoidCallback onTap;
 
-  const _InspectionCard({required this.inspection, required this.onTap});
+  const _InspectionCard({required this.inspection, required this.isToday, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -486,7 +492,7 @@ class _InspectionCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (inspection.generatedToday)
+                if (isToday && inspection.generatedToday)
                   Container(
                     margin: const EdgeInsets.only(right: 6),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

@@ -603,10 +603,10 @@ Future<void> _loadDepartments() async {
                 filled: true,
               ),
             ),
-            if (widget.workOrder != null && (widget.workOrder!.createdByName != null || widget.workOrder!.createdByEmail != null)) ...[
+            if (widget.workOrder != null) ...[
               SizedBox(height: 10),
               TextFormField(
-                initialValue: widget.workOrder!.createdByName ?? widget.workOrder!.createdByEmail,
+                initialValue: widget.workOrder!.createdByName ?? widget.workOrder!.createdByEmail ?? 'Unknown',
                 readOnly: true,
                 decoration: InputDecoration(
                   labelText: "Created By",

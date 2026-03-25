@@ -99,6 +99,13 @@ def _get_user_id_by_email(email: str) -> Optional[str]:
     return None
 
 
+def _get_user_by_auth_id(auth_id: str) -> Optional[dict]:
+    if not auth_id:
+        return None
+    result = supabase.table("users").select("*").eq("auth_id", auth_id).execute()
+    return result.data[0] if result.data else None
+
+
 def _get_technicians_by_department(department_id: str) -> List[str]:
     """Get list of technician user IDs that handle a specific department"""
     result = supabase.table("technician_departments").select("technician_id").eq("department_id", department_id).execute()
@@ -163,7 +170,17 @@ def _fetch_full_work_order(work_order_id: str):
     """).eq("id", work_order_id).execute()
     if not result.data:
         return None
-    return result.data[0]
+    data = result.data[0]
+    # If the FK join didn't resolve creator (e.g. created_by stores auth UUID),
+    # fall back to looking up the user by their auth_id
+    if not data.get("creator") and data.get("created_by"):
+        fallback_user = _get_user_by_auth_id(data["created_by"])
+        if fallback_user:
+            data["creator"] = {
+                "full_name": fallback_user.get("full_name"),
+                "email": fallback_user.get("email"),
+            }
+    return data
 
 
 def _sync_assignments(work_order_id: str, technician_ids: List[str], assigned_by: str):
@@ -264,7 +281,17 @@ async def list_work_orders(
         else:
             work_orders = []
     # Admin sees all (no filtering)
-    
+
+    # Enrich creator data for WOs where the FK join failed (created_by stores auth UUID)
+    for wo in work_orders:
+        if not wo.get("creator") and wo.get("created_by"):
+            fallback_user = _get_user_by_auth_id(wo["created_by"])
+            if fallback_user:
+                wo["creator"] = {
+                    "full_name": fallback_user.get("full_name"),
+                    "email": fallback_user.get("email"),
+                }
+
     return {"work_orders": work_orders}
 
 
@@ -312,6 +339,11 @@ async def create_work_order(body: CreateWorkOrderBody):
         resolved_id = _get_user_id_by_email(body.created_by_email)
         if resolved_id:
             resolved_created_by = resolved_id
+    # Fallback: if email lookup failed, try matching via auth_id
+    if resolved_created_by == body.created_by and body.created_by:
+        auth_user = _get_user_by_auth_id(body.created_by)
+        if auth_user:
+            resolved_created_by = auth_user.get("id", body.created_by)
 
     now = datetime.utcnow().isoformat()
     payload = {
