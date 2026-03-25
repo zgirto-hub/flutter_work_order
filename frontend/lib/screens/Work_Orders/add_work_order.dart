@@ -546,7 +546,10 @@ Future<void> _loadDepartments() async {
                         _Tab(
                           label: 'Details',
                           active: _tabIndex == 0,
-                          onTap: () => setState(() => _tabIndex = 0),
+                          onTap: () {
+                            FocusScope.of(context).unfocus();
+                            setState(() => _tabIndex = 0);
+                          },
                         ),
                         _Tab(
                           label: 'Activity',
@@ -554,7 +557,10 @@ Future<void> _loadDepartments() async {
                           badge: _comments
                               .where((c) => c.type == 'comment')
                               .length,
-                          onTap: () => setState(() => _tabIndex = 1),
+                          onTap: () {
+                            FocusScope.of(context).unfocus();
+                            setState(() => _tabIndex = 1);
+                          },
                         ),
                       ],
                     ),
