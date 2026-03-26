@@ -31,6 +31,9 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _startDate = DateTime(now.year, now.month, 1);
+    _endDate = now;
     _loadEmployees();
   }
 
@@ -45,9 +48,16 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
                   u.userType == UserType.admin) &&
               u.isActive)
           .toList();
+      // Pre-select logged-in user
+      final currentEmail = Supabase.instance.client.auth.currentUser?.email;
+      final match = currentEmail != null
+          ? employees.where((e) => e.email == currentEmail).firstOrNull
+          : null;
+
       setState(() {
         _employees = employees;
         _employeesLoading = false;
+        if (match != null) _employeeId = match.id;
       });
     } catch (e) {
       setState(() => _employeesLoading = false);
