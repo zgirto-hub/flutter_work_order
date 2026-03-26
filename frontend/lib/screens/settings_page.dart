@@ -12,8 +12,8 @@ import '../theme/theme_controller.dart';
 import '../widgets/claude_widgets.dart';
 import '../widgets/change_password_dialog.dart';
 import '../config.dart';
-import '../services/onesignal_service.dart';
 import '../services/activity_log_service.dart';
+import 'settings/notification_settings_section.dart';
 import 'settings/activity_log_screen.dart';
 import 'admin/user_management_screen.dart';
 import 'admin/department_routes_screen.dart';
@@ -37,11 +37,6 @@ class _SettingsPageState extends State<SettingsPage> {
   String updateMessage = '';
   bool checkingUpdate = false;
   bool updateAvailable = false;
-  bool _notificationsEnabled = false;
-  bool _adminAllWorkOrderComments = false;
-  bool _savingAdminNotifPref = false;
-  bool _techAutoAssignSelf = false;
-  bool _savingTechAutoAssign = false;
   static const _fontScales = [0.85, 1.0, 1.15, 1.3];
   static const _fontLabels = ['Small', 'Default', 'Large', 'X-Large'];
 
@@ -49,72 +44,6 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _loadVersion();
-    _notificationsEnabled = OneSignalService.isGranted();
-    _loadNotificationPreferences();
-  }
-
-  Future<void> _loadNotificationPreferences() async {
-    final email = Supabase.instance.client.auth.currentUser?.email;
-    if (email == null || email.trim().isEmpty) return;
-    try {
-      final res = await http.get(
-        Uri.parse(
-          '${AppConfig.baseUrl}/notification-preferences?email=${Uri.encodeComponent(email.trim().toLowerCase())}',
-        ),
-      );
-      if (res.statusCode != 200 || !mounted) return;
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final prefs =
-          (data['preferences'] as Map?)?.cast<String, dynamic>() ?? {};
-      setState(() {
-        _adminAllWorkOrderComments =
-            prefs['admin_all_workorder_comments'] as bool? ?? false;
-        _techAutoAssignSelf =
-            prefs['technician_auto_assign_self'] as bool? ?? false;
-      });
-    } catch (_) {}
-  }
-
-  Future<void> _setAdminAllWorkOrderComments(bool enabled) async {
-    final email = Supabase.instance.client.auth.currentUser?.email;
-    if (email == null || email.trim().isEmpty || _savingAdminNotifPref) return;
-
-    setState(() => _savingAdminNotifPref = true);
-    try {
-      final res = await http.patch(
-        Uri.parse('${AppConfig.baseUrl}/notification-preferences'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email.trim().toLowerCase(),
-          'admin_all_workorder_comments': enabled,
-        }),
-      );
-      if (res.statusCode == 200 && mounted) {
-        setState(() => _adminAllWorkOrderComments = enabled);
-      }
-    } catch (_) {}
-    if (mounted) setState(() => _savingAdminNotifPref = false);
-  }
-
-  Future<void> _setTechAutoAssignSelf(bool enabled) async {
-    final email = Supabase.instance.client.auth.currentUser?.email;
-    if (email == null || email.trim().isEmpty || _savingTechAutoAssign) return;
-
-    setState(() => _savingTechAutoAssign = true);
-    try {
-      final res = await http.patch(
-        Uri.parse('${AppConfig.baseUrl}/notification-preferences'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email.trim().toLowerCase(),
-          'technician_auto_assign_self': enabled,
-        }),
-      );
-      if (res.statusCode == 200 && mounted) {
-        setState(() => _techAutoAssignSelf = enabled);
-      }
-    } catch (_) {}
-    if (mounted) setState(() => _savingTechAutoAssign = false);
   }
 
   Future<void> _loadVersion() async {
@@ -337,94 +266,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               SizedBox(height: 12),
-              SectionLabel(text: 'Notifications'),
-              SurfaceCard(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Column(
-                  children: [
-                    SettingsRow(
-                      icon: _notificationsEnabled
-                          ? Icons.notifications_active_outlined
-                          : Icons.notifications_outlined,
-                      label: _notificationsEnabled
-                          ? 'Disable push notifications'
-                          : 'Enable push notifications',
-                      subtitle: widget.userRole == 'requester'
-                          ? 'Get updates on your work orders and comments'
-                          : 'Get request and work order update notifications',
-                      showDivider: widget.userRole == 'admin' || widget.userRole == 'technician',
-                      onTap: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        if (_notificationsEnabled) {
-                          try {
-                            await OneSignalService.unsubscribe();
-                          } catch (_) {}
-                          setState(() => _notificationsEnabled = false);
-                          messenger.showSnackBar(SnackBar(
-                            content: Text('Notifications disabled'),
-                            backgroundColor: AppColors.dangerText,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                          ));
-                        } else {
-                          bool granted = false;
-                          try {
-                            granted =
-                                await OneSignalService.requestPermission();
-                          } catch (_) {}
-                          setState(() => _notificationsEnabled = granted);
-                          messenger.showSnackBar(SnackBar(
-                            content: Text(granted
-                                ? 'Notifications enabled!'
-                                : 'Notifications blocked - check browser settings'),
-                            backgroundColor: granted
-                                ? AppColors.closedText
-                                : AppColors.dangerText,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                          ));
-                        }
-                      },
-                    ),
-                    if (widget.userRole == 'admin')
-                      SettingsRow(
-                        icon: Icons.campaign_outlined,
-                        label: 'Receive all work order comments',
-                        subtitle: 'Get notified for every work order comment',
-                        showDivider: false,
-                        trailing: Switch(
-                          value: _adminAllWorkOrderComments,
-                          onChanged: _savingAdminNotifPref
-                              ? null
-                              : (v) => _setAdminAllWorkOrderComments(v),
-                        ),
-                        onTap: _savingAdminNotifPref
-                            ? null
-                            : () => _setAdminAllWorkOrderComments(
-                                  !_adminAllWorkOrderComments,
-                                ),
-                      ),
-                    if (widget.userRole == 'technician')
-                      SettingsRow(
-                        icon: Icons.assignment_ind_outlined,
-                        label: 'Auto-assign me to my work orders',
-                        subtitle: 'Automatically assign yourself to WOs you create',
-                        showDivider: false,
-                        trailing: Switch(
-                          value: _techAutoAssignSelf,
-                          onChanged: _savingTechAutoAssign
-                              ? null
-                              : (v) => _setTechAutoAssignSelf(v),
-                        ),
-                        onTap: _savingTechAutoAssign
-                            ? null
-                            : () => _setTechAutoAssignSelf(!_techAutoAssignSelf),
-                      ),
-                  ],
-                ),
-              ),
+              NotificationSettingsSection(userRole: widget.userRole),
               SizedBox(height: 12),
               if (widget.userRole == 'admin') ...[
                 SectionLabel(text: 'Administration'),
