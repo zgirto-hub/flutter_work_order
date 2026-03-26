@@ -190,6 +190,7 @@ class WorkOrderService {
     required String authorEmail,
     required String authorName,
     required String body,
+    String type = 'comment',
   }) async {
     final res = await http.post(
       Uri.parse('${AppConfig.baseUrl}/work-orders/$workOrderId/comments'),
@@ -198,7 +199,7 @@ class WorkOrderService {
         'author_email': authorEmail,
         'author_name': authorName,
         'body': body,
-        'type': 'comment',
+        'type': type,
       }),
     );
     if (res.statusCode == 200) {

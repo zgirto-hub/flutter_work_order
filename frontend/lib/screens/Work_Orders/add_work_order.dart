@@ -374,24 +374,33 @@ Future<void> _loadDepartments() async {
 
     setState(() => _sending = true);
     try {
+      String? uploadedFileName;
       if (_pendingAttachment != null) {
         final attachment = await _service.uploadAttachment(
           workOrderId: widget.workOrder!.id,
           file: _pendingAttachment!,
         );
         if (attachment != null && mounted) {
+          uploadedFileName = _pendingAttachment!.name;
           setState(() {
             _attachments = [..._attachments, attachment];
           });
         }
       }
 
-      if (text.isNotEmpty) {
+      // Send a single comment (with file info if uploaded, or just text)
+      final commentBody = text.isNotEmpty
+          ? text
+          : (uploadedFileName != null ? 'uploaded a file: $uploadedFileName' : '');
+      final commentType = text.isNotEmpty ? 'comment' : 'system';
+
+      if (commentBody.isNotEmpty) {
         final comment = await _service.addComment(
           workOrderId: widget.workOrder!.id,
           authorEmail: email,
           authorName: name,
-          body: text,
+          body: commentBody,
+          type: commentType,
         );
         if (comment != null && mounted) {
           _commentCtrl.clear();

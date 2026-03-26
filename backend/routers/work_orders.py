@@ -806,20 +806,7 @@ async def upload_attachment(
         "uploaded_by": uploaded_by,
     }).execute()
 
-    # Send notification for file upload
-    uploader_name = uploaded_by.split("@")[0] if "@" in uploaded_by else uploaded_by
-    try:
-        dispatch_work_order_comment_notification(
-            work_order_id=work_order_id,
-            comment_id="",
-            comment_text=f"uploaded a file: {file.filename}",
-            author_email=uploaded_by,
-            author_name=uploader_name,
-        )
-    except Exception as e:
-        print(f"Attachment notification failed: {e}")
-
-    return {"status": "uploaded", "file_url": public_url}
+    return {"status": "uploaded", "file_url": public_url, "file_name": file.filename}
 
 
 @router.get("/work-orders/{work_order_id}/attachments")
