@@ -1,13 +1,16 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:js_interop';
+import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
-import 'package:pdf/pdf.dart';
-import 'package:printing/printing.dart';
 import '../../models/user.dart';
 import '../../models/workorder_report.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/user_service.dart';
-import '../../services/pdf/work_order_pdf_service.dart';
+import '../../services/html_report_builder.dart';
 import '../../theme/app_theme.dart';
-import 'html_preview_screen.dart';
+import '../Documents/document_viewer_web.dart'
+    if (dart.library.io) '../Documents/document_viewer_stub.dart';
 
 class WorkOrderReportScreen extends StatefulWidget {
   const WorkOrderReportScreen({super.key});
@@ -24,7 +27,6 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
   List<WorkOrderReport> _results = [];
   bool _loading = false;
   bool _employeesLoading = true;
-  WorkOrderPdfTheme _selectedPdfTheme = WorkOrderPdfTheme.copperNight;
 
   @override
   void initState() {
@@ -82,112 +84,73 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
     setState(() => _loading = false);
   }
 
-  Future<void> _exportPdf() async {
-    final themeColor = Theme.of(context).colorScheme.primary;
-    final primaryColor = PdfColor(themeColor.r, themeColor.g, themeColor.b);
+  Future<void> _exportReport() async {
+    final theme = await _pickTheme();
+    if (theme == null || !mounted) return;
+
     final employeeName = _selectedEmployeeName;
-    final startDate = _startDate!;
-    final endDate = _endDate!;
-    final results = List.of(_results);
-    final selectedTheme = await _pickPdfTheme();
-
-    if (selectedTheme == null || !mounted) return;
-
-    setState(() => _selectedPdfTheme = selectedTheme);
+    final html = HtmlReportBuilder.build(
+      employeeName: employeeName,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      results: List.of(_results),
+      theme: theme,
+    );
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => _PdfPreviewScreen(
+        builder: (_) => _HtmlReportScreen(
           title: 'Report – $employeeName',
-          buildPdf: () => WorkOrderPdfService.buildReport(
-            employeeName: employeeName,
-            startDate: startDate,
-            endDate: endDate,
-            results: results,
-            primaryColor: primaryColor,
-            theme: selectedTheme,
-          ),
+          html: html,
         ),
       ),
     );
   }
 
-  Future<WorkOrderPdfTheme?> _pickPdfTheme() {
-    return showModalBottomSheet<WorkOrderPdfTheme>(
+  Future<ReportTheme?> _pickTheme() {
+    return showModalBottomSheet<ReportTheme>(
       context: context,
       backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        final options = WorkOrderPdfTheme.values;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.bgSurface,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: AppColors.border, width: 0.6),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.bgSurface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border, width: 0.5),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border2,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
                   ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AppColors.border2,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Choose report style',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Same data, different visual tone. Minimal first, then softer alternatives.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.45,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    ...options.map(
-                      (theme) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _PdfThemeTile(
-                          theme: theme,
-                          selected: theme == _selectedPdfTheme,
-                          onTap: () => Navigator.pop(context, theme),
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
-              ),
+                const SizedBox(height: 14),
+                Text('Choose report style',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                const SizedBox(height: 4),
+                Text('Select a color theme for your report',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                const SizedBox(height: 14),
+                ...ReportTheme.values.map((t) => _ThemeTile(
+                  theme: t,
+                  onTap: () => Navigator.pop(ctx, t),
+                )),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -402,7 +365,7 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
                         startDate: _startDate!,
                         endDate: _endDate!,
                         formatDate: _formatDate,
-                        onExport: _exportPdf,
+                        onExport: _exportReport,
                       ),
           ),
         ],
@@ -798,210 +761,105 @@ class _LoadingInput extends StatelessWidget {
   }
 }
 
-class _PdfThemeTile extends StatelessWidget {
-  final WorkOrderPdfTheme theme;
-  final bool selected;
+// ── Theme Tile ────────────────────────────────────────────────────────────────
+
+class _ThemeTile extends StatelessWidget {
+  final ReportTheme theme;
   final VoidCallback onTap;
 
-  const _PdfThemeTile({
-    required this.theme,
-    required this.selected,
-    required this.onTap,
-  });
+  const _ThemeTile({required this.theme, required this.onTap});
+
+  static const _swatches = {
+    ReportTheme.formal:   [Color(0xFF18180F), Color(0xFF8B6F4E), Color(0xFFFAFAF7)],
+    ReportTheme.forest:   [Color(0xFF0E1D14), Color(0xFF2D6A4F), Color(0xFFF7FAF8)],
+    ReportTheme.teal:     [Color(0xFF0D1E26), Color(0xFF1A7A9A), Color(0xFFF5FAFB)],
+    ReportTheme.burgundy: [Color(0xFF1E0F14), Color(0xFF8B2252), Color(0xFFFAF8F8)],
+  };
 
   @override
   Widget build(BuildContext context) {
-    final swatch = _themeSwatch(theme);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: selected ? AppColors.accentBg : AppColors.bgPrimary,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: selected ? AppColors.accent : AppColors.border2,
-              width: selected ? 1.1 : 0.7,
+    final swatch = _swatches[theme]!;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: AppColors.bgPrimary,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border2, width: 0.7),
             ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-            child: Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: swatch.last.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: swatch[1].withValues(alpha: 0.22),
-                      width: 0.8,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38, height: 38,
+                    decoration: BoxDecoration(
+                      color: swatch[2],
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: swatch[1].withValues(alpha: 0.2), width: 0.8),
                     ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: swatch.first,
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                          ),
-                        ),
+                        Container(width: 6, height: 20, decoration: BoxDecoration(color: swatch[0], borderRadius: BorderRadius.circular(99))),
                         const SizedBox(width: 4),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: swatch[1],
-                                    borderRadius: BorderRadius.circular(99),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Expanded(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: swatch.last,
-                                    borderRadius: BorderRadius.circular(99),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(width: 6, height: 8, decoration: BoxDecoration(color: swatch[1], borderRadius: BorderRadius.circular(99))),
+                            const SizedBox(height: 4),
+                            Container(width: 6, height: 8, decoration: BoxDecoration(color: swatch[2], borderRadius: BorderRadius.circular(99))),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              theme.label,
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            _themeTag(theme),
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textTertiary,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        theme.description,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          height: 1.4,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.of(context, rootNavigator: true).push(
-                      MaterialPageRoute(
-                        builder: (_) => HtmlPreviewScreen(
-                          assetPath: theme.previewAsset,
-                          title: theme.label,
-                        ),
-                      ),
-                    );
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Icon(
-                      Icons.visibility_outlined,
-                      size: 18,
-                      color: AppColors.textTertiary,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(theme.label,
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                        const SizedBox(height: 2),
+                        Text(theme.description,
+                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: selected ? AppColors.accent : Colors.transparent,
-                    border: Border.all(
-                      color: selected ? AppColors.accent : AppColors.border2,
-                      width: 1,
-                    ),
-                  ),
-                  child: selected
-                      ? const Icon(Icons.check_rounded,
-                          size: 13, color: Colors.white)
-                      : null,
-                ),
-              ],
+                  Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textTertiary),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
-
-  String _themeTag(WorkOrderPdfTheme theme) {
-    switch (theme) {
-      case WorkOrderPdfTheme.copperNight:
-        return 'Default';
-      case WorkOrderPdfTheme.forestLedger:
-        return 'Soft';
-      case WorkOrderPdfTheme.signalOrange:
-        return 'Bold';
-      case WorkOrderPdfTheme.formalElegant:
-        return 'Formal';
-    }
-  }
-
-  List<Color> _themeSwatch(WorkOrderPdfTheme theme) {
-    switch (theme) {
-      case WorkOrderPdfTheme.copperNight:
-        return const [Color(0xFF3A2E24), Color(0xFFCC785C), Color(0xFFFAF6EF)];
-      case WorkOrderPdfTheme.forestLedger:
-        return const [Color(0xFF334235), Color(0xFF6F866E), Color(0xFFF0EBDD)];
-      case WorkOrderPdfTheme.signalOrange:
-        return const [Color(0xFF24303A), Color(0xFFE17336), Color(0xFFF4E7D2)];
-      case WorkOrderPdfTheme.formalElegant:
-        return const [Color(0xFF18180F), Color(0xFF8B6F4E), Color(0xFFFAFAF7)];
-    }
-  }
 }
 
-// ── PDF Preview Screen ────────────────────────────────────────────────────────
+// ── HTML Report Screen ────────────────────────────────────────────────────────
 
-class _PdfPreviewScreen extends StatelessWidget {
+class _HtmlReportScreen extends StatelessWidget {
   final String title;
-  final Future<dynamic> Function() buildPdf;
+  final String html;
 
-  const _PdfPreviewScreen({required this.title, required this.buildPdf});
+  const _HtmlReportScreen({required this.title, required this.html});
+
+  void _openInNewTab() {
+    final bytes = Uint8List.fromList(utf8.encode(html));
+    final blob = web.Blob(
+      [bytes.toJS].toJS,
+      web.BlobPropertyBag(type: 'text/html'),
+    );
+    final url = web.URL.createObjectURL(blob);
+    web.window.open(url, '_blank');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1019,21 +877,16 @@ class _PdfPreviewScreen extends StatelessWidget {
               size: 18, color: AppColors.textSecondary),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.open_in_new_rounded, size: 18, color: AppColors.textSecondary),
+            tooltip: 'Open in new tab (for printing)',
+            onPressed: _openInNewTab,
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
-      body: PdfPreview(
-        build: (format) async {
-          final bytes = await buildPdf();
-          return bytes as dynamic;
-        },
-        canChangePageFormat: false,
-        canDebug: false,
-        pdfFileName: '${title.replaceAll(' ', '_')}.pdf',
-        actionBarTheme: PdfActionBarTheme(
-          backgroundColor: AppColors.bgSurface,
-          iconColor: AppColors.textSecondary,
-          textStyle: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-        ),
-      ),
+      body: HtmlBlobViewer(html: html),
     );
   }
 }
