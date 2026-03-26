@@ -569,15 +569,27 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
         : filtered;
 
     if (items.isEmpty) {
-      return _EmptyState(
-        icon: _filter.selectedDocumentType == 'Inspection'
-            ? Icons.checklist_rounded
-            : Icons.work_outline_rounded,
-        message: _filter.searchQuery.isEmpty
-            ? (_filter.selectedDocumentType == 'Inspection'
-                ? 'No inspections yet'
-                : 'No work orders yet')
-            : 'No results found',
+      return RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.accent,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.5,
+              child: _EmptyState(
+                icon: _filter.selectedDocumentType == 'Inspection'
+                    ? Icons.checklist_rounded
+                    : Icons.work_outline_rounded,
+                message: _filter.searchQuery.isEmpty
+                    ? (_filter.selectedDocumentType == 'Inspection'
+                        ? 'No inspections yet'
+                        : 'No work orders yet')
+                    : 'No results found',
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -717,6 +729,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       color: AppColors.accent,
       child: ListView(
         controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
         children: widgets,
       ),

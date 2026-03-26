@@ -483,8 +483,8 @@ async def update_work_order(
     body: UpdateWorkOrderBody,
     user_email: str = Query(...),
 ):
-    user_role = _get_user_role(user_email)
     editor_user = _get_user_by_email(user_email)
+    user_role = editor_user.get("user_type", "reporter") if editor_user else "reporter"
     user_id = editor_user.get("id", "unknown") if editor_user else "unknown"
     editor_name = (editor_user.get("full_name") or user_email.split("@")[0]) if editor_user else user_email.split("@")[0]
 
@@ -564,7 +564,7 @@ async def update_work_order(
     log_activity(user_email, "work_order", "updated",
         target_label=body.title, target_id=work_order_id)
 
-    return {"work_order": _fetch_full_work_order(work_order_id)}
+    return {"work_order": {"id": work_order_id, "status": body.status or old_status}}
 
 
 @router.post("/work-orders/{work_order_id}/close")
