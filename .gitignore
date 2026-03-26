@@ -49,6 +49,7 @@ backend/uploaded_files/
 .env
 backend/.env
 frontend/.env
+backend/version.json
 # Python
 venv/
 backend/venv/
