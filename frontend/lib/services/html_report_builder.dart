@@ -168,7 +168,7 @@ class HtmlReportBuilder {
   .wo-table col.col-date { width: 7rem; }
   .cell-num { font-family: var(--f-display); font-size: 12px; font-weight: 400; color: var(--ink-ghost); letter-spacing: .05em; }
   .cell-title { font-size: 13px; font-weight: 400; color: var(--ink); line-height: 1.4; overflow: hidden; }
-  .cell-title small { display: block; font-size: 11px; font-weight: 300; color: var(--ink-soft); margin-top: .2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cell-title small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 11px; font-weight: 300; color: var(--ink-soft); margin-top: .2rem; line-height: 1.5; }
   .cell-loc { font-size: 12px; font-weight: 300; color: var(--ink-mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .loc-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: .5rem; vertical-align: middle; }
   .status-badge { display: inline-block; font-size: 10px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; padding: .3rem .7rem; border-radius: 4px; background: var(--accent-pale); color: var(--accent); }
