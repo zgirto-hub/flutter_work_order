@@ -395,17 +395,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 });
                 try {
                   final deptId = selectedDept != null ? _departments[selectedDept] : null;
-                  final userId = await _userService.createUser(
+                  await _userService.createUser(
                     email: emailCtrl.text.trim(),
                     password: passCtrl.text,
                     userType: selectedRole,
                     fullName: nameCtrl.text.trim(),
                     mobile: mobileCtrl.text.trim(),
-                    departmentId: selectedRole != 'technician' ? deptId : null,
+                    departmentId: deptId,
                   );
-                  if (userId != null && selectedRole == 'technician' && deptId != null) {
-                    await _userService.setTechnicianDepartments(userId, [selectedDept!]);
-                  }
                   if (mounted) Navigator.pop(ctx, true);
                   _loadData();
                 } catch (e) {
@@ -622,11 +619,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     userId: user.id,
                     fullName: nameCtrl.text.trim(),
                     mobile: mobileCtrl.text.trim(),
-                    departmentId: selectedRole != 'technician' ? deptId : null,
+                    departmentId: deptId,
                   );
-                  if (selectedRole == 'technician' && deptId != null) {
-                    await _userService.setTechnicianDepartments(user.id, [selectedDept!]);
-                  }
                   if (ctx.mounted) Navigator.pop(ctx);
                   _loadData();
                 } catch (e) {

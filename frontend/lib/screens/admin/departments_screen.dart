@@ -414,15 +414,6 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
   }
 
   Future<void> _confirmDelete(Department department, int techCount, int woCount) async {
-    if (techCount > 0 || woCount > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            'Cannot delete "${department.name}" - $techCount user(s) and $woCount work order(s) are assigned'),
-        backgroundColor: AppColors.dangerText,
-      ));
-      return;
-    }
-
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
