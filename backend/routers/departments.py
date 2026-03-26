@@ -120,8 +120,8 @@ async def delete_department(department_id: str):
 
 @router.get("/departments/{department_id}/technician-count")
 async def get_department_technician_count(department_id: str):
-    """Get the number of technicians assigned to a department"""
-    result = supabase.table("users").select("id").eq("department_id", department_id).eq("user_type", "technician").eq("is_active", True).execute()
+    """Get the number of active users assigned to a department"""
+    result = supabase.table("users").select("id").eq("department_id", department_id).eq("is_active", True).execute()
     return {"department_id": department_id, "technician_count": len(result.data or [])}
 
 

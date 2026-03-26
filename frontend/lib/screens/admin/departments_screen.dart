@@ -30,7 +30,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
       _error = null;
     });
     try {
-      final departments = await _service.fetchDepartments();
+      final departments = await _service.fetchDepartments(isActive: true);
       
       // Load counts for all departments in parallel
       final technicianCounts = <String, int>{};
