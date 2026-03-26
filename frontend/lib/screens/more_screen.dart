@@ -194,15 +194,6 @@ class _MoreScreenState extends State<MoreScreen> {
           ),
         ),
         _MoreItem(
-          title: 'Employees',
-          subtitle: 'Manage team',
-          icon: Icons.people_outline_rounded,
-          color: const Color(0xFFCC785C),
-          bgColor: const Color(0xFFF5EBE6),
-          onTap: () => _comingSoon(context, 'Employees'),
-          comingSoon: true,
-        ),
-        _MoreItem(
           title: 'Calendar',
           subtitle: 'Recurring inspections',
           icon: Icons.calendar_month_outlined,
@@ -241,15 +232,6 @@ class _MoreScreenState extends State<MoreScreen> {
     return items;
   }
 
-  void _comingSoon(BuildContext context, String name) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('$name - coming soon'),
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: AppColors.textPrimary,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      duration: const Duration(seconds: 2),
-    ));
-  }
 }
 
 // ── More Item model ───────────────────────────────────────────────────────────
@@ -261,7 +243,6 @@ class _MoreItem {
   final Color color;
   final Color bgColor;
   final VoidCallback onTap;
-  final bool comingSoon;
 
   const _MoreItem({
     required this.title,
@@ -270,7 +251,6 @@ class _MoreItem {
     required this.color,
     required this.bgColor,
     required this.onTap,
-    this.comingSoon = false,
   });
 }
 
@@ -334,24 +314,6 @@ class _MoreCard extends StatelessWidget {
                 ],
               ),
             ),
-            // Coming soon badge
-            if (item.comingSoon)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.bgSurface2,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  'Soon',
-                  style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-              ),
           ],
         ),
       ),
