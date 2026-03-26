@@ -648,7 +648,8 @@ Future<void> _loadDepartments() async {
     // Extra bottom padding when keyboard is open so fields can scroll above it
     // (iOS PWA doesn't resize the viewport for the keyboard)
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final extraBottom = _fieldHasFocus && bottomInset == 0 ? MediaQuery.of(context).size.height * 0.45 : bottomInset;
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final extraBottom = _fieldHasFocus && bottomInset == 0 && isMobile ? MediaQuery.of(context).size.height * 0.45 : bottomInset;
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + extraBottom),
       child: Form(
@@ -898,7 +899,8 @@ Future<void> _loadDepartments() async {
         : initials.toUpperCase();
 
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final extraBottom = _commentHasFocus && bottomInset == 0 ? MediaQuery.of(context).size.height * 0.45 : bottomInset;
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final extraBottom = _commentHasFocus && bottomInset == 0 && isMobile ? MediaQuery.of(context).size.height * 0.45 : bottomInset;
 
     return Container(
       color: AppColors.bgSurface,
