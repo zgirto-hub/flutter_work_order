@@ -32,14 +32,18 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
     try {
       final departments = await _service.fetchDepartments();
       
-      // Load counts for each department
+      // Load counts for all departments in parallel
       final technicianCounts = <String, int>{};
       final woCounts = <String, int>{};
-      
-      for (final dept in departments) {
-        technicianCounts[dept.id] = await _service.getTechnicianCount(dept.id);
-        woCounts[dept.id] = await _service.getWorkOrderCount(dept.id);
-      }
+
+      await Future.wait(departments.map((dept) async {
+        final results = await Future.wait([
+          _service.getTechnicianCount(dept.id),
+          _service.getWorkOrderCount(dept.id),
+        ]);
+        technicianCounts[dept.id] = results[0];
+        woCounts[dept.id] = results[1];
+      }));
       
       setState(() {
         _departments = departments;
@@ -172,7 +176,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
   }
 
   Widget _buildDepartmentCard(Department department) {
-    final fixerCount = _technicianCounts[department.id] ?? 0;
+    final techCount = _technicianCounts[department.id] ?? 0;
     final woCount = _workOrderCounts[department.id] ?? 0;
 
     return Container(
@@ -213,14 +217,14 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                               color: AppColors.textPrimary)),
                       SizedBox(height: 2),
                       Text(
-                          '$fixerCount fixer${fixerCount == 1 ? '' : 's'} • $woCount work order${woCount == 1 ? '' : 's'}',
+                          '$techCount user${techCount == 1 ? '' : 's'} • $woCount work order${woCount == 1 ? '' : 's'}',
                           style: TextStyle(
                               fontSize: 11, color: AppColors.textTertiary)),
                     ],
                   ),
                 ),
                 IconButton(
-                  onPressed: () => _confirmDelete(department, fixerCount, woCount),
+                  onPressed: () => _confirmDelete(department, techCount, woCount),
                   icon: Icon(Icons.delete_outline,
                       size: 18, color: AppColors.dangerText),
                   padding: EdgeInsets.zero,
@@ -409,11 +413,11 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
     );
   }
 
-  Future<void> _confirmDelete(Department department, int fixerCount, int woCount) async {
-    if (fixerCount > 0 || woCount > 0) {
+  Future<void> _confirmDelete(Department department, int techCount, int woCount) async {
+    if (techCount > 0 || woCount > 0) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            'Cannot delete "${department.name}" - $fixerCount fixer(s) and $woCount work order(s) are assigned'),
+            'Cannot delete "${department.name}" - $techCount user(s) and $woCount work order(s) are assigned'),
         backgroundColor: AppColors.dangerText,
       ));
       return;

@@ -92,14 +92,14 @@ async def delete_department(department_id: str):
     
     dept_name = dept_result.data[0]["name"]
     
-    # Check if any technicians belong to this department
-    techs_result = supabase.table("users").select("id").eq("department_id", department_id).eq("user_type", "technician").execute()
-    if techs_result.data:
+    # Check if any users belong to this department
+    users_result = supabase.table("users").select("id").eq("department_id", department_id).eq("is_active", True).execute()
+    if users_result.data:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot delete department '{dept_name}' - {len(techs_result.data)} technician(s) are assigned"
+            detail=f"Cannot delete department '{dept_name}' - {len(users_result.data)} user(s) are assigned"
         )
-    
+
     # Check if any work orders use this department
     wo_result = supabase.table("work_orders").select("id").eq("department_id", department_id).execute()
     if wo_result.data:
@@ -107,7 +107,11 @@ async def delete_department(department_id: str):
             status_code=400,
             detail=f"Cannot delete department '{dept_name}' - {len(wo_result.data)} work order(s) use it"
         )
-    
+
+    # Clean up routing rules referencing this department
+    supabase.table("department_routes").delete().eq("source_department_id", department_id).execute()
+    supabase.table("department_routes").delete().eq("target_department_id", department_id).execute()
+
     # Soft delete by setting is_active to false
     supabase.table("departments").update({"is_active": False}).eq("id", department_id).execute()
     
@@ -205,13 +209,13 @@ async def delete_department(department_name: str):
     dept_id = dept_result.data["id"]
     
     # Check if any users belong to this department
-    techs_result = supabase.table("users").select("id").eq("department_id", dept_id).eq("user_type", "technician").execute()
-    if techs_result.data:
+    users_result = supabase.table("users").select("id").eq("department_id", dept_id).eq("is_active", True).execute()
+    if users_result.data:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot delete department '{name}' - {len(techs_result.data)} technician(s) are assigned"
+            detail=f"Cannot delete department '{name}' - {len(users_result.data)} user(s) are assigned"
         )
-    
+
     # Check if any work orders use this department
     wo_result = supabase.table("work_orders").select("id").eq("department_id", dept_id).execute()
     if wo_result.data:
@@ -219,7 +223,11 @@ async def delete_department(department_name: str):
             status_code=400,
             detail=f"Cannot delete department '{name}' - {len(wo_result.data)} work order(s) use it"
         )
-    
+
+    # Clean up routing rules referencing this department
+    supabase.table("department_routes").delete().eq("source_department_id", dept_id).execute()
+    supabase.table("department_routes").delete().eq("target_department_id", dept_id).execute()
+
     supabase.table("departments").update({"is_active": False}).eq("id", dept_id).execute()
     
     return {"deleted": True, "department": name}
