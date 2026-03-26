@@ -81,7 +81,7 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Work Order management app">
 
@@ -767,5 +767,32 @@
       50% { transform: translateY(-8px); opacity: 1; }
     }
   </style>
+
+  <!-- iOS PWA keyboard fix: resize content to match visual viewport -->
+  <script>
+    (function() {
+      if (!window.visualViewport) return;
+      var pendingUpdate = false;
+
+      function onViewportChange() {
+        if (pendingUpdate) return;
+        pendingUpdate = true;
+        requestAnimationFrame(function() {
+          var vh = window.visualViewport.height;
+          var offsetTop = window.visualViewport.offsetTop;
+          document.documentElement.style.height = vh + 'px';
+          document.body.style.height = vh + 'px';
+          // Prevent iOS from scrolling the page behind the keyboard
+          if (offsetTop > 0) {
+            window.scrollTo(0, 0);
+          }
+          pendingUpdate = false;
+        });
+      }
+
+      window.visualViewport.addEventListener('resize', onViewportChange);
+      window.visualViewport.addEventListener('scroll', onViewportChange);
+    })();
+  </script>
 </body>
 </html>
