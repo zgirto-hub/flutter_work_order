@@ -39,6 +39,7 @@ PyPDF2==3.0.1
 pyroaring==1.0.3
 pytesseract==0.3.13
 python-dateutil==2.9.0.post0
+python-dotenv==1.1.0
 python-docx==1.2.0
 python-multipart==0.0.22
 py_webauthn==2.2.0

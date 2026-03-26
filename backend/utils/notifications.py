@@ -4,7 +4,7 @@ import urllib.error
 import os
 from typing import Optional
 
-ONESIGNAL_APP_ID = "760f00e5-fb08-4c0c-b898-ea35737bcc21"
+ONESIGNAL_APP_ID = os.environ.get("ONESIGNAL_APP_ID", "")
 ONESIGNAL_API_KEY = os.environ.get("ONESIGNAL_API_KEY", "")
 
 

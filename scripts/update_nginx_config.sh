@@ -10,7 +10,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-SERVER="${SERVER:-zorin@100.85.73.37}"
+# Load deploy config from root .env
+if [ -f "$ROOT/.env" ]; then
+  set -a; source "$ROOT/.env"; set +a
+fi
+SERVER="${DEPLOY_SERVER:-zorin@100.85.73.37}"
 SOURCE_FILE="$ROOT/server/nginx/flutter_app.conf"
 REMOTE_TMP="/tmp/flutter_app"
 REMOTE_TARGET="/etc/nginx/sites-available/flutter_app"

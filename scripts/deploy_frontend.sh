@@ -10,7 +10,12 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SERVER="zorin@100.85.73.37"
+
+# Load deploy config from root .env
+if [ -f "$SCRIPT_DIR/../.env" ]; then
+  set -a; source "$SCRIPT_DIR/../.env"; set +a
+fi
+SERVER="${DEPLOY_SERVER:-zorin@100.85.73.37}"
 
 # Detect OS and set project path
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then

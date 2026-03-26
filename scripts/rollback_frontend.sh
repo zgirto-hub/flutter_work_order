@@ -1,7 +1,11 @@
 #!/bin/bash
 set -e
 
-SERVER="zorin@100.85.73.37"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "$SCRIPT_DIR/../.env" ]; then
+  set -a; source "$SCRIPT_DIR/../.env"; set +a
+fi
+SERVER="${DEPLOY_SERVER:-zorin@100.85.73.37}"
 RELEASE_DIR="/var/www/releases"
 CURRENT_LINK="/var/www/flutter_app"
 
