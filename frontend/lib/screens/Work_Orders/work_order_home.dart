@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/app_notification.dart';
@@ -49,11 +50,16 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   final WorkOrderService _service = WorkOrderService();
   final TextEditingController _searchCtrl = TextEditingController();
 
+  final ScrollController _scrollController = ScrollController();
   List<WorkOrder> _workOrders = [];
   List<AppNotification> _unreadNotifications = [];
   Map<String, int> _unreadByWorkOrderId = {};
   int? _expandedIndex;
   bool _showSearch = false;
+  bool _loadingMore = false;
+  bool _hasMore = true;
+  int _total = 0;
+  static const _pageSize = 30;
   Timer? _notifPollTimer;
   int _lastUnreadTotal = 0;
   bool _soundPrimed = false;
@@ -71,6 +77,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scrollController.addListener(_onScroll);
     _loadProfile();
     _startNotificationPolling();
   }
@@ -102,10 +109,41 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   Future<void> _load() async {
     if (!_profileLoaded) return;
     final department = _userRole == 'reporter' ? _userDepartment : null;
-    final data = await _service.fetchWorkOrders(department: department, userRole: _userRole);
+    final result = await _service.fetchWorkOrders(
+      department: department,
+      userRole: _userRole,
+      limit: _pageSize,
+      offset: 0,
+    );
     await _refreshUnreadNotifications(playSoundIfIncreased: false);
     if (!mounted) return;
-    setState(() => _workOrders = data);
+    setState(() {
+      _workOrders = result.items;
+      _total = result.total;
+      _hasMore = result.items.length >= _pageSize;
+    });
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore || !_profileLoaded) return;
+    setState(() => _loadingMore = true);
+    try {
+      final department = _userRole == 'reporter' ? _userDepartment : null;
+      final result = await _service.fetchWorkOrders(
+        department: department,
+        userRole: _userRole,
+        limit: _pageSize,
+        offset: _workOrders.length,
+      );
+      if (mounted) {
+        setState(() {
+          _workOrders.addAll(result.items);
+          _total = result.total;
+          _hasMore = result.items.length >= _pageSize;
+        });
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loadingMore = false);
   }
 
   Future<void> _refreshUnreadNotifications({
@@ -156,10 +194,19 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
     await _refreshUnreadNotifications(playSoundIfIncreased: false);
   }
 
+  void _onScroll() {
+    if (_loadingMore || !_hasMore) return;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 300) {
+      _loadMore();
+    }
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _notifPollTimer?.cancel();
+    _scrollController.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -503,6 +550,18 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
     );
   }
 
+  String _dateLabel(String dateStr) {
+    final dt = DateTime.tryParse(dateStr);
+    if (dt == null) return '';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final entryDay = DateTime(dt.year, dt.month, dt.day);
+    if (entryDay == today) return 'Today';
+    if (entryDay == yesterday) return 'Yesterday';
+    return '${dt.day}/${dt.month}/${dt.year}';
+  }
+
   Widget _buildList(List<WorkOrder> filtered) {
     // Apply inspection type filter locally
     final items = _filter.selectedDocumentType == 'Inspection'
@@ -522,16 +581,49 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _load,
-      color: AppColors.accent,
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => SizedBox(height: 8),
-        itemBuilder: (context, i) {
-          final wo = items[i];
-          return WorkOrderCard(
+    // Group by date
+    final grouped = groupBy<WorkOrder, String>(
+        items, (wo) => _dateLabel(wo.dateCreated));
+
+    // Build flat list of widgets with date headers
+    final widgets = <Widget>[];
+    for (final entry in grouped.entries) {
+      // Date divider
+      widgets.add(Padding(
+        padding: const EdgeInsets.only(bottom: 8, top: 4),
+        child: Row(
+          children: [
+            Expanded(child: Divider(
+                height: 1, thickness: 0.5, color: AppColors.border2)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.bgSurface2,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: AppColors.border2, width: 0.5),
+                ),
+                child: Text(entry.key,
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary)),
+              ),
+            ),
+            Expanded(child: Divider(
+                height: 1, thickness: 0.5, color: AppColors.border2)),
+          ],
+        ),
+      ));
+      // WO cards for this date
+      for (final wo in entry.value) {
+        final i = items.indexOf(wo);
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: WorkOrderCard(
             workOrder: wo,
             unreadActivityCount: _unreadByWorkOrderId[wo.id] ?? 0,
             expanded: !_selectionMode && _expandedIndex == i,
@@ -558,7 +650,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                   context,
                   MaterialPageRoute(
                     builder: (_) => AddWorkOrderScreen(
-                        workOrder: items[i], initialTab: 1),
+                        workOrder: wo, initialTab: 1),
                   ),
                 );
                 if (!mounted) return;
@@ -579,7 +671,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => AddWorkOrderScreen(workOrder: items[i]),
+                    builder: (_) => AddWorkOrderScreen(workOrder: wo),
                   ),
                 );
                 if (!mounted) return;
@@ -592,8 +684,41 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                 _navigatingToEdit = false;
               }
             },
-          );
-        },
+          ),
+        ));
+      }
+    }
+
+    // Loading more indicator
+    if (_loadingMore) {
+      widgets.add(Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: SizedBox(
+            width: 20, height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2, color: AppColors.accent),
+          ),
+        ),
+      ));
+    }
+    if (!_hasMore && _workOrders.length > _pageSize) {
+      widgets.add(Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Center(
+          child: Text('All ${_total} work orders loaded',
+              style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+        ),
+      ));
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: AppColors.accent,
+      child: ListView(
+        controller: _scrollController,
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
+        children: widgets,
       ),
     );
   }

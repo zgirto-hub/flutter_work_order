@@ -271,7 +271,9 @@ async def list_work_orders(
     user_role: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     type: Optional[str] = Query(None),
-    department_id: Optional[str] = Query(None),  # Changed from 'department' to 'department_id'
+    department_id: Optional[str] = Query(None),
+    limit: Optional[int] = Query(None),
+    offset: int = Query(0),
 ):
     # Updated query to include department details
     query = supabase.table("work_orders").select("""
@@ -331,6 +333,14 @@ async def list_work_orders(
             work_orders = []
     # Admin sees all (no filtering)
 
+    total = len(work_orders)
+
+    # Apply pagination
+    if offset > 0:
+        work_orders = work_orders[offset:]
+    if limit is not None:
+        work_orders = work_orders[:limit]
+
     # Enrich creator data for WOs where the FK join failed (created_by stores auth UUID)
     for wo in work_orders:
         if not wo.get("creator") and wo.get("created_by"):
@@ -341,7 +351,7 @@ async def list_work_orders(
                     "email": fallback_user.get("email"),
                 }
 
-    return {"work_orders": work_orders}
+    return {"work_orders": work_orders, "total": total}
 
 
 @router.get("/work-orders/{work_order_id}")

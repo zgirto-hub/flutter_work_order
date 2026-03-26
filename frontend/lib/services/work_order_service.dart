@@ -32,19 +32,23 @@ class WorkOrderService {
     }
   }
 
-  Future<List<WorkOrder>> fetchWorkOrders({
+  Future<({List<WorkOrder> items, int total})> fetchWorkOrders({
     String? status,
     String? type,
     String? department,
     String? userRole,
+    int? limit,
+    int offset = 0,
   }) async {
     final params = <String, String>{
       'email': _email,
       'user_role': userRole ?? '',
+      'offset': '$offset',
     };
     if (status != null) params['status'] = status;
     if (type != null) params['type'] = type;
     if (department != null) params['department'] = department;
+    if (limit != null) params['limit'] = '$limit';
 
     final uri = Uri.parse('${AppConfig.baseUrl}/work-orders')
         .replace(queryParameters: params);
@@ -54,9 +58,11 @@ class WorkOrderService {
       throw Exception('Failed to fetch work orders');
     }
     final data = jsonDecode(res.body);
-    return (data['work_orders'] as List)
+    final items = (data['work_orders'] as List)
         .map((j) => WorkOrder.fromJson(j))
         .toList();
+    final total = data['total'] as int? ?? items.length;
+    return (items: items, total: total);
   }
 
   Future<WorkOrder> addWorkOrder(WorkOrder workOrder) async {

@@ -13,31 +13,59 @@ class ActivityLogScreen extends StatefulWidget {
 
 class _ActivityLogScreenState extends State<ActivityLogScreen> {
   final _service = ActivityLogService();
+  final _scrollController = ScrollController();
   List<ActivityLogEntry> _logs = [];
   bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasMore = true;
   String _filter = 'all';
+  static const _pageSize = 50;
 
   static const _filters = [
     ('all', 'All'),
     ('work_order', 'Work orders'),
     ('document', 'Documents'),
-    ('request', 'Requests'),
     ('auth', 'Auth'),
   ];
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _load();
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_loadingMore || !_hasMore) return;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _hasMore = true;
+    });
     try {
       final logs = await _service.fetchLogs(
         category: _filter == 'all' ? null : _filter,
+        limit: _pageSize,
+        offset: 0,
       );
-      if (mounted) setState(() => _logs = logs);
+      if (mounted) {
+        setState(() {
+          _logs = logs;
+          _hasMore = logs.length >= _pageSize;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -47,6 +75,25 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
       }
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore) return;
+    setState(() => _loadingMore = true);
+    try {
+      final logs = await _service.fetchLogs(
+        category: _filter == 'all' ? null : _filter,
+        limit: _pageSize,
+        offset: _logs.length,
+      );
+      if (mounted) {
+        setState(() {
+          _logs.addAll(logs);
+          _hasMore = logs.length >= _pageSize;
+        });
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loadingMore = false);
   }
 
   @override
@@ -166,30 +213,83 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                           onRefresh: _load,
                           color: AppColors.accent,
                           child: ListView(
+                            controller: _scrollController,
                             padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
-                            children: grouped.entries.map((entry) {
-                              final dayLogs = entry.value;
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                        bottom: 8, top: 4, left: 2),
-                                    child: Text(entry.key,
+                            children: [
+                              ...grouped.entries.map((entry) {
+                                final dayLogs = entry.value;
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                          bottom: 10, top: 8),
+                                      child: Row(
+                                        children: [
+                                          Expanded(child: Divider(
+                                              height: 1, thickness: 0.5,
+                                              color: AppColors.border2)),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 12),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 10, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.bgSurface2,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                    color: AppColors.border2,
+                                                    width: 0.5),
+                                              ),
+                                              child: Text(entry.key,
+                                                  style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: AppColors
+                                                          .textSecondary)),
+                                            ),
+                                          ),
+                                          Expanded(child: Divider(
+                                              height: 1, thickness: 0.5,
+                                              color: AppColors.border2)),
+                                        ],
+                                      ),
+                                    ),
+                                    ...dayLogs.mapIndexed((i, log) =>
+                                        _ActivityLogItem(
+                                          entry: log,
+                                          isLast: i == dayLogs.length - 1,
+                                        )),
+                                    SizedBox(height: 8),
+                                  ],
+                                );
+                              }),
+                              if (_loadingMore)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 20, height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.accent,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              if (!_hasMore && _logs.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  child: Center(
+                                    child: Text('No more activity',
                                         style: TextStyle(
                                             fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                            color: AppColors.textSecondary)),
+                                            color: AppColors.textTertiary)),
                                   ),
-                                  ...dayLogs.mapIndexed((i, log) =>
-                                      _ActivityLogItem(
-                                        entry: log,
-                                        isLast: i == dayLogs.length - 1,
-                                      )),
-                                  SizedBox(height: 8),
-                                ],
-                              );
-                            }).toList(),
+                                ),
+                            ],
                           ),
                         ),
             ),
@@ -252,7 +352,6 @@ class _ActivityLogItem extends StatelessWidget {
     switch (entry.category) {
       case 'work_order': return const Color(0xFFE8F0FB);
       case 'document':   return AppColors.accentBg;
-      case 'request':    return const Color(0xFFFEF3C7);
       case 'folder':     return AppColors.bgSurface2;
       default:           return AppColors.bgSurface2;
     }
@@ -262,7 +361,6 @@ class _ActivityLogItem extends StatelessWidget {
     switch (entry.category) {
       case 'work_order': return const Color(0xFF185FA5);
       case 'document':   return const Color(0xFF993C1D);
-      case 'request':    return const Color(0xFFB45309);
       case 'folder':     return AppColors.textSecondary;
       default:           return AppColors.textSecondary;
     }
