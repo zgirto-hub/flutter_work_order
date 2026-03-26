@@ -30,24 +30,21 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
       _error = null;
     });
     try {
-      final departments = await _service.fetchDepartments(isActive: true);
-      
-      // Load counts for all departments in parallel
-      final technicianCounts = <String, int>{};
+      final data = await _service.fetchDepartmentsWithCounts(isActive: true);
+
+      final departments = <Department>[];
+      final userCounts = <String, int>{};
       final woCounts = <String, int>{};
 
-      await Future.wait(departments.map((dept) async {
-        final results = await Future.wait([
-          _service.getTechnicianCount(dept.id),
-          _service.getWorkOrderCount(dept.id),
-        ]);
-        technicianCounts[dept.id] = results[0];
-        woCounts[dept.id] = results[1];
-      }));
-      
+      for (final d in data) {
+        departments.add(Department.fromJson(d));
+        userCounts[d['id'] as String] = d['user_count'] as int? ?? 0;
+        woCounts[d['id'] as String] = d['work_order_count'] as int? ?? 0;
+      }
+
       setState(() {
         _departments = departments;
-        _technicianCounts = technicianCounts;
+        _technicianCounts = userCounts;
         _workOrderCounts = woCounts;
         _loading = false;
       });

@@ -26,6 +26,25 @@ class DepartmentService {
         .toList();
   }
 
+  /// Fetch departments with user and WO counts in a single request
+  Future<List<Map<String, dynamic>>> fetchDepartmentsWithCounts({bool? isActive}) async {
+    final params = <String, String>{};
+    if (isActive != null) {
+      params['is_active'] = isActive.toString();
+    }
+
+    final uri = Uri.parse('${AppConfig.baseUrl}/departments/with-counts')
+        .replace(queryParameters: params.isEmpty ? null : params);
+
+    final res = await http.get(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to fetch departments');
+    }
+
+    final data = jsonDecode(res.body);
+    return List<Map<String, dynamic>>.from(data['departments'] ?? []);
+  }
+
   /// Fetch a single department by ID
   Future<Department?> fetchDepartmentById(String id) async {
     final res = await http.get(

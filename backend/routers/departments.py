@@ -37,6 +37,38 @@ async def list_departments(is_active: Optional[bool] = Query(None)):
     return {"departments": result.data or []}
 
 
+@router.get("/departments/with-counts")
+async def list_departments_with_counts(is_active: Optional[bool] = Query(None)):
+    """Get all departments with user and work order counts in a single query"""
+    query = supabase.table("departments").select("id, name, is_active, created_at").order("name")
+    if is_active is not None:
+        query = query.eq("is_active", is_active)
+    dept_result = query.execute()
+    departments = dept_result.data or []
+
+    # Batch fetch all user counts grouped by department
+    user_result = supabase.table("users").select("department_id").eq("is_active", True).execute()
+    user_counts = {}
+    for u in (user_result.data or []):
+        did = u.get("department_id")
+        if did:
+            user_counts[did] = user_counts.get(did, 0) + 1
+
+    # Batch fetch all WO counts grouped by department
+    wo_result = supabase.table("work_orders").select("department_id").execute()
+    wo_counts = {}
+    for wo in (wo_result.data or []):
+        did = wo.get("department_id")
+        if did:
+            wo_counts[did] = wo_counts.get(did, 0) + 1
+
+    for dept in departments:
+        dept["user_count"] = user_counts.get(dept["id"], 0)
+        dept["work_order_count"] = wo_counts.get(dept["id"], 0)
+
+    return {"departments": departments}
+
+
 @router.get("/departments/all")
 async def list_all_departments():
     """Get all departments"""
