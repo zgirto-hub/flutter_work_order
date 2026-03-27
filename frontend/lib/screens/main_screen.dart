@@ -85,14 +85,12 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _refreshWOCount() async {
     try {
       final res = await http.get(
-        Uri.parse('${AppConfig.baseUrl}/work-orders?email=${Uri.encodeComponent(_email)}&user_role=${Uri.encodeComponent(_userRole)}'),
+        Uri.parse('${AppConfig.baseUrl}/work-orders/count?email=${Uri.encodeComponent(_email)}&user_role=${Uri.encodeComponent(_userRole)}'),
       );
       if (!mounted) return;
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        final workOrders = data['work_orders'] as List? ?? [];
-        final openCount = workOrders.where((wo) => wo['status'] != 'Closed').length;
-        setState(() => _openWOCount = openCount);
+        setState(() => _openWOCount = data['count'] as int? ?? 0);
       }
     } catch (_) {}
   }
@@ -101,13 +99,12 @@ class _MainScreenState extends State<MainScreen> {
     _pollTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
       try {
         final res = await http.get(
-          Uri.parse('${AppConfig.baseUrl}/work-orders?email=${Uri.encodeComponent(_email)}&user_role=${Uri.encodeComponent(_userRole)}'),
+          Uri.parse('${AppConfig.baseUrl}/work-orders/count?email=${Uri.encodeComponent(_email)}&user_role=${Uri.encodeComponent(_userRole)}'),
         );
         if (!mounted) return;
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body);
-          final workOrders = data['work_orders'] as List? ?? [];
-          final newCount = workOrders.where((wo) => wo['status'] != 'Closed').length;
+          final newCount = data['count'] as int? ?? 0;
           if (newCount > _openWOCount) {
             final diff = newCount - _openWOCount;
             setState(() => _openWOCount = newCount);

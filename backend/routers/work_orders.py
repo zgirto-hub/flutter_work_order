@@ -265,6 +265,36 @@ def _log_status_change(work_order_id: str, old_status: str, new_status: str, cha
 # Endpoints
 # --------------------
 
+@router.get("/work-orders/count")
+async def count_work_orders(
+    email: Optional[str] = Query(None),
+    user_role: Optional[str] = Query(None),
+):
+    """Lightweight endpoint that returns only the count of non-closed work orders."""
+    query = supabase.table("work_orders").select("id, status, created_by, department_id")
+    result = query.execute()
+    work_orders = [wo for wo in (result.data or []) if wo.get("status") != "Closed"]
+
+    if user_role == "reporter" and email:
+        reporter_user_id = _get_user_id_by_email(email)
+        if reporter_user_id:
+            work_orders = [wo for wo in work_orders if wo.get("created_by") == reporter_user_id]
+        else:
+            work_orders = []
+    elif user_role == "technician" and email:
+        tech_user = _get_user_by_email(email)
+        if tech_user:
+            tech_dept_id = tech_user.get("department_id")
+            if tech_dept_id:
+                work_orders = [wo for wo in work_orders if wo.get("department_id") == tech_dept_id]
+            else:
+                work_orders = []
+        else:
+            work_orders = []
+
+    return {"count": len(work_orders)}
+
+
 @router.get("/work-orders")
 async def list_work_orders(
     email: Optional[str] = Query(None),
