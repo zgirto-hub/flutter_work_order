@@ -185,11 +185,19 @@ Future<void> _loadDepartments() async {
     if (mounted) {
       setState(() {
         _departments = departments..sort((a, b) => a.name.compareTo(b.name));
-        // Sync selectedDepartmentId from name match or default to first
-        final match = _departments.where((d) => d.name == selectedDepartment).firstOrNull;
-        if (match != null) {
-          selectedDepartmentId = match.id;
-        } else if (_departments.isNotEmpty && selectedDepartmentId.isEmpty) {
+        // Sync selected department: try by name, then by ID, then default to first
+        final matchByName = _departments.where((d) => d.name == selectedDepartment).firstOrNull;
+        if (matchByName != null) {
+          selectedDepartmentId = matchByName.id;
+        } else if (selectedDepartmentId.isNotEmpty) {
+          final matchById = _departments.where((d) => d.id == selectedDepartmentId).firstOrNull;
+          if (matchById != null) {
+            selectedDepartment = matchById.name;
+          } else if (_departments.isNotEmpty) {
+            selectedDepartment = _departments.first.name;
+            selectedDepartmentId = _departments.first.id;
+          }
+        } else if (_departments.isNotEmpty) {
           selectedDepartment = _departments.first.name;
           selectedDepartmentId = _departments.first.id;
         }
