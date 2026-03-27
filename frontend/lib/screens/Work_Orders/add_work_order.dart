@@ -731,9 +731,9 @@ Future<void> _loadDepartments() async {
             ),
             SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              initialValue: _departments.isEmpty ? 'General' : selectedDepartment,
+              initialValue: selectedDepartment,
               items: _departments.isEmpty
-                  ? [DropdownMenuItem(value: 'General', child: Text('General'))]
+                  ? [DropdownMenuItem(value: selectedDepartment, child: Text(selectedDepartment))]
                   : _departments.map((d) => DropdownMenuItem(value: d.name, child: Text(d.name))).toList(),
               onChanged: (canEdit && !_isTechnician) ? (v) {
                 if (v != null) {
