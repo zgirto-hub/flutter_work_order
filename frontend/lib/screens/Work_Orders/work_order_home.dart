@@ -456,6 +456,13 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                                       tooltip: 'Filter by employee',
                                       semanticsLabel: 'Filter by employee',
                                     ),
+                                    SizedBox(width: 6),
+                                    ClaudeIconButton(
+                                      icon: Icons.refresh_rounded,
+                                      onTap: () => _load(),
+                                      tooltip: 'Refresh',
+                                      semanticsLabel: 'Refresh work orders',
+                                    ),
                                   ],
                                 ),
 
