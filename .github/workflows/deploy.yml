@@ -10,102 +10,96 @@ env:
 
 jobs:
   build-and-deploy:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    defaults:
-      run:
-        shell: pwsh
-
     steps:
-      - name: Clean stale processes
-        run: |
-          Get-Process -Name "dart" -ErrorAction SilentlyContinue | Stop-Process -Force
-          Get-Process -Name "flutter" -ErrorAction SilentlyContinue | Stop-Process -Force
-        continue-on-error: true
-
       - name: Checkout code
         uses: actions/checkout@v4.1.0
 
       - name: Setup Flutter
-        timeout-minutes: 10
-        run: |
-          git config --global --add safe.directory C:/flutter
-          git config --global --add safe.directory C:/flutter/bin/cache/dart-sdk
-          if (!(Test-Path "C:\flutter")) { git clone https://github.com/flutter/flutter.git -b stable C:\flutter }
-          C:\flutter\bin\flutter.bat config --no-analytics
-          C:\flutter\bin\flutter.bat --version
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
 
       - name: Install dependencies
         timeout-minutes: 5
         working-directory: frontend
-        run: C:\flutter\bin\flutter.bat pub get
+        run: flutter pub get
 
       - name: Create .env for build
         working-directory: frontend
         run: |
-          @"
+          cat <<EOF > .env
           SUPABASE_URL=${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
           API_BASE_URL_PROD=${{ secrets.API_BASE_URL_PROD }}
           DOWNLOAD_URL_PROD=${{ secrets.DOWNLOAD_URL_PROD }}
-          "@ | Out-File -FilePath ".env" -Encoding utf8
+          EOF
 
       - name: Clean build artifacts
         working-directory: frontend
         run: |
-          if (Test-Path ".dart_tool") { Remove-Item -Recurse -Force ".dart_tool" }
-          if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
+          rm -rf .dart_tool build
 
       - name: Analyze code
         working-directory: frontend
-        run: C:\flutter\bin\flutter.bat analyze --no-fatal-infos
+        run: flutter analyze --no-fatal-infos
         continue-on-error: true
 
       - name: Get version info
         id: version
         run: |
-          $pubspec = Get-Content frontend/pubspec.yaml | Select-String "^version:"
-          $versionLine = $pubspec.ToString().Replace("version: ", "")
-          $newVersion = $versionLine.Split("+")[0]
-          $buildNumber = $versionLine.Split("+")[1]
-          $buildDate = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-          $releaseId = Get-Date -Format "yyyyMMddHHmmss"
-          
-          echo "version=$newVersion" >> $env:GITHUB_OUTPUT
-          echo "build_number=$buildNumber" >> $env:GITHUB_OUTPUT
-          echo "build_date=$buildDate" >> $env:GITHUB_OUTPUT
-          echo "release_id=$releaseId" >> $env:GITHUB_OUTPUT
+          VERSION_LINE=$(grep "^version:" frontend/pubspec.yaml | sed 's/version: //')
+          VERSION=$(echo "$VERSION_LINE" | cut -d'+' -f1)
+          BUILD_NUMBER=$(echo "$VERSION_LINE" | cut -d'+' -f2)
+          BUILD_DATE=$(date +"%Y-%m-%d_%H-%M-%S")
+          RELEASE_ID=$(date +"%Y%m%d%H%M%S")
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
 
       - name: Build Flutter Web
         timeout-minutes: 15
         working-directory: frontend
-        run: C:\flutter\bin\flutter.bat build web --dart-define=BUILD_DATE=${{ steps.version.outputs.build_date }} --dart-define=RELEASE_ID=${{ steps.version.outputs.release_id }}
+        run: flutter build web --dart-define=BUILD_DATE=${{ steps.version.outputs.build_date }} --dart-define=RELEASE_ID=${{ steps.version.outputs.release_id }}
 
       - name: Create release.json
         run: |
-          @{
-            version = "${{ steps.version.outputs.version }}"
-            build = "${{ steps.version.outputs.build_number }}"
-            release_id = "${{ steps.version.outputs.release_id }}"
-            build_date = "${{ steps.version.outputs.build_date }}"
-          } | ConvertTo-Json | Out-File -FilePath "frontend/build/web/release.json" -Encoding utf8
+          cat <<EOF > frontend/build/web/release.json
+          {
+            "version": "${{ steps.version.outputs.version }}",
+            "build": "${{ steps.version.outputs.build_number }}",
+            "release_id": "${{ steps.version.outputs.release_id }}",
+            "build_date": "${{ steps.version.outputs.build_date }}"
+          }
+          EOF
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 100.85.73.37 >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Deploy to server
         timeout-minutes: 5
         run: |
-          $sshOpts = "-o ConnectTimeout=10 -o StrictHostKeyChecking=no -o BatchMode=yes"
-          $timestamp = Get-Date -Format "yyyyMMddHHmm"
-          $newRelease = "/var/www/releases/release_$timestamp"
-          ssh $sshOpts zorin@100.85.73.37 "mkdir -p $newRelease"
-          scp $sshOpts -r "frontend/build/web/*" "zorin@100.85.73.37:$newRelease/"
-          ssh $sshOpts zorin@100.85.73.37 "ln -sfn $newRelease /var/www/flutter_app"
-          ssh $sshOpts zorin@100.85.73.37 "ls -dt /var/www/releases/release_* 2>/dev/null | tail -n +11 | xargs -r rm -rf"
+          TIMESTAMP=$(date +"%Y%m%d%H%M")
+          NEW_RELEASE="/var/www/releases/release_$TIMESTAMP"
+          ssh -o ConnectTimeout=10 -o BatchMode=yes zorin@100.85.73.37 "mkdir -p $NEW_RELEASE"
+          scp -o ConnectTimeout=10 -r frontend/build/web/* "zorin@100.85.73.37:$NEW_RELEASE/"
+          ssh -o ConnectTimeout=10 -o BatchMode=yes zorin@100.85.73.37 "ln -sfn $NEW_RELEASE /var/www/flutter_app"
+          ssh -o ConnectTimeout=10 -o BatchMode=yes zorin@100.85.73.37 "ls -dt /var/www/releases/release_* 2>/dev/null | tail -n +11 | xargs -r rm -rf"
 
       - name: Deployment summary
         run: |
-          echo "## Deployment Complete" >> $env:GITHUB_STEP_SUMMARY
-          echo "- **Version**: ${{ steps.version.outputs.version }}" >> $env:GITHUB_STEP_SUMMARY
-          echo "- **Build**: ${{ steps.version.outputs.build_number }}" >> $env:GITHUB_STEP_SUMMARY
-          echo "- **Release ID**: ${{ steps.version.outputs.release_id }}" >> $env:GITHUB_STEP_SUMMARY
-          echo "- **Server**: 100.85.73.37" >> $env:GITHUB_STEP_SUMMARY
+          echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build**: ${{ steps.version.outputs.build_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release ID**: ${{ steps.version.outputs.release_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Server**: 100.85.73.37" >> $GITHUB_STEP_SUMMARY
