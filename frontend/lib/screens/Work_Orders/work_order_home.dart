@@ -69,6 +69,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   bool _navigatingToEdit = false;
   Set<String> _newWoIds = {};
   Set<String> _removingWoIds = {};
+  bool _refreshing = false;
   String _userRole = 'admin';
   String? _userDepartment;
   bool _profileLoaded = false;
@@ -470,12 +471,33 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                                       semanticsLabel: 'Filter by employee',
                                     ),
                                     SizedBox(width: 6),
-                                    ClaudeIconButton(
-                                      icon: Icons.refresh_rounded,
-                                      onTap: () => _load(),
-                                      tooltip: 'Refresh',
-                                      semanticsLabel: 'Refresh work orders',
-                                    ),
+                                    if (_refreshing)
+                                      Container(
+                                        width: 34, height: 34,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.bgSurface2,
+                                          borderRadius: BorderRadius.circular(9),
+                                          border: Border.all(color: AppColors.border2, width: 0.5),
+                                        ),
+                                        child: Center(
+                                          child: SizedBox(
+                                            width: 14, height: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 1.5, color: AppColors.textTertiary),
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      ClaudeIconButton(
+                                        icon: Icons.refresh_rounded,
+                                        onTap: () async {
+                                          setState(() => _refreshing = true);
+                                          await _load();
+                                          if (mounted) setState(() => _refreshing = false);
+                                        },
+                                        tooltip: 'Refresh',
+                                        semanticsLabel: 'Refresh work orders',
+                                      ),
                                   ],
                                 ),
 
