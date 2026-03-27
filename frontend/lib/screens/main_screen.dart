@@ -150,6 +150,7 @@ class _MainScreenState extends State<MainScreen> {
     ];
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: _AnimatedTabBody(index: _index, children: pages),
       bottomNavigationBar: _BottomNav(
         selectedIndex: _index,

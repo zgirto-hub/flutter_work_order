@@ -564,7 +564,7 @@ Future<void> _loadDepartments() async {
 
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: Column(
           children: [
