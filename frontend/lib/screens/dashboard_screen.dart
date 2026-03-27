@@ -121,8 +121,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // Placeholder — will be populated when activity log is built
     // For now show recent work orders as activity
     try {
-      final res =
-          await http.get(Uri.parse('${AppConfig.baseUrl}/work-orders'));
+      final uri = Uri.parse('${AppConfig.baseUrl}/work-orders').replace(
+        queryParameters: {
+          'email': _email,
+          'user_role': widget.userRole,
+        },
+      );
+      final res = await http.get(uri);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final orders =
