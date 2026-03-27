@@ -11,12 +11,24 @@ env:
 jobs:
   build-and-deploy:
     runs-on: self-hosted
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        shell: pwsh
 
     steps:
+      - name: Clean stale processes
+        run: |
+          Get-Process -Name "dart" -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process -Name "flutter" -ErrorAction SilentlyContinue | Stop-Process -Force
+        continue-on-error: true
+
       - name: Checkout code
         uses: actions/checkout@v4.1.0
 
       - name: Setup Flutter
+        timeout-minutes: 10
         run: |
           git config --global --add safe.directory C:/flutter
           git config --global --add safe.directory C:/flutter/bin/cache/dart-sdk
@@ -25,6 +37,7 @@ jobs:
           C:\flutter\bin\flutter.bat --version
 
       - name: Install dependencies
+        timeout-minutes: 5
         working-directory: frontend
         run: C:\flutter\bin\flutter.bat pub get
 
@@ -65,6 +78,7 @@ jobs:
           echo "release_id=$releaseId" >> $env:GITHUB_OUTPUT
 
       - name: Build Flutter Web
+        timeout-minutes: 15
         working-directory: frontend
         run: C:\flutter\bin\flutter.bat build web --dart-define=BUILD_DATE=${{ steps.version.outputs.build_date }} --dart-define=RELEASE_ID=${{ steps.version.outputs.release_id }}
 
@@ -78,13 +92,15 @@ jobs:
           } | ConvertTo-Json | Out-File -FilePath "frontend/build/web/release.json" -Encoding utf8
 
       - name: Deploy to server
+        timeout-minutes: 5
         run: |
+          $sshOpts = "-o ConnectTimeout=10 -o StrictHostKeyChecking=no -o BatchMode=yes"
           $timestamp = Get-Date -Format "yyyyMMddHHmm"
           $newRelease = "/var/www/releases/release_$timestamp"
-          ssh zorin@100.85.73.37 "mkdir -p $newRelease"
-          scp -r "frontend/build/web/*" "zorin@100.85.73.37:$newRelease/"
-          ssh zorin@100.85.73.37 "ln -sfn $newRelease /var/www/flutter_app"
-          ssh zorin@100.85.73.37 "ls -dt /var/www/releases/release_* 2>/dev/null | tail -n +11 | xargs -r rm -rf"
+          ssh $sshOpts zorin@100.85.73.37 "mkdir -p $newRelease"
+          scp $sshOpts -r "frontend/build/web/*" "zorin@100.85.73.37:$newRelease/"
+          ssh $sshOpts zorin@100.85.73.37 "ln -sfn $newRelease /var/www/flutter_app"
+          ssh $sshOpts zorin@100.85.73.37 "ls -dt /var/www/releases/release_* 2>/dev/null | tail -n +11 | xargs -r rm -rf"
 
       - name: Deployment summary
         run: |
