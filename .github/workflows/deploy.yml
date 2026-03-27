@@ -54,7 +54,7 @@ jobs:
         run: |
           VERSION_LINE=$(grep "^version:" frontend/pubspec.yaml | sed 's/version: //')
           VERSION=$(echo "$VERSION_LINE" | cut -d'+' -f1)
-          BUILD_NUMBER=$(echo "$VERSION_LINE" | cut -d'+' -f2)
+          BUILD_NUMBER=${{ github.run_number }}
           BUILD_DATE=$(date +"%Y-%m-%d_%H-%M-%S")
           RELEASE_ID=$(date +"%Y%m%d%H%M%S")
 
