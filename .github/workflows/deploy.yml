@@ -28,6 +28,16 @@ jobs:
         working-directory: frontend
         run: C:\flutter\bin\flutter.bat pub get
 
+      - name: Create .env for build
+        working-directory: frontend
+        run: |
+          @"
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          API_BASE_URL_PROD=${{ secrets.API_BASE_URL_PROD }}
+          DOWNLOAD_URL_PROD=${{ secrets.DOWNLOAD_URL_PROD }}
+          "@ | Out-File -FilePath ".env" -Encoding utf8
+
       - name: Clean build artifacts
         working-directory: frontend
         run: |
