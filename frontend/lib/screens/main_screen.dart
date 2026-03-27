@@ -220,17 +220,9 @@ class _MainScreenState extends State<MainScreen> {
             selectedIcon: Icon(Icons.dashboard_rounded),
             label: 'Dashboard',
           ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: _openWOCount > 0,
-              label: Text('$_openWOCount', style: TextStyle(fontSize: 10)),
-              child: Icon(Icons.work_outline_rounded),
-            ),
-            selectedIcon: Badge(
-              isLabelVisible: _openWOCount > 0,
-              label: Text('$_openWOCount', style: TextStyle(fontSize: 10)),
-              child: Icon(Icons.work_rounded),
-            ),
+          const NavigationDestination(
+            icon: Icon(Icons.work_outline_rounded),
+            selectedIcon: Icon(Icons.work_rounded),
             label: 'Orders',
           ),
           const NavigationDestination(
