@@ -79,10 +79,13 @@ class _MainScreenState extends State<MainScreen> {
     OneSignalService.subscribe(email, _userRole);
   }
 
+  String get _email =>
+      Supabase.instance.client.auth.currentUser?.email ?? '';
+
   Future<void> _refreshWOCount() async {
     try {
       final res = await http.get(
-        Uri.parse('${AppConfig.baseUrl}/work-orders?email=&user_role=admin'),
+        Uri.parse('${AppConfig.baseUrl}/work-orders?email=${Uri.encodeComponent(_email)}&user_role=${Uri.encodeComponent(_userRole)}'),
       );
       if (!mounted) return;
       if (res.statusCode == 200) {
@@ -98,7 +101,7 @@ class _MainScreenState extends State<MainScreen> {
     _pollTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
       try {
         final res = await http.get(
-          Uri.parse('${AppConfig.baseUrl}/work-orders?email=&user_role=admin'),
+          Uri.parse('${AppConfig.baseUrl}/work-orders?email=${Uri.encodeComponent(_email)}&user_role=${Uri.encodeComponent(_userRole)}'),
         );
         if (!mounted) return;
         if (res.statusCode == 200) {
