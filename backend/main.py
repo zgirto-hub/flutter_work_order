@@ -57,7 +57,7 @@ app.include_router(recurring_inspections.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
 
 
-@app.get("/reset-password")
+@app.get("/api/reset-password")
 async def reset_password_page():
     return FileResponse("static/reset_password.html", media_type="text/html")
 

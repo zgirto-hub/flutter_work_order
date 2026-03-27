@@ -308,7 +308,7 @@ async def request_password_reset(body: RequestResetBody, request: Request):
     backend_base = os.environ.get("BACKEND_BASE_URL", "").rstrip("/")
     if not backend_base:
         backend_base = str(request.base_url).rstrip("/")
-    redirect_url = f"{backend_base}/reset-password"
+    redirect_url = f"{backend_base}/api/reset-password"
 
     supabase.auth.reset_password_for_email(email, options={"redirect_to": redirect_url})
 
