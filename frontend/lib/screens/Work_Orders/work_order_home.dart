@@ -280,8 +280,11 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
     try {
       setState(() => _removingWoIds = ids.toSet());
       await Future.delayed(const Duration(milliseconds: 350));
+      setState(() {
+        _removingWoIds = {};
+        _workOrders.removeWhere((wo) => ids.contains(wo.id));
+      });
       await _service.deleteWorkOrders(ids);
-      setState(() => _removingWoIds = {});
       await _load();
     } catch (e) {
       if (!mounted) return;
