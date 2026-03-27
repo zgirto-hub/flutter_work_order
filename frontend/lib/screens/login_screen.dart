@@ -7,6 +7,7 @@ import '../services/download_helper_mobile.dart'
     if (dart.library.js_interop) '../services/download_helper_web.dart';
 import '../theme/app_theme.dart';
 import '../config.dart';
+import '../services/user_service.dart';
 import 'reports/html_preview_screen.dart';
 // Registration removed - admin creates all accounts
 
@@ -135,32 +136,53 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _showResetPasswordDialog() async {
     final resetCtrl = TextEditingController(text: emailController.text);
+    final userService = UserService();
+    bool sending = false;
+    String? errorText;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.bgSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Reset password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text("We'll send a reset link to your email.", style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-          const SizedBox(height: 14),
-          TextField(controller: resetCtrl, style: const TextStyle(fontSize: 13), decoration: const InputDecoration(labelText: 'Email address')),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              final email = resetCtrl.text.trim();
-              if (email.isEmpty) return;
-              final nav = Navigator.of(context);
-              await supabase.auth.resetPasswordForEmail(email);
-              if (!mounted) return;
-              nav.pop();
-              _showSnack('Reset link sent');
-            },
-            child: const Text('Send link'),
-          ),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          backgroundColor: AppColors.bgSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          title: const Text('Reset password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text("We'll send a reset link to your email.", style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            const SizedBox(height: 14),
+            TextField(controller: resetCtrl, style: const TextStyle(fontSize: 13), decoration: const InputDecoration(labelText: 'Email address')),
+            if (errorText != null) ...[
+              const SizedBox(height: 8),
+              Text(errorText!, style: TextStyle(fontSize: 11, color: AppColors.dangerText)),
+            ],
+          ]),
+          actions: [
+            TextButton(onPressed: sending ? null : () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: sending ? null : () async {
+                final email = resetCtrl.text.trim();
+                if (email.isEmpty) {
+                  setDlg(() => errorText = 'Please enter your email');
+                  return;
+                }
+                setDlg(() { errorText = null; sending = true; });
+                try {
+                  await userService.requestPasswordReset(email);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (mounted) _showSnack('Reset link sent to your email');
+                } catch (e) {
+                  setDlg(() {
+                    errorText = e.toString().replaceFirst('Exception: ', '');
+                    sending = false;
+                  });
+                }
+              },
+              child: sending
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white))
+                  : const Text('Send link'),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -131,6 +131,17 @@ class UserService {
     }
   }
 
+  Future<void> requestPasswordReset(String email) async {
+    final res = await http.post(
+      Uri.parse('${AppConfig.baseUrl}/users/request-password-reset'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to send reset link'));
+    }
+  }
+
   Future<void> resetPassword({
     required String userId,
     required String newPassword,

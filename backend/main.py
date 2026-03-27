@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 
 from routers import documents, folders, notifications, users, work_orders, departments, recurring_inspections, reports, department_routes
 
@@ -55,6 +55,11 @@ app.include_router(departments.router, prefix="/api")
 app.include_router(department_routes.router, prefix="/api")
 app.include_router(recurring_inspections.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
+
+
+@app.get("/reset-password")
+async def reset_password_page():
+    return FileResponse("static/reset_password.html", media_type="text/html")
 
 
 @app.get("/api/version")

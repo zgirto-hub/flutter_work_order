@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Query, HTTPException
+import os
+from fastapi import APIRouter, Query, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
 from db import supabase
@@ -30,6 +31,15 @@ class ChangeRoleBody(BaseModel):
 
 
 class ResetPasswordBody(BaseModel):
+    new_password: str
+
+
+class RequestResetBody(BaseModel):
+    email: str
+
+
+class CompleteResetBody(BaseModel):
+    access_token: str
     new_password: str
 
 
@@ -277,6 +287,57 @@ async def reset_user_password(user_id: str, body: ResetPasswordBody, admin_email
         target_label=user["email"], detail=f"Reset by {admin_email}")
 
     return {"status": "password_reset"}
+
+
+# ================================================
+# SELF-SERVICE PASSWORD RESET (forgot password)
+# ================================================
+
+@router.post("/users/request-password-reset")
+async def request_password_reset(body: RequestResetBody, request: Request):
+    """Validate email exists, then send Supabase reset email"""
+    email = body.email.strip().lower()
+    user = _get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found with this email")
+    if not user.get("is_active", True):
+        raise HTTPException(status_code=400, detail="This account has been deactivated")
+
+    backend_base = os.environ.get("BACKEND_BASE_URL", "").rstrip("/")
+    if not backend_base:
+        backend_base = str(request.base_url).rstrip("/")
+    redirect_url = f"{backend_base}/reset-password"
+
+    supabase.auth.reset_password_for_email(email, options={"redirect_to": redirect_url})
+
+    log_activity(email, "auth", "password_reset_requested", target_label=email)
+
+    return {"status": "sent"}
+
+
+@router.post("/users/complete-password-reset")
+async def complete_password_reset(body: CompleteResetBody):
+    """Verify the recovery token and set a new password"""
+    try:
+        user_response = supabase.auth.get_user(body.access_token)
+        if not user_response or not user_response.user:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+
+    try:
+        supabase.auth.admin.update_user_by_id(
+            user_response.user.id, {"password": body.new_password}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to update password: {str(e)}")
+
+    log_activity(user_response.user.email or "", "auth", "password_reset_completed",
+        target_label=user_response.user.email or "")
+
+    return {"status": "password_updated"}
 
 
 @router.patch("/users/{user_id}/activate")
