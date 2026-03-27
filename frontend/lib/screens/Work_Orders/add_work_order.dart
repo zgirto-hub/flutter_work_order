@@ -97,7 +97,6 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     "Closed",
   ];
 
-  bool get _isRequester => _roleLoaded && _userRole == 'requester';
   bool get _isReporter => _roleLoaded && _userRole == 'reporter';
 
   /// Track focus & scroll the focused field into view (iOS PWA keyboard fix).
@@ -236,7 +235,7 @@ Future<void> _loadDepartments() async {
           _roleLoaded = true;
           _userRole = role;
         });
-        if (role == 'requester') {
+        if (role == 'reporter') {
           _loadUserProfile(email);
         } else if (role == 'technician') {
           _isTechnician = true;
@@ -455,12 +454,12 @@ Future<void> _loadDepartments() async {
   }
 
   Future<void> submit() async {
-    // Requesters can CREATE new work orders but cannot EDIT existing ones
+    // Reporters can CREATE new work orders but cannot EDIT existing ones
     final isNewWorkOrder = widget.workOrder == null;
-    if (_isRequester && !isNewWorkOrder) {
+    if (_isReporter && !isNewWorkOrder) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Requester cannot edit work orders'),
+          content: Text('Reporter cannot edit work orders'),
           backgroundColor: AppColors.dangerText,
           behavior: SnackBarBehavior.floating,
         ),
@@ -672,9 +671,9 @@ Future<void> _loadDepartments() async {
     if (!_roleLoaded) {
       return const Center(child: CircularProgressIndicator());
     }
-    // Requesters can CREATE new work orders, but cannot EDIT existing ones
+    // Reporters can CREATE new work orders, but cannot EDIT existing ones
     final isNewWorkOrder = widget.workOrder == null;
-    final canEdit = !_isRequester || isNewWorkOrder;
+    final canEdit = !_isReporter || isNewWorkOrder;
     // Extra bottom padding when keyboard is open so fields can scroll above it
     // (iOS PWA doesn't resize the viewport for the keyboard)
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
@@ -803,8 +802,8 @@ Future<void> _loadDepartments() async {
               textInputAction: TextInputAction.done,
             ),
             SizedBox(height: 25),
-            // Only show Assign Employees for admin/tech (not for requesters)
-            if (!_isRequester && !_isReporter) ...[
+            // Only show Assign Employees for admin/tech (not for reporters)
+            if (!_isReporter) ...[
               Text(
                 "Assign Technician",
                 style:
@@ -1043,10 +1042,10 @@ Future<void> _loadDepartments() async {
   }
 
   Future<void> _confirmDelete() async {
-    if (_isRequester) {
+    if (_isReporter) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Requester cannot delete work orders'),
+          content: Text('Reporter cannot delete work orders'),
           backgroundColor: AppColors.dangerText,
           behavior: SnackBarBehavior.floating,
         ),
