@@ -29,6 +29,10 @@ class ChangeRoleBody(BaseModel):
     department_id: Optional[str] = None
 
 
+class ResetPasswordBody(BaseModel):
+    new_password: str
+
+
 def _get_user_by_email(email: str):
     """Get user by email from users table"""
     normalized = email.strip().lower()
@@ -247,6 +251,32 @@ async def deactivate_user(user_id: str, admin_email: str = Query(...)):
         target_label=user["email"])
 
     return {"user": result.data[0] if result.data else None}
+
+
+@router.patch("/users/{user_id}/reset-password")
+async def reset_user_password(user_id: str, body: ResetPasswordBody, admin_email: str = Query(...)):
+    """Reset user password (admin only)"""
+    _require_admin(admin_email)
+
+    user = _get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    auth_id = user.get("auth_id")
+    if not auth_id:
+        raise HTTPException(status_code=400, detail="User has no auth account")
+
+    try:
+        supabase.auth.admin.update_user_by_id(
+            auth_id, {"password": body.new_password}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to reset password: {str(e)}")
+
+    log_activity(admin_email, "admin", "password_reset",
+        target_label=user["email"], detail=f"Reset by {admin_email}")
+
+    return {"status": "password_reset"}
 
 
 @router.patch("/users/{user_id}/activate")

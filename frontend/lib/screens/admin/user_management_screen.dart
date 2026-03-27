@@ -458,6 +458,84 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
+  Future<void> _showResetPasswordDialog(BuildContext context, AppUser user) async {
+    final passCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+    bool loading = false;
+    bool obscurePass = true;
+    bool obscureConfirmPass = true;
+    String? errorText;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          backgroundColor: AppColors.bgSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          title: Text('Reset Password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Set a new password for ${user.fullName ?? user.email}',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              SizedBox(height: 16),
+              _buildField('New Password', passCtrl, TextInputType.visiblePassword,
+                  obscure: true, obscureState: obscurePass,
+                  onToggleObscure: () => setDlg(() => obscurePass = !obscurePass)),
+              SizedBox(height: 12),
+              _buildField('Confirm Password', confirmPassCtrl, TextInputType.visiblePassword,
+                  obscure: true, obscureState: obscureConfirmPass,
+                  onToggleObscure: () => setDlg(() => obscureConfirmPass = !obscureConfirmPass)),
+              if (errorText != null) ...[
+                SizedBox(height: 8),
+                Text(errorText!, style: TextStyle(fontSize: 11, color: AppColors.dangerText)),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: loading ? null : () => Navigator.pop(ctx), child: Text('Cancel')),
+            ElevatedButton(
+              onPressed: loading ? null : () async {
+                if (passCtrl.text.isEmpty) {
+                  setDlg(() => errorText = 'Password cannot be empty');
+                  return;
+                }
+                if (passCtrl.text.length < 6) {
+                  setDlg(() => errorText = 'Password must be at least 6 characters');
+                  return;
+                }
+                if (passCtrl.text != confirmPassCtrl.text) {
+                  setDlg(() => errorText = 'Passwords do not match');
+                  return;
+                }
+                setDlg(() { errorText = null; loading = true; });
+                try {
+                  await _userService.resetPassword(
+                    userId: user.id,
+                    newPassword: passCtrl.text,
+                  );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Password reset successfully'), backgroundColor: AppColors.closedText),
+                    );
+                  }
+                } catch (e) {
+                  setDlg(() { errorText = e.toString(); loading = false; });
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
+              child: loading
+                  ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white))
+                  : Text('Reset', style: TextStyle(fontSize: 13)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showUserDetailsDialog(BuildContext context, AppUser user) async {
     final nameCtrl = TextEditingController(text: user.fullName);
     final mobileCtrl = TextEditingController(text: user.mobile);
@@ -605,6 +683,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 },
                 child: Text('Activate', style: TextStyle(color: AppColors.closedText)),
               ),
+            TextButton(
+              onPressed: loading ? null : () => _showResetPasswordDialog(context, user),
+              child: Text('Reset Password', style: TextStyle(color: AppColors.pendingText)),
+            ),
             TextButton(onPressed: loading ? null : () => Navigator.pop(ctx, false), child: Text('Cancel')),
             ElevatedButton(
               onPressed: loading ? null : () async {

@@ -131,6 +131,20 @@ class UserService {
     }
   }
 
+  Future<void> resetPassword({
+    required String userId,
+    required String newPassword,
+  }) async {
+    final res = await http.patch(
+      Uri.parse('${AppConfig.baseUrl}/users/$userId/reset-password?admin_email=${Uri.encodeComponent(_email)}'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'new_password': newPassword}),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to reset password'));
+    }
+  }
+
   Future<void> activateUser(String userId) async {
     final res = await http.patch(
       Uri.parse('${AppConfig.baseUrl}/users/$userId/activate?admin_email=${Uri.encodeComponent(_email)}'),
