@@ -39,7 +39,9 @@ class RequestResetBody(BaseModel):
 
 
 class CompleteResetBody(BaseModel):
-    access_token: str
+    access_token: Optional[str] = None
+    token_hash: Optional[str] = None
+    type: Optional[str] = None
     new_password: str
 
 
@@ -318,24 +320,43 @@ async def request_password_reset(body: RequestResetBody, request: Request):
 @router.post("/users/complete-password-reset")
 async def complete_password_reset(body: CompleteResetBody):
     """Verify the recovery token and set a new password"""
-    try:
-        user_response = supabase.auth.get_user(body.access_token)
-        if not user_response or not user_response.user:
+    user_id = None
+    user_email = ""
+
+    if body.token_hash:
+        # Supabase default flow: verify token_hash via OTP verification
+        try:
+            response = supabase.auth.verify_otp({
+                "token_hash": body.token_hash,
+                "type": "recovery",
+            })
+            if response and response.user:
+                user_id = response.user.id
+                user_email = response.user.email or ""
+        except Exception:
             raise HTTPException(status_code=400, detail="Invalid or expired reset link")
-    except HTTPException:
-        raise
-    except Exception:
+    elif body.access_token:
+        # Legacy flow: verify access_token JWT
+        try:
+            user_response = supabase.auth.get_user(body.access_token)
+            if user_response and user_response.user:
+                user_id = user_response.user.id
+                user_email = user_response.user.email or ""
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+    else:
+        raise HTTPException(status_code=400, detail="No reset token provided")
+
+    if not user_id:
         raise HTTPException(status_code=400, detail="Invalid or expired reset link")
 
     try:
-        supabase.auth.admin.update_user_by_id(
-            user_response.user.id, {"password": body.new_password}
-        )
+        supabase.auth.admin.update_user_by_id(user_id, {"password": body.new_password})
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to update password: {str(e)}")
 
-    log_activity(user_response.user.email or "", "auth", "password_reset_completed",
-        target_label=user_response.user.email or "")
+    log_activity(user_email, "auth", "password_reset_completed",
+        target_label=user_email)
 
     return {"status": "password_updated"}
 
