@@ -127,7 +127,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       _hasMore = result.items.length >= _pageSize;
     });
     if (_newWoIds.isNotEmpty) {
-      Future.delayed(const Duration(milliseconds: 600), () {
+      Future.delayed(const Duration(milliseconds: 800), () {
         if (mounted) setState(() => _newWoIds = {});
       });
     }
@@ -279,7 +279,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
     _exitSelectionMode();
     try {
       setState(() => _removingWoIds = ids.toSet());
-      await Future.delayed(const Duration(milliseconds: 350));
+      await Future.delayed(const Duration(milliseconds: 550));
       setState(() {
         _removingWoIds = {};
         _workOrders.removeWhere((wo) => ids.contains(wo.id));
@@ -683,7 +683,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
           tween: isRemoving
               ? Tween(begin: 1.0, end: 0.0)
               : Tween(begin: isNew ? 0.0 : 1.0, end: 1.0),
-          duration: Duration(milliseconds: isRemoving ? 300 : (isNew ? 400 : 0)),
+          duration: Duration(milliseconds: isRemoving ? 500 : (isNew ? 600 : 0)),
           curve: isRemoving ? Curves.easeInCubic : Curves.easeOutCubic,
           builder: (context, value, child) => Opacity(
             opacity: value.clamp(0.0, 1.0),
