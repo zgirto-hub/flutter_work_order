@@ -25,17 +25,16 @@ class DashboardScreen extends StatefulWidget {
   });
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  State<DashboardScreen> createState() => DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class DashboardScreenState extends State<DashboardScreen> {
   static const String _currentReleaseId =
       String.fromEnvironment('RELEASE_ID', defaultValue: '');
 
   bool _loading = true;
   bool _refreshing = false;
   int _openWorkOrders = 0;
-  int _pendingWorkOrders = 0;
   int _inProgressWorkOrders = 0;
   int _inspectionsToday = 0;
   List<ActivityLogEntry> _recentActivity = [];
@@ -57,6 +56,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _load();
     _loadVersion();
+  }
+
+  void refresh() {
+    if (!_loading) {
+      setState(() => _refreshing = true);
+      _load();
+    }
   }
 
   Future<void> _loadVersion() async {
@@ -104,8 +110,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() {
           _openWorkOrders =
               orders.where((o) => o['status'] != 'Closed').length;
-          _pendingWorkOrders =
-              orders.where((o) => o['status'] == 'Pending').length;
           _inProgressWorkOrders = orders
               .where((o) => o['status'] == 'In Progress')
               .length;

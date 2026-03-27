@@ -27,6 +27,7 @@ class _MainScreenState extends State<MainScreen> {
   bool _roleLoaded = false;
   int _openWOCount = 0;
   Timer? _pollTimer;
+  final _dashboardKey = GlobalKey<DashboardScreenState>();
 
   @override
   void initState() {
@@ -139,6 +140,7 @@ class _MainScreenState extends State<MainScreen> {
 
     final pages = [
       DashboardScreen(
+        key: _dashboardKey,
         userRole: _userRole,
         openRequestCount: _openWOCount,
         onNavigate: (index) => setState(() => _index = index),
@@ -151,7 +153,10 @@ class _MainScreenState extends State<MainScreen> {
       body: _AnimatedTabBody(index: _index, children: pages),
       bottomNavigationBar: _BottomNav(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) {
+          setState(() => _index = i);
+          if (i == 0) _dashboardKey.currentState?.refresh();
+        },
         destinations: [
           const NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
