@@ -657,11 +657,13 @@ async def delete_work_order(
 ):
     user_role = _get_user_role(user_email)
     existing = supabase.table("work_orders") \
-        .select("id, created_by") \
+        .select("id, title, created_by") \
         .eq("id", work_order_id) \
         .execute()
     if not existing.data:
         raise HTTPException(status_code=404, detail="Work order not found")
+
+    wo_title = existing.data[0].get("title", work_order_id)
 
     if user_role == "reporter":
         reporter_id = _get_user_id_by_email(user_email)
@@ -670,7 +672,7 @@ async def delete_work_order(
 
     supabase.table("work_orders").delete().eq("id", work_order_id).execute()
     log_activity(user_email, "work_order", "deleted",
-        target_label=work_order_id, target_id=work_order_id)
+        target_label=wo_title, target_id=work_order_id)
     return {"status": "deleted"}
 
 
@@ -684,14 +686,21 @@ async def delete_work_orders_bulk(
         raise HTTPException(status_code=400, detail="No IDs provided")
 
     user_role = _get_user_role(user_email)
+    wo_check = supabase.table("work_orders").select("id, title, created_by").in_("id", id_list).execute()
+    wo_data = wo_check.data or []
+
     if user_role == "reporter":
         reporter_id = _get_user_id_by_email(user_email)
-        wo_check = supabase.table("work_orders").select("id, created_by").in_("id", id_list).execute()
-        not_owned = [w["id"] for w in (wo_check.data or []) if w.get("created_by") != reporter_id]
+        not_owned = [w["id"] for w in wo_data if w.get("created_by") != reporter_id]
         if not_owned:
             raise HTTPException(status_code=403, detail="Reporters can only delete their own work orders")
 
     supabase.table("work_orders").delete().in_("id", id_list).execute()
+
+    for wo in wo_data:
+        log_activity(user_email, "work_order", "deleted",
+            target_label=wo.get("title", wo["id"]), target_id=wo["id"])
+
     return {"status": "deleted", "count": len(id_list)}
 
 
