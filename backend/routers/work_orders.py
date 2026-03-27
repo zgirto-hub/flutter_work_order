@@ -250,8 +250,8 @@ def _log_assignment_changes(
             print(f"[_log_assignment_changes] Failed to insert comments: {e}")
 
 
-def _log_status_change(work_order_id: str, old_status: str, new_status: str, changed_by: str, note: Optional[str] = None):
-    """Log status change to audit trail"""
+def _log_status_change(work_order_id: str, old_status: str, new_status: str, changed_by: str, changed_by_email: str = "", changed_by_name: str = "", note: Optional[str] = None):
+    """Log status change to audit trail and insert a status_change comment"""
     supabase.table("work_order_status_logs").insert({
         "work_order_id": work_order_id,
         "changed_by": changed_by,
@@ -259,6 +259,18 @@ def _log_status_change(work_order_id: str, old_status: str, new_status: str, cha
         "new_status": new_status,
         "note": note,
     }).execute()
+
+    try:
+        supabase.table("work_order_comments").insert({
+            "work_order_id": work_order_id,
+            "author_email": changed_by_email,
+            "author_name": changed_by_name,
+            "body": f"Status changed from {old_status} to {new_status}",
+            "type": "status_change",
+            "meta": {"from": old_status, "to": new_status},
+        }).execute()
+    except Exception as e:
+        print(f"[_log_status_change] Failed to insert comment: {e}")
 
 
 # --------------------
@@ -559,7 +571,8 @@ async def update_work_order(
             changed_by_name=editor_name,
         )
         if old_status != body.status:
-            _log_status_change(work_order_id, old_status, body.status, user_id)
+            _log_status_change(work_order_id, old_status, body.status, user_id,
+                               changed_by_email=user_email, changed_by_name=editor_name)
 
     log_activity(user_email, "work_order", "updated",
         target_label=body.title, target_id=work_order_id)
@@ -596,7 +609,10 @@ async def close_work_order(
         "updated_at": now,
     }).eq("id", work_order_id).execute()
 
-    _log_status_change(work_order_id, old_status, "Closed", body.closed_by, body.tech_notes)
+    closer_user = _get_user_by_email(user_email) if user_email else None
+    closer_name = (closer_user.get("full_name") or user_email.split("@")[0]) if closer_user else user_email.split("@")[0]
+    _log_status_change(work_order_id, old_status, "Closed", body.closed_by,
+                       changed_by_email=user_email, changed_by_name=closer_name, note=body.tech_notes)
 
     log_activity(user_email, "work_order", "closed",
         target_label=work_order_id, target_id=work_order_id)
