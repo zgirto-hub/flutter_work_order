@@ -9,6 +9,8 @@ import '../services/pwa_update_stub.dart'
 import '../theme/app_theme.dart';
 import '../config.dart';
 import '../widgets/claude_widgets.dart';
+import '../services/activity_log_service.dart';
+import '../models/activity_log_entry.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String userRole;
@@ -36,7 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _pendingWorkOrders = 0;
   int _inProgressWorkOrders = 0;
   int _inspectionsToday = 0;
-  List<Map<String, dynamic>> _recentActivity = [];
+  List<ActivityLogEntry> _recentActivity = [];
   String _appVersion = '';
   String _appBuild = '';
   bool _checkingUpdate = false;
@@ -118,36 +120,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadRecentActivity() async {
-    // Placeholder — will be populated when activity log is built
-    // For now show recent work orders as activity
     try {
-      final uri = Uri.parse('${AppConfig.baseUrl}/work-orders').replace(
-        queryParameters: {
-          'email': _email,
-          'user_role': widget.userRole,
-        },
-      );
-      final res = await http.get(uri);
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final orders =
-            (data['work_orders'] as List<dynamic>? ?? []).take(5).toList();
-        if (!mounted) return;
-        setState(() {
-          _recentActivity = orders
-              .map((o) => {
-                    'title': o['title'] ?? '',
-                    'status': o['status'] ?? '',
-                    'type': o['type'] ?? '',
-                    'created_at': o['created_at'] ?? '',
-                  })
-              .toList();
-          _recentJustLoaded = true;
-        });
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) setState(() => _recentJustLoaded = false);
-        });
-      }
+      final logs = await ActivityLogService().fetchLogs(limit: 5);
+      if (!mounted) return;
+      setState(() {
+        _recentActivity = logs;
+        _recentJustLoaded = true;
+      });
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) setState(() => _recentJustLoaded = false);
+      });
     } catch (_) {}
   }
 
@@ -483,32 +465,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                   SizedBox(height: 24),
 
-                  // ── Recent work orders ─────────────────────
-                  Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Recent Work Orders',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => widget.onNavigate(1),
-                        child: Text(
-                          'See all',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.accent,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
+                  // ── Recent activity ────────────────────────
+                  Text(
+                    'Recent Activity',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -0.2,
+                    ),
                   ),
                   SizedBox(height: 8),
 
@@ -523,7 +488,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       child: Center(
                         child: Text(
-                          'No recent work orders',
+                          'No recent activity',
                           style: TextStyle(
                             fontSize: 13,
                             color: AppColors.textTertiary,
@@ -553,7 +518,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 _recentActivity.length - 1;
                             return Column(
                               children: [
-                                _RecentActivityRow(item: item),
+                                _RecentActivityRow(entry: item),
                                 if (!isLast)
                                   Divider(
                                     height: 0,
@@ -731,49 +696,57 @@ class _QuickAction extends StatelessWidget {
 // ── Recent Activity Row ───────────────────────────────────────────────────────
 
 class _RecentActivityRow extends StatelessWidget {
-  final Map<String, dynamic> item;
+  final ActivityLogEntry entry;
 
-  const _RecentActivityRow({required this.item});
+  const _RecentActivityRow({required this.entry});
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'Pending':
-        return AppColors.pendingText;
-      case 'In Progress':
-        return AppColors.inProgressText;
-      case 'Closed':
+  IconData _actionIcon(String action, String category) {
+    switch (action) {
+      case 'signed_in':
+        return Icons.login_rounded;
+      case 'signed_out':
+        return Icons.logout_rounded;
+      case 'created':
+        return Icons.add_circle_outline_rounded;
+      case 'updated':
+        return Icons.edit_outlined;
+      case 'deleted':
+        return Icons.delete_outline_rounded;
+      case 'closed':
+        return Icons.check_circle_outline_rounded;
+      case 'uploaded':
+        return Icons.upload_file_rounded;
+      case 'role_changed':
+        return Icons.swap_horiz_rounded;
+      case 'password_reset':
+      case 'password_reset_completed':
+        return Icons.lock_reset_rounded;
+      case 'user_created':
+        return Icons.person_add_outlined;
+      default:
+        return Icons.circle_outlined;
+    }
+  }
+
+  Color _actionColor(String action) {
+    switch (action) {
+      case 'created':
+      case 'user_created':
         return AppColors.closedText;
-      default:
+      case 'deleted':
+        return AppColors.dangerText;
+      case 'signed_in':
+      case 'signed_out':
         return AppColors.textTertiary;
-    }
-  }
-
-  Color _statusBg(String status) {
-    switch (status) {
-      case 'Pending':
-        return AppColors.pendingBg;
-      case 'In Progress':
-        return AppColors.inProgressBg;
-      case 'Closed':
-        return AppColors.closedBg;
       default:
-        return AppColors.bgSurface2;
-    }
-  }
-
-  IconData _typeIcon(String type) {
-    switch (type) {
-      case 'Inspection':
-        return Icons.checklist_rounded;
-      default:
-        return Icons.work_outline_rounded;
+        return AppColors.accent;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final status = item['status'] as String? ?? '';
-    final type = item['type'] as String? ?? '';
+    final label = entry.targetLabel ?? '';
+    final desc = entry.description;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
@@ -783,40 +756,48 @@ class _RecentActivityRow extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppColors.bgSurface2,
+              color: _actionColor(entry.action).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(9),
             ),
-            child: Icon(_typeIcon(type),
-                size: 15, color: AppColors.textSecondary),
+            child: Icon(_actionIcon(entry.action, entry.category),
+                size: 15, color: _actionColor(entry.action)),
           ),
           SizedBox(width: 10),
           Expanded(
-            child: Text(
-              item['title'] as String? ?? '',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  desc,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (label.isNotEmpty) ...[
+                  SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textTertiary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
             ),
           ),
           SizedBox(width: 8),
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: _statusBg(status),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              status,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: _statusColor(status),
-              ),
+          Text(
+            entry.formattedTime,
+            style: TextStyle(
+              fontSize: 10,
+              color: AppColors.textTertiary,
             ),
           ),
         ],
