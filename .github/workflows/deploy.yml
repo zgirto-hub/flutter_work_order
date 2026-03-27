@@ -79,12 +79,19 @@ jobs:
           }
           EOF
 
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H 100.85.73.37 >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H 100.85.73.37 >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Deploy to server
         timeout-minutes: 5
