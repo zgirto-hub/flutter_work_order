@@ -67,6 +67,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   final Set<String> _selectedIds = {};
   bool _navigatingToActivity = false;
   bool _navigatingToEdit = false;
+  Set<String> _newWoIds = {};
+  Set<String> _removingWoIds = {};
   String _userRole = 'admin';
   String? _userDepartment;
   bool _profileLoaded = false;
@@ -115,11 +117,19 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
     );
     await _refreshUnreadNotifications(playSoundIfIncreased: false);
     if (!mounted) return;
+    final oldIds = _workOrders.map((wo) => wo.id).toSet();
+    final newIds = result.items.map((wo) => wo.id).toSet();
     setState(() {
+      _newWoIds = oldIds.isEmpty ? {} : newIds.difference(oldIds);
       _workOrders = result.items;
       _total = result.total;
       _hasMore = result.items.length >= _pageSize;
     });
+    if (_newWoIds.isNotEmpty) {
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) setState(() => _newWoIds = {});
+      });
+    }
   }
 
   Future<void> _loadMore() async {
@@ -267,7 +277,10 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
     final ids = List<String>.from(_selectedIds);
     _exitSelectionMode();
     try {
+      setState(() => _removingWoIds = ids.toSet());
+      await Future.delayed(const Duration(milliseconds: 350));
       await _service.deleteWorkOrders(ids);
+      setState(() => _removingWoIds = {});
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -638,7 +651,23 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       // WO cards for this date
       for (final wo in entry.value) {
         final i = items.indexOf(wo);
-        widgets.add(Padding(
+        final isNew = _newWoIds.contains(wo.id);
+        final isRemoving = _removingWoIds.contains(wo.id);
+        widgets.add(TweenAnimationBuilder<double>(
+          key: ValueKey('anim_${wo.id}_${isRemoving ? 'out' : 'in'}'),
+          tween: isRemoving
+              ? Tween(begin: 1.0, end: 0.0)
+              : Tween(begin: isNew ? 0.0 : 1.0, end: 1.0),
+          duration: Duration(milliseconds: isRemoving ? 300 : (isNew ? 400 : 0)),
+          curve: isRemoving ? Curves.easeInCubic : Curves.easeOutCubic,
+          builder: (context, value, child) => Opacity(
+            opacity: value.clamp(0.0, 1.0),
+            child: Transform.translate(
+              offset: Offset(isRemoving ? -20 * (1 - value) : 0, isRemoving ? 0 : 12 * (1 - value)),
+              child: child,
+            ),
+          ),
+          child: Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: WorkOrderCard(
             workOrder: wo,
@@ -702,7 +731,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
               }
             },
           ),
-        ));
+        )));
       }
     }
 
