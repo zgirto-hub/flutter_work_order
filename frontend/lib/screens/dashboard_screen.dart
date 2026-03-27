@@ -311,6 +311,32 @@ class DashboardScreenState extends State<DashboardScreen> {
                         ),
                         SizedBox(width: 8),
                         GestureDetector(
+                          onTap: _refreshing ? null : () {
+                            setState(() => _refreshing = true);
+                            _load();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSurface,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color: AppColors.border, width: 0.5),
+                            ),
+                            child: _refreshing
+                                ? SizedBox(
+                                    width: 16, height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 1.5, color: AppColors.textTertiary))
+                                : Icon(
+                                    Icons.refresh_rounded,
+                                    size: 16,
+                                    color: AppColors.textTertiary,
+                                  ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        GestureDetector(
                           onTap: _signOut,
                           child: Container(
                             padding: const EdgeInsets.all(6),
