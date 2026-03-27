@@ -176,6 +176,12 @@ Future<void> _loadDepartments() async {
       if (currentUser != null && userDeptId != null && userDeptId.isNotEmpty) {
         final routeService = DepartmentRouteService();
         departments = await routeService.fetchTargetDepartments(userDeptId);
+        // Ensure technician's own department is in the list
+        if (_isTechnician && !departments.any((d) => d.id == userDeptId)) {
+          final allDepts = await _departmentService.fetchDepartments(isActive: true);
+          final own = allDepts.where((d) => d.id == userDeptId).firstOrNull;
+          if (own != null) departments.add(own);
+        }
       } else {
         // Fallback: show all if user has no department set
         departments = await _departmentService.fetchDepartments(isActive: true);
@@ -236,15 +242,22 @@ Future<void> _loadDepartments() async {
           _isTechnician = true;
           final currentUser = await _userService.fetchCurrentUser();
           if (currentUser != null && currentUser.departmentId != null && currentUser.departmentId!.isNotEmpty) {
-            // Find department name for the technician's department
             final deptId = currentUser.departmentId!;
+            // Resolve department name: try user profile, then fetch by ID
+            String deptName = currentUser.departments.isNotEmpty
+                ? currentUser.departments.first
+                : '';
+            if (deptName.isEmpty) {
+              try {
+                final allDepts = await _departmentService.fetchDepartments(isActive: true);
+                final match = allDepts.where((d) => d.id == deptId).firstOrNull;
+                if (match != null) deptName = match.name;
+              } catch (_) {}
+            }
             if (mounted) {
               setState(() {
                 selectedDepartmentId = deptId;
-                // Try to get name from departments list, or use a placeholder until departments load
-                selectedDepartment = currentUser.departments.isNotEmpty
-                    ? currentUser.departments.first
-                    : '';
+                if (deptName.isNotEmpty) selectedDepartment = deptName;
               });
               _loadEmployees(departmentId: deptId);
             }
@@ -739,7 +752,8 @@ Future<void> _loadDepartments() async {
             ),
             SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              initialValue: selectedDepartment,
+              key: ValueKey('dept_${_departments.length}_$selectedDepartment'),
+              value: selectedDepartment,
               items: _departments.isEmpty
                   ? [DropdownMenuItem(value: selectedDepartment, child: Text(selectedDepartment))]
                   : _departments.map((d) => DropdownMenuItem(value: d.name, child: Text(d.name))).toList(),
