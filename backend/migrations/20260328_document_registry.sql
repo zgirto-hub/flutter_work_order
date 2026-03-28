@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS document_registry (
     document_number TEXT NOT NULL,
     date            DATE NOT NULL,
     replied         BOOLEAN NOT NULL DEFAULT false,
+    file_name       TEXT,
+    file_url        TEXT,
     created_by      TEXT NOT NULL,
     created_at      TIMESTAMPTZ DEFAULT now()
 );

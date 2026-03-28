@@ -4,6 +4,8 @@ class RegistryEntry {
   final String documentNumber;
   final String date;
   final bool replied;
+  final String? fileName;
+  final String? fileUrl;
   final String createdBy;
   final String? createdAt;
 
@@ -13,9 +15,13 @@ class RegistryEntry {
     required this.documentNumber,
     required this.date,
     this.replied = false,
+    this.fileName,
+    this.fileUrl,
     required this.createdBy,
     this.createdAt,
   });
+
+  bool get hasAttachment => fileUrl != null && fileUrl!.isNotEmpty;
 
   factory RegistryEntry.fromJson(Map<String, dynamic> json) {
     return RegistryEntry(
@@ -24,6 +30,8 @@ class RegistryEntry {
       documentNumber: json['document_number'] ?? '',
       date: json['date'] ?? '',
       replied: json['replied'] ?? false,
+      fileName: json['file_name'],
+      fileUrl: json['file_url'],
       createdBy: json['created_by'] ?? '',
       createdAt: json['created_at'],
     );

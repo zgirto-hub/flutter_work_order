@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/form_fields.dart';
 import '../../models/registry_entry.dart';
 import '../../services/document_registry_service.dart';
+import '../../config.dart';
 
 class DocumentRegistryScreen extends StatefulWidget {
   const DocumentRegistryScreen({super.key});
@@ -165,6 +167,46 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  Future<void> _attachFile(RegistryEntry entry) async {
+    final file = await _service.pickAttachment();
+    if (file == null) return;
+
+    try {
+      final ok = await _service.uploadAttachment(entry.id, file);
+      if (ok) {
+        await _loadEntries();
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload file')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to upload file')),
+      );
+    }
+  }
+
+  Future<void> _removeAttachment(RegistryEntry entry) async {
+    try {
+      await _service.deleteAttachment(entry.id);
+      await _loadEntries();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to remove attachment')),
+      );
+    }
+  }
+
+  Future<void> _openAttachment(RegistryEntry entry) async {
+    if (entry.fileUrl == null) return;
+    final url = '${AppConfig.downloadUrl}${entry.fileUrl}';
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
   Future<void> _deleteEntry(RegistryEntry entry) async {
@@ -473,90 +515,145 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: const Color(0xFFCFFAFE),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.description_outlined, size: 18, color: const Color(0xFF0E7490)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.documentName,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          // ── Main row ──
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCFFAFE),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 2),
-                Row(
+                child: Icon(Icons.description_outlined, size: 18, color: const Color(0xFF0E7490)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '#${entry.documentNumber}  •  ${entry.date}',
+                      entry.documentName,
                       style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textTertiary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: entry.replied
-                            ? const Color(0xFFDCFCE7)
-                            : const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        entry.replied ? 'Yes' : 'No',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: entry.replied
-                              ? const Color(0xFF15803D)
-                              : const Color(0xFFB45309),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(
+                          '#${entry.documentNumber}  •  ${entry.date}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textTertiary,
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: entry.replied
+                                ? const Color(0xFFDCFCE7)
+                                : const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            entry.replied ? 'Yes' : 'No',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: entry.replied
+                                  ? const Color(0xFF15803D)
+                                  : const Color(0xFFB45309),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              GestureDetector(
+                onTap: () => _attachFile(entry),
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.attach_file_rounded, size: 17, color: AppColors.textTertiary),
+                ),
+              ),
+              const SizedBox(width: 2),
+              GestureDetector(
+                onTap: () => _startEditing(entry),
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.edit_outlined, size: 17, color: AppColors.textTertiary),
+                ),
+              ),
+              const SizedBox(width: 2),
+              GestureDetector(
+                onTap: () => _deleteEntry(entry),
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.textTertiary),
+                ),
+              ),
+            ],
           ),
-          GestureDetector(
-            onTap: () => _startEditing(entry),
-            child: Container(
-              width: 30,
-              height: 30,
+
+          // ── Attachment row ──
+          if (entry.hasAttachment) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
+                color: AppColors.bgSurface2,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.edit_outlined, size: 17, color: AppColors.textTertiary),
-            ),
-          ),
-          const SizedBox(width: 4),
-          GestureDetector(
-            onTap: () => _deleteEntry(entry),
-            child: Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
+              child: Row(
+                children: [
+                  Icon(Icons.insert_drive_file_outlined, size: 14, color: AppColors.textSecondary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _openAttachment(entry),
+                      child: Text(
+                        entry.fileName ?? 'Attachment',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.accent,
+                          decoration: TextDecoration.underline,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _removeAttachment(entry),
+                    child: Icon(Icons.close_rounded, size: 14, color: AppColors.textTertiary),
+                  ),
+                ],
               ),
-              child: Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.textTertiary),
             ),
-          ),
+          ],
         ],
       ),
     );
