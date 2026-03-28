@@ -192,106 +192,86 @@ class PaymentCertificatePdfService {
 
     final hBold = bold.copyWith(fontSize: 8);
     final hSmall = bold.copyWith(fontSize: 7);
-    final cell = base.copyWith(fontSize: 8);
+    final dStyle = base.copyWith(fontSize: 8);
+    final bdr = const pw.BorderSide(width: 0.5);
 
-    pw.Widget hdr(String text, {int flex = 1}) => pw.Expanded(
+    // Bordered cell helper
+    pw.Widget hCell(String text, pw.TextStyle s, {int flex = 1, bool isHeader = false}) =>
+        pw.Expanded(
           flex: flex,
           child: pw.Container(
-            color: headerBg,
-            padding: const pw.EdgeInsets.symmetric(vertical: 4),
+            color: isHeader ? headerBg : null,
+            padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 2),
             alignment: pw.Alignment.center,
-            child: pw.Text(text, style: hBold,
+            decoration: pw.BoxDecoration(border: pw.Border(left: bdr)),
+            child: pw.Text(text, style: s,
                 textAlign: pw.TextAlign.center,
                 textDirection: pw.TextDirection.rtl),
           ),
         );
 
-    pw.Widget subHdr(String text) => pw.Expanded(
-          child: pw.Container(
-            color: headerBg,
-            padding: const pw.EdgeInsets.symmetric(vertical: 3),
-            alignment: pw.Alignment.center,
-            child: pw.Text(text, style: hSmall,
-                textAlign: pw.TextAlign.center,
-                textDirection: pw.TextDirection.rtl),
-          ),
-        );
-
-    pw.Widget dataCell(String text) => pw.Expanded(
-          child: pw.Container(
-            padding: const pw.EdgeInsets.symmetric(vertical: 4),
-            alignment: pw.Alignment.center,
-            child: pw.Text(text, style: cell,
-                textAlign: pw.TextAlign.center,
-                textDirection: pw.TextDirection.rtl),
-          ),
-        );
-
-    pw.Widget reasonCell(String text) => pw.Expanded(
+    // Reason cell (right-aligned text, flex:2)
+    pw.Widget rCell(String text, {bool isHeader = false}) => pw.Expanded(
           flex: 2,
           child: pw.Container(
+            color: isHeader ? headerBg : null,
             padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 4),
             alignment: pw.Alignment.centerRight,
-            child: pw.Text(text, style: cell,
+            child: pw.Text(text, style: isHeader ? hBold : dStyle,
                 textDirection: pw.TextDirection.rtl),
           ),
         );
 
-    final border = pw.TableBorder.all(width: 0.5);
+    pw.Widget bRow(List<pw.Widget> children) => pw.Container(
+          decoration: pw.BoxDecoration(border: pw.Border(bottom: bdr)),
+          child: pw.Row(children: children),
+        );
 
-    return pw.Table(
-      border: border,
-      children: [
-        // ── Row 1: Group headers (merged) ──
-        pw.TableRow(
-          children: [
-            hdr('الدفعة المستحقة', flex: 2),
-            hdr('الخصم', flex: 2),
-            hdr('الصافي', flex: 2),
-            hdr('أسباب (الاستحقاق/ الخصم)', flex: 2),
-          ],
-        ),
-        // ── Row 2: Sub-headers ──
-        pw.TableRow(
-          children: [
-            subHdr('سنت'),
-            subHdr('دولار'),
-            subHdr('فلس'),
-            subHdr('دينار'),
-            subHdr('فلس'),
-            subHdr('دينار'),
-            pw.Expanded(
-              flex: 2,
-              child: pw.Container(color: headerBg, height: 0),
-            ),
-          ],
-        ),
-        // ── Data rows ──
-        for (final r in cert.paymentRows)
-          pw.TableRow(
-            children: [
-              dataCell(_fmtNum(r.duePaymentCents)),
-              dataCell(_fmtNum(r.duePaymentDollars)),
-              dataCell(_fmtNum(r.deductionFils)),
-              dataCell(_fmtNum(r.deductionDinar)),
-              dataCell(_fmtNum(r.netFils)),
-              dataCell(_fmtNum(r.netDinar)),
-              reasonCell(r.reason),
-            ],
-          ),
-        // ── Total row ──
-        pw.TableRow(
-          children: [
-            dataCell(_fmtNum(totalCents)),
-            dataCell(_fmtNum(totalDollars)),
-            dataCell(_fmtNum(totalFils)),
-            dataCell(_fmtNum(totalDinar)),
-            dataCell(_fmtNum(totalNetFils)),
-            dataCell(_fmtNum(totalNetDinar)),
-            reasonCell('الاجمالي'),
-          ],
-        ),
-      ],
+    // Column order (RTL): reason(2) | دينار | فلس | دينار | فلس | دولار | سنت
+    return pw.Container(
+      decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
+      child: pw.Column(
+        children: [
+          // ── Row 1: Group headers ──
+          bRow([
+            rCell('أسباب (الاستحقاق/ الخصم)', isHeader: true),
+            hCell('الصافي', hBold, flex: 2, isHeader: true),
+            hCell('الخصم', hBold, flex: 2, isHeader: true),
+            hCell('الدفعة المستحقة', hBold, flex: 2, isHeader: true),
+          ]),
+          // ── Row 2: Sub-headers ──
+          bRow([
+            pw.Expanded(flex: 2, child: pw.Container(color: headerBg, height: 20)),
+            hCell('دينار', hSmall, isHeader: true),
+            hCell('فلس', hSmall, isHeader: true),
+            hCell('دينار', hSmall, isHeader: true),
+            hCell('فلس', hSmall, isHeader: true),
+            hCell('دولار', hSmall, isHeader: true),
+            hCell('سنت', hSmall, isHeader: true),
+          ]),
+          // ── Data rows ──
+          for (final r in cert.paymentRows)
+            bRow([
+              rCell(r.reason),
+              hCell(_fmtNum(r.netDinar), dStyle),
+              hCell(_fmtNum(r.netFils), dStyle),
+              hCell(_fmtNum(r.deductionDinar), dStyle),
+              hCell(_fmtNum(r.deductionFils), dStyle),
+              hCell(_fmtNum(r.duePaymentDollars), dStyle),
+              hCell(_fmtNum(r.duePaymentCents), dStyle),
+            ]),
+          // ── Total row ──
+          bRow([
+            rCell('الاجمالي'),
+            hCell(_fmtNum(totalNetDinar), dStyle),
+            hCell(_fmtNum(totalNetFils), dStyle),
+            hCell(_fmtNum(totalDinar), dStyle),
+            hCell(_fmtNum(totalFils), dStyle),
+            hCell(_fmtNum(totalDollars), dStyle),
+            hCell(_fmtNum(totalCents), dStyle),
+          ]),
+        ],
+      ),
     );
   }
 
