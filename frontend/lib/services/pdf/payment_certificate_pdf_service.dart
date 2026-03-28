@@ -1,25 +1,24 @@
 import 'dart:typed_data';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import '../../models/payment_certificate.dart';
 
 class PaymentCertificatePdfService {
   static Future<Uint8List> build(PaymentCertificate cert) async {
-    // Load Arabic + Latin fonts for mixed content
-    final arabicFont = await PdfGoogleFonts.notoSansArabicRegular();
-    final arabicFontBold = await PdfGoogleFonts.notoSansArabicBold();
-    final latinFont = await PdfGoogleFonts.notoSansRegular();
-    final latinFontBold = await PdfGoogleFonts.notoSansBold();
-    final fallback = [latinFont, latinFontBold];
+    // Load Calibri from bundled assets (supports Arabic + Latin)
+    final calibriData = await rootBundle.load('assets/fonts/calibri.ttf');
+    final calibriBoldData = await rootBundle.load('assets/fonts/calibrib.ttf');
+    final calibri = pw.Font.ttf(calibriData);
+    final calibriBold = pw.Font.ttf(calibriBoldData);
 
-    final baseStyle = pw.TextStyle(font: arabicFont, fontSize: 9, fontFallback: fallback);
-    final boldStyle = pw.TextStyle(
-        font: arabicFontBold, fontSize: 9, fontWeight: pw.FontWeight.bold, fontFallback: fallback);
-    final headerStyle = pw.TextStyle(
-        font: arabicFontBold, fontSize: 14, fontWeight: pw.FontWeight.bold, fontFallback: fallback);
-    final subHeaderStyle = pw.TextStyle(
-        font: arabicFontBold, fontSize: 10, fontWeight: pw.FontWeight.bold, fontFallback: fallback);
+    final baseStyle = pw.TextStyle(font: calibri, fontSize: 9);
+    final boldStyle =
+        pw.TextStyle(font: calibriBold, fontSize: 9, fontWeight: pw.FontWeight.bold);
+    final headerStyle =
+        pw.TextStyle(font: calibriBold, fontSize: 14, fontWeight: pw.FontWeight.bold);
+    final subHeaderStyle =
+        pw.TextStyle(font: calibriBold, fontSize: 10, fontWeight: pw.FontWeight.bold);
 
     final pdf = pw.Document();
 
@@ -28,11 +27,7 @@ class PaymentCertificatePdfService {
         textDirection: pw.TextDirection.rtl,
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(30),
-        theme: pw.ThemeData.withFont(
-          base: arabicFont,
-          bold: arabicFontBold,
-          fontFallback: [latinFont, latinFontBold],
-        ),
+        theme: pw.ThemeData.withFont(base: calibri, bold: calibriBold),
         build: (context) => [
           // ── 1. Title ───────────────────────────────────────────
           pw.Center(

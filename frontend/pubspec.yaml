@@ -50,3 +50,5 @@ flutter:
     - assets/images/
     - assets/report_preview_burgundy.html
     - assets/work_order_system_intro.html
+    - assets/fonts/calibri.ttf
+    - assets/fonts/calibrib.ttf
