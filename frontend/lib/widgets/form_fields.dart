@@ -45,12 +45,30 @@ class _ValidatedTextFieldState extends State<ValidatedTextField> {
   String? _errorText;
   late FocusNode _focusNode;
   bool _hasInteracted = false;
+  TextDirection? _textDirection;
+
+  static TextDirection? _detectDirection(String text) {
+    for (final char in text.runes) {
+      if (char >= 0x0600 && char <= 0x06FF ||
+          char >= 0x0750 && char <= 0x077F ||
+          char >= 0xFB50 && char <= 0xFDFF ||
+          char >= 0xFE70 && char <= 0xFEFF) {
+        return TextDirection.rtl;
+      }
+      if (char >= 0x0041 && char <= 0x005A ||
+          char >= 0x0061 && char <= 0x007A) {
+        return TextDirection.ltr;
+      }
+    }
+    return null;
+  }
 
   @override
   void initState() {
     super.initState();
     _focusNode = widget.focusNode ?? FocusNode();
     _focusNode.addListener(_onFocusChange);
+    _textDirection = _detectDirection(widget.controller?.text ?? '');
   }
 
   @override
@@ -78,6 +96,7 @@ class _ValidatedTextFieldState extends State<ValidatedTextField> {
   void _onChanged(String value) {
     setState(() {
       _hasInteracted = true;
+      _textDirection = _detectDirection(value);
     });
 
     if (widget.validateOnChange && _hasInteracted) {
@@ -97,6 +116,7 @@ class _ValidatedTextFieldState extends State<ValidatedTextField> {
         TextFormField(
           controller: widget.controller,
           focusNode: _focusNode,
+          textDirection: _textDirection,
           keyboardType: widget.keyboardType,
           obscureText: widget.obscureText,
           maxLines: widget.maxLines,
