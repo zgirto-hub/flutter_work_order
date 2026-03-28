@@ -16,9 +16,30 @@ class PaymentRow {
     this.netFils = 0,
     this.reason = '',
   });
+
+  factory PaymentRow.fromJson(Map<String, dynamic> json) => PaymentRow(
+        duePaymentDollars: (json['duePaymentDollars'] ?? 0).toDouble(),
+        duePaymentCents: (json['duePaymentCents'] ?? 0).toDouble(),
+        deductionDinar: (json['deductionDinar'] ?? 0).toDouble(),
+        deductionFils: (json['deductionFils'] ?? 0).toDouble(),
+        netDinar: (json['netDinar'] ?? 0).toDouble(),
+        netFils: (json['netFils'] ?? 0).toDouble(),
+        reason: json['reason'] ?? '',
+      );
+
+  Map<String, dynamic> toJson() => {
+        'duePaymentDollars': duePaymentDollars,
+        'duePaymentCents': duePaymentCents,
+        'deductionDinar': deductionDinar,
+        'deductionFils': deductionFils,
+        'netDinar': netDinar,
+        'netFils': netFils,
+        'reason': reason,
+      };
 }
 
 class PaymentCertificate {
+  final String id;
   final String certificateNumber;
   final String subject;
   final String contractNumber;
@@ -45,8 +66,13 @@ class PaymentCertificate {
   final String controller;
   final String director;
   final String auditor;
+  final String createdBy;
+  final String createdByEmail;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const PaymentCertificate({
+    this.id = '',
     this.certificateNumber = '',
     this.subject = '',
     this.contractNumber = '',
@@ -73,7 +99,95 @@ class PaymentCertificate {
     this.controller = '',
     this.director = '',
     this.auditor = '',
+    this.createdBy = '',
+    this.createdByEmail = '',
+    this.createdAt,
+    this.updatedAt,
   });
+
+  static DateTime? _parseDate(dynamic v) {
+    if (v == null || v == '') return null;
+    return DateTime.tryParse(v.toString());
+  }
+
+  factory PaymentCertificate.fromJson(Map<String, dynamic> j) {
+    final rawRows = j['payment_rows'];
+    final rows = rawRows is List
+        ? rawRows.map((r) => PaymentRow.fromJson(r as Map<String, dynamic>)).toList()
+        : <PaymentRow>[];
+
+    final rawChecklist = j['attachment_checklist'];
+    final checklist = rawChecklist is Map
+        ? rawChecklist.map((k, v) => MapEntry(k.toString(), v == true))
+        : PaymentCertificate.defaultChecklist();
+
+    return PaymentCertificate(
+      id: j['id'] ?? '',
+      certificateNumber: j['certificate_number'] ?? '',
+      subject: j['subject'] ?? '',
+      contractNumber: j['contract_number'] ?? '',
+      invoiceNumber: j['invoice_number'] ?? '',
+      invoiceAmount: (j['invoice_amount'] ?? 0).toDouble(),
+      currency: j['currency'] ?? 'USD',
+      periodFrom: _parseDate(j['period_from']),
+      periodTo: _parseDate(j['period_to']),
+      executingEntity: j['executing_entity'] ?? '',
+      supervisingEntity: j['supervising_entity'] ?? '',
+      originalValueUsd: (j['original_value_usd'] ?? 0).toDouble(),
+      originalValueKwd: (j['original_value_kwd'] ?? 0).toDouble(),
+      additionalWorks: j['additional_works'] ?? '',
+      contractSigningDate: _parseDate(j['contract_signing_date']),
+      contractDuration: j['contract_duration'] ?? '',
+      contractStartDate: _parseDate(j['contract_start_date']),
+      contractEndDate: _parseDate(j['contract_end_date']),
+      workCommencementDate: _parseDate(j['work_commencement_date']),
+      renewalInfo: j['renewal_info'] ?? '',
+      renewalExpiryDate: _parseDate(j['renewal_expiry_date']),
+      paymentRows: rows,
+      attachmentChecklist: checklist,
+      deptHead: j['dept_head'] ?? '',
+      controller: j['controller'] ?? '',
+      director: j['director'] ?? '',
+      auditor: j['auditor'] ?? '',
+      createdBy: j['created_by'] ?? '',
+      createdByEmail: j['created_by_email'] ?? '',
+      createdAt: _parseDate(j['created_at']),
+      updatedAt: _parseDate(j['updated_at']),
+    );
+  }
+
+  static String? _fmtDate(DateTime? d) => d?.toIso8601String().split('T').first;
+
+  Map<String, dynamic> toJson() => {
+        'certificate_number': certificateNumber,
+        'subject': subject,
+        'contract_number': contractNumber,
+        'invoice_number': invoiceNumber,
+        'invoice_amount': invoiceAmount,
+        'currency': currency,
+        'period_from': _fmtDate(periodFrom),
+        'period_to': _fmtDate(periodTo),
+        'executing_entity': executingEntity,
+        'supervising_entity': supervisingEntity,
+        'original_value_usd': originalValueUsd,
+        'original_value_kwd': originalValueKwd,
+        'additional_works': additionalWorks,
+        'contract_signing_date': _fmtDate(contractSigningDate),
+        'contract_duration': contractDuration,
+        'contract_start_date': _fmtDate(contractStartDate),
+        'contract_end_date': _fmtDate(contractEndDate),
+        'work_commencement_date': _fmtDate(workCommencementDate),
+        'renewal_info': renewalInfo,
+        'renewal_expiry_date': _fmtDate(renewalExpiryDate),
+        'payment_rows': paymentRows.map((r) => r.toJson()).toList(),
+        'attachment_checklist': attachmentChecklist,
+        'dept_head': deptHead,
+        'controller': controller,
+        'director': director,
+        'auditor': auditor,
+        'created_by': createdBy,
+        'created_by_email': createdByEmail,
+      };
 
   static const List<String> defaultAttachments = [
     'صورة من العقد',

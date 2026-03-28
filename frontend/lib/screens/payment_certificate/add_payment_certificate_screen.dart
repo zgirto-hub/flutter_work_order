@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import '../../models/payment_certificate.dart';
 import '../../theme/app_theme.dart';
 import '../../services/pdf/payment_certificate_pdf_service.dart';
+import '../../services/payment_certificate_service.dart';
 import 'package:printing/printing.dart';
 
 class AddPaymentCertificateScreen extends StatefulWidget {
-  const AddPaymentCertificateScreen({super.key});
+  final PaymentCertificate? certificate;
+
+  const AddPaymentCertificateScreen({super.key, this.certificate});
 
   @override
   State<AddPaymentCertificateScreen> createState() =>
@@ -57,7 +60,11 @@ class _AddPaymentCertificateScreenState
   final _directorCtrl = TextEditingController();
   final _auditorCtrl = TextEditingController();
 
+  final _service = PaymentCertificateService();
   bool _generating = false;
+  bool _saving = false;
+
+  bool get _isEditing => widget.certificate != null;
 
   static const _currencies = ['دولار امريكي', 'دينار كويتي'];
 
@@ -65,7 +72,56 @@ class _AddPaymentCertificateScreenState
   void initState() {
     super.initState();
     _checklist = PaymentCertificate.defaultChecklist();
-    _addPaymentRow(); // start with one row
+    if (_isEditing) {
+      _prefill(widget.certificate!);
+    } else {
+      _addPaymentRow();
+    }
+  }
+
+  void _prefill(PaymentCertificate c) {
+    _certNumberCtrl.text = c.certificateNumber;
+    _subjectCtrl.text = c.subject;
+    _contractNumberCtrl.text = c.contractNumber;
+    _invoiceNumberCtrl.text = c.invoiceNumber;
+    _invoiceAmountCtrl.text = c.invoiceAmount > 0 ? c.invoiceAmount.toString() : '';
+    _currency = c.currency.isNotEmpty ? c.currency : 'دولار امريكي';
+    _periodFrom = c.periodFrom;
+    _periodTo = c.periodTo;
+    _executingEntityCtrl.text = c.executingEntity;
+    _supervisingEntityCtrl.text = c.supervisingEntity;
+    _originalValueUsdCtrl.text = c.originalValueUsd > 0 ? c.originalValueUsd.toString() : '';
+    _originalValueKwdCtrl.text = c.originalValueKwd > 0 ? c.originalValueKwd.toString() : '';
+    _additionalWorksCtrl.text = c.additionalWorks;
+    _contractSigningDate = c.contractSigningDate;
+    _contractDurationCtrl.text = c.contractDuration;
+    _contractStartDate = c.contractStartDate;
+    _contractEndDate = c.contractEndDate;
+    _workCommencementDate = c.workCommencementDate;
+    _renewalInfoCtrl.text = c.renewalInfo;
+    _renewalExpiryDate = c.renewalExpiryDate;
+    _deptHeadCtrl.text = c.deptHead;
+    _controllerCtrl.text = c.controller;
+    _directorCtrl.text = c.director;
+    _auditorCtrl.text = c.auditor;
+    if (c.attachmentChecklist.isNotEmpty) {
+      _checklist = Map.from(c.attachmentChecklist);
+    }
+    if (c.paymentRows.isNotEmpty) {
+      for (final r in c.paymentRows) {
+        final ctrl = _PaymentRowControllers();
+        ctrl.dollarCtrl.text = r.duePaymentDollars > 0 ? r.duePaymentDollars.toString() : '';
+        ctrl.centCtrl.text = r.duePaymentCents > 0 ? r.duePaymentCents.toString() : '';
+        ctrl.dinarCtrl.text = r.deductionDinar > 0 ? r.deductionDinar.toString() : '';
+        ctrl.filsCtrl.text = r.deductionFils > 0 ? r.deductionFils.toString() : '';
+        ctrl.netDinarCtrl.text = r.netDinar > 0 ? r.netDinar.toString() : '';
+        ctrl.netFilsCtrl.text = r.netFils > 0 ? r.netFils.toString() : '';
+        ctrl.reasonCtrl.text = r.reason;
+        _paymentRows.add(ctrl);
+      }
+    } else {
+      _addPaymentRow();
+    }
   }
 
   @override
@@ -183,6 +239,29 @@ class _AddPaymentCertificateScreenState
     if (mounted) setState(() => _generating = false);
   }
 
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    try {
+      final model = _buildModel();
+      if (_isEditing) {
+        await _service.update(widget.certificate!.id, model);
+      } else {
+        await _service.create(model);
+      }
+      if (mounted) Navigator.pop(context, 'saved');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('فشل الحفظ: $e'),
+          backgroundColor: AppColors.dangerText,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+    if (mounted) setState(() => _saving = false);
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────
 
   @override
@@ -280,21 +359,40 @@ class _AddPaymentCertificateScreenState
             ],
           ),
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _generating ? null : _generatePdf,
-          backgroundColor: AppColors.accent,
-          icon: _generating
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white))
-              : const Icon(Icons.picture_as_pdf, color: Colors.white),
-          label: Text(
-            _generating ? 'جاري التصدير...' : 'تصدير PDF',
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.w600),
-          ),
+        floatingActionButton: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Save button
+            FloatingActionButton.extended(
+              heroTag: 'save',
+              onPressed: _saving ? null : _save,
+              backgroundColor: AppColors.accent,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.save_outlined, color: Colors.white),
+              label: Text(
+                _saving ? 'جاري الحفظ...' : 'حفظ',
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(width: 10),
+            // PDF button
+            FloatingActionButton(
+              heroTag: 'pdf',
+              onPressed: _generating ? null : _generatePdf,
+              backgroundColor: AppColors.bgSurface,
+              child: _generating
+                  ? SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.accent))
+                  : Icon(Icons.picture_as_pdf, color: AppColors.accent),
+            ),
+          ],
         ),
       ),
     );
@@ -325,7 +423,7 @@ class _AddPaymentCertificateScreenState
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'شهادة دفع جديدة',
+              _isEditing ? 'تعديل شهادة الدفع' : 'شهادة دفع جديدة',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

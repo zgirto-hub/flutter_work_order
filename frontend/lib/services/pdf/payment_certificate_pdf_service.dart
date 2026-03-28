@@ -206,53 +206,43 @@ class PaymentCertificatePdfService {
     };
 
     // ── Header section (merged group headers) ──
-    final header = pw.Container(
+    // Row 1 uses pw.Row so each group header truly spans its columns
+    // with no internal border. Row 2 uses pw.Table for sub-headers.
+    pw.Widget groupCell(String text) => pw.Container(
+          padding: const pw.EdgeInsets.all(4),
+          alignment: pw.Alignment.center,
+          child: pw.Text(text,
+              style: hBold,
+              textAlign: pw.TextAlign.center,
+              textDirection: pw.TextDirection.rtl),
+        );
+
+    final groupRow = pw.Container(
       decoration: pw.BoxDecoration(
         color: headerBg,
         border: pw.Border.all(width: 0.5),
+      ),
+      child: pw.Row(
+        children: [
+          pw.Expanded(flex: 2, child: groupCell('الدفعة المستحقة')),
+          pw.Container(width: 0.5, color: PdfColors.black),
+          pw.Expanded(flex: 2, child: groupCell('الصافي')),
+          pw.Container(width: 0.5, color: PdfColors.black),
+          pw.Expanded(flex: 2, child: groupCell('الخصم')),
+          pw.Container(width: 0.5, color: PdfColors.black),
+          pw.Expanded(flex: 2, child: groupCell('أسباب (الاستحقاق/ الخصم)')),
+        ],
+      ),
+    );
+
+    final subHeaderRow = pw.Container(
+      decoration: pw.BoxDecoration(
+        color: headerBg,
       ),
       child: pw.Table(
         columnWidths: colWidths,
         border: pw.TableBorder.all(width: 0.5),
         children: [
-          // Row 1: group headers
-          pw.TableRow(children: [
-            pw.Container(
-              padding: const pw.EdgeInsets.all(4),
-              alignment: pw.Alignment.center,
-              child: pw.Text('أسباب (الاستحقاق/ الخصم)',
-                  style: hBold, textAlign: pw.TextAlign.center,
-                  textDirection: pw.TextDirection.rtl),
-            ),
-            // الصافي spans 2 cols
-            pw.Container(
-              padding: const pw.EdgeInsets.all(4),
-              alignment: pw.Alignment.center,
-              child: pw.Text('الصافي', style: hBold,
-                  textAlign: pw.TextAlign.center,
-                  textDirection: pw.TextDirection.rtl),
-            ),
-            pw.SizedBox(), // merged into الصافي visually
-            // الخصم spans 2 cols
-            pw.Container(
-              padding: const pw.EdgeInsets.all(4),
-              alignment: pw.Alignment.center,
-              child: pw.Text('الخصم', style: hBold,
-                  textAlign: pw.TextAlign.center,
-                  textDirection: pw.TextDirection.rtl),
-            ),
-            pw.SizedBox(), // merged into الخصم visually
-            // الدفعة المستحقة spans 2 cols
-            pw.Container(
-              padding: const pw.EdgeInsets.all(4),
-              alignment: pw.Alignment.center,
-              child: pw.Text('الدفعة المستحقة', style: hBold,
-                  textAlign: pw.TextAlign.center,
-                  textDirection: pw.TextDirection.rtl),
-            ),
-            pw.SizedBox(), // merged into الدفعة المستحقة visually
-          ]),
-          // Row 2: sub-headers
           pw.TableRow(children: [
             pw.SizedBox(), // empty under أسباب
             pw.Container(
@@ -301,6 +291,8 @@ class PaymentCertificatePdfService {
         ],
       ),
     );
+
+    final header = pw.Column(children: [groupRow, subHeaderRow]);
 
     // ── Data rows (pw.Table ensures equal-height cells + full borders) ──
     List<List<String>> rows = [

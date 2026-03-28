@@ -10,7 +10,7 @@ import '../screens/settings/activity_log_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/calendar/calendar_screen.dart';
 import '../screens/document_registry/document_registry_screen.dart';
-import '../screens/payment_certificate/add_payment_certificate_screen.dart';
+import '../screens/payment_certificate/payment_certificate_list_screen.dart';
 
 class MoreScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -229,7 +229,7 @@ class _MoreScreenState extends State<MoreScreen> {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) => const AddPaymentCertificateScreen()),
+              builder: (_) => const PaymentCertificateListScreen()),
         ),
       ),
       _MoreItem(
