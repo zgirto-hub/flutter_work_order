@@ -264,8 +264,8 @@ class PaymentCertificatePdfService {
                     ),
                     child: checked[i].value
                         ? pw.Center(
-                            child: pw.Text('X',
-                                style: base.copyWith(fontSize: 7),
+                            child: pw.Text('\u2713',
+                                style: base.copyWith(fontSize: 8),
                                 textDirection: pw.TextDirection.ltr))
                         : pw.SizedBox(),
                   ),
