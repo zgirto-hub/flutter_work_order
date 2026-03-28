@@ -51,14 +51,11 @@ class _AddPaymentCertificateScreenState
   // Payment rows
   final List<_PaymentRowControllers> _paymentRows = [];
 
-  // Attachments checklist
+  // Attachments checklist (fixed items)
   late Map<String, bool> _checklist;
 
-  // Approvers
-  final _deptHeadCtrl = TextEditingController();
-  final _controllerCtrl = TextEditingController();
-  final _directorCtrl = TextEditingController();
-  final _auditorCtrl = TextEditingController();
+  // Approvers (fixed roles)
+  late Map<String, TextEditingController> _approverCtrls;
 
   final _service = PaymentCertificateService();
   bool _generating = false;
@@ -68,14 +65,43 @@ class _AddPaymentCertificateScreenState
 
   static const _currencies = ['دولار امريكي', 'دينار كويتي'];
 
+  static const _fixedReasons = [
+    'قيمة الاعمال المستحقة عن العقد',
+    'قيمة الغرامات',
+    'قيمة الاعمال المستحقة (الدفعة رقم ) بناء على شروط العقد',
+  ];
+
+  static const _fixedAttachments = [
+    'صورة من العقد',
+    'محضر تسليم الموقع',
+    'نسخة من كتاب المقاول بطلب صرف المستحقات',
+    'موافقات التعاقد',
+    'شهادة الخضوع الضريبي',
+  ];
+
+  static const _fixedApprovers = {
+    'deptHead': 'رئيس القسم المختص',
+    'controller': 'المراقب المختص',
+    'director': 'المدير المختص',
+    'auditor': 'المدقق / المحاسب',
+  };
+
   @override
   void initState() {
     super.initState();
-    _checklist = PaymentCertificate.defaultChecklist();
+    _checklist = {for (final a in _fixedAttachments) a: false};
+    _approverCtrls = {
+      for (final key in _fixedApprovers.keys) key: TextEditingController()
+    };
+    _initFixedPaymentRows();
     if (_isEditing) {
       _prefill(widget.certificate!);
-    } else {
-      _addPaymentRow();
+    }
+  }
+
+  void _initFixedPaymentRows() {
+    for (final reason in _fixedReasons) {
+      _paymentRows.add(_PaymentRowControllers(reason: reason));
     }
   }
 
@@ -100,27 +126,27 @@ class _AddPaymentCertificateScreenState
     _workCommencementDate = c.workCommencementDate;
     _renewalInfoCtrl.text = c.renewalInfo;
     _renewalExpiryDate = c.renewalExpiryDate;
-    _deptHeadCtrl.text = c.deptHead;
-    _controllerCtrl.text = c.controller;
-    _directorCtrl.text = c.director;
-    _auditorCtrl.text = c.auditor;
-    if (c.attachmentChecklist.isNotEmpty) {
-      _checklist = Map.from(c.attachmentChecklist);
-    }
-    if (c.paymentRows.isNotEmpty) {
-      for (final r in c.paymentRows) {
-        final ctrl = _PaymentRowControllers();
-        ctrl.dollarCtrl.text = r.duePaymentDollars > 0 ? r.duePaymentDollars.toString() : '';
-        ctrl.centCtrl.text = r.duePaymentCents > 0 ? r.duePaymentCents.toString() : '';
-        ctrl.dinarCtrl.text = r.deductionDinar > 0 ? r.deductionDinar.toString() : '';
-        ctrl.filsCtrl.text = r.deductionFils > 0 ? r.deductionFils.toString() : '';
-        ctrl.netDinarCtrl.text = r.netDinar > 0 ? r.netDinar.toString() : '';
-        ctrl.netFilsCtrl.text = r.netFils > 0 ? r.netFils.toString() : '';
-        ctrl.reasonCtrl.text = r.reason;
-        _paymentRows.add(ctrl);
+    _approverCtrls['deptHead']!.text = c.deptHead;
+    _approverCtrls['controller']!.text = c.controller;
+    _approverCtrls['director']!.text = c.director;
+    _approverCtrls['auditor']!.text = c.auditor;
+    // Only restore checked state for fixed attachment items
+    for (final key in _checklist.keys) {
+      if (c.attachmentChecklist.containsKey(key)) {
+        _checklist[key] = c.attachmentChecklist[key]!;
       }
-    } else {
-      _addPaymentRow();
+    }
+    // Match saved payment rows to fixed reason rows by reason text
+    for (final r in c.paymentRows) {
+      final idx = _paymentRows.indexWhere((p) => p.reason == r.reason);
+      if (idx == -1) continue;
+      final ctrl = _paymentRows[idx];
+      ctrl.dollarCtrl.text = r.duePaymentDollars > 0 ? r.duePaymentDollars.toString() : '';
+      ctrl.centCtrl.text = r.duePaymentCents > 0 ? r.duePaymentCents.toString() : '';
+      ctrl.dinarCtrl.text = r.deductionDinar > 0 ? r.deductionDinar.toString() : '';
+      ctrl.filsCtrl.text = r.deductionFils > 0 ? r.deductionFils.toString() : '';
+      ctrl.netDinarCtrl.text = r.netDinar > 0 ? r.netDinar.toString() : '';
+      ctrl.netFilsCtrl.text = r.netFils > 0 ? r.netFils.toString() : '';
     }
   }
 
@@ -139,29 +165,15 @@ class _AddPaymentCertificateScreenState
     _additionalWorksCtrl.dispose();
     _contractDurationCtrl.dispose();
     _renewalInfoCtrl.dispose();
-    _deptHeadCtrl.dispose();
-    _controllerCtrl.dispose();
-    _directorCtrl.dispose();
-    _auditorCtrl.dispose();
+    for (final c in _approverCtrls.values) {
+      c.dispose();
+    }
     for (final r in _paymentRows) {
       r.dispose();
     }
     super.dispose();
   }
 
-  void _addPaymentRow() {
-    setState(() {
-      _paymentRows.add(_PaymentRowControllers());
-    });
-  }
-
-  void _removePaymentRow(int index) {
-    if (_paymentRows.length <= 1) return;
-    setState(() {
-      _paymentRows[index].dispose();
-      _paymentRows.removeAt(index);
-    });
-  }
 
   Future<void> _pickDate(DateTime? current, ValueChanged<DateTime> onPicked) async {
     final picked = await showDatePicker(
@@ -212,10 +224,10 @@ class _AddPaymentCertificateScreenState
       renewalExpiryDate: _renewalExpiryDate,
       paymentRows: _paymentRows.map((r) => r.toModel()).toList(),
       attachmentChecklist: Map.from(_checklist),
-      deptHead: _deptHeadCtrl.text.trim(),
-      controller: _controllerCtrl.text.trim(),
-      director: _directorCtrl.text.trim(),
-      auditor: _auditorCtrl.text.trim(),
+      deptHead: _approverCtrls['deptHead']!.text.trim(),
+      controller: _approverCtrls['controller']!.text.trim(),
+      director: _approverCtrls['director']!.text.trim(),
+      auditor: _approverCtrls['auditor']!.text.trim(),
     );
   }
 
@@ -596,21 +608,6 @@ class _AddPaymentCertificateScreenState
         ],
         const SizedBox(height: 10),
         _buildTotalRow(),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _addPaymentRow,
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('إضافة صف'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.accent,
-              side: BorderSide(color: AppColors.accent),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -627,21 +624,11 @@ class _AddPaymentCertificateScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text('صف ${i + 1}',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary)),
-              const Spacer(),
-              if (_paymentRows.length > 1)
-                GestureDetector(
-                  onTap: () => _removePaymentRow(i),
-                  child: Icon(Icons.close, size: 16, color: AppColors.dangerText),
-                ),
-            ],
-          ),
+          Text(r.reason,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary)),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -672,8 +659,6 @@ class _AddPaymentCertificateScreenState
                   child: _miniField(r.netFilsCtrl, 'فلس (صافي)')),
             ],
           ),
-          const SizedBox(height: 8),
-          _miniField(r.reasonCtrl, 'السبب'),
         ],
       ),
     );
@@ -807,10 +792,8 @@ class _AddPaymentCertificateScreenState
       'التوقيعات',
       Icons.people_outline,
       [
-        _field(_deptHeadCtrl, 'رئيس القسم المختص'),
-        _field(_controllerCtrl, 'المراقب المختص'),
-        _field(_directorCtrl, 'المدير المختص'),
-        _field(_auditorCtrl, 'المدقق / المحاسب'),
+        for (final entry in _fixedApprovers.entries)
+          _field(_approverCtrls[entry.key]!, entry.value),
       ],
     );
   }
@@ -819,13 +802,15 @@ class _AddPaymentCertificateScreenState
 // ── Payment row controllers ──────────────────────────────────────────────
 
 class _PaymentRowControllers {
+  final String reason;
   final dollarCtrl = TextEditingController();
   final centCtrl = TextEditingController();
   final dinarCtrl = TextEditingController();
   final filsCtrl = TextEditingController();
   final netDinarCtrl = TextEditingController();
   final netFilsCtrl = TextEditingController();
-  final reasonCtrl = TextEditingController();
+
+  _PaymentRowControllers({required this.reason});
 
   PaymentRow toModel() => PaymentRow(
         duePaymentDollars: double.tryParse(dollarCtrl.text) ?? 0,
@@ -834,7 +819,7 @@ class _PaymentRowControllers {
         deductionFils: double.tryParse(filsCtrl.text) ?? 0,
         netDinar: double.tryParse(netDinarCtrl.text) ?? 0,
         netFils: double.tryParse(netFilsCtrl.text) ?? 0,
-        reason: reasonCtrl.text.trim(),
+        reason: reason,
       );
 
   void dispose() {
@@ -844,6 +829,5 @@ class _PaymentRowControllers {
     filsCtrl.dispose();
     netDinarCtrl.dispose();
     netFilsCtrl.dispose();
-    reasonCtrl.dispose();
   }
 }
