@@ -1,0 +1,305 @@
+import 'dart:typed_data';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import '../../models/payment_certificate.dart';
+
+class PaymentCertificatePdfService {
+  static Future<Uint8List> build(PaymentCertificate cert) async {
+    // Load an Arabic-capable font
+    final arabicFont = await PdfGoogleFonts.notoSansArabicRegular();
+    final arabicFontBold = await PdfGoogleFonts.notoSansArabicBold();
+
+    final baseStyle = pw.TextStyle(font: arabicFont, fontSize: 9);
+    final boldStyle =
+        pw.TextStyle(font: arabicFontBold, fontSize: 9, fontWeight: pw.FontWeight.bold);
+    final headerStyle =
+        pw.TextStyle(font: arabicFontBold, fontSize: 14, fontWeight: pw.FontWeight.bold);
+    final subHeaderStyle =
+        pw.TextStyle(font: arabicFontBold, fontSize: 10, fontWeight: pw.FontWeight.bold);
+
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        textDirection: pw.TextDirection.rtl,
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(30),
+        theme: pw.ThemeData.withFont(base: arabicFont, bold: arabicFontBold),
+        build: (context) => [
+          // ── 1. Title ───────────────────────────────────────────
+          pw.Center(
+            child: pw.Text(
+              'شهادة الدفع رقم (${cert.certificateNumber})',
+              style: headerStyle,
+              textDirection: pw.TextDirection.rtl,
+            ),
+          ),
+          pw.SizedBox(height: 12),
+
+          // ── 2. Subject & Contract ──────────────────────────────
+          _borderedTable([
+            [
+              _cell('الموضوع: ${cert.subject}', boldStyle, flex: 3),
+              _cell('عقد رقم ${cert.contractNumber}', boldStyle),
+            ],
+          ]),
+          pw.SizedBox(height: 6),
+
+          // ── 3. Invoice details ─────────────────────────────────
+          _borderedTable([
+            [
+              _cell('رقم الفاتورة:', boldStyle),
+              _cell(cert.invoiceNumber, baseStyle),
+              _cell('مبلغ الفاتورة:', boldStyle),
+              _cell('${_fmtNum(cert.invoiceAmount)}  ${cert.currency}', baseStyle),
+            ],
+            [
+              _cell('فترة الفاتورة:', boldStyle),
+              _cell('من  ${_fmtDate(cert.periodFrom)}', baseStyle),
+              _cell('إلى  ${_fmtDate(cert.periodTo)}', baseStyle, flex: 2),
+            ],
+          ]),
+          pw.SizedBox(height: 6),
+
+          // ── 4. Contract info ───────────────────────────────────
+          _borderedTable([
+            [
+              _cell('الجهة المنفذة:', boldStyle),
+              _cell(cert.executingEntity, baseStyle),
+              _cell('الجهة المشرفة:', boldStyle),
+              _cell(cert.supervisingEntity, baseStyle),
+            ],
+            [
+              _cell('قيمة العقد الأصلي:', boldStyle),
+              _cell(
+                '(${_fmtNum(cert.originalValueUsd)} دولار امريكي)  (${_fmtNum(cert.originalValueKwd)} د.ك)',
+                baseStyle,
+                flex: 3,
+              ),
+            ],
+            [
+              _cell('قيمة الاعمال الإضافية:', boldStyle),
+              _cell(cert.additionalWorks.isEmpty ? 'لايوجد' : cert.additionalWorks, baseStyle, flex: 3),
+            ],
+            [
+              _cell('تاريخ توقيع العقد:', boldStyle),
+              _cell(_fmtDate(cert.contractSigningDate), baseStyle),
+              _cell('مدة العقد:', boldStyle),
+              _cell(cert.contractDuration, baseStyle),
+            ],
+            [
+              _cell('تاريخ بداية العقد:', boldStyle),
+              _cell(_fmtDate(cert.contractStartDate), baseStyle),
+              _cell('تاريخ نهاية العقد:', boldStyle),
+              _cell(_fmtDate(cert.contractEndDate), baseStyle),
+            ],
+            [
+              _cell('تاريخ مباشرة الاعمال:', boldStyle),
+              _cell(_fmtDate(cert.workCommencementDate), baseStyle),
+              _cell('', baseStyle, flex: 2),
+            ],
+            [
+              _cell('تجديد العقد:', boldStyle),
+              _cell(cert.renewalInfo, baseStyle),
+              _cell('تاريخ انتهاء التجديد:', boldStyle),
+              _cell(_fmtDate(cert.renewalExpiryDate), baseStyle),
+            ],
+          ]),
+          pw.SizedBox(height: 6),
+
+          // ── 5. Payment table ───────────────────────────────────
+          _paymentTable(cert, boldStyle, baseStyle),
+          pw.SizedBox(height: 6),
+
+          // ── 6. Attachments ─────────────────────────────────────
+          pw.Text('المرفقات:', style: subHeaderStyle, textDirection: pw.TextDirection.rtl),
+          pw.SizedBox(height: 4),
+          _attachmentsList(cert, baseStyle),
+          pw.SizedBox(height: 12),
+
+          // ── 7. Signatures ──────────────────────────────────────
+          _signaturesTable(cert, boldStyle, baseStyle),
+        ],
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────
+
+  static String _fmtDate(DateTime? d) {
+    if (d == null) return '';
+    final dd = d.day.toString().padLeft(2, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    return '$dd/$mm/${d.year}';
+  }
+
+  static String _fmtNum(double v) {
+    if (v == 0) return '-';
+    return v == v.roundToDouble()
+        ? v.toInt().toString()
+        : v.toStringAsFixed(2);
+  }
+
+  static pw.Expanded _cell(String text, pw.TextStyle style, {int flex = 1}) {
+    return pw.Expanded(
+      flex: flex,
+      child: pw.Container(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+        child: pw.Text(text, style: style, textDirection: pw.TextDirection.rtl),
+      ),
+    );
+  }
+
+  static pw.Widget _borderedTable(List<List<pw.Expanded>> rows) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(width: 0.5),
+      ),
+      child: pw.Column(
+        children: rows.map((cells) {
+          return pw.Container(
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(width: 0.25)),
+            ),
+            child: pw.Row(children: cells),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  static pw.Widget _paymentTable(
+      PaymentCertificate cert, pw.TextStyle bold, pw.TextStyle base) {
+    final headerBg = PdfColor.fromHex('#E8E8E8');
+
+    // Compute totals
+    double totalDollars = 0, totalCents = 0;
+    double totalDinar = 0, totalFils = 0;
+    double totalNetDinar = 0, totalNetFils = 0;
+    for (final r in cert.paymentRows) {
+      totalDollars += r.duePaymentDollars;
+      totalCents += r.duePaymentCents;
+      totalDinar += r.deductionDinar;
+      totalFils += r.deductionFils;
+      totalNetDinar += r.netDinar;
+      totalNetFils += r.netFils;
+    }
+
+    return pw.TableHelper.fromTextArray(
+      border: pw.TableBorder.all(width: 0.5),
+      headerDecoration: pw.BoxDecoration(color: headerBg),
+      headerAlignment: pw.Alignment.center,
+      cellAlignment: pw.Alignment.center,
+      headerStyle: bold.copyWith(fontSize: 7),
+      cellStyle: base.copyWith(fontSize: 8),
+      headerDirection: pw.TextDirection.rtl,
+      headers: [
+        'أسباب (الاستحقاق/ الخصم)',
+        'دينار',
+        'فلس',
+        'دينار',
+        'فلس',
+        'دولار',
+        'سنت',
+      ],
+      data: [
+        // Column group headers row
+        for (final r in cert.paymentRows)
+          [
+            r.reason,
+            _fmtNum(r.netDinar),
+            _fmtNum(r.netFils),
+            _fmtNum(r.deductionDinar),
+            _fmtNum(r.deductionFils),
+            _fmtNum(r.duePaymentDollars),
+            _fmtNum(r.duePaymentCents),
+          ],
+        // Total row
+        [
+          'الاجمالي',
+          _fmtNum(totalNetDinar),
+          _fmtNum(totalNetFils),
+          _fmtNum(totalDinar),
+          _fmtNum(totalFils),
+          _fmtNum(totalDollars),
+          _fmtNum(totalCents),
+        ],
+      ],
+    );
+  }
+
+  static pw.Widget _attachmentsList(PaymentCertificate cert, pw.TextStyle base) {
+    final checked = cert.attachmentChecklist.entries.toList();
+    return pw.Container(
+      decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
+      child: pw.Column(
+        children: [
+          for (int i = 0; i < checked.length; i++)
+            pw.Container(
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(bottom: pw.BorderSide(width: 0.25)),
+              ),
+              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              child: pw.Row(
+                children: [
+                  pw.Text('${i + 1}-', style: base, textDirection: pw.TextDirection.rtl),
+                  pw.SizedBox(width: 8),
+                  pw.Expanded(
+                    child: pw.Text(
+                      checked[i].key,
+                      style: base,
+                      textDirection: pw.TextDirection.rtl,
+                    ),
+                  ),
+                  pw.Text(
+                    checked[i].value ? '✓' : '',
+                    style: base,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _signaturesTable(
+      PaymentCertificate cert, pw.TextStyle bold, pw.TextStyle base) {
+    pw.Widget sigBlock(String title, String name) {
+      return pw.Expanded(
+        child: pw.Container(
+          padding: const pw.EdgeInsets.all(6),
+          child: pw.Column(
+            children: [
+              pw.Text(title, style: bold, textDirection: pw.TextDirection.rtl),
+              pw.SizedBox(height: 20),
+              pw.Text(name, style: base, textDirection: pw.TextDirection.rtl),
+              pw.SizedBox(height: 6),
+              pw.Container(
+                width: 80,
+                decoration: const pw.BoxDecoration(
+                  border: pw.Border(bottom: pw.BorderSide(width: 0.5)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return pw.Container(
+      decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
+      child: pw.Row(
+        children: [
+          sigBlock('رئيس القسم المختص', cert.deptHead),
+          sigBlock('المراقب المختص', cert.controller),
+          sigBlock('المدير المختص', cert.director),
+          sigBlock('المدقق / المحاسب', cert.auditor),
+        ],
+      ),
+    );
+  }
+}
