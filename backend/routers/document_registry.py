@@ -76,7 +76,9 @@ async def extract_registry_fields(file: UploadFile = File(...)):
 
     try:
         text = extract_text(file_path, extension)
-    except Exception:
+        print(f"[extract-fields] Extracted text ({len(text)} chars):\n{text[:2000]}")
+    except Exception as e:
+        print(f"[extract-fields] Extraction error: {e}")
         text = ""
     finally:
         try:
@@ -88,6 +90,7 @@ async def extract_registry_fields(file: UploadFile = File(...)):
         "document_name": None,
         "document_number": None,
         "date": None,
+        "raw_text": text[:3000] if text else "",
     }
 
     # 1. Extract date: التاريخ followed by DD/MM/YYYY
@@ -95,6 +98,19 @@ async def extract_registry_fields(file: UploadFile = File(...)):
         r'التاريخ\s*[:\s]\s*(\d{1,2})\s*/\s*(\d{1,2})\s*/\s*(\d{4})',
         text
     )
+    # Fallback: try "Date DD/MM/YYYY" (English label in the PDF)
+    if not date_match:
+        date_match = re.search(
+            r'Date\s*[:\s]\s*(\d{1,2})\s*/\s*(\d{1,2})\s*/\s*(\d{4})',
+            text,
+            re.IGNORECASE
+        )
+    # Fallback: any DD/MM/YYYY pattern in the text
+    if not date_match:
+        date_match = re.search(
+            r'(\d{1,2})\s*/\s*(\d{1,2})\s*/\s*(\d{4})',
+            text
+        )
     if date_match:
         day = date_match.group(1).zfill(2)
         month = date_match.group(2).zfill(2)
