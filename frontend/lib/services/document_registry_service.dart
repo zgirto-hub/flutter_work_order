@@ -29,7 +29,7 @@ class DocumentRegistryService {
     return list.map((e) => RegistryEntry.fromJson(e)).toList();
   }
 
-  Future<void> createEntry({
+  Future<String?> createEntry({
     required String documentName,
     required String documentNumber,
     required String date,
@@ -50,6 +50,38 @@ class DocumentRegistryService {
     if (response.statusCode != 200) {
       throw Exception('Failed to create entry');
     }
+
+    final data = jsonDecode(response.body);
+    return data['id']?.toString();
+  }
+
+  Future<Map<String, dynamic>?> extractFieldsFromPdf(PlatformFile file) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${AppConfig.baseUrl}/document-registry/extract-fields'),
+    );
+
+    if (file.bytes != null) {
+      request.files.add(http.MultipartFile.fromBytes(
+        'file',
+        file.bytes!,
+        filename: file.name,
+      ));
+    } else if (file.path != null) {
+      request.files.add(await http.MultipartFile.fromPath(
+        'file',
+        file.path!,
+        filename: file.name,
+      ));
+    }
+
+    final streamedResponse = await request.send();
+    if (streamedResponse.statusCode != 200) {
+      throw Exception('Failed to extract fields from PDF');
+    }
+
+    final responseBody = await streamedResponse.stream.bytesToString();
+    return jsonDecode(responseBody) as Map<String, dynamic>;
   }
 
   Future<void> updateEntry(

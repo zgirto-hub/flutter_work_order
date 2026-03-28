@@ -2,10 +2,12 @@ from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import Optional
 import os
+import re
 import uuid
 
 from db import supabase
 from utils.activity import log_activity
+from utils.text_extraction import extract_text
 
 UPLOAD_DIR = "uploaded_files"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
@@ -49,6 +51,73 @@ async def list_registry_entries(search: Optional[str] = Query(None)):
         ]
 
     return {"entries": entries}
+
+
+@router.post("/document-registry/extract-fields")
+async def extract_registry_fields(file: UploadFile = File(...)):
+    """Extract document name, number, and date from an uploaded PDF."""
+    extension = file.filename.split(".")[-1].lower() if "." in file.filename else ""
+    if extension != "pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are supported for extraction")
+
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB",
+        )
+
+    file_id = str(uuid.uuid4())
+    filename = f"reg_{file_id}.{extension}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    try:
+        text = extract_text(file_path, extension)
+    except Exception:
+        text = ""
+    finally:
+        try:
+            os.remove(file_path)
+        except OSError:
+            pass
+
+    extracted = {
+        "document_name": None,
+        "document_number": None,
+        "date": None,
+    }
+
+    # 1. Extract date: التاريخ followed by DD/MM/YYYY
+    date_match = re.search(
+        r'التاريخ\s*[:\s]\s*(\d{1,2})\s*/\s*(\d{1,2})\s*/\s*(\d{4})',
+        text
+    )
+    if date_match:
+        day = date_match.group(1).zfill(2)
+        month = date_match.group(2).zfill(2)
+        year = date_match.group(3)
+        extracted["date"] = f"{year}-{month}-{day}"
+
+    # 2. Extract subject (document name): الموضوع followed by text
+    subject_match = re.search(
+        r'الموضوع\s*[:\s]\s*(.+?)(?:\n|$)',
+        text
+    )
+    if subject_match:
+        extracted["document_name"] = subject_match.group(1).strip()
+
+    # 3. Extract reference number between asterisks: *NUMBER*
+    number_match = re.search(
+        r'\*\s*([^*]+?)\s*\*',
+        text
+    )
+    if number_match:
+        extracted["document_number"] = number_match.group(1).strip()
+
+    return extracted
 
 
 @router.post("/document-registry")

@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../theme/app_theme.dart';
@@ -27,8 +28,10 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
   List<RegistryEntry> _filteredEntries = [];
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isExtracting = false;
   bool _replied = false;
   RegistryEntry? _editingEntry;
+  PlatformFile? _pendingAttachment;
 
   @override
   void initState() {
@@ -122,7 +125,50 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
       _dateCtrl.clear();
       _selectedDate = null;
       _replied = false;
+      _pendingAttachment = null;
     });
+  }
+
+  Future<void> _extractFromPdf() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.first;
+    setState(() => _isExtracting = true);
+
+    try {
+      final fields = await _service.extractFieldsFromPdf(file);
+      if (!mounted) return;
+
+      setState(() {
+        if (fields?['document_name'] != null) {
+          _nameCtrl.text = fields!['document_name'];
+        }
+        if (fields?['document_number'] != null) {
+          _numberCtrl.text = fields!['document_number'];
+        }
+        if (fields?['date'] != null) {
+          _dateCtrl.text = fields!['date'];
+          _selectedDate = DateTime.tryParse(fields!['date']);
+        }
+        _pendingAttachment = file;
+        _isExtracting = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Fields extracted from PDF')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isExtracting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to extract fields from PDF')),
+      );
+    }
   }
 
   Future<void> _submitEntry() async {
@@ -145,12 +191,15 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
           replied: _replied,
         );
       } else {
-        await _service.createEntry(
+        final entryId = await _service.createEntry(
           documentName: _nameCtrl.text.trim(),
           documentNumber: _numberCtrl.text.trim(),
           date: _dateCtrl.text.trim(),
           replied: _replied,
         );
+        if (_pendingAttachment != null && entryId != null) {
+          await _service.uploadAttachment(entryId, _pendingAttachment!);
+        }
       }
       _nameCtrl.clear();
       _numberCtrl.clear();
@@ -158,6 +207,7 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
       _selectedDate = null;
       _editingEntry = null;
       _replied = false;
+      _pendingAttachment = null;
       await _loadEntries();
     } catch (e) {
       if (!mounted) return;
@@ -339,6 +389,66 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
                   ),
               ],
             ),
+            if (_editingEntry == null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 40,
+                child: OutlinedButton.icon(
+                  onPressed: _isExtracting ? null : _extractFromPdf,
+                  icon: _isExtracting
+                      ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.accent,
+                          ),
+                        )
+                      : Icon(Icons.picture_as_pdf_rounded, size: 18),
+                  label: Text(
+                    _isExtracting ? 'Extracting...' : 'Extract from PDF',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.accent,
+                    side: BorderSide(color: AppColors.accent, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+              if (_pendingAttachment != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface2,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.attach_file_rounded, size: 14, color: AppColors.textSecondary),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _pendingAttachment!.name,
+                          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => setState(() => _pendingAttachment = null),
+                        child: Icon(Icons.close_rounded, size: 14, color: AppColors.textTertiary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+
             const SizedBox(height: 14),
 
             ValidatedTextField(
