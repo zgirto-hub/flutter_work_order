@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, FileResponse
 
-from routers import documents, folders, notifications, users, work_orders, departments, recurring_inspections, reports, department_routes
+from routers import documents, folders, notifications, users, work_orders, departments, recurring_inspections, reports, department_routes, document_registry
 
 app = FastAPI()
 
@@ -55,6 +55,7 @@ app.include_router(departments.router, prefix="/api")
 app.include_router(department_routes.router, prefix="/api")
 app.include_router(recurring_inspections.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
+app.include_router(document_registry.router, prefix="/api")
 
 
 @app.get("/api/reset-password")

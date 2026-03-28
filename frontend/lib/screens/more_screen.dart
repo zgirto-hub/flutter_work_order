@@ -9,6 +9,7 @@ import '../screens/settings_page.dart';
 import '../screens/settings/activity_log_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/calendar/calendar_screen.dart';
+import '../screens/document_registry/document_registry_screen.dart';
 
 class MoreScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -207,6 +208,17 @@ class _MoreScreenState extends State<MoreScreen> {
           ),
         ),
       ],
+      _MoreItem(
+        title: 'Doc Registry',
+        subtitle: 'Document records',
+        icon: Icons.edit_note_outlined,
+        color: const Color(0xFF0E7490),
+        bgColor: const Color(0xFFCFFAFE),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const DocumentRegistryScreen()),
+        ),
+      ),
       _MoreItem(
         title: 'Notifications',
         subtitle: _unreadCount > 0 ? '$_unreadCount unread' : 'Alerts & updates',
