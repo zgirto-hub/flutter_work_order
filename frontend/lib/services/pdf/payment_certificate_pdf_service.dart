@@ -193,93 +193,153 @@ class PaymentCertificatePdfService {
     final hBold = bold.copyWith(fontSize: 8);
     final hSmall = bold.copyWith(fontSize: 7);
     final dStyle = base.copyWith(fontSize: 8);
-    final bdr = const pw.BorderSide(width: 0.5);
+    // Column widths: 7 data cols (1 flex each) + reason (2 flex) = 8 total
+    // RTL order: reason(2), دينار, فلس, دينار, فلس, دولار, سنت
+    final colWidths = <int, pw.TableColumnWidth>{
+      0: const pw.FlexColumnWidth(2), // reason
+      1: const pw.FlexColumnWidth(1), // صافي دينار
+      2: const pw.FlexColumnWidth(1), // صافي فلس
+      3: const pw.FlexColumnWidth(1), // خصم دينار
+      4: const pw.FlexColumnWidth(1), // خصم فلس
+      5: const pw.FlexColumnWidth(1), // دولار
+      6: const pw.FlexColumnWidth(1), // سنت
+    };
 
-    // Cell helper — all 4 borders for clean grid
-    pw.Widget hCell(String text, pw.TextStyle s, {int flex = 1}) =>
-        pw.Expanded(
-          flex: flex,
-          child: pw.Container(
-            padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-            alignment: pw.Alignment.center,
-            decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
-            child: pw.Text(text, style: s,
-                textAlign: pw.TextAlign.center,
-                textDirection: pw.TextDirection.rtl),
-          ),
-        );
-
-    // Reason cell (right-aligned text, flex:2)
-    pw.Widget rCell(String text) => pw.Expanded(
-          flex: 2,
-          child: pw.Container(
-            padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-            alignment: pw.Alignment.centerRight,
-            decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
-            child: pw.Text(text, style: dStyle,
-                textDirection: pw.TextDirection.rtl),
-          ),
-        );
-
-    // Column order (RTL): reason(2) | دينار | فلس | دينار | فلس | دولار | سنت
-    return pw.Container(
-      decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
-      child: pw.Column(
+    // ── Header section (merged group headers) ──
+    final header = pw.Container(
+      decoration: pw.BoxDecoration(
+        color: headerBg,
+        border: pw.Border.all(width: 0.5),
+      ),
+      child: pw.Table(
+        columnWidths: colWidths,
+        border: pw.TableBorder.all(width: 0.5),
         children: [
-          // ── Header: group headers + sub-headers combined ──
-          pw.Container(
-            decoration: pw.BoxDecoration(
-              color: headerBg,
-              border: pw.Border(bottom: bdr),
+          // Row 1: group headers
+          pw.TableRow(children: [
+            pw.Container(
+              padding: const pw.EdgeInsets.all(4),
+              alignment: pw.Alignment.center,
+              child: pw.Text('أسباب (الاستحقاق/ الخصم)',
+                  style: hBold, textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
             ),
-            child: pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.center,
-              children: [
-                // أسباب spans both rows vertically
-                pw.Expanded(
-                  flex: 2,
-                  child: pw.Container(
-                    alignment: pw.Alignment.center,
-                    padding: const pw.EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-                    child: pw.Text('أسباب (الاستحقاق/ الخصم)',
-                        style: hBold,
-                        textAlign: pw.TextAlign.center,
-                        textDirection: pw.TextDirection.rtl),
-                  ),
-                ),
-                // الصافي group
-                _buildGroupCol('الصافي', ['دينار', 'فلس'], hBold, hSmall, bdr),
-                // الخصم group
-                _buildGroupCol('الخصم', ['دينار', 'فلس'], hBold, hSmall, bdr),
-                // الدفعة المستحقة group
-                _buildGroupCol('الدفعة المستحقة', ['دولار', 'سنت'], hBold, hSmall, bdr),
-              ],
+            // الصافي spans 2 cols
+            pw.Container(
+              padding: const pw.EdgeInsets.all(4),
+              alignment: pw.Alignment.center,
+              child: pw.Text('الصافي', style: hBold,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
             ),
-          ),
-          // ── Data rows ──
-          for (final r in cert.paymentRows)
-            pw.Row(children: [
-              rCell(r.reason),
-              hCell(_fmtNum(r.netDinar), dStyle),
-              hCell(_fmtNum(r.netFils), dStyle),
-              hCell(_fmtNum(r.deductionDinar), dStyle),
-              hCell(_fmtNum(r.deductionFils), dStyle),
-              hCell(_fmtNum(r.duePaymentDollars), dStyle),
-              hCell(_fmtNum(r.duePaymentCents), dStyle),
-            ]),
-          // ── Total row ──
-          pw.Row(children: [
-            rCell('الاجمالي'),
-            hCell(_fmtNum(totalNetDinar), dStyle),
-            hCell(_fmtNum(totalNetFils), dStyle),
-            hCell(_fmtNum(totalDinar), dStyle),
-            hCell(_fmtNum(totalFils), dStyle),
-            hCell(_fmtNum(totalDollars), dStyle),
-            hCell(_fmtNum(totalCents), dStyle),
+            pw.SizedBox(), // merged into الصافي visually
+            // الخصم spans 2 cols
+            pw.Container(
+              padding: const pw.EdgeInsets.all(4),
+              alignment: pw.Alignment.center,
+              child: pw.Text('الخصم', style: hBold,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
+            ),
+            pw.SizedBox(), // merged into الخصم visually
+            // الدفعة المستحقة spans 2 cols
+            pw.Container(
+              padding: const pw.EdgeInsets.all(4),
+              alignment: pw.Alignment.center,
+              child: pw.Text('الدفعة المستحقة', style: hBold,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
+            ),
+            pw.SizedBox(), // merged into الدفعة المستحقة visually
+          ]),
+          // Row 2: sub-headers
+          pw.TableRow(children: [
+            pw.SizedBox(), // empty under أسباب
+            pw.Container(
+              padding: const pw.EdgeInsets.all(3),
+              alignment: pw.Alignment.center,
+              child: pw.Text('دينار', style: hSmall,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
+            ),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(3),
+              alignment: pw.Alignment.center,
+              child: pw.Text('فلس', style: hSmall,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
+            ),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(3),
+              alignment: pw.Alignment.center,
+              child: pw.Text('دينار', style: hSmall,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
+            ),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(3),
+              alignment: pw.Alignment.center,
+              child: pw.Text('فلس', style: hSmall,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
+            ),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(3),
+              alignment: pw.Alignment.center,
+              child: pw.Text('دولار', style: hSmall,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
+            ),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(3),
+              alignment: pw.Alignment.center,
+              child: pw.Text('سنت', style: hSmall,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
+            ),
           ]),
         ],
       ),
     );
+
+    // ── Data rows (pw.Table ensures equal-height cells + full borders) ──
+    List<List<String>> rows = [
+      for (final r in cert.paymentRows)
+        [
+          r.reason,
+          _fmtNum(r.netDinar), _fmtNum(r.netFils),
+          _fmtNum(r.deductionDinar), _fmtNum(r.deductionFils),
+          _fmtNum(r.duePaymentDollars), _fmtNum(r.duePaymentCents),
+        ],
+      [
+        'الاجمالي',
+        _fmtNum(totalNetDinar), _fmtNum(totalNetFils),
+        _fmtNum(totalDinar), _fmtNum(totalFils),
+        _fmtNum(totalDollars), _fmtNum(totalCents),
+      ],
+    ];
+
+    final dataTable = pw.Table(
+      columnWidths: colWidths,
+      border: pw.TableBorder.all(width: 0.5),
+      children: [
+        for (final row in rows)
+          pw.TableRow(
+            children: [
+              for (int c = 0; c < row.length; c++)
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                  alignment: c == 0 ? pw.Alignment.centerRight : pw.Alignment.center,
+                  child: pw.Text(row[c], style: dStyle,
+                      textAlign: c == 0 ? pw.TextAlign.right : pw.TextAlign.center,
+                      textDirection: pw.TextDirection.rtl),
+                ),
+            ],
+          ),
+      ],
+    );
+
+    return pw.Column(children: [header, dataTable]);
   }
 
   static pw.Widget _attachmentsList(PaymentCertificate cert, pw.TextStyle base) {
