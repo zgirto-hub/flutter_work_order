@@ -110,6 +110,7 @@ class _ValidatedTextFieldState extends State<ValidatedTextField> {
             prefixIcon: widget.prefixIcon,
             suffixIcon: widget.suffixIcon,
             errorText: _errorText,
+            errorStyle: const TextStyle(height: 0, fontSize: 0),
             filled: true,
             fillColor: AppColors.bgSurface,
             border: OutlineInputBorder(
