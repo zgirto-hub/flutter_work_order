@@ -190,45 +190,107 @@ class PaymentCertificatePdfService {
       totalNetFils += r.netFils;
     }
 
-    return pw.TableHelper.fromTextArray(
-      border: pw.TableBorder.all(width: 0.5),
-      headerDecoration: pw.BoxDecoration(color: headerBg),
-      headerAlignment: pw.Alignment.center,
-      cellAlignment: pw.Alignment.center,
-      headerStyle: bold.copyWith(fontSize: 7),
-      cellStyle: base.copyWith(fontSize: 8),
-      headerDirection: pw.TextDirection.rtl,
-      headers: [
-        'أسباب (الاستحقاق/ الخصم)',
-        'دينار',
-        'فلس',
-        'دينار',
-        'فلس',
-        'دولار',
-        'سنت',
-      ],
-      data: [
-        // Column group headers row
-        for (final r in cert.paymentRows)
-          [
-            r.reason,
-            _fmtNum(r.netDinar),
-            _fmtNum(r.netFils),
-            _fmtNum(r.deductionDinar),
-            _fmtNum(r.deductionFils),
-            _fmtNum(r.duePaymentDollars),
-            _fmtNum(r.duePaymentCents),
+    final hBold = bold.copyWith(fontSize: 8);
+    final hSmall = bold.copyWith(fontSize: 7);
+    final cell = base.copyWith(fontSize: 8);
+
+    pw.Widget hdr(String text, {int flex = 1}) => pw.Expanded(
+          flex: flex,
+          child: pw.Container(
+            color: headerBg,
+            padding: const pw.EdgeInsets.symmetric(vertical: 4),
+            alignment: pw.Alignment.center,
+            child: pw.Text(text, style: hBold,
+                textAlign: pw.TextAlign.center,
+                textDirection: pw.TextDirection.rtl),
+          ),
+        );
+
+    pw.Widget subHdr(String text) => pw.Expanded(
+          child: pw.Container(
+            color: headerBg,
+            padding: const pw.EdgeInsets.symmetric(vertical: 3),
+            alignment: pw.Alignment.center,
+            child: pw.Text(text, style: hSmall,
+                textAlign: pw.TextAlign.center,
+                textDirection: pw.TextDirection.rtl),
+          ),
+        );
+
+    pw.Widget dataCell(String text) => pw.Expanded(
+          child: pw.Container(
+            padding: const pw.EdgeInsets.symmetric(vertical: 4),
+            alignment: pw.Alignment.center,
+            child: pw.Text(text, style: cell,
+                textAlign: pw.TextAlign.center,
+                textDirection: pw.TextDirection.rtl),
+          ),
+        );
+
+    pw.Widget reasonCell(String text) => pw.Expanded(
+          flex: 2,
+          child: pw.Container(
+            padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+            alignment: pw.Alignment.centerRight,
+            child: pw.Text(text, style: cell,
+                textDirection: pw.TextDirection.rtl),
+          ),
+        );
+
+    final border = pw.TableBorder.all(width: 0.5);
+
+    return pw.Table(
+      border: border,
+      children: [
+        // ── Row 1: Group headers (merged) ──
+        pw.TableRow(
+          children: [
+            hdr('الدفعة المستحقة', flex: 2),
+            hdr('الخصم', flex: 2),
+            hdr('الصافي', flex: 2),
+            hdr('أسباب (الاستحقاق/ الخصم)', flex: 2),
           ],
-        // Total row
-        [
-          'الاجمالي',
-          _fmtNum(totalNetDinar),
-          _fmtNum(totalNetFils),
-          _fmtNum(totalDinar),
-          _fmtNum(totalFils),
-          _fmtNum(totalDollars),
-          _fmtNum(totalCents),
-        ],
+        ),
+        // ── Row 2: Sub-headers ──
+        pw.TableRow(
+          children: [
+            subHdr('سنت'),
+            subHdr('دولار'),
+            subHdr('فلس'),
+            subHdr('دينار'),
+            subHdr('فلس'),
+            subHdr('دينار'),
+            pw.Expanded(
+              flex: 2,
+              child: pw.Container(color: headerBg, height: 0),
+            ),
+          ],
+        ),
+        // ── Data rows ──
+        for (final r in cert.paymentRows)
+          pw.TableRow(
+            children: [
+              dataCell(_fmtNum(r.duePaymentCents)),
+              dataCell(_fmtNum(r.duePaymentDollars)),
+              dataCell(_fmtNum(r.deductionFils)),
+              dataCell(_fmtNum(r.deductionDinar)),
+              dataCell(_fmtNum(r.netFils)),
+              dataCell(_fmtNum(r.netDinar)),
+              reasonCell(r.reason),
+            ],
+          ),
+        // ── Total row ──
+        pw.TableRow(
+          children: [
+            dataCell(_fmtNum(totalCents)),
+            dataCell(_fmtNum(totalDollars)),
+            dataCell(_fmtNum(totalFils)),
+            dataCell(_fmtNum(totalDinar)),
+            dataCell(_fmtNum(totalNetFils)),
+            dataCell(_fmtNum(totalNetDinar)),
+            reasonCell('الاجمالي'),
+          ],
+        ),
       ],
     );
   }
