@@ -195,17 +195,14 @@ class PaymentCertificatePdfService {
     final dStyle = base.copyWith(fontSize: 8);
     final bdr = const pw.BorderSide(width: 0.5);
 
-    // Bordered cell helper
-    pw.Widget hCell(String text, pw.TextStyle s, {int flex = 1, bool isHeader = false}) =>
+    // Cell helper — all 4 borders for clean grid
+    pw.Widget hCell(String text, pw.TextStyle s, {int flex = 1}) =>
         pw.Expanded(
           flex: flex,
           child: pw.Container(
             padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 2),
             alignment: pw.Alignment.center,
-            decoration: pw.BoxDecoration(
-              color: isHeader ? headerBg : null,
-              border: pw.Border(left: bdr),
-            ),
+            decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
             child: pw.Text(text, style: s,
                 textAlign: pw.TextAlign.center,
                 textDirection: pw.TextDirection.rtl),
@@ -213,20 +210,15 @@ class PaymentCertificatePdfService {
         );
 
     // Reason cell (right-aligned text, flex:2)
-    pw.Widget rCell(String text, {bool isHeader = false}) => pw.Expanded(
+    pw.Widget rCell(String text) => pw.Expanded(
           flex: 2,
           child: pw.Container(
-            color: isHeader ? headerBg : null,
             padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 4),
             alignment: pw.Alignment.centerRight,
-            child: pw.Text(text, style: isHeader ? hBold : dStyle,
+            decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
+            child: pw.Text(text, style: dStyle,
                 textDirection: pw.TextDirection.rtl),
           ),
-        );
-
-    pw.Widget bRow(List<pw.Widget> children) => pw.Container(
-          decoration: pw.BoxDecoration(border: pw.Border(bottom: bdr)),
-          child: pw.Row(children: children),
         );
 
     // Column order (RTL): reason(2) | دينار | فلس | دينار | فلس | دولار | سنت
@@ -234,26 +226,39 @@ class PaymentCertificatePdfService {
       decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
       child: pw.Column(
         children: [
-          // ── Row 1: Group headers ──
-          bRow([
-            rCell('أسباب (الاستحقاق/ الخصم)', isHeader: true),
-            hCell('الصافي', hBold, flex: 2, isHeader: true),
-            hCell('الخصم', hBold, flex: 2, isHeader: true),
-            hCell('الدفعة المستحقة', hBold, flex: 2, isHeader: true),
-          ]),
-          // ── Row 2: Sub-headers ──
-          bRow([
-            pw.Expanded(flex: 2, child: pw.Container(color: headerBg, height: 20)),
-            hCell('دينار', hSmall, isHeader: true),
-            hCell('فلس', hSmall, isHeader: true),
-            hCell('دينار', hSmall, isHeader: true),
-            hCell('فلس', hSmall, isHeader: true),
-            hCell('دولار', hSmall, isHeader: true),
-            hCell('سنت', hSmall, isHeader: true),
-          ]),
+          // ── Header: group headers + sub-headers combined ──
+          pw.Container(
+            decoration: pw.BoxDecoration(
+              color: headerBg,
+              border: pw.Border(bottom: bdr),
+            ),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                // أسباب spans both rows vertically
+                pw.Expanded(
+                  flex: 2,
+                  child: pw.Container(
+                    alignment: pw.Alignment.center,
+                    padding: const pw.EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                    child: pw.Text('أسباب (الاستحقاق/ الخصم)',
+                        style: hBold,
+                        textAlign: pw.TextAlign.center,
+                        textDirection: pw.TextDirection.rtl),
+                  ),
+                ),
+                // الصافي group
+                _buildGroupCol('الصافي', ['دينار', 'فلس'], hBold, hSmall, bdr),
+                // الخصم group
+                _buildGroupCol('الخصم', ['دينار', 'فلس'], hBold, hSmall, bdr),
+                // الدفعة المستحقة group
+                _buildGroupCol('الدفعة المستحقة', ['دولار', 'سنت'], hBold, hSmall, bdr),
+              ],
+            ),
+          ),
           // ── Data rows ──
           for (final r in cert.paymentRows)
-            bRow([
+            pw.Row(children: [
               rCell(r.reason),
               hCell(_fmtNum(r.netDinar), dStyle),
               hCell(_fmtNum(r.netFils), dStyle),
@@ -263,7 +268,7 @@ class PaymentCertificatePdfService {
               hCell(_fmtNum(r.duePaymentCents), dStyle),
             ]),
           // ── Total row ──
-          bRow([
+          pw.Row(children: [
             rCell('الاجمالي'),
             hCell(_fmtNum(totalNetDinar), dStyle),
             hCell(_fmtNum(totalNetFils), dStyle),
@@ -311,6 +316,47 @@ class PaymentCertificatePdfService {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildGroupCol(
+      String title, List<String> subs, pw.TextStyle bold, pw.TextStyle small, pw.BorderSide bdr) {
+    return pw.Expanded(
+      flex: 2,
+      child: pw.Container(
+        decoration: pw.BoxDecoration(border: pw.Border(left: bdr)),
+        child: pw.Column(
+          children: [
+            pw.Container(
+              padding: const pw.EdgeInsets.symmetric(vertical: 4),
+              alignment: pw.Alignment.center,
+              decoration: pw.BoxDecoration(border: pw.Border(bottom: bdr)),
+              child: pw.Text(title,
+                  style: bold,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
+            ),
+            pw.Row(
+              children: [
+                for (int i = 0; i < subs.length; i++)
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(vertical: 3),
+                      alignment: pw.Alignment.center,
+                      decoration: i > 0
+                          ? pw.BoxDecoration(border: pw.Border(left: bdr))
+                          : null,
+                      child: pw.Text(subs[i],
+                          style: small,
+                          textAlign: pw.TextAlign.center,
+                          textDirection: pw.TextDirection.rtl),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
