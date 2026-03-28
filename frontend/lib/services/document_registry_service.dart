@@ -32,6 +32,7 @@ class DocumentRegistryService {
     required String documentName,
     required String documentNumber,
     required String date,
+    bool replied = false,
   }) async {
     final response = await http.post(
       Uri.parse('${AppConfig.baseUrl}/document-registry'),
@@ -40,12 +41,37 @@ class DocumentRegistryService {
         'document_name': documentName,
         'document_number': documentNumber,
         'date': date,
+        'replied': replied,
         'created_by': _email,
       }),
     );
 
     if (response.statusCode != 200) {
       throw Exception('Failed to create entry');
+    }
+  }
+
+  Future<void> updateEntry(
+    String id, {
+    required String documentName,
+    required String documentNumber,
+    required String date,
+    bool replied = false,
+  }) async {
+    final response = await http.put(
+      Uri.parse('${AppConfig.baseUrl}/document-registry/$id'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'document_name': documentName,
+        'document_number': documentNumber,
+        'date': date,
+        'replied': replied,
+        'user_email': _email,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update entry');
     }
   }
 

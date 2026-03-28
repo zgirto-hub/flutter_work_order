@@ -25,6 +25,8 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
   List<RegistryEntry> _filteredEntries = [];
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _replied = false;
+  RegistryEntry? _editingEntry;
 
   @override
   void initState() {
@@ -99,6 +101,28 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
     }
   }
 
+  void _startEditing(RegistryEntry entry) {
+    setState(() {
+      _editingEntry = entry;
+      _nameCtrl.text = entry.documentName;
+      _numberCtrl.text = entry.documentNumber;
+      _dateCtrl.text = entry.date;
+      _selectedDate = DateTime.tryParse(entry.date);
+      _replied = entry.replied;
+    });
+  }
+
+  void _cancelEditing() {
+    setState(() {
+      _editingEntry = null;
+      _nameCtrl.clear();
+      _numberCtrl.clear();
+      _dateCtrl.clear();
+      _selectedDate = null;
+      _replied = false;
+    });
+  }
+
   Future<void> _submitEntry() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDate == null) {
@@ -110,20 +134,33 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
 
     setState(() => _isSaving = true);
     try {
-      await _service.createEntry(
-        documentName: _nameCtrl.text.trim(),
-        documentNumber: _numberCtrl.text.trim(),
-        date: _dateCtrl.text.trim(),
-      );
+      if (_editingEntry != null) {
+        await _service.updateEntry(
+          _editingEntry!.id,
+          documentName: _nameCtrl.text.trim(),
+          documentNumber: _numberCtrl.text.trim(),
+          date: _dateCtrl.text.trim(),
+          replied: _replied,
+        );
+      } else {
+        await _service.createEntry(
+          documentName: _nameCtrl.text.trim(),
+          documentNumber: _numberCtrl.text.trim(),
+          date: _dateCtrl.text.trim(),
+          replied: _replied,
+        );
+      }
       _nameCtrl.clear();
       _numberCtrl.clear();
       _dateCtrl.clear();
       _selectedDate = null;
+      _editingEntry = null;
+      _replied = false;
       await _loadEntries();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save entry')),
+        SnackBar(content: Text(_editingEntry != null ? 'Failed to update entry' : 'Failed to save entry')),
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -234,13 +271,31 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'New Entry',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _editingEntry != null ? 'Edit Entry' : 'New Entry',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                if (_editingEntry != null)
+                  GestureDetector(
+                    onTap: _cancelEditing,
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 14),
 
@@ -276,6 +331,34 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Checkbox(
+                    value: _replied,
+                    onChanged: (v) => setState(() => _replied = v ?? false),
+                    activeColor: AppColors.accent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    side: BorderSide(color: AppColors.border2, width: 1.5),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Replied',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+
             const SizedBox(height: 16),
 
             SizedBox(
@@ -301,7 +384,7 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
                         ),
                       )
                     : Text(
-                        'Add Entry',
+                        _editingEntry != null ? 'Save Changes' : 'Add Entry',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -417,18 +500,52 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '#${entry.documentNumber}  •  ${entry.date}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textTertiary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Text(
+                      '#${entry.documentNumber}  •  ${entry.date}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: entry.replied
+                            ? const Color(0xFFDCFCE7)
+                            : const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        entry.replied ? 'Yes' : 'No',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: entry.replied
+                              ? const Color(0xFF15803D)
+                              : const Color(0xFFB45309),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
+          GestureDetector(
+            onTap: () => _startEditing(entry),
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.edit_outlined, size: 17, color: AppColors.textTertiary),
+            ),
+          ),
+          const SizedBox(width: 4),
           GestureDetector(
             onTap: () => _deleteEntry(entry),
             child: Container(

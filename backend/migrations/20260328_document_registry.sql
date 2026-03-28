@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS document_registry (
     document_name   TEXT NOT NULL,
     document_number TEXT NOT NULL,
     date            DATE NOT NULL,
+    replied         BOOLEAN NOT NULL DEFAULT false,
     created_by      TEXT NOT NULL,
     created_at      TIMESTAMPTZ DEFAULT now()
 );

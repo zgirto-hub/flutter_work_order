@@ -3,6 +3,7 @@ class RegistryEntry {
   final String documentName;
   final String documentNumber;
   final String date;
+  final bool replied;
   final String createdBy;
   final String? createdAt;
 
@@ -11,6 +12,7 @@ class RegistryEntry {
     required this.documentName,
     required this.documentNumber,
     required this.date,
+    this.replied = false,
     required this.createdBy,
     this.createdAt,
   });
@@ -21,6 +23,7 @@ class RegistryEntry {
       documentName: json['document_name'] ?? '',
       documentNumber: json['document_number'] ?? '',
       date: json['date'] ?? '',
+      replied: json['replied'] ?? false,
       createdBy: json['created_by'] ?? '',
       createdAt: json['created_at'],
     );
@@ -30,6 +33,7 @@ class RegistryEntry {
     'document_name': documentName,
     'document_number': documentNumber,
     'date': date,
+    'replied': replied,
     'created_by': createdBy,
   };
 }

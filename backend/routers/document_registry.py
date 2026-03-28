@@ -11,7 +11,16 @@ class CreateRegistryEntryBody(BaseModel):
     document_name: str
     document_number: str
     date: str
+    replied: bool = False
     created_by: str
+
+
+class UpdateRegistryEntryBody(BaseModel):
+    document_name: str
+    document_number: str
+    date: str
+    replied: bool = False
+    user_email: str
 
 
 @router.get("/document-registry")
@@ -49,6 +58,7 @@ async def create_registry_entry(body: CreateRegistryEntryBody):
         "document_name": body.document_name.strip(),
         "document_number": body.document_number.strip(),
         "date": body.date.strip(),
+        "replied": body.replied,
         "created_by": body.created_by,
     }).execute()
 
@@ -63,6 +73,42 @@ async def create_registry_entry(body: CreateRegistryEntryBody):
     )
 
     return {"status": "created", "id": entry_id}
+
+
+@router.put("/document-registry/{entry_id}")
+async def update_registry_entry(entry_id: str, body: UpdateRegistryEntryBody):
+    """Update a document registry entry by ID."""
+    existing = supabase.table("document_registry") \
+        .select("id") \
+        .eq("id", entry_id) \
+        .execute()
+
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Entry not found")
+
+    if not body.document_name.strip():
+        raise HTTPException(status_code=400, detail="Document name is required")
+    if not body.document_number.strip():
+        raise HTTPException(status_code=400, detail="Document number is required")
+    if not body.date.strip():
+        raise HTTPException(status_code=400, detail="Date is required")
+
+    supabase.table("document_registry").update({
+        "document_name": body.document_name.strip(),
+        "document_number": body.document_number.strip(),
+        "date": body.date.strip(),
+        "replied": body.replied,
+    }).eq("id", entry_id).execute()
+
+    log_activity(
+        body.user_email,
+        "document_registry",
+        "updated",
+        target_label=body.document_name.strip(),
+        target_id=entry_id,
+    )
+
+    return {"status": "updated"}
 
 
 @router.delete("/document-registry/{entry_id}")
