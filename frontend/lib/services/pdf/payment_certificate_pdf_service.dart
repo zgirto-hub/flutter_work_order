@@ -200,10 +200,12 @@ class PaymentCertificatePdfService {
         pw.Expanded(
           flex: flex,
           child: pw.Container(
-            color: isHeader ? headerBg : null,
             padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 2),
             alignment: pw.Alignment.center,
-            decoration: pw.BoxDecoration(border: pw.Border(left: bdr)),
+            decoration: pw.BoxDecoration(
+              color: isHeader ? headerBg : null,
+              border: pw.Border(left: bdr),
+            ),
             child: pw.Text(text, style: s,
                 textAlign: pw.TextAlign.center,
                 textDirection: pw.TextDirection.rtl),
