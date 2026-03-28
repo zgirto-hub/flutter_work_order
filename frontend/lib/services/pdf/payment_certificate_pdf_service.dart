@@ -380,47 +380,6 @@ class PaymentCertificatePdfService {
     );
   }
 
-  static pw.Widget _buildGroupCol(
-      String title, List<String> subs, pw.TextStyle bold, pw.TextStyle small, pw.BorderSide bdr) {
-    return pw.Expanded(
-      flex: 2,
-      child: pw.Container(
-        decoration: pw.BoxDecoration(border: pw.Border(left: bdr)),
-        child: pw.Column(
-          children: [
-            pw.Container(
-              padding: const pw.EdgeInsets.symmetric(vertical: 4),
-              alignment: pw.Alignment.center,
-              decoration: pw.BoxDecoration(border: pw.Border(bottom: bdr)),
-              child: pw.Text(title,
-                  style: bold,
-                  textAlign: pw.TextAlign.center,
-                  textDirection: pw.TextDirection.rtl),
-            ),
-            pw.Row(
-              children: [
-                for (int i = 0; i < subs.length; i++)
-                  pw.Expanded(
-                    child: pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(vertical: 3),
-                      alignment: pw.Alignment.center,
-                      decoration: i > 0
-                          ? pw.BoxDecoration(border: pw.Border(left: bdr))
-                          : null,
-                      child: pw.Text(subs[i],
-                          style: small,
-                          textAlign: pw.TextAlign.center,
-                          textDirection: pw.TextDirection.rtl),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   static pw.Widget _signaturesTable(
       PaymentCertificate cert, pw.TextStyle bold, pw.TextStyle base) {
     pw.Widget sigBlock(String title, String name) {
