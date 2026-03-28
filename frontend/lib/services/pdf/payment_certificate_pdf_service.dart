@@ -6,17 +6,20 @@ import '../../models/payment_certificate.dart';
 
 class PaymentCertificatePdfService {
   static Future<Uint8List> build(PaymentCertificate cert) async {
-    // Load an Arabic-capable font
+    // Load Arabic + Latin fonts for mixed content
     final arabicFont = await PdfGoogleFonts.notoSansArabicRegular();
     final arabicFontBold = await PdfGoogleFonts.notoSansArabicBold();
+    final latinFont = await PdfGoogleFonts.notoSansRegular();
+    final latinFontBold = await PdfGoogleFonts.notoSansBold();
+    final fallback = [latinFont, latinFontBold];
 
-    final baseStyle = pw.TextStyle(font: arabicFont, fontSize: 9);
-    final boldStyle =
-        pw.TextStyle(font: arabicFontBold, fontSize: 9, fontWeight: pw.FontWeight.bold);
-    final headerStyle =
-        pw.TextStyle(font: arabicFontBold, fontSize: 14, fontWeight: pw.FontWeight.bold);
-    final subHeaderStyle =
-        pw.TextStyle(font: arabicFontBold, fontSize: 10, fontWeight: pw.FontWeight.bold);
+    final baseStyle = pw.TextStyle(font: arabicFont, fontSize: 9, fontFallback: fallback);
+    final boldStyle = pw.TextStyle(
+        font: arabicFontBold, fontSize: 9, fontWeight: pw.FontWeight.bold, fontFallback: fallback);
+    final headerStyle = pw.TextStyle(
+        font: arabicFontBold, fontSize: 14, fontWeight: pw.FontWeight.bold, fontFallback: fallback);
+    final subHeaderStyle = pw.TextStyle(
+        font: arabicFontBold, fontSize: 10, fontWeight: pw.FontWeight.bold, fontFallback: fallback);
 
     final pdf = pw.Document();
 
@@ -25,7 +28,11 @@ class PaymentCertificatePdfService {
         textDirection: pw.TextDirection.rtl,
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(30),
-        theme: pw.ThemeData.withFont(base: arabicFont, bold: arabicFontBold),
+        theme: pw.ThemeData.withFont(
+          base: arabicFont,
+          bold: arabicFontBold,
+          fontFallback: [latinFont, latinFontBold],
+        ),
         build: (context) => [
           // ── 1. Title ───────────────────────────────────────────
           pw.Center(
@@ -254,9 +261,18 @@ class PaymentCertificatePdfService {
                       textDirection: pw.TextDirection.rtl,
                     ),
                   ),
-                  pw.Text(
-                    checked[i].value ? '✓' : '',
-                    style: base,
+                  pw.Container(
+                    width: 10,
+                    height: 10,
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(width: 0.5),
+                    ),
+                    child: checked[i].value
+                        ? pw.Center(
+                            child: pw.Text('X',
+                                style: base.copyWith(fontSize: 7),
+                                textDirection: pw.TextDirection.ltr))
+                        : pw.SizedBox(),
                   ),
                 ],
               ),
