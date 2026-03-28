@@ -262,12 +262,6 @@ class PaymentCertificatePdfService {
                     decoration: pw.BoxDecoration(
                       border: pw.Border.all(width: 0.5),
                     ),
-                    child: checked[i].value
-                        ? pw.Center(
-                            child: pw.Text('\u2713',
-                                style: base.copyWith(fontSize: 8),
-                                textDirection: pw.TextDirection.ltr))
-                        : pw.SizedBox(),
                   ),
                 ],
               ),
