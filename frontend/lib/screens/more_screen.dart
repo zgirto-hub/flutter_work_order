@@ -11,6 +11,7 @@ import '../screens/notifications_screen.dart';
 import '../screens/calendar/calendar_screen.dart';
 import '../screens/document_registry/document_registry_screen.dart';
 import '../screens/payment_certificate/payment_certificate_list_screen.dart';
+import '../screens/system_status_screen.dart';
 
 class MoreScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -230,6 +231,17 @@ class _MoreScreenState extends State<MoreScreen> {
           context,
           MaterialPageRoute(
               builder: (_) => const PaymentCertificateListScreen()),
+        ),
+      ),
+      _MoreItem(
+        title: 'System Status',
+        subtitle: 'Infrastructure health',
+        icon: Icons.monitor_heart_outlined,
+        color: const Color(0xFF0369A1),
+        bgColor: const Color(0xFFE0F2FE),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SystemStatusScreen()),
         ),
       ),
       _MoreItem(
