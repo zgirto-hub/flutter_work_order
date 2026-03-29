@@ -88,6 +88,42 @@ class SystemStatusService {
     }
   }
 
+  Future<SystemStatusReport> updateIssue({
+    required String reportId,
+    String? notes,
+    String? reportDate,
+  }) async {
+    final body = <String, dynamic>{};
+    if (notes != null) body['notes'] = notes;
+    if (reportDate != null) body['report_date'] = reportDate;
+
+    final res = await http.put(
+      Uri.parse('${AppConfig.baseUrl}/system-status/$reportId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+
+    if (res.statusCode == 409) {
+      throw Exception('An unresolved issue already exists for this system on that date');
+    }
+    if (res.statusCode != 200) {
+      throw Exception('Failed to update issue');
+    }
+
+    final data = jsonDecode(res.body);
+    return SystemStatusReport.fromJson(data['report']);
+  }
+
+  Future<void> deleteIssue({required String reportId}) async {
+    final res = await http.delete(
+      Uri.parse('${AppConfig.baseUrl}/system-status/$reportId'),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Failed to delete issue');
+    }
+  }
+
   Future<List<SystemUptimeReport>> fetchUptimeReport({
     required String startDate,
     required String endDate,

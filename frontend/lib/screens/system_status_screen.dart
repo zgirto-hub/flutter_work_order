@@ -243,12 +243,14 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  system.systemName,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                Expanded(
+                  child: Text(
+                    system.systemName,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
               ],
@@ -260,42 +262,306 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                 ? report.reportedByName
                 : report.reportedBy),
             const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  try {
-                    await _service.resolveIssue(
-                      reportId: report.id,
-                      resolvedBy: _email,
-                    );
-                    if (!mounted) return;
-                    Navigator.pop(ctx);
-                    _load();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Issue resolved')),
-                    );
-                  } catch (e) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('$e')),
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF15803D),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+            // Action buttons row
+            Row(
+              children: [
+                // Edit button
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _showEditIssueSheet(report);
+                    },
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Edit'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.accent,
+                      side: BorderSide(color: AppColors.accent),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                   ),
                 ),
-                child: const Text('Mark as Resolved',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-              ),
+                const SizedBox(width: 8),
+                // Delete button
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _confirmDelete(report);
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('Delete'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFB91C1C),
+                      side: const BorderSide(color: Color(0xFFB91C1C)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Resolve button
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      try {
+                        await _service.resolveIssue(
+                          reportId: report.id,
+                          resolvedBy: _email,
+                        );
+                        if (!mounted) return;
+                        Navigator.pop(ctx);
+                        _load();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Issue resolved')),
+                        );
+                      } catch (e) {
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('$e')),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF15803D),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text('Resolve',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Edit Issue ────────────────────────────────────────────────────────────
+
+  void _showEditIssueSheet(SystemStatusReport report) {
+    final notesController = TextEditingController(text: report.notes);
+    DateTime selectedDate = DateTime.tryParse(report.reportDate) ?? DateTime.now();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            20, 20, 20,
+            MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Edit Issue',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                report.systemName,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Date picker
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: ctx,
+                    initialDate: selectedDate,
+                    firstDate: DateTime(2024),
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null) {
+                    setSheetState(() => selectedDate = picked);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface2,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.border2),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today,
+                          size: 16, color: AppColors.textSecondary),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Notes
+              TextField(
+                controller: notesController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Describe the issue...',
+                  hintStyle: TextStyle(color: AppColors.textTertiary),
+                  filled: true,
+                  fillColor: AppColors.bgSurface2,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.border2),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.border2),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.accent),
+                  ),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Save button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final dateStr =
+                        '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+                    try {
+                      await _service.updateIssue(
+                        reportId: report.id,
+                        notes: notesController.text.trim(),
+                        reportDate: dateStr,
+                      );
+                      if (!mounted) return;
+                      Navigator.pop(ctx);
+                      _load();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Issue updated')),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('$e')),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Save Changes',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Delete Confirmation ───────────────────────────────────────────────────
+
+  void _confirmDelete(SystemStatusReport report) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        title: Text(
+          'Delete Issue',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        content: Text(
+          'Delete the issue report for ${report.systemName} on ${report.reportDate}? This cannot be undone.',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                await _service.deleteIssue(reportId: report.id);
+                if (!mounted) return;
+                Navigator.pop(ctx);
+                _load();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Issue deleted')),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('$e')),
+                );
+              }
+            },
+            child: const Text(
+              'Delete',
+              style: TextStyle(
+                color: Color(0xFFB91C1C),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -573,7 +839,11 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      ..._history.map((r) => _HistoryCard(report: r)),
+                      ..._history.map((r) => _HistoryCard(
+                        report: r,
+                        onEdit: () => _showEditIssueSheet(r),
+                        onDelete: () => _confirmDelete(r),
+                      )),
                     ],
                   ],
                 ),
@@ -679,8 +949,14 @@ class _SystemCard extends StatelessWidget {
 
 class _HistoryCard extends StatelessWidget {
   final SystemStatusReport report;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
-  const _HistoryCard({required this.report});
+  const _HistoryCard({
+    required this.report,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -726,6 +1002,54 @@ class _HistoryCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11,
                         color: AppColors.textTertiary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: PopupMenuButton<String>(
+                        padding: EdgeInsets.zero,
+                        iconSize: 16,
+                        icon: Icon(
+                          Icons.more_vert,
+                          size: 16,
+                          color: AppColors.textTertiary,
+                        ),
+                        onSelected: (value) {
+                          if (value == 'edit') onEdit();
+                          if (value == 'delete') onDelete();
+                        },
+                        itemBuilder: (_) => [
+                          if (!isResolved)
+                            const PopupMenuItem(
+                              value: 'edit',
+                              height: 36,
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit_outlined, size: 16),
+                                  SizedBox(width: 8),
+                                  Text('Edit', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            height: 36,
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_outline,
+                                    size: 16, color: Color(0xFFB91C1C)),
+                                SizedBox(width: 8),
+                                Text('Delete',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFFB91C1C),
+                                    )),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],

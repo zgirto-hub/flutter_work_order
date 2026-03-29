@@ -28,6 +28,11 @@ class ReportIssueBody(BaseModel):
     reported_by_name: Optional[str] = ""
 
 
+class UpdateIssueBody(BaseModel):
+    notes: Optional[str] = None
+    report_date: Optional[str] = None
+
+
 class ResolveIssueBody(BaseModel):
     resolved_by: str
 
@@ -150,6 +155,69 @@ async def resolve_issue(report_id: str, body: ResolveIssueBody):
     )
 
     return {"report": result.data[0] if result.data else None}
+
+
+@router.put("/system-status/{report_id}")
+async def update_issue(report_id: str, body: UpdateIssueBody):
+    """Update an issue's notes and/or date."""
+    existing = (
+        supabase.table("system_status_reports")
+        .select("*")
+        .eq("id", report_id)
+        .execute()
+    )
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    updates = {}
+    if body.notes is not None:
+        updates["notes"] = body.notes
+    if body.report_date is not None:
+        # Check for duplicate if date is changing
+        old_report = existing.data[0]
+        if body.report_date != old_report["report_date"]:
+            dup = (
+                supabase.table("system_status_reports")
+                .select("id")
+                .eq("system_name", old_report["system_name"])
+                .eq("report_date", body.report_date)
+                .is_("resolved_at", "null")
+                .neq("id", report_id)
+                .execute()
+            )
+            if dup.data:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"An unresolved issue already exists for {old_report['system_name']} on {body.report_date}",
+                )
+        updates["report_date"] = body.report_date
+
+    if not updates:
+        return {"report": existing.data[0]}
+
+    result = (
+        supabase.table("system_status_reports")
+        .update(updates)
+        .eq("id", report_id)
+        .execute()
+    )
+    return {"report": result.data[0] if result.data else None}
+
+
+@router.delete("/system-status/{report_id}")
+async def delete_issue(report_id: str):
+    """Delete an issue report."""
+    existing = (
+        supabase.table("system_status_reports")
+        .select("id")
+        .eq("id", report_id)
+        .execute()
+    )
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    supabase.table("system_status_reports").delete().eq("id", report_id).execute()
+    return {"deleted": True}
 
 
 @router.get("/system-status/report")
