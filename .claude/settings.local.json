@@ -5,7 +5,9 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(./supabase.exe --version)"
+      "Bash(./supabase.exe --version)",
+      "mcp__bc5ce5e0-6ddc-4cd1-9849-184ae39feeb2__list_projects",
+      "mcp__bc5ce5e0-6ddc-4cd1-9849-184ae39feeb2__apply_migration"
     ]
   }
 }
