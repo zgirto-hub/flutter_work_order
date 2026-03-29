@@ -7,7 +7,10 @@
       "Bash(git push:*)",
       "Bash(./supabase.exe --version)",
       "mcp__bc5ce5e0-6ddc-4cd1-9849-184ae39feeb2__list_projects",
-      "mcp__bc5ce5e0-6ddc-4cd1-9849-184ae39feeb2__apply_migration"
+      "mcp__bc5ce5e0-6ddc-4cd1-9849-184ae39feeb2__apply_migration",
+      "mcp__bc5ce5e0-6ddc-4cd1-9849-184ae39feeb2__get_project_url",
+      "mcp__bc5ce5e0-6ddc-4cd1-9849-184ae39feeb2__get_publishable_keys",
+      "mcp__bc5ce5e0-6ddc-4cd1-9849-184ae39feeb2__execute_sql"
     ]
   }
 }
