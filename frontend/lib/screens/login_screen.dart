@@ -34,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   late final AnimationController _entranceCtrl = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 650),
+    duration: const Duration(milliseconds: 800),
   );
 
   Animation<double> _fadeAt(double start, double end) => CurvedAnimation(
@@ -43,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen>
       );
 
   Animation<Offset> _slideAt(double start, double end) =>
-      Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
+      Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
         CurvedAnimation(
           parent: _entranceCtrl,
           curve: Interval(start, end, curve: Curves.easeOutCubic),
@@ -188,278 +188,351 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final topPadding = MediaQuery.of(context).padding.top;
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: AppColors.bgPrimary,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: AutofillGroup(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+      body: Stack(
+        children: [
+          // ── Gradient background ──────────────────────────────────────
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.accent.withValues(alpha: 0.08),
+                    AppColors.bgPrimary,
+                    AppColors.bgPrimary,
+                  ],
+                  stops: const [0.0, 0.4, 1.0],
+                ),
+              ),
+            ),
+          ),
 
-                  // ── Logo + Brand ───────────────────────────────────────
-                  FadeTransition(
-                    opacity: _fadeAt(0.0, 0.55),
-                    child: SlideTransition(
-                      position: _slideAt(0.0, 0.55),
-                      child: Column(
-                        children: [
-                          const _AppLogo(),
-                          const SizedBox(height: 20),
-                          Text(
-                            'Work Order',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                              letterSpacing: -0.5,
+          // ── Decorative top accent bar ────────────────────────────────
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: topPadding + 4,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFE89977), Color(0xFFCC785C), Color(0xFFB85E3F)],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Main content ─────────────────────────────────────────────
+          SingleChildScrollView(
+            padding: EdgeInsets.only(
+              top: topPadding + 24,
+              left: 24,
+              right: 24,
+              bottom: 40,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: AutofillGroup(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(height: screenHeight * 0.04),
+
+                      // ── Brand header ────────────────────────────────
+                      FadeTransition(
+                        opacity: _fadeAt(0.0, 0.5),
+                        child: SlideTransition(
+                          position: _slideAt(0.0, 0.5),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Work Order',
+                                style: TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                  letterSpacing: -0.8,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Workflow Management',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textTertiary,
+                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+
+                      // ── Form card ───────────────────────────────────
+                      FadeTransition(
+                        opacity: _fadeAt(0.1, 0.65),
+                        child: SlideTransition(
+                          position: _slideAt(0.1, 0.65),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSurface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: AppColors.border,
+                                width: 0.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.isDark
+                                      ? Colors.black.withValues(alpha: 0.3)
+                                      : const Color(0xFF1A1915).withValues(alpha: 0.06),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 8),
+                                  spreadRadius: -4,
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(28),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Welcome back',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Sign in to continue to your workspace',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 28),
+
+                                // ── Email field ───────────────────────
+                                const _InputLabel(label: 'Email'),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  controller: emailController,
+                                  keyboardType: TextInputType.emailAddress,
+                                  autofillHints: const [AutofillHints.email, AutofillHints.username],
+                                  textInputAction: TextInputAction.next,
+                                  style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                                  decoration: InputDecoration(
+                                    hintText: 'name@company.com',
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    fillColor: AppColors.bgSurface2,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+
+                                // ── Password field ────────────────────
+                                const _InputLabel(label: 'Password'),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  controller: passwordController,
+                                  obscureText: _obscure,
+                                  autofillHints: const [AutofillHints.password],
+                                  textInputAction: TextInputAction.done,
+                                  onSubmitted: (_) => _signIn(),
+                                  style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                                  decoration: InputDecoration(
+                                    hintText: '••••••••',
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    fillColor: AppColors.bgSurface2,
+                                    suffixIcon: GestureDetector(
+                                      onTap: () => setState(() => _obscure = !_obscure),
+                                      child: Icon(
+                                        _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                        size: 18,
+                                        color: AppColors.textTertiary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+
+                                // ── Remember / Forgot row ─────────────
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () => setState(() => _rememberMe = !_rememberMe),
+                                      child: Row(
+                                        children: [
+                                          AnimatedContainer(
+                                            duration: const Duration(milliseconds: 200),
+                                            width: 18,
+                                            height: 18,
+                                            decoration: BoxDecoration(
+                                              color: _rememberMe ? AppColors.accent : Colors.transparent,
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(
+                                                color: _rememberMe ? AppColors.accent : AppColors.border2,
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                            child: _rememberMe
+                                                ? const Icon(Icons.check_rounded, color: Colors.white, size: 13)
+                                                : null,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Remember me',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: AppColors.textSecondary,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: _showResetPasswordDialog,
+                                      child: Text(
+                                        'Forgot password?',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.accent,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 28),
+
+                                // ── Sign In Button ────────────────────
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 50,
+                                  child: ElevatedButton(
+                                    onPressed: _isLoading ? null : _signIn,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.accent,
+                                      foregroundColor: Colors.white,
+                                      disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.6),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    child: _isLoading
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.5,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Text(
+                                            'Sign in',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: -0.2,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Workflow Management',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          GestureDetector(
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ── About link ──────────────────────────────────
+                      FadeTransition(
+                        opacity: _fadeAt(0.25, 0.8),
+                        child: Center(
+                          child: GestureDetector(
                             onTap: _openIntro,
                             child: Text(
                               'About this system',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 13,
                                 color: AppColors.textTertiary,
                                 decoration: TextDecoration.underline,
                                 decorationColor: AppColors.textTertiary,
                               ),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 48),
+                      const SizedBox(height: 32),
 
-                  // ── Welcome Message ────────────────────────────────────
-                  FadeTransition(
-                    opacity: _fadeAt(0.1, 0.6),
-                    child: SlideTransition(
-                      position: _slideAt(0.1, 0.6),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Welcome back',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                              letterSpacing: -0.3,
+                      // ── Footer ──────────────────────────────────────
+                      FadeTransition(
+                        opacity: _fadeAt(0.35, 1.0),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: AppColors.accent.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Sign in to continue to your workspace',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.textSecondary,
+                            const SizedBox(height: 16),
+                            Text(
+                              'Developed by Salah \u00a9 2026',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textTertiary,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // ── Form fields ────────────────────────────────────────
-                  FadeTransition(
-                    opacity: _fadeAt(0.2, 0.75),
-                    child: SlideTransition(
-                      position: _slideAt(0.2, 0.75),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const _InputLabel(label: 'Email'),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            autofillHints: const [AutofillHints.email, AutofillHints.username],
-                            textInputAction: TextInputAction.next,
-                            style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
-                            decoration: const InputDecoration(
-                              hintText: 'name@company.com',
-                              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-
-                          const _InputLabel(label: 'Password'),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: passwordController,
-                            obscureText: _obscure,
-                            autofillHints: const [AutofillHints.password],
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _signIn(),
-                            style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
-                            decoration: InputDecoration(
-                              hintText: '••••••••',
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                              suffixIcon: GestureDetector(
-                                onTap: () => setState(() => _obscure = !_obscure),
-                                child: Icon(
-                                  _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                  size: 18,
+                            if (version.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Version $version (Build $buildNumber)',
+                                style: TextStyle(
+                                  fontSize: 11,
                                   color: AppColors.textTertiary,
                                 ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              GestureDetector(
-                                onTap: () => setState(() => _rememberMe = !_rememberMe),
-                                child: Row(
-                                  children: [
-                                    AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      width: 18,
-                                      height: 18,
-                                      decoration: BoxDecoration(
-                                        color: _rememberMe ? AppColors.textPrimary : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(
-                                          color: _rememberMe ? AppColors.textPrimary : AppColors.border2,
-                                          width: 1.5,
-                                        ),
-                                      ),
-                                      child: _rememberMe
-                                          ? const Icon(Icons.check_rounded, color: Colors.white, size: 13)
-                                          : null,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Remember me',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: AppColors.textSecondary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: _showResetPasswordDialog,
-                                child: Text(
-                                  'Forgot password?',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+                                textAlign: TextAlign.center,
                               ),
                             ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // ── Sign In Button ─────────────────────────────────────
-                  FadeTransition(
-                    opacity: _fadeAt(0.3, 0.85),
-                    child: SlideTransition(
-                      position: _slideAt(0.3, 0.85),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _signIn,
-                          style: ElevatedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text(
-                                  'Sign in',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -0.2,
-                                  ),
+                            if (AppConfig.buildDate.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                'Build: ${AppConfig.buildDate}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textTertiary,
                                 ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 40),
-
-                  // ── Footer ─────────────────────────────────────────────
-                  FadeTransition(
-                    opacity: _fadeAt(0.4, 1.0),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Developed by Salah © 2026',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textTertiary,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        if (version.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Version $version (Build $buildNumber)',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textTertiary,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                        if (AppConfig.buildDate.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            'Build: ${AppConfig.buildDate}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textTertiary,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -481,148 +554,4 @@ class _InputLabel extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── App Logo ───────────────────────────────────────────────────────────────────
-// Stacked document layers with a checkmark — represents work order completion.
-
-class _AppLogo extends StatelessWidget {
-  const _AppLogo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFE89977), Color(0xFFB85E3F)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.15),
-          width: 0.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFCC785C).withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-          BoxShadow(
-            color: const Color(0xFFCC785C).withValues(alpha: 0.15),
-            blurRadius: 32,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          const CustomPaint(painter: _LogoMarkPainter()),
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.12),
-                    Colors.transparent,
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.05),
-                  ],
-                  stops: const [0.0, 0.3, 0.7, 1.0],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LogoMarkPainter extends CustomPainter {
-  const _LogoMarkPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    final white90 = Paint()
-      ..color = Colors.white.withValues(alpha: 0.92)
-      ..style = PaintingStyle.fill;
-
-    final white50 = Paint()
-      ..color = Colors.white.withValues(alpha: 0.45)
-      ..style = PaintingStyle.fill;
-
-    final white30 = Paint()
-      ..color = Colors.white.withValues(alpha: 0.25)
-      ..style = PaintingStyle.fill;
-
-    // Back page (offset right + down)
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(w * 0.28, h * 0.18, w * 0.48, h * 0.58),
-        const Radius.circular(3),
-      ),
-      white30,
-    );
-
-    // Middle page (offset slightly)
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(w * 0.24, h * 0.22, w * 0.48, h * 0.58),
-        const Radius.circular(3),
-      ),
-      white50,
-    );
-
-    // Front page with folded corner
-    final pageRect = Rect.fromLTWH(w * 0.20, h * 0.16, w * 0.48, h * 0.58);
-    final foldSize = w * 0.12;
-    final pagePath = Path()
-      ..moveTo(pageRect.left, pageRect.top)
-      ..lineTo(pageRect.right - foldSize, pageRect.top)
-      ..lineTo(pageRect.right, pageRect.top + foldSize)
-      ..lineTo(pageRect.right, pageRect.bottom)
-      ..lineTo(pageRect.left, pageRect.bottom)
-      ..close();
-    canvas.drawPath(pagePath, white90);
-
-    // Folded corner triangle
-    final foldPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.55)
-      ..style = PaintingStyle.fill;
-    final foldPath = Path()
-      ..moveTo(pageRect.right - foldSize, pageRect.top)
-      ..lineTo(pageRect.right - foldSize, pageRect.top + foldSize)
-      ..lineTo(pageRect.right, pageRect.top + foldSize)
-      ..close();
-    canvas.drawPath(foldPath, foldPaint);
-
-    // Checkmark
-    final checkPaint = Paint()
-      ..color = const Color(0xFFB85E3F)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.8
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final cx = pageRect.center.dx;
-    final cy = pageRect.center.dy + h * 0.02;
-    final checkPath = Path()
-      ..moveTo(cx - w * 0.07, cy)
-      ..lineTo(cx - w * 0.01, cy + h * 0.07)
-      ..lineTo(cx + w * 0.09, cy - h * 0.06);
-    canvas.drawPath(checkPath, checkPaint);
-  }
-
-  @override
-  bool shouldRepaint(_LogoMarkPainter oldDelegate) => false;
 }
