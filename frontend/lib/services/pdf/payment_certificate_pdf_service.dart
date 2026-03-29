@@ -357,13 +357,6 @@ class PaymentCertificatePdfService {
                       textDirection: pw.TextDirection.rtl,
                     ),
                   ),
-                  pw.Container(
-                    width: 10,
-                    height: 10,
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border.all(width: 0.5),
-                    ),
-                  ),
                 ],
               ),
             ),

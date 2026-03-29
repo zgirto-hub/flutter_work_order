@@ -1,4 +1,3 @@
-import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -485,9 +484,7 @@ class _InputLabel extends StatelessWidget {
 }
 
 // ── App Logo ───────────────────────────────────────────────────────────────────
-// Claude.ai-inspired: Premium terracotta gradient rounded square with a
-// triskelion mark (3 rounded pills at 120° intervals).
-// Enhanced with: layered shadows, subtle border, shimmer overlay
+// Stacked document layers with a checkmark — represents work order completion.
 
 class _AppLogo extends StatelessWidget {
   const _AppLogo();
@@ -502,7 +499,6 @@ class _AppLogo extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFFE89977), Color(0xFFB85E3F)],
-          stops: [0.0, 1.0],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
@@ -510,35 +506,21 @@ class _AppLogo extends StatelessWidget {
           width: 0.5,
         ),
         boxShadow: [
-          // Main soft shadow
           BoxShadow(
             color: const Color(0xFFCC785C).withValues(alpha: 0.25),
             blurRadius: 16,
-            spreadRadius: 0,
             offset: const Offset(0, 6),
           ),
-          // Deeper shadow for depth
           BoxShadow(
             color: const Color(0xFFCC785C).withValues(alpha: 0.15),
             blurRadius: 32,
-            spreadRadius: 0,
             offset: const Offset(0, 12),
-          ),
-          // Highlight on top edge
-          BoxShadow(
-            color: Colors.white.withValues(alpha: 0.2),
-            blurRadius: 2,
-            spreadRadius: -1,
-            offset: const Offset(0, -1),
           ),
         ],
       ),
       child: Stack(
         children: [
-          // Main logo mark
           const CustomPaint(painter: _LogoMarkPainter()),
-          
-          // Subtle shimmer overlay
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -547,7 +529,7 @@ class _AppLogo extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.white.withValues(alpha: 0.15),
+                    Colors.white.withValues(alpha: 0.12),
                     Colors.transparent,
                     Colors.transparent,
                     Colors.black.withValues(alpha: 0.05),
@@ -571,31 +553,74 @@ class _LogoMarkPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    final paint = Paint()
+    final white90 = Paint()
       ..color = Colors.white.withValues(alpha: 0.92)
       ..style = PaintingStyle.fill;
 
-    canvas.save();
-    canvas.translate(w / 2, h / 2);
+    final white50 = Paint()
+      ..color = Colors.white.withValues(alpha: 0.45)
+      ..style = PaintingStyle.fill;
 
-    for (int i = 0; i < 3; i++) {
-      canvas.save();
-      canvas.rotate(i * (2 * pi / 3));
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(0, -(h * 0.135)),
-            width: w * 0.205,
-            height: h * 0.46,
-          ),
-          Radius.circular(w * 0.103),
-        ),
-        paint,
-      );
-      canvas.restore();
-    }
+    final white30 = Paint()
+      ..color = Colors.white.withValues(alpha: 0.25)
+      ..style = PaintingStyle.fill;
 
-    canvas.restore();
+    // Back page (offset right + down)
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.28, h * 0.18, w * 0.48, h * 0.58),
+        const Radius.circular(3),
+      ),
+      white30,
+    );
+
+    // Middle page (offset slightly)
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.24, h * 0.22, w * 0.48, h * 0.58),
+        const Radius.circular(3),
+      ),
+      white50,
+    );
+
+    // Front page with folded corner
+    final pageRect = Rect.fromLTWH(w * 0.20, h * 0.16, w * 0.48, h * 0.58);
+    final foldSize = w * 0.12;
+    final pagePath = Path()
+      ..moveTo(pageRect.left, pageRect.top)
+      ..lineTo(pageRect.right - foldSize, pageRect.top)
+      ..lineTo(pageRect.right, pageRect.top + foldSize)
+      ..lineTo(pageRect.right, pageRect.bottom)
+      ..lineTo(pageRect.left, pageRect.bottom)
+      ..close();
+    canvas.drawPath(pagePath, white90);
+
+    // Folded corner triangle
+    final foldPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.55)
+      ..style = PaintingStyle.fill;
+    final foldPath = Path()
+      ..moveTo(pageRect.right - foldSize, pageRect.top)
+      ..lineTo(pageRect.right - foldSize, pageRect.top + foldSize)
+      ..lineTo(pageRect.right, pageRect.top + foldSize)
+      ..close();
+    canvas.drawPath(foldPath, foldPaint);
+
+    // Checkmark
+    final checkPaint = Paint()
+      ..color = const Color(0xFFB85E3F)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final cx = pageRect.center.dx;
+    final cy = pageRect.center.dy + h * 0.02;
+    final checkPath = Path()
+      ..moveTo(cx - w * 0.07, cy)
+      ..lineTo(cx - w * 0.01, cy + h * 0.07)
+      ..lineTo(cx + w * 0.09, cy - h * 0.06);
+    canvas.drawPath(checkPath, checkPaint);
   }
 
   @override

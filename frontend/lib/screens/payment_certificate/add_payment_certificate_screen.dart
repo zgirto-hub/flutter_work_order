@@ -51,11 +51,6 @@ class _AddPaymentCertificateScreenState
   // Payment rows
   final List<_PaymentRowControllers> _paymentRows = [];
 
-  // Attachments checklist (fixed items)
-  late Map<String, bool> _checklist;
-
-  // Approvers (fixed roles)
-  late Map<String, TextEditingController> _approverCtrls;
 
   final _service = PaymentCertificateService();
   bool _generating = false;
@@ -79,20 +74,10 @@ class _AddPaymentCertificateScreenState
     'شهادة الخضوع الضريبي',
   ];
 
-  static const _fixedApprovers = {
-    'deptHead': 'رئيس القسم المختص',
-    'controller': 'المراقب المختص',
-    'director': 'المدير المختص',
-    'auditor': 'المدقق / المحاسب',
-  };
-
+  
   @override
   void initState() {
     super.initState();
-    _checklist = {for (final a in _fixedAttachments) a: false};
-    _approverCtrls = {
-      for (final key in _fixedApprovers.keys) key: TextEditingController()
-    };
     _initFixedPaymentRows();
     if (_isEditing) {
       _prefill(widget.certificate!);
@@ -126,16 +111,6 @@ class _AddPaymentCertificateScreenState
     _workCommencementDate = c.workCommencementDate;
     _renewalInfoCtrl.text = c.renewalInfo;
     _renewalExpiryDate = c.renewalExpiryDate;
-    _approverCtrls['deptHead']!.text = c.deptHead;
-    _approverCtrls['controller']!.text = c.controller;
-    _approverCtrls['director']!.text = c.director;
-    _approverCtrls['auditor']!.text = c.auditor;
-    // Only restore checked state for fixed attachment items
-    for (final key in _checklist.keys) {
-      if (c.attachmentChecklist.containsKey(key)) {
-        _checklist[key] = c.attachmentChecklist[key]!;
-      }
-    }
     // Match saved payment rows to fixed reason rows by reason text
     for (final r in c.paymentRows) {
       final idx = _paymentRows.indexWhere((p) => p.reason == r.reason);
@@ -165,9 +140,6 @@ class _AddPaymentCertificateScreenState
     _additionalWorksCtrl.dispose();
     _contractDurationCtrl.dispose();
     _renewalInfoCtrl.dispose();
-    for (final c in _approverCtrls.values) {
-      c.dispose();
-    }
     for (final r in _paymentRows) {
       r.dispose();
     }
@@ -223,11 +195,8 @@ class _AddPaymentCertificateScreenState
       renewalInfo: _renewalInfoCtrl.text.trim(),
       renewalExpiryDate: _renewalExpiryDate,
       paymentRows: _paymentRows.map((r) => r.toModel()).toList(),
-      attachmentChecklist: Map.from(_checklist),
-      deptHead: _approverCtrls['deptHead']!.text.trim(),
-      controller: _approverCtrls['controller']!.text.trim(),
-      director: _approverCtrls['director']!.text.trim(),
-      auditor: _approverCtrls['auditor']!.text.trim(),
+      attachmentChecklist: {for (final a in _fixedAttachments) a: false},
+      
     );
   }
 
@@ -359,10 +328,6 @@ class _AddPaymentCertificateScreenState
                         ),
                         const SizedBox(height: 12),
                         _buildPaymentTable(),
-                        const SizedBox(height: 12),
-                        _buildAttachmentsChecklist(),
-                        const SizedBox(height: 12),
-                        _buildApprovers(),
                       ],
                     ),
                   ),
@@ -761,42 +726,6 @@ class _AddPaymentCertificateScreenState
     );
   }
 
-  // ── Attachments checklist ────────────────────────────────────────────
-
-  Widget _buildAttachmentsChecklist() {
-    return _sectionCard(
-      'المرفقات',
-      Icons.attach_file_outlined,
-      [
-        for (final entry in _checklist.entries)
-          CheckboxListTile(
-            title: Text(entry.key,
-                style: TextStyle(
-                    fontSize: 12, color: AppColors.textPrimary)),
-            value: entry.value,
-            onChanged: (v) =>
-                setState(() => _checklist[entry.key] = v ?? false),
-            activeColor: AppColors.accent,
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            controlAffinity: ListTileControlAffinity.leading,
-          ),
-      ],
-    );
-  }
-
-  // ── Approvers ────────────────────────────────────────────────────────
-
-  Widget _buildApprovers() {
-    return _sectionCard(
-      'التوقيعات',
-      Icons.people_outline,
-      [
-        for (final entry in _fixedApprovers.entries)
-          _field(_approverCtrls[entry.key]!, entry.value),
-      ],
-    );
-  }
 }
 
 // ── Payment row controllers ──────────────────────────────────────────────
