@@ -58,7 +58,6 @@ async def get_today_status(target_date: Optional[str] = Query(None)):
     result = (
         supabase.table("system_status_reports")
         .select("*")
-        .eq("report_date", d)
         .is_("resolved_at", "null")
         .execute()
     )

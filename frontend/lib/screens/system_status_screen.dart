@@ -938,10 +938,10 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 2.2,
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                        childAspectRatio: 1.6,
                       ),
                       itemCount: _mainSystems.length,
                       itemBuilder: (context, i) => _SystemCard(
@@ -1124,10 +1124,10 @@ class _ExpandableGroupState extends State<_ExpandableGroup>
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 2.2,
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 1.6,
                 ),
                 itemCount: widget.children.length,
                 itemBuilder: (context, i) => _SystemCard(
@@ -1147,11 +1147,15 @@ class _ExpandableGroupState extends State<_ExpandableGroup>
 // ── System Card ───────────────────────────────────────────────────────────────
 
 class _SystemCard extends StatelessWidget {
+  static const _satSystems = {'VAS', 'DRP'};
+
   final SystemStatus system;
   final String? displayName;
   final VoidCallback onTap;
 
   const _SystemCard({required this.system, this.displayName, required this.onTap});
+
+  bool get _isSat => _satSystems.contains(system.systemName);
 
   @override
   Widget build(BuildContext context) {
@@ -1164,10 +1168,10 @@ class _SystemCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: AppColors.bgSurface,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppColors.border2, width: 0.5),
           boxShadow: AppShadows.cardLight,
         ),
@@ -1181,7 +1185,7 @@ class _SystemCard extends StatelessWidget {
                   child: Text(
                     displayName ?? system.systemName,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
@@ -1189,9 +1193,26 @@ class _SystemCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (_isSat)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: const Text(
+                      'SAT',
+                      style: TextStyle(
+                        fontSize: 7,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFB45309),
+                      ),
+                    ),
+                  ),
                 Container(
-                  width: 9,
-                  height: 9,
+                  width: 7,
+                  height: 7,
                   decoration: BoxDecoration(
                     color: statusColor,
                     shape: BoxShape.circle,
@@ -1199,37 +1220,23 @@ class _SystemCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: bgColor,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                isIssue ? 'Issue Reported' : 'Operational',
+                isIssue ? 'Issue' : 'OK',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 9,
                   fontWeight: FontWeight.w500,
                   color: statusColor,
                 ),
               ),
             ),
-            if (isIssue && system.activeReport != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                system.activeReport!.notes.isNotEmpty
-                    ? system.activeReport!.notes
-                    : 'Reported by ${system.activeReport!.reportedByName.isNotEmpty ? system.activeReport!.reportedByName : system.activeReport!.reportedBy}',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: AppColors.textTertiary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
           ],
         ),
       ),
