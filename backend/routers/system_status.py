@@ -14,8 +14,6 @@ ALLOWED_SYSTEMS = [
     "UPS",
     "Permissions",
     "IRTOS",
-    "VAS",
-    "DRP",
     "International Circuits - Beirut",
     "International Circuits - Damascus",
     "International Circuits - Karachi",

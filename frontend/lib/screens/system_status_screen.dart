@@ -18,6 +18,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
   List<SystemStatus> _systems = [];
   List<SystemStatus> _mainSystems = [];
   Map<String, List<SystemStatus>> _groupedSystems = {};
+  final Set<String> _expandedGroups = {};
   List<SystemStatusReport> _history = [];
 
   String get _email =>
@@ -81,6 +82,10 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.bgSurface,
+      transitionAnimationController: AnimationController(
+        vsync: Navigator.of(context),
+        duration: const Duration(milliseconds: 350),
+      ),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -838,36 +843,22 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                       ),
                     ),
 
-                    // Grouped sub-systems
+                    // Grouped sub-systems (expandable with animation)
                     for (final entry in _groupedSystems.entries) ...[
-                      const SizedBox(height: 20),
-                      Text(
-                        entry.key,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          childAspectRatio: 2.2,
-                        ),
-                        itemCount: entry.value.length,
-                        itemBuilder: (context, i) => _SystemCard(
-                          system: entry.value[i],
-                          displayName: entry.value[i].systemName.split(' - ').last,
-                          onTap: () =>
-                              _showReportIssueSheet(entry.value[i]),
-                        ),
+                      const SizedBox(height: 12),
+                      _ExpandableGroup(
+                        title: entry.key,
+                        isExpanded: _expandedGroups.contains(entry.key),
+                        issueCount: entry.value.where((s) => s.hasIssue).length,
+                        onToggle: () => setState(() {
+                          if (_expandedGroups.contains(entry.key)) {
+                            _expandedGroups.remove(entry.key);
+                          } else {
+                            _expandedGroups.add(entry.key);
+                          }
+                        }),
+                        children: entry.value,
+                        onSubSystemTap: _showReportIssueSheet,
                       ),
                     ],
                     const SizedBox(height: 24),
@@ -894,6 +885,153 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                 ),
               ),
             ),
+    );
+  }
+}
+
+// ── Expandable Group ─────────────────────────────────────────────────────────
+
+class _ExpandableGroup extends StatefulWidget {
+  final String title;
+  final bool isExpanded;
+  final int issueCount;
+  final VoidCallback onToggle;
+  final List<SystemStatus> children;
+  final void Function(SystemStatus) onSubSystemTap;
+
+  const _ExpandableGroup({
+    required this.title,
+    required this.isExpanded,
+    required this.issueCount,
+    required this.onToggle,
+    required this.children,
+    required this.onSubSystemTap,
+  });
+
+  @override
+  State<_ExpandableGroup> createState() => _ExpandableGroupState();
+}
+
+class _ExpandableGroupState extends State<_ExpandableGroup>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _arrowTurns;
+  late final Animation<double> _sizeFactor;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+      value: widget.isExpanded ? 1.0 : 0.0,
+    );
+    _arrowTurns = Tween(begin: 0.0, end: 0.25).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+    _sizeFactor = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
+  }
+
+  @override
+  void didUpdateWidget(_ExpandableGroup old) {
+    super.didUpdateWidget(old);
+    if (widget.isExpanded != old.isExpanded) {
+      widget.isExpanded ? _ctrl.forward() : _ctrl.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: widget.onToggle,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.bgSurface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border2, width: 0.5),
+            ),
+            child: Row(
+              children: [
+                AnimatedBuilder(
+                  animation: _arrowTurns,
+                  builder: (_, child) => Transform.rotate(
+                    angle: _arrowTurns.value * 3.14159 * 2,
+                    child: child,
+                  ),
+                  child: Icon(
+                    Icons.keyboard_arrow_right_rounded,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                if (widget.issueCount > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${widget.issueCount} issue${widget.issueCount > 1 ? 's' : ''}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFB91C1C),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        SizeTransition(
+          sizeFactor: _sizeFactor,
+          child: FadeTransition(
+            opacity: _fade,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 2.2,
+                ),
+                itemCount: widget.children.length,
+                itemBuilder: (context, i) => _SystemCard(
+                  system: widget.children[i],
+                  displayName: widget.children[i].systemName.split(' - ').last,
+                  onTap: () => widget.onSubSystemTap(widget.children[i]),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
