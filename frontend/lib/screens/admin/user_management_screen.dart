@@ -552,6 +552,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       ('doc_registry', 'Doc Registry'),
       ('payment_cert', 'Payment Cert'),
       ('system_status', 'System Status'),
+      ('activity_log', 'Activity Log'),
       ('notifications', 'Notifications'),
     ];
 
