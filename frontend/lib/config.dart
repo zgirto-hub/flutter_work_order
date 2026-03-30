@@ -13,5 +13,5 @@ class AppConfig {
       : (dotenv.env['DOWNLOAD_URL_PROD'] ?? '');
 
   static const String buildDate =
-      String.fromEnvironment('BUILD_DATE', defaultValue: '16 Mar 2026');
+      String.fromEnvironment('BUILD_DATE', defaultValue: '30 Mar 2026');
 }
