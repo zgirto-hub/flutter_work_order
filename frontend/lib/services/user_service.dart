@@ -156,6 +156,17 @@ class UserService {
     }
   }
 
+  Future<void> updateScreenPermissions(String userId, List<String>? screens) async {
+    final res = await http.patch(
+      Uri.parse('${AppConfig.baseUrl}/users/$userId/screen-permissions?admin_email=${Uri.encodeComponent(_email)}'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'allowed_screens': screens}),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to update screen permissions'));
+    }
+  }
+
   Future<void> activateUser(String userId) async {
     final res = await http.patch(
       Uri.parse('${AppConfig.baseUrl}/users/$userId/activate?admin_email=${Uri.encodeComponent(_email)}'),

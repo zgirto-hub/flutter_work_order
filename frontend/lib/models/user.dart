@@ -13,6 +13,7 @@ class AppUser {
   final String createdAt;
   final List<String> departments;
   final List<Map<String, String>> technicianDepartments; // [{id, name}] from /users/me
+  final List<String>? allowedScreens; // null = no restrictions, list = only these screens
 
   const AppUser({
     required this.id,
@@ -27,6 +28,7 @@ class AppUser {
     this.createdAt = '',
     this.departments = const [],
     this.technicianDepartments = const [],
+    this.allowedScreens,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -45,6 +47,9 @@ class AppUser {
       technicianDepartments: (json['technician_departments'] as List<dynamic>? ?? [])
           .map((e) => Map<String, String>.from(e as Map))
           .toList(),
+      allowedScreens: json['allowed_screens'] != null
+          ? List<String>.from(json['allowed_screens'])
+          : null,
     );
   }
 
@@ -114,6 +119,7 @@ class AppUser {
     bool? isActive,
     String? createdAt,
     List<String>? departments,
+    List<String>? allowedScreens,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -127,6 +133,7 @@ class AppUser {
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       departments: departments ?? this.departments,
+      allowedScreens: allowedScreens ?? this.allowedScreens,
     );
   }
 }

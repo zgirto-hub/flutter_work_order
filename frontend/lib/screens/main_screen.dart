@@ -24,6 +24,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _index = 0;
   String _userRole = 'admin';
+  List<String>? _allowedScreens;
   bool _roleLoaded = false;
   int _openWOCount = 0;
   Timer? _pollTimer;
@@ -54,6 +55,8 @@ class _MainScreenState extends State<MainScreen> {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         _userRole = data['user_type'] ?? 'admin';
+        final raw = data['allowed_screens'];
+        _allowedScreens = raw != null ? List<String>.from(raw) : null;
       }
     } catch (_) {
       _userRole = 'admin';
@@ -146,7 +149,7 @@ class _MainScreenState extends State<MainScreen> {
         onNavigate: (index) => setState(() => _index = index),
       ),
       WorkOrderHome(onWorkOrderCreated: _refreshWOCount),
-      MoreScreen(themeController: widget.themeController, userRole: _userRole),
+      MoreScreen(themeController: widget.themeController, userRole: _userRole, allowedScreens: _allowedScreens),
     ];
 
     return Scaffold(

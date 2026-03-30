@@ -541,8 +541,19 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final mobileCtrl = TextEditingController(text: user.mobile);
     String selectedRole = user.userTypeString;
     String? selectedDept = user.departments.isNotEmpty ? user.departments.first : null;
+    List<String>? selectedScreens = user.allowedScreens;
     bool loading = false;
     bool deleting = false;
+
+    const screenOptions = [
+      ('documents', 'Documents'),
+      ('reports', 'Reports'),
+      ('calendar', 'Calendar'),
+      ('doc_registry', 'Doc Registry'),
+      ('payment_cert', 'Payment Cert'),
+      ('system_status', 'System Status'),
+      ('notifications', 'Notifications'),
+    ];
 
     await showDialog(
       context: context,
@@ -631,6 +642,46 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     ),
                   ),
                 ),
+                SizedBox(height: 16),
+                Row(
+                  children: [
+                    Text('Screen Access', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
+                    Spacer(),
+                    if (selectedScreens != null)
+                      GestureDetector(
+                        onTap: () => setDlg(() => selectedScreens = null),
+                        child: Text('Reset to all', style: TextStyle(fontSize: 11, color: AppColors.accent)),
+                      ),
+                  ],
+                ),
+                SizedBox(height: 6),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface2,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: AppColors.border, width: 0.5),
+                  ),
+                  child: Column(
+                    children: screenOptions.map((entry) {
+                      final key = entry.$1;
+                      final label = entry.$2;
+                      final isOn = selectedScreens == null || selectedScreens!.contains(key);
+                      return _ScreenToggleRow(
+                        label: label,
+                        value: isOn,
+                        onChanged: (val) => setDlg(() {
+                          if (selectedScreens == null) {
+                            selectedScreens = screenOptions.map((e) => e.$1).where((k) => k != key).toList();
+                          } else if (val) {
+                            selectedScreens = [...selectedScreens!, key];
+                          } else {
+                            selectedScreens = selectedScreens!.where((k) => k != key).toList();
+                          }
+                        }),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ],
             ),
           ),
@@ -703,6 +754,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     mobile: mobileCtrl.text.trim(),
                     departmentId: deptId,
                   );
+                  await _userService.updateScreenPermissions(user.id, selectedScreens);
                   if (ctx.mounted) Navigator.pop(ctx);
                   _loadData();
                 } catch (e) {
@@ -717,6 +769,33 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ScreenToggleRow extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _ScreenToggleRow({required this.label, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: Row(
+        children: [
+          Text(label, style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+          const Spacer(),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: AppColors.accent,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ],
       ),
     );
   }

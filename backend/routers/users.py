@@ -45,6 +45,10 @@ class CompleteResetBody(BaseModel):
     new_password: str
 
 
+class UpdateScreenPermissionsBody(BaseModel):
+    allowed_screens: Optional[list] = None
+
+
 def _get_user_by_email(email: str):
     """Get user by email from users table"""
     normalized = email.strip().lower()
@@ -75,7 +79,10 @@ async def get_user_role(email: str = Query(...)):
     user = _get_user_by_email(email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return {"user_type": user.get("user_type", "reporter")}
+    return {
+        "user_type": user.get("user_type", "reporter"),
+        "allowed_screens": user.get("allowed_screens"),
+    }
 
 
 @router.get("/users/me")
@@ -359,6 +366,19 @@ async def complete_password_reset(body: CompleteResetBody):
         target_label=user_email)
 
     return {"status": "password_updated"}
+
+
+@router.patch("/users/{user_id}/screen-permissions")
+async def update_screen_permissions(user_id: str, body: UpdateScreenPermissionsBody, admin_email: str = Query(...)):
+    """Update per-user allowed screens (admin only). Pass null to remove restrictions."""
+    _require_admin(admin_email)
+
+    user = _get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    supabase.table("users").update({"allowed_screens": body.allowed_screens}).eq("id", user_id).execute()
+    return {"ok": True}
 
 
 @router.patch("/users/{user_id}/activate")

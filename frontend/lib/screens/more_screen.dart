@@ -16,11 +16,13 @@ import '../screens/system_status_screen.dart';
 class MoreScreen extends StatefulWidget {
   final ThemeController themeController;
   final String userRole;
+  final List<String>? allowedScreens;
 
   const MoreScreen({
     super.key,
     required this.themeController,
     required this.userRole,
+    this.allowedScreens,
   });
 
   @override
@@ -169,21 +171,27 @@ class _MoreScreenState extends State<MoreScreen> {
     );
   }
 
+  bool _canShow(String key) {
+    if (widget.userRole == 'admin') return true;
+    if (widget.allowedScreens == null) return true;
+    return widget.allowedScreens!.contains(key);
+  }
+
   List<_MoreItem> _buildItems(BuildContext context) {
     final items = <_MoreItem>[
-      _MoreItem(
-        title: 'Documents',
-        subtitle: 'Files & folders',
-        icon: Icons.description_outlined,
-        color: const Color(0xFF7C3AED),
-        bgColor: const Color(0xFFF3F0FF),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (_) => const DocumentsScreen()),
+      if (_canShow('documents'))
+        _MoreItem(
+          title: 'Documents',
+          subtitle: 'Files & folders',
+          icon: Icons.description_outlined,
+          color: const Color(0xFF7C3AED),
+          bgColor: const Color(0xFFF3F0FF),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const DocumentsScreen()),
+          ),
         ),
-      ),
-      if (widget.userRole != 'reporter') ...[
+      if (_canShow('reports'))
         _MoreItem(
           title: 'Reports',
           subtitle: 'Work order reports',
@@ -192,10 +200,10 @@ class _MoreScreenState extends State<MoreScreen> {
           bgColor: const Color(0xFFDCFCE7),
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(
-                builder: (_) => const WorkOrderReportScreen()),
+            MaterialPageRoute(builder: (_) => const WorkOrderReportScreen()),
           ),
         ),
+      if (_canShow('calendar'))
         _MoreItem(
           title: 'Calendar',
           subtitle: 'Recurring inspections',
@@ -209,49 +217,51 @@ class _MoreScreenState extends State<MoreScreen> {
             ),
           ),
         ),
-      ],
-      _MoreItem(
-        title: 'Doc Registry',
-        subtitle: 'Document records',
-        icon: Icons.edit_note_outlined,
-        color: const Color(0xFF0E7490),
-        bgColor: const Color(0xFFCFFAFE),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const DocumentRegistryScreen()),
+      if (_canShow('doc_registry'))
+        _MoreItem(
+          title: 'Doc Registry',
+          subtitle: 'Document records',
+          icon: Icons.edit_note_outlined,
+          color: const Color(0xFF0E7490),
+          bgColor: const Color(0xFFCFFAFE),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const DocumentRegistryScreen()),
+          ),
         ),
-      ),
-      _MoreItem(
-        title: 'Payment Cert',
-        subtitle: 'شهادة الدفع',
-        icon: Icons.receipt_long_outlined,
-        color: const Color(0xFFB91C1C),
-        bgColor: const Color(0xFFFEE2E2),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (_) => const PaymentCertificateListScreen()),
+      if (_canShow('payment_cert'))
+        _MoreItem(
+          title: 'Payment Cert',
+          subtitle: 'شهادة الدفع',
+          icon: Icons.receipt_long_outlined,
+          color: const Color(0xFFB91C1C),
+          bgColor: const Color(0xFFFEE2E2),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const PaymentCertificateListScreen()),
+          ),
         ),
-      ),
-      _MoreItem(
-        title: 'System Status',
-        subtitle: 'Infrastructure health',
-        icon: Icons.monitor_heart_outlined,
-        color: const Color(0xFF0369A1),
-        bgColor: const Color(0xFFE0F2FE),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SystemStatusScreen()),
+      if (_canShow('system_status'))
+        _MoreItem(
+          title: 'System Status',
+          subtitle: 'Infrastructure health',
+          icon: Icons.monitor_heart_outlined,
+          color: const Color(0xFF0369A1),
+          bgColor: const Color(0xFFE0F2FE),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SystemStatusScreen()),
+          ),
         ),
-      ),
-      _MoreItem(
-        title: 'Notifications',
-        subtitle: _unreadCount > 0 ? '$_unreadCount unread' : 'Alerts & updates',
-        icon: Icons.notifications_outlined,
-        color: const Color(0xFFB45309),
-        bgColor: const Color(0xFFFEF3C7),
-        onTap: _openNotifications,
-      ),
+      if (_canShow('notifications'))
+        _MoreItem(
+          title: 'Notifications',
+          subtitle: _unreadCount > 0 ? '$_unreadCount unread' : 'Alerts & updates',
+          icon: Icons.notifications_outlined,
+          color: const Color(0xFFB45309),
+          bgColor: const Color(0xFFFEF3C7),
+          onTap: _openNotifications,
+        ),
       if (widget.userRole == 'admin')
         _MoreItem(
           title: 'Activity Log',
