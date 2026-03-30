@@ -16,6 +16,8 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
   final _service = SystemStatusService();
   bool _loading = true;
   List<SystemStatus> _systems = [];
+  List<SystemStatus> _mainSystems = [];
+  Map<String, List<SystemStatus>> _groupedSystems = {};
   List<SystemStatusReport> _history = [];
 
   String get _email =>
@@ -43,6 +45,16 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
       setState(() {
         _systems = results[0] as List<SystemStatus>;
         _history = results[1] as List<SystemStatusReport>;
+        _mainSystems = [];
+        _groupedSystems = {};
+        for (final s in _systems) {
+          if (s.systemName.contains(' - ')) {
+            final prefix = s.systemName.split(' - ').first;
+            _groupedSystems.putIfAbsent(prefix, () => []).add(s);
+          } else {
+            _mainSystems.add(s);
+          }
+        }
         _loading = false;
       });
     } catch (e) {
@@ -807,7 +819,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Status grid
+                    // Main systems grid
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -818,13 +830,46 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                         mainAxisSpacing: 10,
                         childAspectRatio: 2.2,
                       ),
-                      itemCount: _systems.length,
+                      itemCount: _mainSystems.length,
                       itemBuilder: (context, i) => _SystemCard(
-                        system: _systems[i],
+                        system: _mainSystems[i],
                         onTap: () =>
-                            _showReportIssueSheet(_systems[i]),
+                            _showReportIssueSheet(_mainSystems[i]),
                       ),
                     ),
+
+                    // Grouped sub-systems
+                    for (final entry in _groupedSystems.entries) ...[
+                      const SizedBox(height: 20),
+                      Text(
+                        entry.key,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          childAspectRatio: 2.2,
+                        ),
+                        itemCount: entry.value.length,
+                        itemBuilder: (context, i) => _SystemCard(
+                          system: entry.value[i],
+                          displayName: entry.value[i].systemName.split(' - ').last,
+                          onTap: () =>
+                              _showReportIssueSheet(entry.value[i]),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
 
                     // History section
@@ -857,9 +902,10 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
 
 class _SystemCard extends StatelessWidget {
   final SystemStatus system;
+  final String? displayName;
   final VoidCallback onTap;
 
-  const _SystemCard({required this.system, required this.onTap});
+  const _SystemCard({required this.system, this.displayName, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -887,7 +933,7 @@ class _SystemCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    system.systemName,
+                    displayName ?? system.systemName,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

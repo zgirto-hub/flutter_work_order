@@ -242,6 +242,23 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
   }
 
   Future<void> _removeAttachment(RegistryEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Attachment'),
+        content: Text('Remove "${entry.fileName ?? 'attachment'}" from this entry?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Remove', style: TextStyle(color: AppColors.dangerText)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
     try {
       await _service.deleteAttachment(entry.id);
       await _loadEntries();
@@ -647,6 +664,7 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
                   children: [
                     Text(
                       entry.documentName,
+                      textDirection: TextDirection.rtl,
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
