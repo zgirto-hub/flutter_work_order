@@ -262,7 +262,7 @@ class _MoreScreenState extends State<MoreScreen> {
           bgColor: const Color(0xFFFEF3C7),
           onTap: _openNotifications,
         ),
-      if (widget.userRole == 'admin')
+      if (_canShow('activity_log'))
         _MoreItem(
           title: 'Activity Log',
           subtitle: 'User actions',
