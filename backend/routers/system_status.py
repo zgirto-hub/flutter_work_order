@@ -19,6 +19,7 @@ ALLOWED_SYSTEMS = [
     "International Circuits - Karachi",
     "International Circuits - Tehran",
     "International Circuits - Baghdad",
+    "International Circuits - Bahrain",
     "INDRA CCTV - Camera 1",
     "INDRA CCTV - Camera 2",
     "INDRA CCTV - Camera 3",
