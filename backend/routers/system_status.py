@@ -47,6 +47,7 @@ class UpdateIssueBody(BaseModel):
 
 class ResolveIssueBody(BaseModel):
     resolved_by: str
+    resolved_notes: Optional[str] = ""
 
 
 @router.get("/system-status/today")
@@ -160,6 +161,7 @@ async def resolve_issue(report_id: str, body: ResolveIssueBody):
             {
                 "resolved_at": datetime.utcnow().isoformat(),
                 "resolved_by": body.resolved_by,
+                "resolved_notes": body.resolved_notes or "",
             }
         )
         .eq("id", report_id)

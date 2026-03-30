@@ -8,6 +8,7 @@ class SystemStatusReport {
   final String createdAt;
   final String? resolvedAt;
   final String? resolvedBy;
+  final String resolvedNotes;
 
   const SystemStatusReport({
     required this.id,
@@ -19,6 +20,7 @@ class SystemStatusReport {
     required this.createdAt,
     this.resolvedAt,
     this.resolvedBy,
+    this.resolvedNotes = '',
   });
 
   factory SystemStatusReport.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,7 @@ class SystemStatusReport {
       createdAt: json['created_at']?.toString() ?? '',
       resolvedAt: json['resolved_at']?.toString(),
       resolvedBy: json['resolved_by'],
+      resolvedNotes: json['resolved_notes'] ?? '',
     );
   }
 

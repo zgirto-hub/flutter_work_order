@@ -325,24 +325,9 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                 // Resolve button
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () async {
-                      try {
-                        await _service.resolveIssue(
-                          reportId: report.id,
-                          resolvedBy: _email,
-                        );
-                        if (!mounted) return;
-                        Navigator.pop(ctx);
-                        _load();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Issue resolved')),
-                        );
-                      } catch (e) {
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('$e')),
-                        );
-                      }
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _showResolveSheet(report);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF15803D),
@@ -359,6 +344,129 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ── Resolve Issue ─────────────────────────────────────────────────────────
+
+  void _showResolveSheet(SystemStatusReport report) {
+    final notesCtrl = TextEditingController();
+    bool resolving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20,
+              MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 10, height: 10,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF15803D), shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Resolve Issue',
+                      style: TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                report.systemName,
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: notesCtrl,
+                maxLines: 4,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'Describe how the issue was resolved...',
+                  hintStyle: TextStyle(color: AppColors.textTertiary),
+                  filled: true,
+                  fillColor: AppColors.bgSurface2,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.border2),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.border2),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.accent),
+                  ),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+                style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: resolving ? null : () async {
+                    setSheet(() => resolving = true);
+                    try {
+                      await _service.resolveIssue(
+                        reportId: report.id,
+                        resolvedBy: _email,
+                        resolvedNotes: notesCtrl.text.trim(),
+                      );
+                      if (!mounted) return;
+                      Navigator.pop(ctx);
+                      _load();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Issue resolved')),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      setSheet(() => resolving = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('$e')),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF15803D),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: resolving
+                      ? const SizedBox(
+                          width: 18, height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Confirm Resolve',
+                          style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

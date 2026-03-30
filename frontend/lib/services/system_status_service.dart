@@ -76,11 +76,12 @@ class SystemStatusService {
   Future<void> resolveIssue({
     required String reportId,
     required String resolvedBy,
+    String resolvedNotes = '',
   }) async {
     final res = await http.patch(
       Uri.parse('${AppConfig.baseUrl}/system-status/$reportId/resolve'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'resolved_by': resolvedBy}),
+      body: jsonEncode({'resolved_by': resolvedBy, 'resolved_notes': resolvedNotes}),
     );
 
     if (res.statusCode != 200) {
