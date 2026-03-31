@@ -7,8 +7,9 @@ import 'package:printing/printing.dart';
 
 class AddPaymentCertificateScreen extends StatefulWidget {
   final PaymentCertificate? certificate;
+  final bool isCopy;
 
-  const AddPaymentCertificateScreen({super.key, this.certificate});
+  const AddPaymentCertificateScreen({super.key, this.certificate, this.isCopy = false});
 
   @override
   State<AddPaymentCertificateScreen> createState() =>
@@ -56,7 +57,7 @@ class _AddPaymentCertificateScreenState
   bool _generating = false;
   bool _saving = false;
 
-  bool get _isEditing => widget.certificate != null;
+  bool get _isEditing => widget.certificate != null && !widget.isCopy;
 
   static const _currencies = ['دولار امريكي', 'دينار كويتي'];
 
@@ -79,7 +80,7 @@ class _AddPaymentCertificateScreenState
   void initState() {
     super.initState();
     _initFixedPaymentRows();
-    if (_isEditing) {
+    if (widget.certificate != null) {
       _prefill(widget.certificate!);
     }
   }
@@ -400,7 +401,7 @@ class _AddPaymentCertificateScreenState
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              _isEditing ? 'تعديل شهادة الدفع' : 'شهادة دفع جديدة',
+              _isEditing ? 'تعديل شهادة الدفع' : widget.isCopy ? 'نسخ شهادة الدفع' : 'شهادة دفع جديدة',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

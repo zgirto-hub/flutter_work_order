@@ -81,6 +81,18 @@ class _PaymentCertificateListScreenState
     if (result == 'saved' || result == 'deleted') _load();
   }
 
+  Future<void> _openCopy(PaymentCertificate cert) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (_) => AddPaymentCertificateScreen(
+                certificate: cert,
+                isCopy: true,
+              )),
+    );
+    if (result == 'saved') _load();
+  }
+
   Future<void> _confirmDelete(PaymentCertificate cert) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -329,6 +341,21 @@ class _PaymentCertificateListScreenState
                     ],
                   ),
                 ),
+                // Copy button
+                GestureDetector(
+                  onTap: () => _openCopy(cert),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface2,
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: Icon(Icons.copy_outlined,
+                        size: 14, color: AppColors.textTertiary),
+                  ),
+                ),
+                const SizedBox(width: 6),
                 // Delete button
                 GestureDetector(
                   onTap: () => _confirmDelete(cert),

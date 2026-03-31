@@ -11,6 +11,7 @@ import '../config.dart';
 import '../widgets/claude_widgets.dart';
 import '../services/activity_log_service.dart';
 import '../models/activity_log_entry.dart';
+import 'system_status_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String userRole;
@@ -434,6 +435,16 @@ class DashboardScreenState extends State<DashboardScreen> {
                     icon: Icons.add_circle_outline_rounded,
                     color: AppColors.accent,
                     onTap: () => widget.onNavigate(1),
+                    trailing: Icon(Icons.chevron_right_rounded,
+                        size: 16, color: AppColors.textTertiary),
+                  ),
+                  SizedBox(height: 10),
+                  _QuickAction(
+                    label: 'System Status',
+                    icon: Icons.monitor_heart_outlined,
+                    color: AppColors.accent,
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const SystemStatusScreen())),
                     trailing: Icon(Icons.chevron_right_rounded,
                         size: 16, color: AppColors.textTertiary),
                   ),
