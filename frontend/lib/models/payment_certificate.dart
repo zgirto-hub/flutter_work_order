@@ -1,6 +1,6 @@
 class PaymentRow {
-  final double duePaymentDollars;
-  final double duePaymentCents;
+  final double duePaymentDinar;
+  final double duePaymentFils;
   final double deductionDinar;
   final double deductionFils;
   final double netDinar;
@@ -8,8 +8,8 @@ class PaymentRow {
   final String reason;
 
   const PaymentRow({
-    this.duePaymentDollars = 0,
-    this.duePaymentCents = 0,
+    this.duePaymentDinar = 0,
+    this.duePaymentFils = 0,
     this.deductionDinar = 0,
     this.deductionFils = 0,
     this.netDinar = 0,
@@ -18,8 +18,8 @@ class PaymentRow {
   });
 
   factory PaymentRow.fromJson(Map<String, dynamic> json) => PaymentRow(
-        duePaymentDollars: (json['duePaymentDollars'] ?? 0).toDouble(),
-        duePaymentCents: (json['duePaymentCents'] ?? 0).toDouble(),
+        duePaymentDinar: (json['duePaymentDinar'] ?? json['duePaymentDollars'] ?? 0).toDouble(),
+        duePaymentFils: (json['duePaymentFils'] ?? json['duePaymentCents'] ?? 0).toDouble(),
         deductionDinar: (json['deductionDinar'] ?? 0).toDouble(),
         deductionFils: (json['deductionFils'] ?? 0).toDouble(),
         netDinar: (json['netDinar'] ?? 0).toDouble(),
@@ -28,8 +28,8 @@ class PaymentRow {
       );
 
   Map<String, dynamic> toJson() => {
-        'duePaymentDollars': duePaymentDollars,
-        'duePaymentCents': duePaymentCents,
+        'duePaymentDinar': duePaymentDinar,
+        'duePaymentFils': duePaymentFils,
         'deductionDinar': deductionDinar,
         'deductionFils': deductionFils,
         'netDinar': netDinar,
@@ -60,6 +60,13 @@ class PaymentCertificate {
   final DateTime? workCommencementDate;
   final String renewalInfo;
   final DateTime? renewalExpiryDate;
+  final double extensionValue;
+  final String extensionDuration;
+  final DateTime? extension1StartDate;
+  final DateTime? extension1EndDate;
+  final DateTime? extension2StartDate;
+  final DateTime? extension2EndDate;
+  final String extensionPeriodLabel;
   final List<PaymentRow> paymentRows;
   final Map<String, bool> attachmentChecklist;
   final String deptHead;
@@ -93,6 +100,13 @@ class PaymentCertificate {
     this.workCommencementDate,
     this.renewalInfo = '',
     this.renewalExpiryDate,
+    this.extensionValue = 0,
+    this.extensionDuration = '',
+    this.extension1StartDate,
+    this.extension1EndDate,
+    this.extension2StartDate,
+    this.extension2EndDate,
+    this.extensionPeriodLabel = '',
     this.paymentRows = const [],
     this.attachmentChecklist = const {},
     this.deptHead = '',
@@ -143,6 +157,13 @@ class PaymentCertificate {
       workCommencementDate: _parseDate(j['work_commencement_date']),
       renewalInfo: j['renewal_info'] ?? '',
       renewalExpiryDate: _parseDate(j['renewal_expiry_date']),
+      extensionValue: (j['extension_value'] ?? 0).toDouble(),
+      extensionDuration: j['extension_duration'] ?? '',
+      extension1StartDate: _parseDate(j['extension_1_start_date']),
+      extension1EndDate: _parseDate(j['extension_1_end_date']),
+      extension2StartDate: _parseDate(j['extension_2_start_date']),
+      extension2EndDate: _parseDate(j['extension_2_end_date']),
+      extensionPeriodLabel: j['extension_period_label'] ?? '',
       paymentRows: rows,
       attachmentChecklist: checklist,
       deptHead: j['dept_head'] ?? '',
@@ -179,6 +200,13 @@ class PaymentCertificate {
         'work_commencement_date': _fmtDate(workCommencementDate),
         'renewal_info': renewalInfo,
         'renewal_expiry_date': _fmtDate(renewalExpiryDate),
+        'extension_value': extensionValue,
+        'extension_duration': extensionDuration,
+        'extension_1_start_date': _fmtDate(extension1StartDate),
+        'extension_1_end_date': _fmtDate(extension1EndDate),
+        'extension_2_start_date': _fmtDate(extension2StartDate),
+        'extension_2_end_date': _fmtDate(extension2EndDate),
+        'extension_period_label': extensionPeriodLabel,
         'payment_rows': paymentRows.map((r) => r.toJson()).toList(),
         'attachment_checklist': attachmentChecklist,
         'dept_head': deptHead,

@@ -49,6 +49,15 @@ class _AddPaymentCertificateScreenState
   final _renewalInfoCtrl = TextEditingController();
   DateTime? _renewalExpiryDate;
 
+  // Extension fields
+  final _extensionValueCtrl = TextEditingController();
+  final _extensionDurationCtrl = TextEditingController();
+  final _extensionPeriodLabelCtrl = TextEditingController();
+  DateTime? _extension1StartDate;
+  DateTime? _extension1EndDate;
+  DateTime? _extension2StartDate;
+  DateTime? _extension2EndDate;
+
   // Payment rows
   final List<_PaymentRowControllers> _paymentRows = [];
 
@@ -112,13 +121,20 @@ class _AddPaymentCertificateScreenState
     _workCommencementDate = c.workCommencementDate;
     _renewalInfoCtrl.text = c.renewalInfo;
     _renewalExpiryDate = c.renewalExpiryDate;
+    _extensionValueCtrl.text = c.extensionValue > 0 ? c.extensionValue.toString() : '';
+    _extensionDurationCtrl.text = c.extensionDuration;
+    _extensionPeriodLabelCtrl.text = c.extensionPeriodLabel;
+    _extension1StartDate = c.extension1StartDate;
+    _extension1EndDate = c.extension1EndDate;
+    _extension2StartDate = c.extension2StartDate;
+    _extension2EndDate = c.extension2EndDate;
     // Match saved payment rows to fixed reason rows by reason text
     for (final r in c.paymentRows) {
       final idx = _paymentRows.indexWhere((p) => p.reason == r.reason);
       if (idx == -1) continue;
       final ctrl = _paymentRows[idx];
-      ctrl.dollarCtrl.text = r.duePaymentDollars > 0 ? r.duePaymentDollars.toString() : '';
-      ctrl.centCtrl.text = r.duePaymentCents > 0 ? r.duePaymentCents.toString() : '';
+      ctrl.duePaymentDinarCtrl.text = r.duePaymentDinar > 0 ? r.duePaymentDinar.toString() : '';
+      ctrl.duePaymentFilsCtrl.text = r.duePaymentFils > 0 ? r.duePaymentFils.toString() : '';
       ctrl.dinarCtrl.text = r.deductionDinar > 0 ? r.deductionDinar.toString() : '';
       ctrl.filsCtrl.text = r.deductionFils > 0 ? r.deductionFils.toString() : '';
       ctrl.netDinarCtrl.text = r.netDinar > 0 ? r.netDinar.toString() : '';
@@ -141,6 +157,9 @@ class _AddPaymentCertificateScreenState
     _additionalWorksCtrl.dispose();
     _contractDurationCtrl.dispose();
     _renewalInfoCtrl.dispose();
+    _extensionValueCtrl.dispose();
+    _extensionDurationCtrl.dispose();
+    _extensionPeriodLabelCtrl.dispose();
     for (final r in _paymentRows) {
       r.dispose();
     }
@@ -195,6 +214,13 @@ class _AddPaymentCertificateScreenState
       workCommencementDate: _workCommencementDate,
       renewalInfo: _renewalInfoCtrl.text.trim(),
       renewalExpiryDate: _renewalExpiryDate,
+      extensionValue: double.tryParse(_extensionValueCtrl.text.trim()) ?? 0,
+      extensionDuration: _extensionDurationCtrl.text.trim(),
+      extension1StartDate: _extension1StartDate,
+      extension1EndDate: _extension1EndDate,
+      extension2StartDate: _extension2StartDate,
+      extension2EndDate: _extension2EndDate,
+      extensionPeriodLabel: _extensionPeriodLabelCtrl.text.trim(),
       paymentRows: _paymentRows.map((r) => r.toModel()).toList(),
       attachmentChecklist: {for (final a in _fixedAttachments) a: false},
       
@@ -325,6 +351,20 @@ class _AddPaymentCertificateScreenState
                             _field(_renewalInfoCtrl, 'تجديد العقد'),
                             _dateRow('تاريخ انتهاء التجديد', _renewalExpiryDate,
                                 (d) => setState(() => _renewalExpiryDate = d)),
+                            _field(_extensionValueCtrl,
+                                'قيمة التمديد (د.ك)',
+                                keyboard: TextInputType.number),
+                            _field(_extensionDurationCtrl, 'مدة تمديد العقد'),
+                            _field(_extensionPeriodLabelCtrl,
+                                'وصف فترة التمديد (مثال: التمديد الثاني)'),
+                            _dateRow('بداية التمديد', _extension1StartDate,
+                                (d) => setState(() => _extension1StartDate = d)),
+                            _dateRow('نهاية التمديد', _extension1EndDate,
+                                (d) => setState(() => _extension1EndDate = d)),
+                            _dateRow('بداية التمديد الثاني', _extension2StartDate,
+                                (d) => setState(() => _extension2StartDate = d)),
+                            _dateRow('نهاية التمديد الثاني', _extension2EndDate,
+                                (d) => setState(() => _extension2EndDate = d)),
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -599,10 +639,10 @@ class _AddPaymentCertificateScreenState
           Row(
             children: [
               Expanded(
-                  child: _miniField(r.dollarCtrl, 'دولار')),
+                  child: _miniField(r.duePaymentDinarCtrl, 'دينار (مستحق)')),
               const SizedBox(width: 8),
               Expanded(
-                  child: _miniField(r.centCtrl, 'سنت')),
+                  child: _miniField(r.duePaymentFilsCtrl, 'فلس (مستحق)')),
             ],
           ),
           const SizedBox(height: 8),
@@ -631,15 +671,15 @@ class _AddPaymentCertificateScreenState
   }
 
   Widget _buildTotalRow() {
-    double totalDollars = 0;
-    double totalCents = 0;
+    double totalDueDinar = 0;
+    double totalDueFils = 0;
     double totalDinar = 0;
     double totalFils = 0;
     double totalNetDinar = 0;
     double totalNetFils = 0;
     for (final r in _paymentRows) {
-      totalDollars += double.tryParse(r.dollarCtrl.text) ?? 0;
-      totalCents += double.tryParse(r.centCtrl.text) ?? 0;
+      totalDueDinar += double.tryParse(r.duePaymentDinarCtrl.text) ?? 0;
+      totalDueFils += double.tryParse(r.duePaymentFilsCtrl.text) ?? 0;
       totalDinar += double.tryParse(r.dinarCtrl.text) ?? 0;
       totalFils += double.tryParse(r.filsCtrl.text) ?? 0;
       totalNetDinar += double.tryParse(r.netDinarCtrl.text) ?? 0;
@@ -662,7 +702,7 @@ class _AddPaymentCertificateScreenState
                   color: AppColors.accent)),
           const SizedBox(height: 6),
           _totalLine('الدفعة المستحقة',
-              '${_fmt(totalDollars)} دولار  /  ${_fmt(totalCents)} سنت'),
+              '${_fmt(totalDueDinar)} دينار  /  ${_fmt(totalDueFils)} فلس'),
           _totalLine('الخصم',
               '${_fmt(totalDinar)} دينار  /  ${_fmt(totalFils)} فلس'),
           _totalLine('الصافي',
@@ -733,8 +773,8 @@ class _AddPaymentCertificateScreenState
 
 class _PaymentRowControllers {
   final String reason;
-  final dollarCtrl = TextEditingController();
-  final centCtrl = TextEditingController();
+  final duePaymentDinarCtrl = TextEditingController();
+  final duePaymentFilsCtrl = TextEditingController();
   final dinarCtrl = TextEditingController();
   final filsCtrl = TextEditingController();
   final netDinarCtrl = TextEditingController();
@@ -743,8 +783,8 @@ class _PaymentRowControllers {
   _PaymentRowControllers({required this.reason});
 
   PaymentRow toModel() => PaymentRow(
-        duePaymentDollars: double.tryParse(dollarCtrl.text) ?? 0,
-        duePaymentCents: double.tryParse(centCtrl.text) ?? 0,
+        duePaymentDinar: double.tryParse(duePaymentDinarCtrl.text) ?? 0,
+        duePaymentFils: double.tryParse(duePaymentFilsCtrl.text) ?? 0,
         deductionDinar: double.tryParse(dinarCtrl.text) ?? 0,
         deductionFils: double.tryParse(filsCtrl.text) ?? 0,
         netDinar: double.tryParse(netDinarCtrl.text) ?? 0,
@@ -753,8 +793,8 @@ class _PaymentRowControllers {
       );
 
   void dispose() {
-    dollarCtrl.dispose();
-    centCtrl.dispose();
+    duePaymentDinarCtrl.dispose();
+    duePaymentFilsCtrl.dispose();
     dinarCtrl.dispose();
     filsCtrl.dispose();
     netDinarCtrl.dispose();

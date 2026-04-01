@@ -31,6 +31,13 @@ class PaymentCertificateBody(BaseModel):
     work_commencement_date: Optional[str] = None
     renewal_info: Optional[str] = ""
     renewal_expiry_date: Optional[str] = None
+    extension_value: Optional[float] = 0
+    extension_duration: Optional[str] = ""
+    extension_1_start_date: Optional[str] = None
+    extension_1_end_date: Optional[str] = None
+    extension_2_start_date: Optional[str] = None
+    extension_2_end_date: Optional[str] = None
+    extension_period_label: Optional[str] = ""
     payment_rows: Optional[List[Any]] = []
     attachment_checklist: Optional[dict] = {}
     dept_head: Optional[str] = ""
@@ -70,6 +77,13 @@ def _to_payload(body: PaymentCertificateBody) -> dict:
         "work_commencement_date": body.work_commencement_date,
         "renewal_info": body.renewal_info or "",
         "renewal_expiry_date": body.renewal_expiry_date,
+        "extension_value": body.extension_value or 0,
+        "extension_duration": body.extension_duration or "",
+        "extension_1_start_date": body.extension_1_start_date,
+        "extension_1_end_date": body.extension_1_end_date,
+        "extension_2_start_date": body.extension_2_start_date,
+        "extension_2_end_date": body.extension_2_end_date,
+        "extension_period_label": body.extension_period_label or "",
         "payment_rows": body.payment_rows or [],
         "attachment_checklist": body.attachment_checklist or {},
         "dept_head": body.dept_head or "",
