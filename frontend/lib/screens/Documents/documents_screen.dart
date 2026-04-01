@@ -598,16 +598,6 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 _SpeedDialItem(
-                  icon: Icons.refresh_rounded,
-                  label: 'Refresh',
-                  color: fabColor,
-                  onTap: () {
-                    setState(() => _fabExpanded = false);
-                    _refresh();
-                  },
-                ),
-                SizedBox(height: 10),
-                _SpeedDialItem(
                   icon: Icons.create_new_folder_outlined,
                   label: 'New Folder',
                   color: fabColor,
