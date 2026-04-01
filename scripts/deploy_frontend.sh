@@ -106,3 +106,17 @@ ssh $SERVER "ls -dt $RELEASE_DIR/release_* 2>/dev/null | tail -n +11 | xargs -r 
 
 echo ""
 echo "Deployment complete → v$NEW_VERSION"
+
+# ── Git sync (commit + push + server pull) ───────────────────────────────────
+if [[ "$BUMP" != "--no-bump" ]]; then
+  echo ""
+  echo "Syncing version bump to git..."
+  cd "$SCRIPT_DIR/.."
+  git add frontend/pubspec.yaml
+  git commit -m "bump version to v$NEW_VERSION+$BUILD_NUMBER"
+  git push
+
+  echo "Pulling on server..."
+  ssh $SERVER "cd ~/Development/flutter_work_order && git pull"
+  echo "Git sync complete."
+fi
