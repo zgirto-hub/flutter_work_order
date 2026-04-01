@@ -232,11 +232,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
               padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
               child: Row(
                 children: [
-                  IconButton(
-                    icon: Icon(Icons.arrow_back_ios_new_rounded,
-                        size: 18, color: AppColors.textPrimary),
-                    onPressed: () => Navigator.pop(context),
-                  ),
+                  if (Navigator.canPop(context))
+                    IconButton(
+                      icon: Icon(Icons.arrow_back_ios_new_rounded,
+                          size: 18, color: AppColors.textPrimary),
+                      onPressed: () => Navigator.pop(context),
+                    ),
                   Expanded(
                     child: Text(
                       'Calendar',

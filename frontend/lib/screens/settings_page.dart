@@ -18,12 +18,15 @@ import 'settings/activity_log_screen.dart';
 import 'admin/user_management_screen.dart';
 import 'admin/department_routes_screen.dart';
 import 'admin/departments_screen.dart';
+import '../widgets/nav_bar_customization_sheet.dart';
+import '../widgets/bottom_sheet_widgets.dart';
 
 class SettingsPage extends StatefulWidget {
   final ThemeController themeController;
   final String userRole;
+  final List<String>? allowedScreens;
   const SettingsPage(
-      {super.key, required this.themeController, this.userRole = 'admin'});
+      {super.key, required this.themeController, this.userRole = 'admin', this.allowedScreens});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -261,6 +264,18 @@ class _SettingsPageState extends State<SettingsPage> {
                       currentFamily: widget.themeController.fontFamily,
                       onChanged: (family) =>
                           widget.themeController.setFontFamily(family),
+                    ),
+                    Divider(height: 0, thickness: 0.5, color: AppColors.border),
+                    _NavBarRow(
+                      pinnedCount: widget.themeController.pinnedNavScreens.length,
+                      onTap: () => showAppBottomSheet(
+                        context: context,
+                        child: NavBarCustomizationSheet(
+                          themeController: widget.themeController,
+                          userRole: widget.userRole,
+                          allowedScreens: widget.allowedScreens,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -744,6 +759,69 @@ class _FontSizeRow extends StatelessWidget {
             }),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Nav Bar Row ─────────────────────────────────────────────────────────────
+
+class _NavBarRow extends StatelessWidget {
+  final int pinnedCount;
+  final VoidCallback onTap;
+
+  const _NavBarRow({required this.pinnedCount, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.bgSurface2,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.tab_rounded,
+                  size: 15, color: AppColors.textSecondary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Navigation bar',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.accentBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                pinnedCount > 0 ? '$pinnedCount pinned' : 'Default',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.accent,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.chevron_right_rounded,
+                size: 16, color: AppColors.textTertiary),
+          ],
+        ),
       ),
     );
   }

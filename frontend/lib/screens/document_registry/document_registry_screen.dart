@@ -318,10 +318,11 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
               padding: const EdgeInsets.fromLTRB(4, 8, 16, 12),
               child: Row(
                 children: [
-                  IconButton(
-                    icon: Icon(Icons.arrow_back_rounded, size: 20, color: AppColors.textPrimary),
-                    onPressed: () => Navigator.pop(context),
-                  ),
+                  if (Navigator.canPop(context))
+                    IconButton(
+                      icon: Icon(Icons.arrow_back_rounded, size: 20, color: AppColors.textPrimary),
+                      onPressed: () => Navigator.pop(context),
+                    ),
                   Expanded(
                     child: Text(
                       'Document Registry',

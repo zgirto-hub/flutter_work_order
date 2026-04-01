@@ -8,6 +8,7 @@ import '../theme/theme_controller.dart';
 import '../screens/Work_Orders/work_order_home.dart';
 import '../screens/more_screen.dart';
 import '../screens/dashboard_screen.dart';
+import '../models/nav_screen.dart';
 import '../config.dart';
 import '../services/onesignal_service.dart';
 import '../services/activity_log_service.dart';
@@ -33,13 +34,25 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    widget.themeController.addListener(_onThemeChanged);
     _loadUserRole();
   }
 
   @override
   void dispose() {
+    widget.themeController.removeListener(_onThemeChanged);
     _pollTimer?.cancel();
     super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool _canShow(String key) {
+    if (_userRole == 'admin') return true;
+    if (_allowedScreens == null) return true;
+    return _allowedScreens!.contains(key);
   }
 
   Future<void> _loadUserRole() async {
@@ -141,7 +154,13 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    final pages = [
+    final pinned = widget.themeController.pinnedNavScreens
+        .where(_canShow)
+        .where((key) => NavScreenRegistry.get(key) != null)
+        .take(2)
+        .toList();
+
+    final pages = <Widget>[
       DashboardScreen(
         key: _dashboardKey,
         userRole: _userRole,
@@ -149,7 +168,36 @@ class _MainScreenState extends State<MainScreen> {
         onNavigate: (index) => setState(() => _index = index),
       ),
       WorkOrderHome(onWorkOrderCreated: _refreshWOCount),
+      ...pinned.map((key) => NavScreenRegistry.widgetForKey(key, userRole: _userRole)),
       MoreScreen(themeController: widget.themeController, userRole: _userRole, allowedScreens: _allowedScreens),
+    ];
+
+    if (_index >= pages.length) _index = 0;
+
+    final destinations = <NavigationDestination>[
+      const NavigationDestination(
+        icon: Icon(Icons.dashboard_outlined),
+        selectedIcon: Icon(Icons.dashboard_rounded),
+        label: 'Dashboard',
+      ),
+      const NavigationDestination(
+        icon: Icon(Icons.work_outline_rounded),
+        selectedIcon: Icon(Icons.work_rounded),
+        label: 'Orders',
+      ),
+      ...pinned.map((key) {
+        final screen = NavScreenRegistry.get(key)!;
+        return NavigationDestination(
+          icon: Icon(screen.icon),
+          selectedIcon: Icon(screen.selectedIcon),
+          label: screen.title,
+        );
+      }),
+      const NavigationDestination(
+        icon: Icon(Icons.grid_view_outlined),
+        selectedIcon: Icon(Icons.grid_view_rounded),
+        label: 'More',
+      ),
     ];
 
     return Scaffold(
@@ -161,23 +209,7 @@ class _MainScreenState extends State<MainScreen> {
           setState(() => _index = i);
           if (i == 0) _dashboardKey.currentState?.refresh();
         },
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard_rounded),
-            label: 'Dashboard',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.work_outline_rounded),
-            selectedIcon: Icon(Icons.work_rounded),
-            label: 'Orders',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view_rounded),
-            label: 'More',
-          ),
-        ],
+        destinations: destinations,
       ),
     );
   }

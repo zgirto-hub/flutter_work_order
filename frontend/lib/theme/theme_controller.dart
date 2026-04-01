@@ -9,11 +9,13 @@ class ThemeController extends ChangeNotifier with WidgetsBindingObserver {
   double _fontScale = 1.0;
   String _fontFamily = 'Inter';
   ThemeMode _mode = ThemeMode.light;
+  var _pinnedNavScreens = <String>[];
 
   Color get color => _color;
   double get fontScale => _fontScale;
   String get fontFamily => _fontFamily;
   ThemeMode get mode => _mode;
+  List<String> get pinnedNavScreens => List.unmodifiable(_pinnedNavScreens);
 
   ThemeController() {
     WidgetsBinding.instance.addObserver(this);
@@ -63,6 +65,13 @@ class ThemeController extends ChangeNotifier with WidgetsBindingObserver {
     prefs.setString('theme_mode', mode.name);
   }
 
+  Future<void> setPinnedNavScreens(List<String> keys) async {
+    _pinnedNavScreens = List.of(keys);
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setStringList('pinned_nav_screens', keys);
+  }
+
   void _syncDarkFlag() {
     if (_mode == ThemeMode.system) {
       final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
@@ -87,6 +96,7 @@ class ThemeController extends ChangeNotifier with WidgetsBindingObserver {
         orElse: () => ThemeMode.light,
       );
     }
+    _pinnedNavScreens = prefs.getStringList('pinned_nav_screens') ?? [];
     _syncDarkFlag();
     notifyListeners();
   }

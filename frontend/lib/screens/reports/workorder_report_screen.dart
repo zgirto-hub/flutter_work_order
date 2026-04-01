@@ -257,22 +257,24 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
       backgroundColor: AppColors.bgPrimary,
       appBar: AppBar(
         backgroundColor: AppColors.bgSurface,
-        leading: GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Center(
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: AppColors.bgSurface2,
-                borderRadius: BorderRadius.circular(9),
-                border: Border.all(color: AppColors.border2, width: 0.5),
-              ),
-              child: Icon(Icons.arrow_back_rounded,
-                  size: 16, color: AppColors.textSecondary),
-            ),
-          ),
-        ),
+        leading: Navigator.canPop(context)
+            ? GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Center(
+                  child: Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface2,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: AppColors.border2, width: 0.5),
+                    ),
+                    child: Icon(Icons.arrow_back_rounded,
+                        size: 16, color: AppColors.textSecondary),
+                  ),
+                ),
+              )
+            : null,
         title: Text('Work order reports'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(0.5),

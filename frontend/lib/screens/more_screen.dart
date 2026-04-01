@@ -12,6 +12,7 @@ import '../screens/calendar/calendar_screen.dart';
 import '../screens/document_registry/document_registry_screen.dart';
 import '../screens/payment_certificate/payment_certificate_list_screen.dart';
 import '../screens/system_status_screen.dart';
+import '../models/nav_screen.dart';
 
 class MoreScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -36,7 +37,18 @@ class _MoreScreenState extends State<MoreScreen> {
   @override
   void initState() {
     super.initState();
+    widget.themeController.addListener(_onThemeChanged);
     _loadUnreadCount();
+  }
+
+  @override
+  void dispose() {
+    widget.themeController.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadUnreadCount() async {
@@ -160,6 +172,7 @@ class _MoreScreenState extends State<MoreScreen> {
                     _SettingsTile(
                       themeController: widget.themeController,
                       userRole: widget.userRole,
+                      allowedScreens: widget.allowedScreens,
                     ),
                   ],
                 ),
@@ -178,102 +191,55 @@ class _MoreScreenState extends State<MoreScreen> {
   }
 
   List<_MoreItem> _buildItems(BuildContext context) {
+    final pinned = widget.themeController.pinnedNavScreens;
+
+    _MoreItem buildItem(NavScreen s, VoidCallback onTap, {String? subtitle}) {
+      return _MoreItem(
+        title: s.title,
+        subtitle: subtitle ?? s.subtitle,
+        icon: s.icon,
+        color: s.color,
+        bgColor: s.bgColor,
+        onTap: onTap,
+        isPinned: pinned.contains(s.key),
+      );
+    }
+
     final items = <_MoreItem>[
       if (_canShow('files'))
-        _MoreItem(
-          title: 'Files',
-          subtitle: 'Files & folders',
-          icon: Icons.description_outlined,
-          color: const Color(0xFF7C3AED),
-          bgColor: const Color(0xFFF3F0FF),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const FilesScreen()),
-          ),
-        ),
+        buildItem(NavScreenRegistry.get('files')!, () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const FilesScreen()),
+        )),
       if (_canShow('reports'))
-        _MoreItem(
-          title: 'Reports',
-          subtitle: 'Work order reports',
-          icon: Icons.bar_chart_rounded,
-          color: const Color(0xFF15803D),
-          bgColor: const Color(0xFFDCFCE7),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const WorkOrderReportScreen()),
-          ),
-        ),
+        buildItem(NavScreenRegistry.get('reports')!, () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const WorkOrderReportScreen()),
+        )),
       if (_canShow('calendar'))
-        _MoreItem(
-          title: 'Calendar',
-          subtitle: 'Recurring inspections',
-          icon: Icons.calendar_month_outlined,
-          color: const Color(0xFF1D4ED8),
-          bgColor: const Color(0xFFDBEAFE),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CalendarScreen(userRole: widget.userRole),
-            ),
-          ),
-        ),
+        buildItem(NavScreenRegistry.get('calendar')!, () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => CalendarScreen(userRole: widget.userRole)),
+        )),
       if (_canShow('doc_registry'))
-        _MoreItem(
-          title: 'Doc Registry',
-          subtitle: 'Document records',
-          icon: Icons.edit_note_outlined,
-          color: const Color(0xFF0E7490),
-          bgColor: const Color(0xFFCFFAFE),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const DocumentRegistryScreen()),
-          ),
-        ),
+        buildItem(NavScreenRegistry.get('doc_registry')!, () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const DocumentRegistryScreen()),
+        )),
       if (_canShow('payment_cert'))
-        _MoreItem(
-          title: 'Payment Cert',
-          subtitle: 'شهادة الدفع',
-          icon: Icons.receipt_long_outlined,
-          color: const Color(0xFFB91C1C),
-          bgColor: const Color(0xFFFEE2E2),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const PaymentCertificateListScreen()),
-          ),
-        ),
+        buildItem(NavScreenRegistry.get('payment_cert')!, () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const PaymentCertificateListScreen()),
+        )),
       if (_canShow('system_status'))
-        _MoreItem(
-          title: 'System Status',
-          subtitle: 'Infrastructure health',
-          icon: Icons.monitor_heart_outlined,
-          color: const Color(0xFF0369A1),
-          bgColor: const Color(0xFFE0F2FE),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SystemStatusScreen()),
-          ),
-        ),
+        buildItem(NavScreenRegistry.get('system_status')!, () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const SystemStatusScreen()),
+        )),
       if (_canShow('notifications'))
-        _MoreItem(
-          title: 'Notifications',
-          subtitle: _unreadCount > 0 ? '$_unreadCount unread' : 'Alerts & updates',
-          icon: Icons.notifications_outlined,
-          color: const Color(0xFFB45309),
-          bgColor: const Color(0xFFFEF3C7),
-          onTap: _openNotifications,
+        buildItem(
+          NavScreenRegistry.get('notifications')!,
+          _openNotifications,
+          subtitle: _unreadCount > 0 ? '$_unreadCount unread' : null,
         ),
       if (_canShow('activity_log'))
-        _MoreItem(
-          title: 'Activity Log',
-          subtitle: 'User actions',
-          icon: Icons.history_rounded,
-          color: const Color(0xFF6B6860),
-          bgColor: const Color(0xFFF5F4F0),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ActivityLogScreen()),
-          ),
-        ),
+        buildItem(NavScreenRegistry.get('activity_log')!, () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const ActivityLogScreen()),
+        )),
     ];
 
     return items;
@@ -290,6 +256,7 @@ class _MoreItem {
   final Color color;
   final Color bgColor;
   final VoidCallback onTap;
+  final bool isPinned;
 
   const _MoreItem({
     required this.title,
@@ -298,6 +265,7 @@ class _MoreItem {
     required this.color,
     required this.bgColor,
     required this.onTap,
+    this.isPinned = false,
   });
 }
 
@@ -322,14 +290,33 @@ class _MoreCard extends StatelessWidget {
         child: Row(
           children: [
             // Icon
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: item.bgColor,
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Icon(item.icon, size: 16, color: item.color),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: item.bgColor,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(item.icon, size: 16, color: item.color),
+                ),
+                if (item.isPinned)
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Icon(Icons.push_pin_rounded, size: 8, color: Colors.white),
+                    ),
+                  ),
+              ],
             ),
             SizedBox(width: 10),
             // Text
@@ -373,10 +360,12 @@ class _MoreCard extends StatelessWidget {
 class _SettingsTile extends StatelessWidget {
   final ThemeController themeController;
   final String userRole;
+  final List<String>? allowedScreens;
 
   const _SettingsTile({
     required this.themeController,
     required this.userRole,
+    this.allowedScreens,
   });
 
   @override
@@ -388,6 +377,7 @@ class _SettingsTile extends StatelessWidget {
           builder: (_) => SettingsPage(
             themeController: themeController,
             userRole: userRole,
+            allowedScreens: allowedScreens,
           ),
         ),
       ),
