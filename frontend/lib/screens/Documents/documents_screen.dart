@@ -55,6 +55,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   bool _fabExpanded = false;
   bool _homeExpanded = true;
   bool _loading = true;
+  bool _refreshing = false;
   bool _navigatingForward = true;
   String _userRole = '';
   double _sidebarWidth = 116.0;
@@ -1368,6 +1369,34 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         size: 15, color: AppColors.textSecondary),
                   ),
                 ),
+                SizedBox(width: 6),
+                if (_refreshing)
+                  Container(
+                    width: 34, height: 34,
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface2,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: AppColors.border2, width: 0.5),
+                    ),
+                    child: Center(
+                      child: SizedBox(
+                        width: 14, height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5, color: AppColors.textTertiary),
+                      ),
+                    ),
+                  )
+                else
+                  ClaudeIconButton(
+                    icon: Icons.refresh_rounded,
+                    onTap: () async {
+                      setState(() => _refreshing = true);
+                      await _refresh();
+                      if (mounted) setState(() => _refreshing = false);
+                    },
+                    tooltip: 'Refresh',
+                    semanticsLabel: 'Refresh documents',
+                  ),
                 SizedBox(width: 6),
               ],
               if (_selectionMode) ...[
