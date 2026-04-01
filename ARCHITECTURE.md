@@ -2,7 +2,7 @@
 
 ## Overview
 
-A full-stack work order management system with document management, built with:
+A full-stack work order management system with file management, built with:
 - **Frontend**: Flutter (cross-platform mobile/web)
 - **Backend**: FastAPI (Python)
 - **Database**: Supabase (PostgreSQL)
@@ -31,19 +31,19 @@ A full-stack work order management system with document management, built with:
 | `recurring_inspection_assignees` | Maps recurring inspections to assigned technicians (many-to-many) |
 | `recurring_inspection_logs` | Completion log for each due instance of a recurring inspection |
 
-### Document Tables
+### File Tables
 
 | Table | Purpose |
 |-------|---------|
-| `documents` | Uploaded documents with metadata, parsed text, folder assignment |
-| `document_folders` | Hierarchical folder structure (self-referencing `parent_id`) |
-| `resource_permissions` | Role-based sharing for documents and folders (viewer/editor) |
+| `files` | Uploaded files with metadata, parsed text, folder assignment |
+| `file_folders` | Hierarchical folder structure (self-referencing `parent_id`) |
+| `resource_permissions` | Role-based sharing for files and folders (viewer/editor) |
 
 ### Activity & Notification Tables
 
 | Table | Purpose |
 |-------|---------|
-| `user_activity_log` | Comprehensive audit trail (auth, WO, document, folder actions) |
+| `user_activity_log` | Comprehensive audit trail (auth, WO, file, folder actions) |
 | `notifications` | In-app notification records |
 | `notification_preferences` | Per-user notification settings (mute, filters) |
 | `notification_delivery_logs` | Push delivery tracking with retry support |
@@ -63,9 +63,9 @@ work_order_assignments.work_order_id → work_orders.id
 recurring_inspections.department_id → departments.id
 recurring_inspection_assignees.recurring_inspection_id → recurring_inspections.id
 recurring_inspection_assignees.fixer_id → users.id
-documents.folder_id → document_folders.id      (document in folder)
-document_folders.parent_id → document_folders.id (folder hierarchy)
-resource_permissions.resource_id → documents.id or document_folders.id
+files.folder_id → file_folders.id              (file in folder)
+file_folders.parent_id → file_folders.id       (folder hierarchy)
+resource_permissions.resource_id → files.id or file_folders.id
 ```
 
 ---
@@ -83,8 +83,8 @@ resource_permissions.resource_id → documents.id or document_folders.id
 | Comment on WO | Yes | Yes | Yes |
 | Receive notifications | Own WOs | Assigned WOs | Opt-in all |
 | Mute notifications | Yes | Yes | Yes |
-| Upload documents | Yes | Yes | Yes |
-| Share documents | Own/Editor | Own/Editor | Own/Editor |
+| Upload files | Yes | Yes | Yes |
+| Share files | Own/Editor | Own/Editor | Own/Editor |
 
 ### Role Details
 
@@ -92,9 +92,9 @@ resource_permissions.resource_id → documents.id or document_folders.id
 - **Technician**: Assigned to one or more departments via `technician_departments`. Can view/update/close WOs in their assigned departments.
 - **Admin**: Full access. Only role that can create user accounts, manage departments, and delete WOs.
 
-### Document Permission Model
+### File Permission Model
 
-Documents and folders use a separate role-based permission system via `resource_permissions`:
+Files and folders use a separate role-based permission system via `resource_permissions`:
 - **Owner**: Full control (view, download, rename, move, delete, share, edit_type). Determined by `uploaded_by`/`created_by`.
 - **Editor**: Can view, download, rename, move, share, edit_type — cannot delete.
 - **Viewer**: Can view and download only.
@@ -161,16 +161,16 @@ Documents and folders use a separate role-based permission system via `resource_
 | POST | `/api/technician-departments/bulk/{id}` | Set all departments for technician |
 | DELETE | `/api/technician-departments/{id}/{dept}` | Remove mapping |
 
-### Documents
+### Files
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/upload` | Upload file with auto text extraction |
-| DELETE | `/api/delete/{doc_id}` | Delete document |
-| POST | `/api/share-document` | Share document (form: document_id, owner_email, share_with, role) |
-| GET | `/api/document-shares/{doc_id}` | List shares on a document |
-| DELETE | `/api/remove-share` | Revoke a document share |
-| GET | `/api/document-uploaders` | List all distinct document uploaders |
-| GET | `/api/documents/{doc_id}/my-role?user_email=` | Get user's effective role on document |
+| DELETE | `/api/delete/{file_id}` | Delete file |
+| POST | `/api/share-file` | Share file (form: file_id, owner_email, share_with, role) |
+| GET | `/api/file-shares/{file_id}` | List shares on a file |
+| DELETE | `/api/remove-share` | Revoke a file share |
+| GET | `/api/file-uploaders` | List all distinct file uploaders |
+| GET | `/api/files/{file_id}/my-role?user_email=` | Get user's effective role on file |
 
 ### Folders
 | Method | Path | Description |
@@ -178,9 +178,9 @@ Documents and folders use a separate role-based permission system via `resource_
 | GET | `/api/folders?parent_id=&user_email=&all=` | List folders |
 | POST | `/api/folders` | Create folder (body: name, parent_id, created_by, is_private) |
 | PATCH | `/api/folders/{folder_id}/rename` | Rename folder |
-| DELETE | `/api/folders/{folder_id}` | Delete folder (orphans documents to root) |
+| DELETE | `/api/folders/{folder_id}` | Delete folder (orphans files to root) |
 | PATCH | `/api/folders/{folder_id}/move` | Move folder to new parent |
-| PATCH | `/api/documents/{doc_id}/move` | Move document to folder |
+| PATCH | `/api/files/{file_id}/move` | Move file to folder |
 
 ### Notifications
 | Method | Path | Description |
@@ -200,7 +200,7 @@ Documents and folders use a separate role-based permission system via `resource_
 ### Activity Log
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/activity-log?category=&limit=&offset=` | Get activity log |
+| GET | `/api/activity-log?category=&limit=&offset=` | Get activity log (category: `work_order`, `file`, `folder`, `auth`, `admin`) |
 | POST | `/api/activity-log/sign-in` | Log sign-in |
 | POST | `/api/activity-log/sign-out` | Log sign-out |
 | POST | `/api/activity-log/update-check` | Log app update check |
@@ -246,12 +246,12 @@ The `/api/reports/monthly-tasks` endpoint accepts a JSON body with `name`, `star
 
 ### Where Files Live
 
-All uploaded files — both documents and work order attachments — are stored on the **local Linux server filesystem**, not in a cloud object store.
+All uploaded files — both managed files and work order attachments — are stored on the **local Linux server filesystem**, not in a cloud object store.
 
 ```
 backend/
 └── uploaded_files/          ← runtime directory, created on startup
-    ├── <uuid>.<ext>         ← documents (e.g. a1b2c3d4.pdf)
+    ├── <uuid>.<ext>         ← files feature uploads (e.g. a1b2c3d4.pdf)
     └── wo_<uuid>.<ext>      ← work order attachments (e.g. wo_a1b2c3d4.jpg)
 ```
 
@@ -278,7 +278,7 @@ FastAPI backend (port 8000)
   ├─ Images: compress/resize to max 1920 px (Pillow), convert to JPEG if needed
   ├─ Generate filename: wo_<uuid>.<ext>  or  <uuid>.<ext>
   ├─ Write to  uploaded_files/<filename>
-  └─ Insert metadata row in Supabase (work_order_attachments or documents)
+  └─ Insert metadata row in Supabase (work_order_attachments or files)
   │  returns { file_url: "/files/<filename>" }
   ▼
 Flutter stores the URL and renders AttachmentWidget
@@ -290,17 +290,17 @@ User opens → launchUrl(baseUrl + file_url)
 | Upload type | Extensions | Max size (backend) | Notes |
 |---|---|---|---|
 | Work order attachment | pdf, doc, docx, jpg, jpeg, png, gif | 10 MB | Images auto-compressed |
-| Document | pdf, doc, docx, txt, jpg, jpeg, png | — | Text extracted for search |
+| File | pdf, doc, docx, txt, jpg, jpeg, png | — | Text extracted for search |
 
 Nginx enforces a separate 50 MB ceiling (`client_max_body_size 50M`).
 
 ---
 
-## Document Management System
+## File Management System
 
 ### Folder Sidebar (Desktop/Web Layout)
 
-The documents screen uses a two-column layout on wider viewports: a left folder sidebar and a right content area. The sidebar width is user-adjustable via a drag handle (the `VerticalDivider` was replaced by a `MouseRegion` + `GestureDetector` resize handle). Width is clamped to 60–280 px (default 116 px) and stored in `_sidebarWidth` state on `DocumentsScreen`.
+The files screen uses a two-column layout on wider viewports: a left folder sidebar and a right content area. The sidebar width is user-adjustable via a drag handle (the `VerticalDivider` was replaced by a `MouseRegion` + `GestureDetector` resize handle). Width is clamped to 60–280 px (default 116 px) and stored in `_sidebarWidth` state on `FilesScreen`.
 
 ### Folder Navigation Transitions
 
@@ -315,19 +315,19 @@ Navigating between folders uses an animated horizontal slide transition powered 
   - **JPG/PNG**: OCR via pytesseract + pdf2image
 - Supports Arabic + English (`lang="ara+eng"`)
 - Arabic text normalized via NFKC (`normalize_arabic()`)
-- Extracted text stored in `documents.parsed_text`
+- Extracted text stored in `files.parsed_text`
 
 ### Folder Hierarchy
-- Folders can be nested via `parent_id` self-reference on `document_folders`
-- Deleting a folder orphans its documents back to root (sets `folder_id = NULL`)
+- Folders can be nested via `parent_id` self-reference on `file_folders`
+- Deleting a folder orphans its files back to root (sets `folder_id = NULL`)
 - Folders can be moved to new parents
 
 ### Permission Inheritance
 - Permissions checked via `backend/utils/permissions.py`
-- `get_effective_role(user_email, resource_id, resource_type)` resolves role
-- For documents in folders, permission walks up the folder chain
+- `get_effective_role(user_email, resource_id, resource_type)` resolves role; `resource_type` value is `'file'` (was `'document'`)
+- For files in folders, permission walks up the folder chain
 - Role priority: viewer(1) < editor(2) < owner(3)
-- Owner is determined by `uploaded_by` (documents) or `created_by` (folders)
+- Owner is determined by `uploaded_by` (files) or `created_by` (folders)
 
 ---
 
@@ -519,25 +519,25 @@ RLS is enabled on `work_orders` as defense-in-depth:
 
 ### Frontend (`frontend/lib/`)
 ```
-models/            Data classes (WorkOrder, AppUser, TechnicianAssignment, DocumentModel,
+models/            Data classes (WorkOrder, AppUser, TechnicianAssignment, FileModel,
                    FolderModel, ActivityLogEntry, WorkOrderReport, RecurringInspection)
 services/          API clients
-  WorkOrderService, UserService, DocumentService, FolderService,
+  WorkOrderService, UserService, FileService, FolderService,
   ActivityLogService, RecurringInspectionService,
   ReportService              (closed-WO query + monthly-task PDF generation)
   pdf/work_order_pdf_service.dart  (client-side PDF builder with 4 themes)
 screens/           UI pages
   Work_Orders/     WO list, create/edit (add_work_order.dart: department-filtered technician load)
-  Documents/       Document list, upload, details, viewer (with web-specific viewer)
+  Files/           File list, upload, details, viewer (with web-specific viewer)
   admin/           User management, technician departments, departments
   calendar/        Recurring inspections calendar + add/edit screen
   reports/         workorder_report_screen.dart  (WO PDF with theme picker)
                    monthly_task_report_screen.dart  (monthly PDF, server-rendered)
                    html_preview_screen.dart  (PDF theme preview via HTML iframe)
   settings/        Activity log, app settings
-widgets/           Reusable components (TechnicianSelector, work_order_card, document_card,
+widgets/           Reusable components (TechnicianSelector, work_order_card, file_card,
                    move_to_folder_dialog, pdf_preview_screen, etc.)
-filters/           WO filter engine
+filters/           WO filter engine, file_filter_engine.dart
 theme/             Colors, typography, theme controller
 config.dart        API base URL configuration
 ```
@@ -562,8 +562,8 @@ routers/
   departments.py   Department CRUD, technician/WO counts
   technician_departments.py  Technician-department mapping
   notifications.py Notification endpoints, watchers, preferences
-  documents.py     Document upload, delete, sharing, permissions
-  folders.py       Folder CRUD, move documents/folders
+  files.py         File upload, delete, sharing, permissions
+  folders.py       Folder CRUD, move files/folders
   reports.py       GET /reports/closed-work-orders; POST /reports/monthly-tasks (reportlab PDF)
   recurring_inspections.py  Recurring inspection CRUD, calendar view, due-instance generation
 assets/
@@ -574,7 +574,7 @@ utils/
   notification_service.py  Recipient resolution + dispatch orchestration
   notifications.py         OneSignal HTTP helpers
   activity.py              Activity audit logging (fire-and-forget)
-  permissions.py           Document/folder permission engine (role inheritance)
+  permissions.py           File/folder permission engine (role inheritance)
   text_extraction.py       Text extraction from PDF, DOCX, TXT, images (OCR)
 migrations/        SQL migration scripts (legacy, use supabase/migrations/ instead)
 ```
@@ -662,7 +662,7 @@ location / {
 
 ```
 backend/
-└── uploaded_files/     ← all uploaded files (documents + WO attachments)
+└── uploaded_files/     ← all uploaded files (files feature + WO attachments)
                           persisted on disk; not backed up to cloud storage
 ```
 

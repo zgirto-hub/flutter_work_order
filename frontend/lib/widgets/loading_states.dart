@@ -83,8 +83,8 @@ class WorkOrderCardSkeleton extends StatelessWidget {
   }
 }
 
-class DocumentCardSkeleton extends StatelessWidget {
-  const DocumentCardSkeleton({super.key});
+class FileCardSkeleton extends StatelessWidget {
+  const FileCardSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {

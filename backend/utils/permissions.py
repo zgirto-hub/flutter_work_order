@@ -14,7 +14,7 @@ ROLE_CAPABILITIES = {
 def get_effective_role(
     user_email: str,
     resource_id: str,
-    resource_type: str,          # 'document' | 'folder'
+    resource_type: str,          # 'file' | 'folder'
     folder_id: str | None = None,
     resource_owner: str | None = None,
 ) -> str | None:
@@ -58,7 +58,7 @@ def get_effective_role(
                 best_role = inherited_role
 
         # Fetch parent folder
-        parent = supabase.table("document_folders") \
+        parent = supabase.table("file_folders") \
             .select("parent_id") \
             .eq("id", current_folder_id) \
             .execute()

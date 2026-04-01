@@ -6,15 +6,15 @@ import '../../config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 
-class AddDocumentScreen extends StatefulWidget {
+class AddFileScreen extends StatefulWidget {
   final String? folderId;
-  const AddDocumentScreen({super.key, this.folderId});
+  const AddFileScreen({super.key, this.folderId});
 
   @override
-  State<AddDocumentScreen> createState() => _AddDocumentScreenState();
+  State<AddFileScreen> createState() => _AddFileScreenState();
 }
 
-class _AddDocumentScreenState extends State<AddDocumentScreen> {
+class _AddFileScreenState extends State<AddFileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _typeController = TextEditingController();
@@ -131,7 +131,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       }
 
       request.fields['title'] = _titleController.text.trim();
-      request.fields['document_type'] = _typeController.text.trim();
+      request.fields['file_type'] = _typeController.text.trim();
       request.fields['is_private'] = isPrivate ? '1' : '0';
       request.fields['uploaded_by'] = _userEmail;
       if (widget.folderId != null) request.fields['folder_id'] = widget.folderId!;
@@ -167,7 +167,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
       return;
     }
     if (_typeController.text.trim().isEmpty) {
-      _showSnack('Please enter a document type');
+      _showSnack('Please enter a file type');
       return;
     }
 
@@ -204,7 +204,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         request.fields['title'] = _titleController.text.trim().isNotEmpty
             ? '${_titleController.text.trim()} (${file.name})'
             : _extractTitle(file.name);
-        request.fields['document_type'] = _typeController.text.trim();
+        request.fields['file_type'] = _typeController.text.trim();
         request.fields['is_private'] = isPrivate ? '1' : '0';
         request.fields['uploaded_by'] = _userEmail;
         if (widget.folderId != null) request.fields['folder_id'] = widget.folderId!;
@@ -269,7 +269,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
               ),
 
               Center(
-                child: Text('Upload Document',
+                child: Text('Upload File',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
               ),
 
@@ -282,7 +282,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 controller: _titleController,
                 style: TextStyle(fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: _isMultiMode ? 'Optional prefix for all files' : 'Document title',
+                  hintText: _isMultiMode ? 'Optional prefix for all files' : 'File title',
                   prefixIcon: Icon(Icons.title_rounded, size: 16),
                 ),
                 validator: _isMultiMode
@@ -292,8 +292,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
               SizedBox(height: 14),
 
-              // ── Document type ────────────────────────────
-              _Label('Document type'),
+              // ── File type ────────────────────────────
+              _Label('File type'),
               SizedBox(height: 6),
               TextFormField(
                 controller: _typeController,
@@ -302,7 +302,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                   hintText: 'e.g. Invoice, Report, Drawing…',
                   prefixIcon: Icon(Icons.category_outlined, size: 16),
                 ),
-                validator: (v) => v == null || v.isEmpty ? 'Enter a document type' : null,
+                validator: (v) => v == null || v.isEmpty ? 'Enter a file type' : null,
               ),
 
               SizedBox(height: 14),
@@ -316,7 +316,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                 ),
                 child: SwitchListTile(
                   dense: true,
-                  title: Text('Private document', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                  title: Text('Private file', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
                   subtitle: Text('Only you can see this', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
                   value: isPrivate,
                   activeColor: AppColors.accent,
@@ -555,7 +555,7 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                     icon: _isLoading
                         ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : Icon(Icons.upload_rounded, size: 16),
-                    label: Text(_isLoading ? 'Uploading…' : 'Upload document'),
+                    label: Text(_isLoading ? 'Uploading…' : 'Upload file'),
                   ),
                 ),
               ] else ...[

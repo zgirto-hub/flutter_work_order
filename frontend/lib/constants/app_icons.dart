@@ -53,8 +53,8 @@ class AppIcons {
   static const workOrderFilled = Icons.assignment;
   static const createWorkOrder = Icons.add_circle_outline;
 
-  static const document = Icons.description_outlined;
-  static const documentFilled = Icons.description;
+  static const fileDoc = Icons.description_outlined;
+  static const fileDocFilled = Icons.description;
   static const folder = Icons.folder_outlined;
   static const upload = Icons.cloud_upload_outlined;
   static const download = Icons.cloud_download_outlined;

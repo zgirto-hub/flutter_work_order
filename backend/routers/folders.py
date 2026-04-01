@@ -28,7 +28,7 @@ class MoveFolderBody(BaseModel):
     parent_id: Optional[str] = None
 
 
-class MoveDocumentBody(BaseModel):
+class MoveFileBody(BaseModel):
     folder_id: Optional[str] = None
 
 
@@ -42,7 +42,7 @@ async def list_folders(
     parent_id: Optional[str] = Query(None),
     all: bool = Query(False),
 ):
-    query = supabase.table("document_folders").select("*")
+    query = supabase.table("file_folders").select("*")
     query = query.or_(f"is_private.eq.false,created_by.eq.{user_email}")
     if not all:
         if parent_id:
@@ -62,7 +62,7 @@ async def create_folder(body: CreateFolderBody):
     }
     if body.parent_id:
         data["parent_id"] = body.parent_id
-    result = supabase.table("document_folders").insert(data).execute()
+    result = supabase.table("file_folders").insert(data).execute()
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create folder")
     log_activity(body.created_by, "folder", "created",
@@ -72,7 +72,7 @@ async def create_folder(body: CreateFolderBody):
 
 @router.patch("/folders/{folder_id}/rename")
 async def rename_folder(folder_id: str, body: RenameFolderBody, user_email: str = Query(...)):
-    result = supabase.table("document_folders") \
+    result = supabase.table("file_folders") \
         .select("created_by") \
         .eq("id", folder_id) \
         .execute()
@@ -81,7 +81,7 @@ async def rename_folder(folder_id: str, body: RenameFolderBody, user_email: str 
     owner = result.data[0]["created_by"]
     if not can(user_email, "rename", folder_id, "folder", resource_owner=owner):
         raise HTTPException(status_code=403, detail="Not allowed to rename this folder")
-    supabase.table("document_folders") \
+    supabase.table("file_folders") \
         .update({"name": body.name.strip()}) \
         .eq("id", folder_id) \
         .execute()
@@ -92,7 +92,7 @@ async def rename_folder(folder_id: str, body: RenameFolderBody, user_email: str 
 
 @router.delete("/folders/{folder_id}")
 async def delete_folder(folder_id: str, user_email: str = Query(...)):
-    result = supabase.table("document_folders") \
+    result = supabase.table("file_folders") \
         .select("created_by") \
         .eq("id", folder_id) \
         .execute()
@@ -101,12 +101,12 @@ async def delete_folder(folder_id: str, user_email: str = Query(...)):
     owner = result.data[0]["created_by"]
     if not can(user_email, "delete", folder_id, "folder", resource_owner=owner):
         raise HTTPException(status_code=403, detail="Not allowed to delete this folder")
-    # Orphan documents in this folder back to root before deleting
-    supabase.table("documents") \
+    # Orphan files in this folder back to root before deleting
+    supabase.table("files") \
         .update({"folder_id": None}) \
         .eq("folder_id", folder_id) \
         .execute()
-    supabase.table("document_folders").delete().eq("id", folder_id).execute()
+    supabase.table("file_folders").delete().eq("id", folder_id).execute()
     log_activity(user_email, "folder", "deleted",
         target_label=folder_id, target_id=folder_id)
     return {"status": "deleted"}
@@ -114,7 +114,7 @@ async def delete_folder(folder_id: str, user_email: str = Query(...)):
 
 @router.patch("/folders/{folder_id}/move")
 async def move_folder(folder_id: str, body: MoveFolderBody, user_email: str = Query(...)):
-    result = supabase.table("document_folders") \
+    result = supabase.table("file_folders") \
         .select("created_by") \
         .eq("id", folder_id) \
         .execute()
@@ -125,7 +125,7 @@ async def move_folder(folder_id: str, body: MoveFolderBody, user_email: str = Qu
         raise HTTPException(status_code=403, detail="Not allowed to move this folder")
     if body.parent_id == folder_id:
         raise HTTPException(status_code=400, detail="Cannot move a folder into itself")
-    supabase.table("document_folders") \
+    supabase.table("file_folders") \
         .update({"parent_id": body.parent_id}) \
         .eq("id", folder_id) \
         .execute()
@@ -133,24 +133,24 @@ async def move_folder(folder_id: str, body: MoveFolderBody, user_email: str = Qu
 
 
 # --------------------
-# Move Document Endpoint
+# Move File Endpoint
 # --------------------
 
-@router.patch("/documents/{doc_id}/move")
-async def move_document(doc_id: str, body: MoveDocumentBody, user_email: str = Query(...)):
-    result = supabase.table("documents") \
+@router.patch("/files/{file_id}/move")
+async def move_file(file_id: str, body: MoveFileBody, user_email: str = Query(...)):
+    result = supabase.table("files") \
         .select("uploaded_by, folder_id") \
-        .eq("id", doc_id) \
+        .eq("id", file_id) \
         .execute()
     if not result.data:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail="File not found")
     doc = result.data[0]
-    if not can(user_email, "move", doc_id, "document",
+    if not can(user_email, "move", file_id, "file",
                folder_id=doc.get("folder_id"),
                resource_owner=doc["uploaded_by"]):
-        raise HTTPException(status_code=403, detail="Not allowed to move this document")
-    supabase.table("documents") \
+        raise HTTPException(status_code=403, detail="Not allowed to move this file")
+    supabase.table("files") \
         .update({"folder_id": body.folder_id}) \
-        .eq("id", doc_id) \
+        .eq("id", file_id) \
         .execute()
     return {"status": "moved"}

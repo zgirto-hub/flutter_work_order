@@ -546,7 +546,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     bool deleting = false;
 
     const screenOptions = [
-      ('documents', 'Documents'),
+      ('files', 'Files'),
       ('reports', 'Reports'),
       ('calendar', 'Calendar'),
       ('doc_registry', 'Doc Registry'),

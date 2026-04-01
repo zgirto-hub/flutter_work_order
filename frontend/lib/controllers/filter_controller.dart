@@ -7,12 +7,12 @@ class FilterController extends ChangeNotifier {
   DateTime? selectedDate;
   String? selectedEmployeeId;
 
-  String? selectedDocumentType;
+  String? selectedFileType;
   String? expirationFilter; // 'expired' | 'expiring_soon' | 'active' | null
 
   
-  void setDocumentType(String? type) {
-    selectedDocumentType = type;
+  void setFileType(String? type) {
+    selectedFileType = type;
     notifyListeners();
   }
 

@@ -1,33 +1,33 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
-import '../../models/document.dart';
-import 'document_viewer_screen.dart';
+import '../../models/file_model.dart';
+import 'file_viewer_screen.dart';
 import '../../config.dart';
 import '../../services/download_helper.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
-import '../../services/document_service.dart';
+import '../../services/file_service.dart';
 
 // Conditional import — dart:html only exists on web
 import 'package:work_order/services/platform_ua.dart';
 
-class DocumentDetailsScreen extends StatefulWidget {
-  final DocumentModel document;
+class FileDetailsScreen extends StatefulWidget {
+  final FileModel document;
   final String searchQuery;
 
-  const DocumentDetailsScreen({
+  const FileDetailsScreen({
     super.key,
     required this.document,
     required this.searchQuery,
   });
 
   @override
-  State<DocumentDetailsScreen> createState() => _DocumentDetailsScreenState();
+  State<FileDetailsScreen> createState() => _FileDetailsScreenState();
 }
 
-class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
+class _FileDetailsScreenState extends State<FileDetailsScreen> {
 
   bool get isIosWeb => kIsWeb && PlatformUA.isIos;
 
@@ -64,7 +64,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
               backgroundColor: AppColors.bgSurface,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
-              title: Text('Share Document',
+              title: Text('Share File',
                   style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -158,7 +158,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                       : () async {
                           Navigator.pop(context);
                           for (final user in selectedUsers) {
-                            await shareDocument(user, selectedRole);
+                            await shareFile(user, selectedRole);
                           }
                           await loadSharedUsers();
                         },
@@ -172,16 +172,16 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
     );
   }
 
-  Future<void> shareDocument(String email, String role) async {
+  Future<void> shareFile(String email, String role) async {
     final owner =
         Supabase.instance.client.auth.currentUser?.email ?? "";
 
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse("${AppConfig.baseUrl}/share-document"),
+      Uri.parse("${AppConfig.baseUrl}/share-file"),
     );
 
-    request.fields['document_id'] = widget.document.id;
+    request.fields['file_id'] = widget.document.id;
     request.fields['owner_email'] = owner;
     request.fields['share_with'] = email;
     request.fields['role'] = role;
@@ -191,11 +191,11 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
     if (!mounted) return;
     if (response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Document shared with $email as $role")),
+        SnackBar(content: Text("File shared with $email as $role")),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to share document")),
+        const SnackBar(content: Text("Failed to share file")),
       );
     }
   }
@@ -217,7 +217,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
   Future<void> loadSharedUsers() async {
     final response = await http.get(
       Uri.parse(
-          "${AppConfig.baseUrl}/document-shares/${widget.document.id}"),
+          "${AppConfig.baseUrl}/file-shares/${widget.document.id}"),
     );
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -301,7 +301,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.document.documentType,
+              widget.document.fileType,
               style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
             SizedBox(height: 8),
@@ -339,7 +339,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => DocumentViewerScreen(
+                              builder: (_) => FileViewerScreen(
                                 fileUrl: fileUrl,
                                 fileName: widget.document.fileName,
                               ),
@@ -408,7 +408,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
 
             SizedBox(height: 16),
             Text(
-              "Document Content",
+              "File Content",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 8),
@@ -433,7 +433,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
         Supabase.instance.client.auth.currentUser?.email ?? "";
 
     final url = "${AppConfig.baseUrl}/remove-share"
-        "?document_id=${widget.document.id}"
+        "?file_id=${widget.document.id}"
         "&owner_email=$owner"
         "&remove_user=$userEmail";
 
@@ -457,7 +457,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
 }
 
 class _ExpirationRow extends StatefulWidget {
-  final DocumentModel document;
+  final FileModel document;
   final bool isOwner;
 
   const _ExpirationRow({required this.document, required this.isOwner});
@@ -492,7 +492,7 @@ class _ExpirationRowState extends State<_ExpirationRow> {
     if (picked == null) return;
     setState(() => _saving = true);
     try {
-      await DocumentService().updateExpirationDate(widget.document.id, picked);
+      await FileService().updateExpirationDate(widget.document.id, picked);
       if (mounted) setState(() { _expDate = picked; _saving = false; });
     } catch (e) {
       if (mounted) {
@@ -507,7 +507,7 @@ class _ExpirationRowState extends State<_ExpirationRow> {
   Future<void> _clearDate() async {
     setState(() => _saving = true);
     try {
-      await DocumentService().updateExpirationDate(widget.document.id, null);
+      await FileService().updateExpirationDate(widget.document.id, null);
       if (mounted) setState(() { _expDate = null; _saving = false; });
     } catch (e) {
       if (mounted) {

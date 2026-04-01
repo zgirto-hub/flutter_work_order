@@ -17,7 +17,7 @@ UPLOAD_DIR = "uploaded_files"
 async def upload_file(
     file: UploadFile = File(...),
     title: str = Form(...),
-    document_type: str = Form(...),
+    file_type: str = Form(...),
     is_private: bool = Form(False),
     uploaded_by: str = Form(...),
     folder_id: Optional[str] = Form(None),
@@ -37,7 +37,7 @@ async def upload_file(
 
     record = {
         "title": title,
-        "document_type": document_type,
+        "file_type": file_type,
         "file_name": file.filename,
         "file_extension": extension,
         "mime_type": file.content_type,
@@ -52,32 +52,32 @@ async def upload_file(
     if expiration_date:
         record["expiration_date"] = expiration_date
 
-    supabase.table("documents").insert(record).execute()
+    supabase.table("files").insert(record).execute()
 
-    log_activity(uploaded_by, "document", "uploaded",
-        target_label=title, target_id=file_id, detail=document_type)
+    log_activity(uploaded_by, "file", "uploaded",
+        target_label=title, target_id=file_id, detail=file_type)
 
     return {"status": "success", "file_url": public_url}
 
 
-@router.delete("/delete/{doc_id}")
-async def delete_document(doc_id: str, user_email: str = Query(...)):
-    response = supabase.table("documents") \
+@router.delete("/delete/{file_id}")
+async def delete_file(file_id: str, user_email: str = Query(...)):
+    response = supabase.table("files") \
         .select("file_path, uploaded_by, folder_id") \
-        .eq("id", doc_id) \
+        .eq("id", file_id) \
         .execute()
 
     if not response.data:
-        return {"error": "Document not found"}
+        return {"error": "File not found"}
 
     doc = response.data[0]
 
     if not can(
-        user_email, "delete", doc_id, "document",
+        user_email, "delete", file_id, "file",
         folder_id=doc.get("folder_id"),
         resource_owner=doc["uploaded_by"]
     ):
-        raise HTTPException(status_code=403, detail="You are not allowed to delete this document")
+        raise HTTPException(status_code=403, detail="You are not allowed to delete this file")
 
     file_path = doc["file_path"]
     if file_path:
@@ -86,22 +86,22 @@ async def delete_document(doc_id: str, user_email: str = Query(...)):
         if os.path.exists(absolute_path):
             os.remove(absolute_path)
 
-    supabase.table("documents").delete().eq("id", doc_id).execute()
-    log_activity(user_email, "document", "deleted",
-        target_label=doc.get("title", ""), target_id=doc_id)
-    # Also clean up any permissions for this document
+    supabase.table("files").delete().eq("id", file_id).execute()
+    log_activity(user_email, "file", "deleted",
+        target_label=doc.get("title", ""), target_id=file_id)
+    # Also clean up any permissions for this file
     supabase.table("resource_permissions") \
         .delete() \
-        .eq("resource_id", doc_id) \
-        .eq("resource_type", "document") \
+        .eq("resource_id", file_id) \
+        .eq("resource_type", "file") \
         .execute()
 
     return {"status": "deleted"}
 
 
-@router.post("/share-document")
-async def share_document(
-    document_id: str = Form(...),
+@router.post("/share-file")
+async def share_file(
+    file_id: str = Form(...),
     owner_email: str = Form(...),
     share_with: str = Form(...),
     role: str = Form("viewer"),   # 'viewer' | 'editor'
@@ -109,44 +109,44 @@ async def share_document(
     if role not in ("viewer", "editor"):
         raise HTTPException(status_code=400, detail="role must be 'viewer' or 'editor'")
 
-    response = supabase.table("documents") \
+    response = supabase.table("files") \
         .select("uploaded_by") \
-        .eq("id", document_id) \
+        .eq("id", file_id) \
         .execute()
 
     if not response.data:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail="File not found")
 
     owner = response.data[0]["uploaded_by"]
 
     if owner != owner_email:
-        raise HTTPException(status_code=403, detail="Only the owner can share this document")
+        raise HTTPException(status_code=403, detail="Only the owner can share this file")
 
     if owner_email == share_with:
-        raise HTTPException(status_code=400, detail="You already own this document")
+        raise HTTPException(status_code=400, detail="You already own this file")
 
     # Upsert — update role if already shared
     supabase.table("resource_permissions").upsert({
-        "resource_id": document_id,
-        "resource_type": "document",
+        "resource_id": file_id,
+        "resource_type": "file",
         "user_email": share_with,
         "role": role,
         "granted_by": owner_email,
     }, on_conflict="resource_id,resource_type,user_email").execute()
 
-    log_activity(owner_email, "document", "shared",
-        target_label=document_id, target_id=document_id,
+    log_activity(owner_email, "file", "shared",
+        target_label=file_id, target_id=file_id,
         detail=f"with {share_with} as {role}")
 
-    return {"status": "document shared", "role": role}
+    return {"status": "file shared", "role": role}
 
 
-@router.get("/document-shares/{doc_id}")
-async def get_document_shares(doc_id: str):
+@router.get("/file-shares/{file_id}")
+async def get_file_shares(file_id: str):
     response = supabase.table("resource_permissions") \
         .select("user_email, role") \
-        .eq("resource_id", doc_id) \
-        .eq("resource_type", "document") \
+        .eq("resource_id", file_id) \
+        .eq("resource_type", "file") \
         .execute()
 
     if not response.data:
@@ -159,17 +159,17 @@ async def get_document_shares(doc_id: str):
 
 @router.delete("/remove-share")
 async def remove_share(
-    document_id: str = Query(...),
+    file_id: str = Query(...),
     owner_email: str = Query(...),
     remove_user: str = Query(...)
 ):
-    response = supabase.table("documents") \
+    response = supabase.table("files") \
         .select("uploaded_by") \
-        .eq("id", document_id) \
+        .eq("id", file_id) \
         .execute()
 
     if not response.data:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail="File not found")
 
     owner = response.data[0]["uploaded_by"]
 
@@ -179,53 +179,53 @@ async def remove_share(
     # Remove from new table
     supabase.table("resource_permissions") \
         .delete() \
-        .eq("resource_id", document_id) \
-        .eq("resource_type", "document") \
+        .eq("resource_id", file_id) \
+        .eq("resource_type", "file") \
         .eq("user_email", remove_user) \
         .execute()
 
     return {"status": "access removed"}
 
 
-@router.patch("/documents/{doc_id}/expiration")
+@router.patch("/files/{file_id}/expiration")
 async def update_expiration(
-    doc_id: str,
+    file_id: str,
     expiration_date: Optional[str] = Query(None),
     user_email: str = Query(...),
 ):
-    """Set or clear the expiration date on a document."""
-    doc = supabase.table("documents") \
+    """Set or clear the expiration date on a file."""
+    doc = supabase.table("files") \
         .select("uploaded_by, folder_id") \
-        .eq("id", doc_id) \
+        .eq("id", file_id) \
         .execute()
 
     if not doc.data:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail="File not found")
 
     d = doc.data[0]
 
     if not can(
-        user_email, "edit", doc_id, "document",
+        user_email, "edit", file_id, "file",
         folder_id=d.get("folder_id"),
         resource_owner=d["uploaded_by"]
     ):
-        raise HTTPException(status_code=403, detail="Not allowed to edit this document")
+        raise HTTPException(status_code=403, detail="Not allowed to edit this file")
 
-    supabase.table("documents") \
+    supabase.table("files") \
         .update({"expiration_date": expiration_date}) \
-        .eq("id", doc_id) \
+        .eq("id", file_id) \
         .execute()
 
-    log_activity(user_email, "document", "updated_expiration",
-        target_label=doc_id, target_id=doc_id,
+    log_activity(user_email, "file", "updated_expiration",
+        target_label=file_id, target_id=file_id,
         detail=f"expiration set to {expiration_date or 'none'}")
 
     return {"status": "updated", "expiration_date": expiration_date}
 
 
-@router.get("/document-uploaders")
-async def list_document_uploaders():
-    response = supabase.table("documents").select("uploaded_by").execute()
+@router.get("/file-uploaders")
+async def list_file_uploaders():
+    response = supabase.table("files").select("uploaded_by").execute()
 
     if not response.data:
         return {"users": []}
@@ -235,16 +235,16 @@ async def list_document_uploaders():
     return {"users": users}
 
 
-@router.get("/documents/{doc_id}/my-role")
-async def get_my_role(doc_id: str, user_email: str = Query(...)):
-    """Returns the calling user's effective role on a document."""
-    doc = supabase.table("documents") \
+@router.get("/files/{file_id}/my-role")
+async def get_my_role(file_id: str, user_email: str = Query(...)):
+    """Returns the calling user's effective role on a file."""
+    doc = supabase.table("files") \
         .select("uploaded_by, folder_id") \
-        .eq("id", doc_id) \
+        .eq("id", file_id) \
         .execute()
 
     if not doc.data:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail="File not found")
 
     d = doc.data[0]
 
@@ -253,7 +253,7 @@ async def get_my_role(doc_id: str, user_email: str = Query(...)):
 
     from utils.permissions import get_effective_role
     role = get_effective_role(
-        user_email, doc_id, "document",
+        user_email, file_id, "file",
         folder_id=d.get("folder_id"),
         resource_owner=d["uploaded_by"]
     )

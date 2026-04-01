@@ -2,7 +2,7 @@ class ActivityLogEntry {
   final String id;
   final String userEmail;
   final String userName;
-  final String category;  // 'work_order' | 'document' | 'folder' | 'request' | 'auth'
+  final String category;  // 'work_order' | 'file' | 'folder' | 'request' | 'auth'
   final String action;    // 'created' | 'updated' | 'deleted' | 'uploaded' | 'shared' | 'closed' | 'signed_in'
   final String? targetLabel;
   final String? targetId;
@@ -76,8 +76,8 @@ class ActivityLogEntry {
       case 'created':   return 'Created $category'.replaceAll('_', ' ');
       case 'updated':   return 'Updated $category'.replaceAll('_', ' ');
       case 'deleted':   return 'Deleted $category'.replaceAll('_', ' ');
-      case 'uploaded':  return 'Uploaded document';
-      case 'shared':    return 'Shared document';
+      case 'uploaded':  return 'Uploaded file';
+      case 'shared':    return 'Shared file';
       case 'closed':    return 'Closed $category'.replaceAll('_', ' ');
       case 'signed_in':  return 'Signed in';
       case 'signed_out': return 'Signed out';

@@ -1,7 +1,7 @@
-class DocumentModel {
+class FileModel {
   final String id;
   final String title;
-  final String documentType;
+  final String fileType;
   final String? fileName;
   final String? filePath;
   final String? parsedText;
@@ -13,10 +13,10 @@ class DocumentModel {
   final String? role; // 'owner' | 'editor' | 'viewer' | null
   final DateTime? expirationDate;
 
-  DocumentModel({
+  FileModel({
     required this.id,
     required this.title,
-    required this.documentType,
+    required this.fileType,
     this.fileName,
     this.filePath,
     this.parsedText,
@@ -29,11 +29,11 @@ class DocumentModel {
     this.expirationDate,
   });
 
-  factory DocumentModel.fromJson(Map<String, dynamic> json) {
-    return DocumentModel(
+  factory FileModel.fromJson(Map<String, dynamic> json) {
+    return FileModel(
       id: json['id'].toString(),
       title: json['title'] ?? '',
-      documentType: json['document_type'] ?? '',
+      fileType: json['file_type'] ?? '',
       fileName: json['file_name'],
       filePath: json['file_path'],
       parsedText: json['parsed_text'],
@@ -58,17 +58,17 @@ class DocumentModel {
       !isExpired &&
       expirationDate!.isBefore(DateTime.now().add(const Duration(days: 7)));
 
-  DocumentModel copyWith({
+  FileModel copyWith({
     bool? isShared,
     String? folderId,
     String? role,
     DateTime? expirationDate,
     bool clearExpiration = false,
   }) {
-    return DocumentModel(
+    return FileModel(
       id: id,
       title: title,
-      documentType: documentType,
+      fileType: fileType,
       fileName: fileName,
       filePath: filePath,
       parsedText: parsedText,
@@ -86,7 +86,7 @@ class DocumentModel {
 
 /// Derived capabilities from a document's role.
 /// Used to gate UI actions.
-class DocumentCapabilities {
+class FileCapabilities {
   final bool canView;
   final bool canRename;
   final bool canMove;
@@ -94,7 +94,7 @@ class DocumentCapabilities {
   final bool canShare;
   final bool canEditType;
 
-  const DocumentCapabilities({
+  const FileCapabilities({
     required this.canView,
     required this.canRename,
     required this.canMove,
@@ -103,21 +103,21 @@ class DocumentCapabilities {
     required this.canEditType,
   });
 
-  factory DocumentCapabilities.fromRole(String? role) {
+  factory FileCapabilities.fromRole(String? role) {
     switch (role) {
       case 'owner':
-        return const DocumentCapabilities(
+        return const FileCapabilities(
           canView: true, canRename: true, canMove: true,
           canDelete: true, canShare: true, canEditType: true,
         );
       case 'editor':
-        return const DocumentCapabilities(
+        return const FileCapabilities(
           canView: true, canRename: true, canMove: true,
           canDelete: false, canShare: false, canEditType: true,
         );
       case 'viewer':
       default:
-        return const DocumentCapabilities(
+        return const FileCapabilities(
           canView: true, canRename: false, canMove: false,
           canDelete: false, canShare: false, canEditType: false,
         );

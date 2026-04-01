@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, FileResponse
 
-from routers import documents, folders, notifications, users, work_orders, departments, recurring_inspections, reports, department_routes, document_registry, payment_certificates, system_status
+from routers import files, folders, notifications, users, work_orders, departments, recurring_inspections, reports, department_routes, document_registry, payment_certificates, system_status
 
 app = FastAPI()
 
@@ -46,7 +46,7 @@ async def private_network_access_header(request: Request, call_next):
         response.headers["Access-Control-Allow-Private-Network"] = "true"
     return response
 
-app.include_router(documents.router, prefix="/api")
+app.include_router(files.router, prefix="/api")
 app.include_router(folders.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(work_orders.router, prefix="/api")

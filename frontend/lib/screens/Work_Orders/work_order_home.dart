@@ -516,7 +516,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                                     if (_userRole != 'reporter') 'Inspection',
                                   ],
                                   selected: _filter.statusFilter == 'All' &&
-                                          _filter.selectedDocumentType ==
+                                          _filter.selectedFileType ==
                                               'Inspection'
                                       ? 'Inspection'
                                       : _filter.statusFilter,
@@ -525,10 +525,10 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                                       _expandedIndex = null;
                                       if (s == 'Inspection') {
                                         _filter.setStatus('All');
-                                        _filter.setDocumentType('Inspection');
+                                        _filter.setFileType('Inspection');
                                       } else {
                                         _filter.setStatus(s);
-                                        _filter.setDocumentType(null);
+                                        _filter.setFileType(null);
                                       }
                                     });
                                   },
@@ -607,7 +607,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
 
   Widget _buildList(List<WorkOrder> filtered) {
     // Apply inspection type filter locally
-    final items = _filter.selectedDocumentType == 'Inspection'
+    final items = _filter.selectedFileType == 'Inspection'
         ? filtered.where((wo) => wo.type == 'Inspection').toList()
         : filtered;
 
@@ -621,11 +621,11 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
             SizedBox(
               height: MediaQuery.of(context).size.height * 0.5,
               child: _EmptyState(
-                icon: _filter.selectedDocumentType == 'Inspection'
+                icon: _filter.selectedFileType == 'Inspection'
                     ? Icons.checklist_rounded
                     : Icons.work_outline_rounded,
                 message: _filter.searchQuery.isEmpty
-                    ? (_filter.selectedDocumentType == 'Inspection'
+                    ? (_filter.selectedFileType == 'Inspection'
                         ? 'No inspections yet'
                         : 'No work orders yet')
                     : 'No results found',

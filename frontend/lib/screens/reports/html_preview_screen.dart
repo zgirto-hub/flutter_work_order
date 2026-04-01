@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../theme/app_theme.dart';
-import '../Documents/document_viewer_web.dart'
-    if (dart.library.io) '../Documents/document_viewer_stub.dart';
+import '../Files/file_viewer_web.dart'
+    if (dart.library.io) '../Files/file_viewer_stub.dart';
 
 class HtmlPreviewScreen extends StatefulWidget {
   final String assetPath;

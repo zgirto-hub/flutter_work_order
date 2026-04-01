@@ -3,7 +3,7 @@ import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/claude_widgets.dart';
 import '../services/notification_service.dart';
-import '../screens/Documents/documents_screen.dart';
+import '../screens/Files/files_screen.dart';
 import '../screens/reports/workorder_report_screen.dart';
 import '../screens/settings_page.dart';
 import '../screens/settings/activity_log_screen.dart';
@@ -179,16 +179,16 @@ class _MoreScreenState extends State<MoreScreen> {
 
   List<_MoreItem> _buildItems(BuildContext context) {
     final items = <_MoreItem>[
-      if (_canShow('documents'))
+      if (_canShow('files'))
         _MoreItem(
-          title: 'Documents',
+          title: 'Files',
           subtitle: 'Files & folders',
           icon: Icons.description_outlined,
           color: const Color(0xFF7C3AED),
           bgColor: const Color(0xFFF3F0FF),
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const DocumentsScreen()),
+            MaterialPageRoute(builder: (_) => const FilesScreen()),
           ),
         ),
       if (_canShow('reports'))

@@ -6,23 +6,23 @@ import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../theme/app_theme.dart';
 import '../../services/download_helper.dart';
 import 'package:work_order/services/platform_ua.dart';
-import 'document_viewer_web.dart' if (dart.library.io) 'document_viewer_stub.dart';
+import 'file_viewer_web.dart' if (dart.library.io) 'file_viewer_stub.dart';
 
-class DocumentViewerScreen extends StatefulWidget {
+class FileViewerScreen extends StatefulWidget {
   final String fileUrl;
   final String? fileName;
 
-  const DocumentViewerScreen({
+  const FileViewerScreen({
     super.key,
     required this.fileUrl,
     this.fileName,
   });
 
   @override
-  State<DocumentViewerScreen> createState() => _DocumentViewerScreenState();
+  State<FileViewerScreen> createState() => _FileViewerScreenState();
 }
 
-class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
+class _FileViewerScreenState extends State<FileViewerScreen> {
   _ViewState _state = _ViewState.loading;
   String? _errorMessage;
   Uint8List? _fileBytes;

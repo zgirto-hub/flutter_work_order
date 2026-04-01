@@ -9,8 +9,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/user_service.dart';
 import '../../services/html_report_builder.dart';
 import '../../theme/app_theme.dart';
-import '../Documents/document_viewer_web.dart'
-    if (dart.library.io) '../Documents/document_viewer_stub.dart';
+import '../Files/file_viewer_web.dart'
+    if (dart.library.io) '../Files/file_viewer_stub.dart';
 
 class WorkOrderReportScreen extends StatefulWidget {
   const WorkOrderReportScreen({super.key});

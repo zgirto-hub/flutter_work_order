@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/document.dart';
+import '../models/file_model.dart';
 import '../theme/app_theme.dart';
 
-class DocumentCard extends StatelessWidget {
-  final DocumentModel document;
+class FileCard extends StatelessWidget {
+  final FileModel document;
   final String searchQuery;
   final VoidCallback onTap;
   final VoidCallback onRename;
@@ -16,7 +16,7 @@ class DocumentCard extends StatelessWidget {
   final ValueChanged<bool?>? onSelectionChanged;
   final Widget Function(String text, String query, {int maxLines}) highlightBuilder;
 
-  const DocumentCard({
+  const FileCard({
     super.key,
     required this.document,
     required this.searchQuery,
@@ -59,7 +59,7 @@ class DocumentCard extends StatelessWidget {
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                 ),
-                builder: (_) => _DocActionSheet(
+                builder: (_) => _FileActionSheet(
                   document: document,
                   isOwner: isOwner,
                   onRename: () { Navigator.pop(context); onRename(); },
@@ -127,7 +127,7 @@ class DocumentCard extends StatelessWidget {
                   const SizedBox(height: 2),
 
                   // Type
-                  Text(document.documentType, style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                  Text(document.fileType, style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
 
                   const SizedBox(height: 4),
 
@@ -136,17 +136,17 @@ class DocumentCard extends StatelessWidget {
                     spacing: 4,
                     runSpacing: 4,
                     children: [
-                      if (document.isPrivate) _DocBadge(label: 'Private', color: AppColors.pendingBg, textColor: AppColors.pendingText),
+                      if (document.isPrivate) _FileBadge(label: 'Private', color: AppColors.pendingBg, textColor: AppColors.pendingText),
                       if (document.isShared)
-                        _DocBadge(label: 'Shared', color: AppColors.inProgressBg, textColor: AppColors.inProgressText),
+                        _FileBadge(label: 'Shared', color: AppColors.inProgressBg, textColor: AppColors.inProgressText),
                       if (isOwner)
-                        _DocBadge(label: 'Mine', color: AppColors.closedBg, textColor: AppColors.closedText),
+                        _FileBadge(label: 'Mine', color: AppColors.closedBg, textColor: AppColors.closedText),
                       if (document.isExpired)
-                        _DocBadge(label: 'Expired', color: AppColors.dangerBg, textColor: AppColors.dangerText)
+                        _FileBadge(label: 'Expired', color: AppColors.dangerBg, textColor: AppColors.dangerText)
                       else if (document.isExpiringSoon)
-                        _DocBadge(label: 'Expiring soon', color: AppColors.pendingBg, textColor: AppColors.pendingText),
+                        _FileBadge(label: 'Expiring soon', color: AppColors.pendingBg, textColor: AppColors.pendingText),
                       if (document.expirationDate != null && !document.isExpired && !document.isExpiringSoon)
-                        _DocBadge(
+                        _FileBadge(
                           label: 'Exp ${document.expirationDate!.day}/${document.expirationDate!.month}/${document.expirationDate!.year}',
                           color: AppColors.bgSurface2,
                           textColor: AppColors.textTertiary,
@@ -181,12 +181,12 @@ class DocumentCard extends StatelessWidget {
   }
 }
 
-class _DocBadge extends StatelessWidget {
+class _FileBadge extends StatelessWidget {
   final String label;
   final Color color;
   final Color textColor;
 
-  const _DocBadge({required this.label, required this.color, required this.textColor});
+  const _FileBadge({required this.label, required this.color, required this.textColor});
 
   @override
   Widget build(BuildContext context) {
@@ -198,15 +198,15 @@ class _DocBadge extends StatelessWidget {
   }
 }
 
-class _DocActionSheet extends StatelessWidget {
-  final DocumentModel document;
+class _FileActionSheet extends StatelessWidget {
+  final FileModel document;
   final bool isOwner;
   final VoidCallback onRename;
   final VoidCallback onEditType;
   final VoidCallback onMove;
   final VoidCallback onDelete;
 
-  const _DocActionSheet({
+  const _FileActionSheet({
     required this.document,
     required this.isOwner,
     required this.onRename,
@@ -225,11 +225,11 @@ class _DocActionSheet extends StatelessWidget {
         children: [
           Text(document.title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 4),
-          Text(document.documentType, style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+          Text(document.fileType, style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
           const SizedBox(height: 14),
           const Divider(height: 0, thickness: 0.5),
           _ActionRow(icon: Icons.edit_outlined, label: 'Rename', enabled: isOwner, onTap: isOwner ? onRename : null),
-          _ActionRow(icon: Icons.category_outlined, label: 'Edit document type', onTap: onEditType),
+          _ActionRow(icon: Icons.category_outlined, label: 'Edit file type', onTap: onEditType),
           _ActionRow(icon: Icons.drive_file_move_outline, label: 'Move to folder', enabled: isOwner, onTap: isOwner ? onMove : null),
           _ActionRow(icon: Icons.delete_outline_rounded, label: 'Delete', enabled: isOwner, danger: true, onTap: isOwner ? onDelete : null),
           const Divider(height: 0, thickness: 0.5),

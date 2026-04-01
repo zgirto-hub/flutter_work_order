@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
 import 'package:http/http.dart' as http;
 import '../../controllers/filter_controller.dart';
-import '../../filters/document_filter_engine.dart';
-import '../../models/document.dart';
+import '../../filters/file_filter_engine.dart';
+import '../../models/file_model.dart';
 import '../../models/folder_model.dart';
-import '../../services/document_service.dart';
+import '../../services/file_service.dart';
 import '../../services/folder_service.dart';
 import '../../theme/app_theme.dart';
 import '../../config.dart';
@@ -16,23 +16,23 @@ import '../../widgets/claude_widgets.dart';
 import '../../widgets/move_to_folder_dialog.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/deleting_overlay.dart';
-import '../Documents/add_document_screen.dart';
-import '../Documents/document_details_screen.dart';
+import '../Files/add_file_screen.dart';
+import '../Files/file_details_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class DocumentsScreen extends StatefulWidget {
-  const DocumentsScreen({super.key});
+class FilesScreen extends StatefulWidget {
+  const FilesScreen({super.key});
 
   @override
-  State<DocumentsScreen> createState() => _DocumentsScreenState();
+  State<FilesScreen> createState() => _FilesScreenState();
 }
 
-class _DocumentsScreenState extends State<DocumentsScreen> {
+class _FilesScreenState extends State<FilesScreen> {
   // Static cache — survives route pop/push so the screen doesn't spinner on re-entry
-  static List<DocumentModel>? _docCache;
+  static List<FileModel>? _fileCache;
   static List<FolderModel>? _folderCache;
 
-  List<DocumentModel> _allDocuments = [];
+  List<FileModel> _allFiles = [];
   List<FolderModel> _allFolders = [];
 
   // Currently selected folder id. null = "All files" root
@@ -42,10 +42,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   final Set<String> _expandedSidebarFolders = {};
 
   final FilterController _filter = FilterController();
-  final DocumentService _service = DocumentService();
+  final FileService _service = FileService();
   final FolderService _folderService = FolderService();
   final TextEditingController _searchCtrl = TextEditingController();
-  final Set<String> _selectedDocs = {};
+  final Set<String> _selectedFiles = {};
   Timer? _debounce;
   bool _selectionMode = false;
 
@@ -63,11 +63,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   String get _currentEmail =>
       Supabase.instance.client.auth.currentUser?.email ?? '';
 
-  List<DocumentModel> get _visibleDocuments {
+  List<FileModel> get _visibleFiles {
     if (_userRole == 'reporter') {
-      return _allDocuments.where((d) => d.uploadedBy == _currentEmail).toList();
+      return _allFiles.where((d) => d.uploadedBy == _currentEmail).toList();
     }
-    return _allDocuments;
+    return _allFiles;
   }
 
   List<FolderModel> get _visibleFolders {
@@ -81,8 +81,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   void initState() {
     super.initState();
     _loadUserRole();
-    if (_docCache != null && _folderCache != null) {
-      _allDocuments = _docCache!;
+    if (_fileCache != null && _folderCache != null) {
+      _allFiles = _fileCache!;
       _allFolders = _folderCache!;
       _loading = false;
       _refresh(silent: true);
@@ -115,16 +115,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   Future<void> _refresh({bool silent = false}) async {
     if (!silent) setState(() => _loading = true);
     try {
-      final docs = await _service.fetchDocuments();
+      final docs = await _service.fetchFiles();
       final folders = await _folderService.fetchAllFolders();
       if (!mounted) return;
-      _docCache = docs;
+      _fileCache = docs;
       _folderCache = folders;
       setState(() {
-        _allDocuments = docs;
+        _allFiles = docs;
         _allFolders = folders;
         _loading = false;
-        _selectedDocs.removeWhere((id) => !_allDocuments.any((d) => d.id == id));
+        _selectedFiles.removeWhere((id) => !_allFiles.any((d) => d.id == id));
       });
     } catch (e) {
       if (!mounted) return;
@@ -153,8 +153,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   }
 
-  List<String> get _docTypes {
-    final types = _visibleDocuments.map((d) => d.documentType).toSet().toList()
+  List<String> get _fileTypes {
+    final types = _visibleFiles.map((d) => d.fileType).toSet().toList()
       ..sort();
     return ['All', ...types];
   }
@@ -164,10 +164,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   Set<String> _descendantIds(String folderId) =>
       _collectDescendantIds(folderId);
 
-  List<DocumentModel> _docsForSelectedFolder() {
-    if (_selectedFolderId == null) return _visibleDocuments;
+  List<FileModel> _filesForSelectedFolder() {
+    if (_selectedFolderId == null) return _visibleFiles;
     final scope = {_selectedFolderId!, ..._descendantIds(_selectedFolderId!)};
-    return _visibleDocuments.where((d) => scope.contains(d.folderId)).toList();
+    return _visibleFiles.where((d) => scope.contains(d.folderId)).toList();
   }
 
   List<FolderModel> _breadcrumbPath() {
@@ -212,12 +212,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         folderService: _folderService);
     if (result == null || !mounted) return;
 
-    final ids = _selectedDocs.toList();
+    final ids = _selectedFiles.toList();
     int moved = 0;
     int failed = 0;
     for (final id in ids) {
       try {
-        await _folderService.moveDocument(id,
+        await _folderService.moveFile(id,
             folderId: result == 'root' ? null : result);
         moved++;
       } catch (_) {
@@ -228,13 +228,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     if (!mounted) return;
     setState(() {
       _selectionMode = false;
-      _selectedDocs.clear();
+      _selectedFiles.clear();
     });
     await _refresh(silent: true);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(failed == 0
-          ? '$moved document(s) moved'
+          ? '$moved file(s) moved'
           : '$moved moved, $failed failed'),
       behavior: SnackBarBehavior.floating,
       backgroundColor:
@@ -247,14 +247,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => ConfirmDialog(
-        title: 'Delete ${_selectedDocs.length} document(s)?',
+        title: 'Delete ${_selectedFiles.length} file(s)?',
         message: 'This action cannot be undone.',
         confirmLabel: 'Delete',
       ),
     );
     if (confirm != true) return;
 
-    final ids = _selectedDocs.toList();
+    final ids = _selectedFiles.toList();
     setState(() {
       _isDeleting = true;
       _deleteProgress = 0;
@@ -265,7 +265,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     int blocked = 0;
     for (final id in ids) {
       try {
-        await _service.deleteDocument(id);
+        await _service.deleteFile(id);
         deletedIds.add(id);
       } catch (_) {
         blocked++;
@@ -279,12 +279,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       _deleteProgress = 0;
       _deleteTotal = 0;
       _selectionMode = false;
-      _allDocuments.removeWhere((d) => deletedIds.contains(d.id));
-      _selectedDocs.clear();
+      _allFiles.removeWhere((d) => deletedIds.contains(d.id));
+      _selectedFiles.clear();
     });
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(blocked == 0
-          ? '${deletedIds.length} document(s) deleted'
+          ? '${deletedIds.length} file(s) deleted'
           : '${deletedIds.length} deleted, $blocked skipped (not owner)'),
       behavior: SnackBarBehavior.floating,
       backgroundColor:
@@ -294,7 +294,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     ));
   }
 
-  void _showRename(DocumentModel doc) {
+  void _showRename(FileModel doc) {
     final ctrl = TextEditingController(text: doc.title);
     showDialog(
       context: context,
@@ -302,7 +302,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         backgroundColor: AppColors.bgSurface,
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: Text('Rename document',
+        title: Text('Rename file',
             style:
                 TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         content: TextField(
@@ -316,12 +316,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           ElevatedButton(
             onPressed: () async {
               try {
-                await _service.renameDocument(doc.id, ctrl.text);
+                await _service.renameFile(doc.id, ctrl.text);
               } catch (_) {
                 if (!mounted) return;
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Failed to rename document'),
+                  content: Text('Failed to rename file'),
                   behavior: SnackBarBehavior.floating,
                 ));
                 return;
@@ -337,7 +337,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
-  Future<void> _deleteDoc(DocumentModel doc) async {
+  Future<void> _deleteDoc(FileModel doc) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => ConfirmDialog(
@@ -347,9 +347,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
     if (confirm != true) return;
     try {
-      await _service.deleteDocument(doc.id);
+      await _service.deleteFile(doc.id);
       if (!mounted) return;
-      setState(() => _allDocuments.removeWhere((d) => d.id == doc.id));
+      setState(() => _allFiles.removeWhere((d) => d.id == doc.id));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -358,12 +358,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     }
   }
 
-  Future<void> _showMoveDocDialog(DocumentModel doc) async {
+  Future<void> _showMoveDocDialog(FileModel doc) async {
     final result = await MoveToFolderDialog.show(context,
         folderService: _folderService);
     if (result == null || !mounted) return;
     try {
-      await _folderService.moveDocument(doc.id,
+      await _folderService.moveFile(doc.id,
           folderId: result == 'root' ? null : result);
       await _refresh();
     } catch (e) {
@@ -525,7 +525,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       builder: (_) => ConfirmDialog(
         title: 'Delete "${folder.name}"?',
         message:
-            'Documents inside will be moved to root. Sub-folders will be deleted.',
+            'Files inside will be moved to root. Sub-folders will be deleted.',
         confirmLabel: 'Delete',
       ),
     );
@@ -540,10 +540,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           _selectedFolderId = null;
         }
         _allFolders.removeWhere((f) => removedIds.contains(f.id));
-        _allDocuments = _allDocuments.map((d) {
+        _allFiles = _allFiles.map((d) {
           if (d.folderId != null && removedIds.contains(d.folderId)) {
-            return DocumentModel(
-              id: d.id, title: d.title, documentType: d.documentType,
+            return FileModel(
+              id: d.id, title: d.title, fileType: d.fileType,
               fileName: d.fileName, filePath: d.filePath,
               parsedText: d.parsedText, isPrivate: d.isPrivate,
               uploadedBy: d.uploadedBy, isShared: d.isShared,
@@ -609,7 +609,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 SizedBox(height: 10),
                 _SpeedDialItem(
                   icon: Icons.upload_file_outlined,
-                  label: 'Add Document',
+                  label: 'Add File',
                   color: fabColor,
                   onTap: () async {
                     setState(() => _fabExpanded = false);
@@ -620,7 +620,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.vertical(
                               top: Radius.circular(16))),
-                      builder: (_) => const AddDocumentScreen(),
+                      builder: (_) => const AddFileScreen(),
                     );
                     _refresh();
                   },
@@ -649,14 +649,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   // ── Search results ────────────────────────────────────────────────────────
 
   Widget _buildSearchResults() {
-    final docs = DocumentFilterEngine.applyFilters(_visibleDocuments, _filter);
+    final docs = FileFilterEngine.applyFilters(_visibleFiles, _filter);
     if (docs.isEmpty) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.search_off_rounded,
               size: 48, color: AppColors.bgSurface3),
           SizedBox(height: 10),
-          Text('No documents found',
+          Text('No files found',
               style: TextStyle(
                   fontSize: 14, color: AppColors.textTertiary)),
         ]),
@@ -676,18 +676,18 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           );
         }
         final doc = docs[i - 1];
-        return _DocCard(
+        return _FileCard(
           doc: doc,
           onTap: () => _onDocTap(doc),
           onLongPress: () => _showDocActions(doc),
           selectionMode: _selectionMode,
-          isSelected: _selectedDocs.contains(doc.id),
+          isSelected: _selectedFiles.contains(doc.id),
           onSelectionChanged: (v) {
             setState(() {
               if (v ?? false) {
-                _selectedDocs.add(doc.id);
+                _selectedFiles.add(doc.id);
               } else {
-                _selectedDocs.remove(doc.id);
+                _selectedFiles.remove(doc.id);
               }
             });
           },
@@ -698,13 +698,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   // ── Doc tap ───────────────────────────────────────────────────────────────
 
-  void _onDocTap(DocumentModel doc) {
+  void _onDocTap(FileModel doc) {
     if (_selectionMode) {
       setState(() {
-        if (_selectedDocs.contains(doc.id)) {
-          _selectedDocs.remove(doc.id);
+        if (_selectedFiles.contains(doc.id)) {
+          _selectedFiles.remove(doc.id);
         } else {
-          _selectedDocs.add(doc.id);
+          _selectedFiles.add(doc.id);
         }
       });
       return;
@@ -713,7 +713,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 220),
-        pageBuilder: (_, __, ___) => DocumentDetailsScreen(
+        pageBuilder: (_, __, ___) => FileDetailsScreen(
             document: doc, searchQuery: _filter.searchQuery),
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
@@ -723,8 +723,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   // ── Doc actions ───────────────────────────────────────────────────────────
 
-  void _showDocActions(DocumentModel doc) {
-    final caps = DocumentCapabilities.fromRole(doc.role);
+  void _showDocActions(FileModel doc) {
+    final caps = FileCapabilities.fromRole(doc.role);
     final currentUser = Supabase.instance.client.auth.currentUser?.email;
     final folderName = _visibleFolders
         .firstWhereOrNull((f) => f.id == doc.folderId)
@@ -742,7 +742,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     }
 
     final actions = [
-      _DocAction(
+      _FileAction(
         icon: Icons.visibility_outlined,
         label: 'Open / Download',
         desc: 'Always available',
@@ -753,7 +753,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           _onDocTap(doc);
         },
       ),
-      _DocAction(
+      _FileAction(
         icon: Icons.edit_outlined,
         label: 'Rename',
         desc: caps.canRename ? 'You can rename' : 'Requires editor or owner',
@@ -761,7 +761,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         danger: false,
         onTap: caps.canRename ? () { Navigator.pop(context); _showRename(doc); } : null,
       ),
-      _DocAction(
+      _FileAction(
         icon: Icons.drive_file_move_outline,
         label: 'Move to folder',
         desc: caps.canMove ? 'You can move' : 'Requires editor or owner',
@@ -769,7 +769,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         danger: false,
         onTap: caps.canMove ? () { Navigator.pop(context); _showMoveDocDialog(doc); } : null,
       ),
-      _DocAction(
+      _FileAction(
         icon: Icons.share_outlined,
         label: 'Manage access',
         desc: caps.canShare ? 'Add or change roles' : 'Owner only',
@@ -777,7 +777,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         danger: false,
         onTap: caps.canShare ? () { Navigator.pop(context); /* open share sheet */ } : null,
       ),
-      _DocAction(
+      _FileAction(
         icon: Icons.delete_outline_rounded,
         label: 'Delete',
         desc: caps.canDelete ? 'Permanently remove' : 'Owner only',
@@ -910,7 +910,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
-  Widget _buildActionRow(_DocAction a) {
+  Widget _buildActionRow(_FileAction a) {
     return Opacity(
       opacity: a.enabled ? 1.0 : 0.38,
       child: InkWell(
@@ -1082,7 +1082,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   void _showPermissionsOverview() {
     int ownerCount = 0, editorCount = 0, viewerCount = 0;
-    for (final doc in _visibleDocuments) {
+    for (final doc in _visibleFiles) {
       switch (doc.role) {
         case 'owner':  ownerCount++;  break;
         case 'editor': editorCount++; break;
@@ -1153,14 +1153,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     ],
                   ),
                   SizedBox(height: 14),
-                  Text('ALL DOCUMENTS',
+                  Text('ALL FILES',
                       style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
                           color: AppColors.textTertiary,
                           letterSpacing: 0.06)),
                   SizedBox(height: 8),
-                  ..._visibleDocuments
+                  ..._visibleFiles
                       .where((d) => d.role != null)
                       .map((doc) => Padding(
                             padding: const EdgeInsets.symmetric(vertical: 9),
@@ -1214,7 +1214,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      'Folder permissions are inherited — editor access on a folder gives you rename & move rights on all documents inside it and its sub-folders.',
+                      'Folder permissions are inherited — editor access on a folder gives you rename & move rights on all files inside it and its sub-folders.',
                       style: TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,
@@ -1330,7 +1330,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               if (_selectionMode)
                 Expanded(
                   child: Text(
-                      '${_selectedDocs.length} selected',
+                      '${_selectedFiles.length} selected',
                       style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -1338,7 +1338,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 )
               else
                 Expanded(
-                  child: Text('Documents',
+                  child: Text('Files',
                       style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -1385,13 +1385,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       if (mounted) setState(() => _refreshing = false);
                     },
                     tooltip: 'Refresh',
-                    semanticsLabel: 'Refresh documents',
+                    semanticsLabel: 'Refresh files',
                   ),
                 SizedBox(width: 6),
               ],
               if (_selectionMode) ...[
                 TextButton.icon(
-                  onPressed: (_selectedDocs.isEmpty || _isDeleting)
+                  onPressed: (_selectedFiles.isEmpty || _isDeleting)
                       ? null
                       : _moveSelected,
                   icon: Icon(
@@ -1404,7 +1404,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                           fontSize: 12)),
                 ),
                 TextButton.icon(
-                  onPressed: (_selectedDocs.isEmpty || _isDeleting)
+                  onPressed: (_selectedFiles.isEmpty || _isDeleting)
                       ? null
                       : _deleteSelected,
                   icon: Icon(
@@ -1422,7 +1422,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     ? null
                     : () => setState(() {
                           _selectionMode = !_selectionMode;
-                          _selectedDocs.clear();
+                          _selectedFiles.clear();
                         }),
                 child: Text(
                     _selectionMode ? 'Cancel' : 'Select',
@@ -1436,7 +1436,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             SizedBox(height: 10),
             ClaudeSearchBar(
               controller: _searchCtrl,
-              hintText: 'Search documents…',
+              hintText: 'Search files…',
               onChanged: (v) {
                 _debounce?.cancel();
                 _debounce = Timer(
@@ -1448,11 +1448,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             ),
             SizedBox(height: 10),
             FilterChipRow(
-              filters: _docTypes,
+              filters: _fileTypes,
               selected:
-                  _filter.selectedDocumentType ?? 'All',
+                  _filter.selectedFileType ?? 'All',
               onSelected: (t) => setState(() =>
-                  _filter.setDocumentType(
+                  _filter.setFileType(
                       t == 'All' ? null : t)),
             ),
             SizedBox(height: 6),
@@ -1592,7 +1592,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   Widget _buildDocsArea() {
     final crumbs = _breadcrumbPath();
     final subFolders = _childFolders(_selectedFolderId);
-    final docs = _docsForSelectedFolder();
+    final docs = _filesForSelectedFolder();
 
     return RefreshIndicator(
       onRefresh: () => _refresh(silent: true),
@@ -1683,23 +1683,23 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             Padding(
               padding: EdgeInsets.only(top: 28),
               child: Center(
-                child: Text('No documents here',
+                child: Text('No files here',
                     style: TextStyle(
                         fontSize: 13, color: AppColors.textTertiary)),
               ),
             )
           else
-            ...docs.map((doc) => _DocCard(
+            ...docs.map((doc) => _FileCard(
               doc: doc,
               onTap: () => _onDocTap(doc),
               onLongPress: () => _showDocActions(doc),
               selectionMode: _selectionMode,
-              isSelected: _selectedDocs.contains(doc.id),
+              isSelected: _selectedFiles.contains(doc.id),
               onSelectionChanged: (v) => setState(() {
                 if (v ?? false) {
-                  _selectedDocs.add(doc.id);
+                  _selectedFiles.add(doc.id);
                 } else {
-                  _selectedDocs.remove(doc.id);
+                  _selectedFiles.remove(doc.id);
                 }
               }),
             )),
@@ -1881,17 +1881,17 @@ class _SidebarFolderNode extends StatelessWidget {
   }
 }
 
-// ── Document Card ─────────────────────────────────────────────────────────────
+// ── File Card ─────────────────────────────────────────────────────────────
 
-class _DocCard extends StatelessWidget {
-  final DocumentModel doc;
+class _FileCard extends StatelessWidget {
+  final FileModel doc;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final bool selectionMode;
   final bool isSelected;
   final ValueChanged<bool?>? onSelectionChanged;
 
-  const _DocCard({
+  const _FileCard({
     required this.doc,
     required this.onTap,
     required this.onLongPress,
@@ -2166,7 +2166,7 @@ class _SpeedDialItem extends StatelessWidget {
 
 // ── Doc Action Data ───────────────────────────────────────────────────────────
 
-class _DocAction {
+class _FileAction {
   final IconData icon;
   final String label;
   final String desc;
@@ -2174,7 +2174,7 @@ class _DocAction {
   final bool danger;
   final VoidCallback? onTap;
 
-  const _DocAction({
+  const _FileAction({
     required this.icon,
     required this.label,
     required this.desc,

@@ -1,14 +1,14 @@
-import '../models/document.dart';
+import '../models/file_model.dart';
 import '../controllers/filter_controller.dart';
 
-class DocumentFilterEngine {
+class FileFilterEngine {
 
-  static List<DocumentModel> applyFilters(
-    List<DocumentModel> documents,
+  static List<FileModel> applyFilters(
+    List<FileModel> documents,
     FilterController filter,
   ) {
 
-    List<DocumentModel> filtered = List.from(documents);
+    List<FileModel> filtered = List.from(documents);
 
     if (filter.searchQuery.isNotEmpty) {
 
@@ -20,7 +20,7 @@ class DocumentFilterEngine {
             doc.title.toLowerCase().contains(query);
 
         final typeMatch =
-            doc.documentType.toLowerCase().contains(query);
+            doc.fileType.toLowerCase().contains(query);
 
         final textMatch =
             doc.parsedText?.toLowerCase().contains(query) ?? false;
@@ -30,10 +30,10 @@ class DocumentFilterEngine {
       }).toList();
     }
     // DOCUMENT TYPE FILTER
-    if (filter.selectedDocumentType != null &&
-        filter.selectedDocumentType!.isNotEmpty) {
+    if (filter.selectedFileType != null &&
+        filter.selectedFileType!.isNotEmpty) {
       filtered = filtered.where((doc) {
-        return doc.documentType == filter.selectedDocumentType;
+        return doc.fileType == filter.selectedFileType;
       }).toList();
     }
 

@@ -24,7 +24,7 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
   static const _filters = [
     ('all', 'All'),
     ('work_order', 'Work orders'),
-    ('document', 'Documents'),
+    ('file', 'Files'),
     ('auth', 'Auth'),
   ];
 

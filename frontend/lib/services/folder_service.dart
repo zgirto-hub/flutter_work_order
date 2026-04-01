@@ -83,13 +83,13 @@ class FolderService {
     if (response.statusCode != 200) throw Exception('Failed to move folder');
   }
 
-  Future<void> moveDocument(String docId, {String? folderId}) async {
+  Future<void> moveFile(String fileId, {String? folderId}) async {
     final response = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/documents/$docId/move?user_email=${Uri.encodeComponent(_email)}'),
+      Uri.parse('${AppConfig.baseUrl}/files/$fileId/move?user_email=${Uri.encodeComponent(_email)}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'folder_id': folderId}),
     );
-    if (response.statusCode == 403) throw Exception('Not allowed to move this document');
-    if (response.statusCode != 200) throw Exception('Failed to move document');
+    if (response.statusCode == 403) throw Exception('Not allowed to move this file');
+    if (response.statusCode != 200) throw Exception('Failed to move file');
   }
 }
