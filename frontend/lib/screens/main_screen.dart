@@ -66,13 +66,12 @@ class _MainScreenState extends State<MainScreen> {
       _index = 0;
       _roleLoaded = true;
     });
-    try {
-      await ActivityLogService().logSignIn(email);
-    } catch (_) {}
 
-    _refreshWOCount();
+    // Fire all post-login tasks in parallel — none depend on each other.
+    unawaited(ActivityLogService().logSignIn(email).catchError((_) {}));
+    unawaited(_refreshWOCount());
     _startPolling();
-    OneSignalService.subscribe(email, _userRole);
+    unawaited(OneSignalService.subscribe(email, _userRole).catchError((_) {}));
   }
 
   String get _email =>

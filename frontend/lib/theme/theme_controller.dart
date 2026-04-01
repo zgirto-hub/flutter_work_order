@@ -15,8 +15,13 @@ class ThemeController extends ChangeNotifier {
   String get fontFamily => _fontFamily;
   ThemeMode get mode => _mode;
 
-  ThemeController() {
-    _loadPrefs();
+  ThemeController._internal();
+
+  /// Create a [ThemeController] with preferences already loaded.
+  static Future<ThemeController> create() async {
+    final controller = ThemeController._internal();
+    await controller._loadPrefs();
+    return controller;
   }
 
   Future<void> changeColor(Color newColor) async {

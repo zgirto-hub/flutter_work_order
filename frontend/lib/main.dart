@@ -2,26 +2,72 @@ import 'dart:math' show cos, sin, pi;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/main_screen.dart';
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-  );
-  runApp(MyApp());
+  GoogleFonts.config.allowRuntimeFetching = false;
+  runApp(const _BootstrapApp());
 }
 
-class MyApp extends StatelessWidget {
-  MyApp({super.key});
+// ── Bootstrap: shows splash while initialising services ─────────────────────
 
-  final ThemeController themeController = ThemeController();
+class _BootstrapApp extends StatefulWidget {
+  const _BootstrapApp();
+
+  @override
+  State<_BootstrapApp> createState() => _BootstrapAppState();
+}
+
+class _BootstrapAppState extends State<_BootstrapApp> {
+  ThemeController? _themeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    await dotenv.load(fileName: '.env');
+
+    // Run Supabase init and theme prefs loading in parallel.
+    final results = await Future.wait([
+      Supabase.initialize(
+        url: dotenv.env['SUPABASE_URL']!,
+        anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+      ),
+      ThemeController.create(),
+    ]);
+
+    if (!mounted) return;
+    setState(() => _themeController = results[1] as ThemeController);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _themeController;
+    if (controller == null) {
+      // Services still loading — show branded splash immediately.
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: _SplashScreen(),
+      );
+    }
+    return MyApp(themeController: controller);
+  }
+}
+
+// ── Main app (shown after init completes) ───────────────────────────────────
+
+class MyApp extends StatelessWidget {
+  final ThemeController themeController;
+  const MyApp({super.key, required this.themeController});
 
   @override
   Widget build(BuildContext context) {
