@@ -4,7 +4,7 @@ import 'app_theme.dart';
 
 const List<String> kAvailableFonts = ['Inter', 'DM Sans', 'Roboto', 'Poppins', 'Lato', 'Nunito'];
 
-class ThemeController extends ChangeNotifier {
+class ThemeController extends ChangeNotifier with WidgetsBindingObserver {
   Color _color = Colors.blue;
   double _fontScale = 1.0;
   String _fontFamily = 'Inter';
@@ -16,7 +16,22 @@ class ThemeController extends ChangeNotifier {
   ThemeMode get mode => _mode;
 
   ThemeController() {
+    WidgetsBinding.instance.addObserver(this);
     _loadPrefs();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    if (_mode == ThemeMode.system) {
+      _syncDarkFlag();
+      notifyListeners();
+    }
   }
 
   Future<void> changeColor(Color newColor) async {
@@ -42,10 +57,19 @@ class ThemeController extends ChangeNotifier {
 
   Future<void> setThemeMode(ThemeMode mode) async {
     _mode = mode;
-    AppColors.setDark(mode == ThemeMode.dark);
+    _syncDarkFlag();
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     prefs.setString('theme_mode', mode.name);
+  }
+
+  void _syncDarkFlag() {
+    if (_mode == ThemeMode.system) {
+      final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+      AppColors.setDark(brightness == Brightness.dark);
+    } else {
+      AppColors.setDark(_mode == ThemeMode.dark);
+    }
   }
 
   Future<void> _loadPrefs() async {
@@ -63,7 +87,7 @@ class ThemeController extends ChangeNotifier {
         orElse: () => ThemeMode.light,
       );
     }
-    AppColors.setDark(_mode == ThemeMode.dark);
+    _syncDarkFlag();
     notifyListeners();
   }
 }
