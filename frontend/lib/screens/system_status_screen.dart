@@ -21,13 +21,14 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
   final Set<String> _expandedGroups = {};
   List<SystemStatusReport> _history = [];
 
-  String get _email =>
-      Supabase.instance.client.auth.currentUser?.email ?? '';
+  String get _email => Supabase.instance.client.auth.currentUser?.email ?? '';
 
-  String get _userName =>
-      _email.split('@').first.split('.').map((s) =>
-        s.isNotEmpty ? '${s[0].toUpperCase()}${s.substring(1)}' : s
-      ).join(' ');
+  String get _userName => _email
+      .split('@')
+      .first
+      .split('.')
+      .map((s) => s.isNotEmpty ? '${s[0].toUpperCase()}${s.substring(1)}' : s)
+      .join(' ');
 
   @override
   void initState() {
@@ -92,7 +93,9 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
           padding: EdgeInsets.fromLTRB(
-            20, 20, 20,
+            20,
+            20,
+            20,
             MediaQuery.of(ctx).viewInsets.bottom + 20,
           ),
           child: Column(
@@ -131,8 +134,8 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.bgSurface2,
                     borderRadius: BorderRadius.circular(10),
@@ -275,9 +278,11 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
             const SizedBox(height: 16),
             _detailRow('Date', report.reportDate),
             if (report.notes.isNotEmpty) _detailRow('Notes', report.notes),
-            _detailRow('Reported by', report.reportedByName.isNotEmpty
-                ? report.reportedByName
-                : report.reportedBy),
+            _detailRow(
+                'Reported by',
+                report.reportedByName.isNotEmpty
+                    ? report.reportedByName
+                    : report.reportedBy),
             const SizedBox(height: 20),
             // Action buttons row
             Row(
@@ -364,8 +369,8 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 20,
-              MediaQuery.of(ctx).viewInsets.bottom + 20),
+          padding: EdgeInsets.fromLTRB(
+              20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -373,9 +378,11 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
               Row(
                 children: [
                   Container(
-                    width: 10, height: 10,
+                    width: 10,
+                    height: 10,
                     decoration: const BoxDecoration(
-                      color: Color(0xFF15803D), shape: BoxShape.circle,
+                      color: Color(0xFF15803D),
+                      shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -383,7 +390,8 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                     child: Text(
                       'Resolve Issue',
                       style: TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w600,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
                     ),
@@ -425,28 +433,30 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: resolving ? null : () async {
-                    setSheet(() => resolving = true);
-                    try {
-                      await _service.resolveIssue(
-                        reportId: report.id,
-                        resolvedBy: _email,
-                        resolvedNotes: notesCtrl.text.trim(),
-                      );
-                      if (!mounted) return;
-                      Navigator.pop(ctx);
-                      _load();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Issue resolved')),
-                      );
-                    } catch (e) {
-                      if (!mounted) return;
-                      setSheet(() => resolving = false);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('$e')),
-                      );
-                    }
-                  },
+                  onPressed: resolving
+                      ? null
+                      : () async {
+                          setSheet(() => resolving = true);
+                          try {
+                            await _service.resolveIssue(
+                              reportId: report.id,
+                              resolvedBy: _email,
+                              resolvedNotes: notesCtrl.text.trim(),
+                            );
+                            if (!mounted) return;
+                            Navigator.pop(ctx);
+                            _load();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Issue resolved')),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            setSheet(() => resolving = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('$e')),
+                            );
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF15803D),
                     foregroundColor: Colors.white,
@@ -457,7 +467,8 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                   ),
                   child: resolving
                       ? const SizedBox(
-                          width: 18, height: 18,
+                          width: 18,
+                          height: 18,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white),
                         )
@@ -476,7 +487,8 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
 
   void _showEditIssueSheet(SystemStatusReport report) {
     final notesController = TextEditingController(text: report.notes);
-    DateTime selectedDate = DateTime.tryParse(report.reportDate) ?? DateTime.now();
+    DateTime selectedDate =
+        DateTime.tryParse(report.reportDate) ?? DateTime.now();
 
     showModalBottomSheet(
       context: context,
@@ -488,7 +500,9 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
           padding: EdgeInsets.fromLTRB(
-            20, 20, 20,
+            20,
+            20,
+            20,
             MediaQuery.of(ctx).viewInsets.bottom + 20,
           ),
           child: Column(
@@ -527,8 +541,8 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.bgSurface2,
                     borderRadius: BorderRadius.circular(10),
@@ -918,8 +932,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
             onPressed: _showUptimeReportSheet,
           ),
           IconButton(
-            icon: Icon(Icons.refresh,
-                color: AppColors.textSecondary, size: 20),
+            icon: Icon(Icons.refresh, color: AppColors.textSecondary, size: 20),
             onPressed: _load,
           ),
         ],
@@ -943,19 +956,18 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                         crossAxisCount: 3,
                         crossAxisSpacing: 8,
                         mainAxisSpacing: 8,
-                        childAspectRatio: 1.6,
+                        childAspectRatio: 3.0,
                       ),
                       itemCount: _mainSystems.length,
                       itemBuilder: (context, i) => _SystemCard(
                         system: _mainSystems[i],
-                        onTap: () =>
-                            _showReportIssueSheet(_mainSystems[i]),
+                        onTap: () => _showReportIssueSheet(_mainSystems[i]),
                       ),
                     ),
 
                     // Grouped sub-systems (expandable with animation)
                     for (final entry in _groupedSystems.entries) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       _ExpandableGroup(
                         title: entry.key,
                         isExpanded: _expandedGroups.contains(entry.key),
@@ -971,7 +983,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                         onSubSystemTap: _showReportIssueSheet,
                       ),
                     ],
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
                     // History section
                     if (_history.isNotEmpty) ...[
@@ -984,12 +996,12 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                           letterSpacing: -0.2,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       ..._history.map((r) => _HistoryCard(
-                        report: r,
-                        onEdit: () => _showEditIssueSheet(r),
-                        onDelete: () => _confirmDelete(r),
-                      )),
+                            report: r,
+                            onEdit: () => _showEditIssueSheet(r),
+                            onDelete: () => _confirmDelete(r),
+                          )),
                     ],
                   ],
                 ),
@@ -1065,7 +1077,7 @@ class _ExpandableGroupState extends State<_ExpandableGroup>
         GestureDetector(
           onTap: widget.onToggle,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
               color: AppColors.bgSurface,
               borderRadius: BorderRadius.circular(10),
@@ -1098,7 +1110,8 @@ class _ExpandableGroupState extends State<_ExpandableGroup>
                 ),
                 if (widget.issueCount > 0)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEE2E2),
                       borderRadius: BorderRadius.circular(10),
@@ -1121,7 +1134,7 @@ class _ExpandableGroupState extends State<_ExpandableGroup>
           child: FadeTransition(
             opacity: _fade,
             child: Padding(
-              padding: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.only(top: 6),
               child: GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -1129,7 +1142,7 @@ class _ExpandableGroupState extends State<_ExpandableGroup>
                   crossAxisCount: 3,
                   crossAxisSpacing: 8,
                   mainAxisSpacing: 8,
-                  childAspectRatio: 1.6,
+                  childAspectRatio: 3.0,
                 ),
                 itemCount: widget.children.length,
                 itemBuilder: (context, i) => _SystemCard(
@@ -1155,7 +1168,8 @@ class _SystemCard extends StatelessWidget {
   final String? displayName;
   final VoidCallback onTap;
 
-  const _SystemCard({required this.system, this.displayName, required this.onTap});
+  const _SystemCard(
+      {required this.system, this.displayName, required this.onTap});
 
   bool get _isSat => _satSystems.contains(system.systemName);
 
@@ -1164,79 +1178,63 @@ class _SystemCard extends StatelessWidget {
     final isIssue = system.hasIssue;
     final statusColor =
         isIssue ? const Color(0xFFB91C1C) : const Color(0xFF15803D);
-    final bgColor =
-        isIssue ? const Color(0xFFFEE2E2) : const Color(0xFFDCFCE7);
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
           color: AppColors.bgSurface,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppColors.border2, width: 0.5),
           boxShadow: AppShadows.cardLight,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    displayName ?? system.systemName,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (_isSat)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                    margin: const EdgeInsets.only(right: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    child: const Text(
-                      'SAT',
-                      style: TextStyle(
-                        fontSize: 7,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFB45309),
-                      ),
-                    ),
-                  ),
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(4),
-              ),
+            Expanded(
               child: Text(
-                isIssue ? 'Issue' : 'OK',
+                displayName ?? system.systemName,
                 style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w500,
-                  color: statusColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (_isSat)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                margin: const EdgeInsets.only(left: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: const Text(
+                  'SAT',
+                  style: TextStyle(
+                    fontSize: 7,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFB45309),
+                  ),
+                ),
+              ),
+            const SizedBox(width: 4),
+            Text(
+              isIssue ? 'Issue' : 'OK',
+              style: TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.w600,
+                color: statusColor,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: statusColor,
+                shape: BoxShape.circle,
               ),
             ),
           ],
@@ -1263,8 +1261,8 @@ class _HistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isResolved = report.isResolved;
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: AppColors.bgSurface,
         borderRadius: BorderRadius.circular(10),
@@ -1273,8 +1271,8 @@ class _HistoryCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 8,
-            height: 8,
+            width: 6,
+            height: 6,
             decoration: BoxDecoration(
               color: isResolved
                   ? const Color(0xFF15803D)
@@ -1282,26 +1280,51 @@ class _HistoryCard extends StatelessWidget {
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(
-                      report.systemName,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                    Flexible(
+                      child: Text(
+                        report.systemName,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: isResolved
+                            ? const Color(0xFFDCFCE7)
+                            : const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Text(
+                        isResolved ? 'Resolved' : 'Unresolved',
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w600,
+                          color: isResolved
+                              ? const Color(0xFF15803D)
+                              : const Color(0xFFB91C1C),
+                        ),
                       ),
                     ),
                     const Spacer(),
                     Text(
                       report.reportDate,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         color: AppColors.textTertiary,
                       ),
                     ),
@@ -1360,24 +1383,13 @@ class _HistoryCard extends StatelessWidget {
                   Text(
                     report.notes,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       color: AppColors.textSecondary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
-                const SizedBox(height: 2),
-                Text(
-                  isResolved ? 'Resolved' : 'Unresolved',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: isResolved
-                        ? const Color(0xFF15803D)
-                        : const Color(0xFFB91C1C),
-                  ),
-                ),
               ],
             ),
           ),
