@@ -541,7 +541,7 @@ class _AddPaymentCertificateScreenState
   // ── Certificate number ───────────────────────────────────────────────
 
   Widget _buildCertNumberField() {
-    return _field(_certNumberCtrl, 'رقم شهادة الدفع', validator: _required);
+    return _field(_certNumberCtrl, 'رقم شهادة الدفع');
   }
 
   // ── Currency dropdown ────────────────────────────────────────────────

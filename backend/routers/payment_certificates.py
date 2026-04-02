@@ -11,7 +11,7 @@ router = APIRouter()
 # ---------- Pydantic models ----------
 
 class PaymentCertificateBody(BaseModel):
-    certificate_number: str
+    certificate_number: Optional[str] = ""
     subject: Optional[str] = ""
     contract_number: Optional[str] = ""
     invoice_number: Optional[str] = ""
