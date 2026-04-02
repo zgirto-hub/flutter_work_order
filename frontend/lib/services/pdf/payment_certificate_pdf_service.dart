@@ -1,7 +1,9 @@
 import 'dart:typed_data';
+
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+
 import '../../models/payment_certificate.dart';
 
 class PaymentCertificatePdfService {
@@ -28,39 +30,23 @@ class PaymentCertificatePdfService {
         margin: const pw.EdgeInsets.all(30),
         theme: pw.ThemeData.withFont(base: calibri, bold: calibriBold),
         build: (context) => [
-          // ── 1. Title (centered) ───────────────────────────────
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.center,
-            children: [_buildTitle(cert, headerStyle, subHeaderStyle)],
-          ),
+          _buildTitle(cert, headerStyle, subHeaderStyle),
           pw.SizedBox(height: 16),
-
-          // ── 2. Subject & Contract ────────────────────────────
           _buildSubjectRow(cert, boldStyle),
           pw.SizedBox(height: 6),
-
-          // ── 3. Invoice details ────────────────────────────────
           _buildInvoiceTable(cert, boldStyle, baseStyle),
           pw.SizedBox(height: 6),
-
-          // ── 4. Contract info ──────────────────────────────────
           _buildContractTable(cert, boldStyle, baseStyle),
-          pw.SizedBox(height: 6),
-
-          // ── 5. Payment table ──────────────────────────────────
+          pw.SizedBox(height: 20),
           _buildPaymentTable(cert, boldStyle, baseStyle),
           pw.SizedBox(height: 6),
-
-          // ── 6. Attachments ────────────────────────────────────
           pw.Text('المرفقات:',
               style: subHeaderStyle,
               textDirection: pw.TextDirection.rtl),
           pw.SizedBox(height: 4),
-          _buildAttachmentsList(cert, boldStyle),
+          _buildAttachmentsList(cert, baseStyle),
           pw.SizedBox(height: 12),
-
-          // ── 7. Signatures ─────────────────────────────────────
-          _buildSignaturesTable(cert, boldStyle, baseStyle),
+          _buildSignaturesTable(boldStyle),
         ],
       ),
     );
@@ -79,19 +65,21 @@ class PaymentCertificatePdfService {
 
   static String _fmtNum(double v) {
     if (v == 0) return '-';
-    return v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(2);
+    return v == v.roundToDouble()
+        ? v.toInt().toString()
+        : v.toStringAsFixed(2);
   }
 
-  /// Table cell widget for pw.Table rows (no Expanded needed).
   static pw.Widget _tcell(String text, pw.TextStyle style,
-      {pw.Alignment alignment = pw.Alignment.centerRight,
+      {pw.TextAlign textAlign = pw.TextAlign.right,
       PdfColor? bgColor}) {
     return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-      alignment: alignment,
       color: bgColor,
-      child:
-          pw.Text(text, style: style, textDirection: pw.TextDirection.rtl),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+      child: pw.Text(text,
+          style: style,
+          textAlign: textAlign,
+          textDirection: pw.TextDirection.rtl),
     );
   }
 
@@ -128,16 +116,22 @@ class PaymentCertificatePdfService {
       ));
     }
 
-    return pw.Container(
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(width: 1.5),
-        color: PdfColor.fromHex('#DCE6F1'),
-      ),
-      padding: const pw.EdgeInsets.symmetric(horizontal: 30, vertical: 8),
-      child: pw.Column(
-        mainAxisSize: pw.MainAxisSize.min,
-        children: widgets,
-      ),
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.center,
+      children: [
+        pw.Container(
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(width: 1.5),
+            color: PdfColor.fromHex('#DCE6F1'),
+          ),
+          padding:
+              const pw.EdgeInsets.symmetric(horizontal: 30, vertical: 8),
+          child: pw.Column(
+            mainAxisSize: pw.MainAxisSize.min,
+            children: widgets,
+          ),
+        ),
+      ],
     );
   }
 
@@ -152,11 +146,13 @@ class PaymentCertificatePdfService {
         1: const pw.FlexColumnWidth(3),
       },
       children: [
-        pw.TableRow(children: [
-          _tcell('عقد رقم ${cert.contractNumber}', bold),
-          _tcell('الموضوع: ${cert.subject}', bold,
-              bgColor: PdfColor.fromHex('#DCE6F1')),
-        ]),
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: PdfColor.fromHex('#DCE6F1')),
+          children: [
+            _tcell('عقد رقم ${cert.contractNumber}', bold, bgColor: PdfColors.white),
+            _tcell('الموضوع: ${cert.subject}', bold),
+          ],
+        ),
       ],
     );
   }
@@ -165,7 +161,6 @@ class PaymentCertificatePdfService {
 
   static pw.Widget _buildInvoiceTable(
       PaymentCertificate cert, pw.TextStyle bold, pw.TextStyle base) {
-    final bg = PdfColor.fromHex('#DCE6F1');
     return pw.Table(
       border: pw.TableBorder(
         left: const pw.BorderSide(width: 2.5),
@@ -183,16 +178,16 @@ class PaymentCertificatePdfService {
       },
       children: [
         pw.TableRow(children: [
-          _tcell('${_fmtNum(cert.invoiceAmount)} ${cert.currency}', base),
-          _tcell('مبلغ الفاتورة:', bold, bgColor: bg),
-          _tcell(cert.invoiceNumber, base),
-          _tcell('رقم الفاتورة:', bold, bgColor: bg),
+          _tcell('${_fmtNum(cert.invoiceAmount)} ${cert.currency}', base, textAlign: pw.TextAlign.center),
+          _tcell('مبلغ الفاتورة:', bold),
+          _tcell(cert.invoiceNumber, base, textAlign: pw.TextAlign.center),
+          _tcell('رقم الفاتورة:', bold),
         ]),
         pw.TableRow(children: [
-          _tcell(_fmtDate(cert.periodTo), base),
-          _tcell('إلى', bold, alignment: pw.Alignment.center, bgColor: bg),
-          _tcell('من  ${_fmtDate(cert.periodFrom)}', base),
-          _tcell('فترة الفاتورة:', bold, bgColor: bg),
+          _tcell(_fmtDate(cert.periodTo), base, textAlign: pw.TextAlign.center),
+          _tcell('إلى', bold),
+          _tcell('من  ${_fmtDate(cert.periodFrom)}', base, textAlign: pw.TextAlign.center),
+          _tcell('فترة الفاتورة:', bold),
         ]),
       ],
     );
@@ -230,7 +225,6 @@ class PaymentCertificatePdfService {
           base),
     ];
 
-    // Extension 1 row (show if dates exist)
     if (cert.extension1StartDate != null || cert.extension1EndDate != null) {
       rows.add(_contractRow(
           'بداية التمديد:',
@@ -241,7 +235,6 @@ class PaymentCertificatePdfService {
           base));
     }
 
-    // Extension 2 row (show if dates exist)
     if (cert.extension2StartDate != null || cert.extension2EndDate != null) {
       rows.add(_contractRow(
           'بداية التمديد الثاني:',
@@ -269,10 +262,12 @@ class PaymentCertificatePdfService {
     final bgColor = PdfColor.fromHex('#DCE6F1');
     return pw.TableRow(
       children: [
-        _tcell(val2, base, alignment: pw.Alignment.center),
-        _tcell(label2, bold, bgColor: bgColor, alignment: pw.Alignment.center),
-        _tcell(val1, base, alignment: pw.Alignment.center),
-        _tcell(label1, bold, bgColor: bgColor, alignment: pw.Alignment.center),
+        _tcell(val2, base, textAlign: pw.TextAlign.center),
+        _tcell(label2, bold,
+            bgColor: bgColor, textAlign: pw.TextAlign.center),
+        _tcell(val1, base, textAlign: pw.TextAlign.center),
+        _tcell(label1, bold,
+            bgColor: bgColor, textAlign: pw.TextAlign.center),
       ],
     );
   }
@@ -286,20 +281,17 @@ class PaymentCertificatePdfService {
     final hSmall = bold.copyWith(fontSize: 9);
     final dStyle = base.copyWith(fontSize: 10);
 
-    // Column widths: reason(2) + 6 numeric cols (1 each) = 8 flex total
     final colWidths = <int, pw.TableColumnWidth>{
-      0: const pw.FlexColumnWidth(4), // أسباب
-      1: const pw.FlexColumnWidth(1), // صافي دينار
-      2: const pw.FlexColumnWidth(1), // صافي فلس
-      3: const pw.FlexColumnWidth(1), // خصم دينار
-      4: const pw.FlexColumnWidth(1), // خصم فلس
-      5: const pw.FlexColumnWidth(1), // مستحق دينار
-      6: const pw.FlexColumnWidth(1), // مستحق فلس
+      0: const pw.FlexColumnWidth(4),
+      1: const pw.FlexColumnWidth(1),
+      2: const pw.FlexColumnWidth(1),
+      3: const pw.FlexColumnWidth(1),
+      4: const pw.FlexColumnWidth(1),
+      5: const pw.FlexColumnWidth(1),
+      6: const pw.FlexColumnWidth(1),
     };
 
-    // ── Header cell helper ──
-    pw.Widget hCell(String text, pw.TextStyle style,
-            {PdfColor? bg}) =>
+    pw.Widget hCell(String text, pw.TextStyle style, {PdfColor? bg}) =>
         pw.Container(
           color: bg ?? headerBg,
           alignment: pw.Alignment.center,
@@ -310,11 +302,6 @@ class PaymentCertificatePdfService {
               textDirection: pw.TextDirection.rtl),
         );
 
-    // Merged header using same 7-column layout as data table.
-    // Row 1: pairs are visually merged by hiding the inner border.
-    // Row 2: أسباب cell is empty (visually merged with row 1 above).
-
-    // Row 1 — built as a Row matching colWidths flex proportions (4 + 1*6 = 10)
     final headerRow1Widget = pw.Container(
       decoration: pw.BoxDecoration(
         color: headerBg,
@@ -322,19 +309,16 @@ class PaymentCertificatePdfService {
           top: pw.BorderSide(width: 0.5),
           left: pw.BorderSide(width: 0.5),
           right: pw.BorderSide(width: 0.5),
-          bottom: pw.BorderSide(width: 0.5),
+          bottom: pw.BorderSide(width: 1.5),
         ),
       ),
       child: pw.Row(
         children: [
-          // الصافي (flex 2 = cols 1+2)
           pw.Expanded(
             flex: 2,
             child: pw.Container(
               decoration: const pw.BoxDecoration(
-                border: pw.Border(
-                  left: pw.BorderSide(width: 0.5),
-                ),
+                border: pw.Border(left: pw.BorderSide(width: 0.5)),
               ),
               alignment: pw.Alignment.center,
               padding: const pw.EdgeInsets.all(3),
@@ -344,14 +328,11 @@ class PaymentCertificatePdfService {
                   textDirection: pw.TextDirection.rtl),
             ),
           ),
-          // الخصم (flex 2 = cols 3+4)
           pw.Expanded(
             flex: 2,
             child: pw.Container(
               decoration: const pw.BoxDecoration(
-                border: pw.Border(
-                  left: pw.BorderSide(width: 0.5),
-                ),
+                border: pw.Border(left: pw.BorderSide(width: 0.5)),
               ),
               alignment: pw.Alignment.center,
               padding: const pw.EdgeInsets.all(3),
@@ -361,14 +342,11 @@ class PaymentCertificatePdfService {
                   textDirection: pw.TextDirection.rtl),
             ),
           ),
-          // الدفعة المستحقة (flex 2 = cols 5+6)
           pw.Expanded(
             flex: 2,
             child: pw.Container(
               decoration: const pw.BoxDecoration(
-                border: pw.Border(
-                  left: pw.BorderSide(width: 0.5),
-                ),
+                border: pw.Border(left: pw.BorderSide(width: 0.5)),
               ),
               alignment: pw.Alignment.center,
               padding: const pw.EdgeInsets.all(3),
@@ -378,7 +356,6 @@ class PaymentCertificatePdfService {
                   textDirection: pw.TextDirection.rtl),
             ),
           ),
-          // أسباب (flex 4)
           pw.Expanded(
             flex: 4,
             child: pw.Container(
@@ -394,7 +371,6 @@ class PaymentCertificatePdfService {
       ),
     );
 
-    // Row 2: sub-headers — uses exact same colWidths as data table
     final headerRow2 = pw.Table(
       columnWidths: colWidths,
       border: pw.TableBorder(
@@ -407,7 +383,7 @@ class PaymentCertificatePdfService {
         pw.TableRow(
           decoration: pw.BoxDecoration(color: headerBg),
           children: [
-            hCell('', hSmall), // أسباب (merged with row above)
+            hCell('', hSmall),
             hCell('دينار', hSmall),
             hCell('فلس', hSmall),
             hCell('دينار', hSmall),
@@ -421,7 +397,6 @@ class PaymentCertificatePdfService {
 
     final header = pw.Column(children: [headerRow1Widget, headerRow2]);
 
-    // ── Compute totals ──
     double totalDueDinar = 0, totalDueFils = 0;
     double totalDeductDinar = 0, totalDeductFils = 0;
     double totalNetDinar = 0, totalNetFils = 0;
@@ -434,18 +409,14 @@ class PaymentCertificatePdfService {
       totalNetFils += r.netFils;
     }
 
-    // ── Data rows ──
     final boldDStyle = hBold;
     final redStyle = boldDStyle.copyWith(color: PdfColors.red);
-
-    // Build reason widgets with rich text
     final periodText =
         'من (${_fmtDate(cert.periodFrom)}) إلى (${_fmtDate(cert.periodTo)})';
     final certLabel = cert.extensionPeriodLabel.isNotEmpty
         ? '(الدفعة رقم ${cert.certificateNumber} – ${cert.extensionPeriodLabel}) بناء على شروط العقد'
         : '(الدفعة رقم ${cert.certificateNumber}) بناء على شروط العقد';
 
-    // Row data: [reasonWidget, netD, netF, dedD, dedF, dueD, dueF, isTotalRow]
     final rows = <Map<String, dynamic>>[];
 
     for (final r in cert.paymentRows) {
@@ -471,14 +442,14 @@ class PaymentCertificatePdfService {
         );
       } else if (r.reason.contains('المستحقة') &&
           r.reason.contains('الدفعة')) {
-        reasonWidget = pw.Text(
-            'قيمة الاعمال المستحقة $certLabel',
+        reasonWidget = pw.Text('قيمة الاعمال المستحقة $certLabel',
             style: boldDStyle,
             textDirection: pw.TextDirection.rtl,
             textAlign: pw.TextAlign.center);
       } else {
         reasonWidget = pw.Text(r.reason,
-            style: dStyle, textDirection: pw.TextDirection.rtl,
+            style: dStyle,
+            textDirection: pw.TextDirection.rtl,
             textAlign: pw.TextAlign.center);
       }
 
@@ -496,7 +467,6 @@ class PaymentCertificatePdfService {
       });
     }
 
-    // Total row
     rows.add({
       'reason': pw.Text('الاجمالي',
           style: boldDStyle,
@@ -523,18 +493,16 @@ class PaymentCertificatePdfService {
                 ? pw.BoxDecoration(color: PdfColor.fromHex('#FDE9D9'))
                 : null,
             children: [
-              // Reason column (index 0 in table = rightmost visually)
               pw.Container(
-                padding: const pw.EdgeInsets.symmetric(
-                    vertical: 4, horizontal: 4),
+                padding:
+                    const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 4),
                 alignment: pw.Alignment.center,
                 child: row['reason'] as pw.Widget,
               ),
-              // Value columns
               for (final v in (row['values'] as List<String>))
                 pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(
-                      vertical: 4, horizontal: 4),
+                  padding:
+                      const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 4),
                   alignment: pw.Alignment.center,
                   child: pw.Text(v,
                       style: dStyle,
@@ -548,7 +516,6 @@ class PaymentCertificatePdfService {
 
     return pw.Column(children: [header, dataTable]);
   }
-
 
   // ── 6. Attachments ──────────────────────────────────────────────────
 
@@ -564,7 +531,7 @@ class PaymentCertificatePdfService {
             border: pw.TableBorder.all(width: 0.5),
             columnWidths: {
               0: const pw.FlexColumnWidth(1),
-              1: const pw.FixedColumnWidth(40),
+              1: const pw.FixedColumnWidth(30),
             },
             children: [
               for (int i = 0; i < checked.length; i++)
@@ -575,14 +542,16 @@ class PaymentCertificatePdfService {
                           horizontal: 6, vertical: 3),
                       alignment: pw.Alignment.centerRight,
                       child: pw.Text(checked[i].key,
-                          style: base, textDirection: pw.TextDirection.rtl),
+                          style: base,
+                          textDirection: pw.TextDirection.rtl),
                     ),
                     pw.Container(
                       padding: const pw.EdgeInsets.symmetric(
                           horizontal: 6, vertical: 3),
                       alignment: pw.Alignment.center,
-                      child: pw.Text('.${i + 1}',
-                          style: base, textDirection: pw.TextDirection.rtl),
+                      child: pw.Text('${i + 1}.',
+                          style: base,
+                          textDirection: pw.TextDirection.rtl),
                     ),
                   ],
                 ),
@@ -595,9 +564,8 @@ class PaymentCertificatePdfService {
 
   // ── 7. Signatures ───────────────────────────────────────────────────
 
-  static pw.Widget _buildSignaturesTable(
-      PaymentCertificate cert, pw.TextStyle bold, pw.TextStyle base) {
-    pw.Widget sigBlock(String title, String name) {
+  static pw.Widget _buildSignaturesTable(pw.TextStyle bold) {
+    pw.Widget sigBlock(String title) {
       return pw.Expanded(
         child: pw.Container(
           height: 100,
@@ -606,11 +574,10 @@ class PaymentCertificatePdfService {
             children: [
               pw.Container(
                 width: double.infinity,
-                padding: const pw.EdgeInsets.symmetric(
-                    horizontal: 6, vertical: 4),
+                padding:
+                    const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: const pw.BoxDecoration(
-                  border: pw.Border(
-                      bottom: pw.BorderSide(width: 0.5)),
+                  border: pw.Border(bottom: pw.BorderSide(width: 0.5)),
                 ),
                 child: pw.Text(title,
                     style: bold,
@@ -626,13 +593,13 @@ class PaymentCertificatePdfService {
 
     return pw.Row(
       children: [
-        sigBlock('رئيس القسم المختص', cert.deptHead),
+        sigBlock('رئيس القسم المختص'),
         pw.SizedBox(width: 10),
-        sigBlock('المراقب المختص', cert.controller),
+        sigBlock('المراقب المختص'),
         pw.SizedBox(width: 10),
-        sigBlock('المدير المختص', cert.director),
+        sigBlock('المدير المختص'),
         pw.SizedBox(width: 10),
-        sigBlock('المدقق / المحاسب', cert.auditor),
+        sigBlock('المدقق / المحاسب'),
       ],
     );
   }
