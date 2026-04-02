@@ -1,0 +1,57 @@
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 6px;">
+  <tr>
+    <td style="width: 25%; border: 0.5px solid black; padding: 3px 4px; font-weight: bold;">عقد رقم {{contractNumber}}</td>
+    <td style="width: 75%; border: 0.5px solid black; padding: 3px 4px; font-weight: bold; background-color: #DCE6F1;">الموضوع: {{subject}}</td>
+  </tr>
+</table>
+
+<table style="border-collapse: collapse; width: 100%; border: 2.5px solid black; margin-bottom: 6px;">
+  <tr>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center;">{{invoiceAmount}} {{currency}}</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; font-weight: bold;">مبلغ الفاتورة:</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center;">{{invoiceNumber}}</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; font-weight: bold;">رقم الفاتورة:</td>
+  </tr>
+  <tr>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center;">{{periodTo}}</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; font-weight: bold;">إلى</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center;">من {{periodFrom}}</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; font-weight: bold;">فترة الفاتورة:</td>
+  </tr>
+</table>
+
+<table style="border-collapse: collapse; width: 100%; margin-bottom: 6px;">
+  <tr>
+    <td style="width: 24.4%; border: 0.5px solid black; padding: 3px 4px; text-align: center;">{{supervisingEntity}}</td>
+    <td style="width: 19.5%; border: 0.5px solid black; padding: 3px 4px; text-align: center; font-weight: bold; background-color: #DCE6F1;">الجهة المشرفة:</td>
+    <td style="width: 36.6%; border: 0.5px solid black; padding: 3px 4px; text-align: center;">{{executingEntity}}</td>
+    <td style="width: 19.5%; border: 0.5px solid black; padding: 3px 4px; text-align: center; font-weight: bold; background-color: #DCE6F1;">الجهة المنفذة:</td>
+  </tr>
+  <tr>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center;">({{extensionValue}} د.ك)</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center; font-weight: bold; background-color: #DCE6F1;">قيمة التمديد:</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center;">({{originalValueKwd}} د.ك)</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center; font-weight: bold; background-color: #DCE6F1;">قيمة العقد الأصلي:</td>
+  </tr>
+  <tr>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center;">{{extensionDuration}}</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center; font-weight: bold; background-color: #DCE6F1;">مدة تمديد العقد:</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center;">{{contractDuration}}</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center; font-weight: bold; background-color: #DCE6F1;">مدة العقد:</td>
+  </tr>
+  <tr>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center;">{{workCommencementDate}}</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center; font-weight: bold; background-color: #DCE6F1;">تاريخ تسليم الموقع:</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center;">{{contractSigningDate}}</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center; font-weight: bold; background-color: #DCE6F1;">توقيع العقد:</td>
+  </tr>
+  <tr>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center;">{{contractEndDate}}</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center; font-weight: bold; background-color: #DCE6F1;">نهاية العقد:</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center;">{{contractStartDate}}</td>
+    <td style="border: 0.5px solid black; padding: 3px 4px; text-align: center; font-weight: bold; background-color: #DCE6F1;">بداية العقد:</td>
+  </tr>
+  {{extensionRows}}
+</table>
+PAYMENT_TABLE_PLACEHOLDER<p style="font-size: 12px; font-weight: bold; margin-bottom: 4px;">المرفقات:</p>
+{{attachmentsTable}}
