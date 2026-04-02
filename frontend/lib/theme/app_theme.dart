@@ -123,74 +123,112 @@ class AppShadows {
 class AppColors {
   // ── Mode flag ──────────────────────────────────────────────────────────────
   static bool _dark = false;
-  static void setDark(bool v) { _dark = v; }
+  static void setDark(bool v) {
+    _dark = v;
+  }
+
   static bool get isDark => _dark;
 
   // ── Backgrounds ────────────────────────────────────────────────────────────
-  static Color get bgPrimary  => _dark ? const Color(0xFF1A1917) : const Color(0xFFFAF9F7);
-  static Color get bgSurface  => _dark ? const Color(0xFF212120) : const Color(0xFFFFFFFF);
-  static Color get bgSurface2 => _dark ? const Color(0xFF2A2A28) : const Color(0xFFF5F4F0);
-  static Color get bgSurface3 => _dark ? const Color(0xFF343430) : const Color(0xFFECEBE6);
+  static Color get bgPrimary =>
+      _dark ? const Color(0xFF1A1917) : const Color(0xFFFAF9F7);
+  static Color get bgSurface =>
+      _dark ? const Color(0xFF212120) : const Color(0xFFFFFFFF);
+  static Color get bgSurface2 =>
+      _dark ? const Color(0xFF2A2A28) : const Color(0xFFF5F4F0);
+  static Color get bgSurface3 =>
+      _dark ? const Color(0xFF343430) : const Color(0xFFECEBE6);
 
   // ── Text ───────────────────────────────────────────────────────────────────
-  static Color get textPrimary   => _dark ? const Color(0xFFEDEDEA) : const Color(0xFF1A1915);
-  static Color get textSecondary => _dark ? const Color(0xFF9B9A96) : const Color(0xFF5C5650);
-  static Color get textTertiary  => _dark ? const Color(0xFF7A7774) : const Color(0xFF756F68);
+  static Color get textPrimary =>
+      _dark ? const Color(0xFFEDEDEA) : const Color(0xFF1A1915);
+  static Color get textSecondary =>
+      _dark ? const Color(0xFF9B9A96) : const Color(0xFF5C5650);
+  static Color get textTertiary =>
+      _dark ? const Color(0xFF7A7774) : const Color(0xFF756F68);
 
   // ── Accent (terracotta — unchanged across modes) ──────────────────────────
   static const Color accent = Color(0xFFCC785C);
-  static Color get accentBg => _dark ? const Color(0xFF2C1F1A) : const Color(0xFFF5EBE6);
+  static Color get accentBg =>
+      _dark ? const Color(0xFF2C1F1A) : const Color(0xFFF5EBE6);
 
   // ── Borders ────────────────────────────────────────────────────────────────
-  static Color get border  => _dark ? const Color(0x12FFFFFF) : const Color(0x14000000);
-  static Color get border2 => _dark ? const Color(0x1CFFFFFF) : const Color(0x1F000000);
+  static Color get border =>
+      _dark ? const Color(0x12FFFFFF) : const Color(0x14000000);
+  static Color get border2 =>
+      _dark ? const Color(0x1CFFFFFF) : const Color(0x1F000000);
 
   // ── Status ─────────────────────────────────────────────────────────────────
-  static Color get pendingText    => _dark ? const Color(0xFFFDE68A) : const Color(0xFF92400E);
-  static Color get pendingBg      => _dark ? const Color(0xFF78350F) : const Color(0xFFFDE68A);
-  static Color get inProgressText => _dark ? const Color(0xFFBFDBFE) : const Color(0xFF1E40AF);
-  static Color get inProgressBg   => _dark ? const Color(0xFF1E3A8A) : const Color(0xFFBFDBFE);
-  static Color get closedText     => _dark ? const Color(0xFFDCFCE7) : const Color(0xFF15803D);
-  static Color get closedBg       => _dark ? const Color(0xFF14532D) : const Color(0xFFDCFCE7);
+  static Color get pendingText =>
+      _dark ? const Color(0xFFFDE68A) : const Color(0xFF92400E);
+  static Color get pendingBg =>
+      _dark ? const Color(0xFF78350F) : const Color(0xFFFDE68A);
+  static Color get inProgressText =>
+      _dark ? const Color(0xFFBFDBFE) : const Color(0xFF1E40AF);
+  static Color get inProgressBg =>
+      _dark ? const Color(0xFF1E3A8A) : const Color(0xFFBFDBFE);
+  static Color get closedText =>
+      _dark ? const Color(0xFFDCFCE7) : const Color(0xFF15803D);
+  static Color get closedBg =>
+      _dark ? const Color(0xFF14532D) : const Color(0xFFDCFCE7);
 
   // ── Danger ─────────────────────────────────────────────────────────────────
-  static const Color dangerText   = Color(0xFFDC2626);
-  static Color get dangerBg     => _dark ? const Color(0xFF2A0A0A) : const Color(0xFFFEF2F2);
-  static Color get dangerBorder => _dark ? const Color(0xFF7F1D1D) : const Color(0xFFFECACA);
+  static const Color dangerText = Color(0xFFDC2626);
+  static Color get dangerBg =>
+      _dark ? const Color(0xFF2A0A0A) : const Color(0xFFFEF2F2);
+  static Color get dangerBorder =>
+      _dark ? const Color(0xFF7F1D1D) : const Color(0xFFFECACA);
 }
 
 class AppTheme {
   static TextTheme _buildTextTheme(String fontFamily) {
     final base = switch (fontFamily) {
-      'DM Sans'  => GoogleFonts.dmSansTextTheme(),
-      'Roboto'   => GoogleFonts.robotoTextTheme(),
-      'Poppins'  => GoogleFonts.poppinsTextTheme(),
-      'Lato'     => GoogleFonts.latoTextTheme(),
-      'Nunito'   => GoogleFonts.nunitoTextTheme(),
-      'Inter'    => GoogleFonts.interTextTheme(),
-      _          => GoogleFonts.interTextTheme(),
+      'DM Sans' => GoogleFonts.dmSansTextTheme(),
+      'Roboto' => GoogleFonts.robotoTextTheme(),
+      'Poppins' => GoogleFonts.poppinsTextTheme(),
+      'Lato' => GoogleFonts.latoTextTheme(),
+      'Nunito' => GoogleFonts.nunitoTextTheme(),
+      'Inter' => GoogleFonts.interTextTheme(),
+      _ => GoogleFonts.interTextTheme(),
     };
     return base;
   }
 
-  static ThemeData light([Color accent = AppColors.accent, String fontFamily = 'DM Sans']) =>
-      _build(Brightness.light, accent, fontFamily);
+  static ThemeData light([
+    Color accent = AppColors.accent,
+    String fontFamily = 'DM Sans',
+    double fontScale = 1.0,
+  ]) =>
+      _build(Brightness.light, accent, fontFamily, fontScale);
 
-  static ThemeData dark([Color accent = AppColors.accent, String fontFamily = 'DM Sans']) =>
-      _build(Brightness.dark, accent, fontFamily);
+  static ThemeData dark([
+    Color accent = AppColors.accent,
+    String fontFamily = 'DM Sans',
+    double fontScale = 1.0,
+  ]) =>
+      _build(Brightness.dark, accent, fontFamily, fontScale);
 
-  static ThemeData _build(Brightness brightness, Color accent, String fontFamily) {
+  static ThemeData _build(
+    Brightness brightness,
+    Color accent,
+    String fontFamily,
+    double fontScale,
+  ) {
     final isDark = brightness == Brightness.dark;
     final base = _buildTextTheme(fontFamily);
 
-    final bgPrimary   = isDark ? const Color(0xFF1A1917) : const Color(0xFFFAF9F7);
-    final bgSurface   = isDark ? const Color(0xFF212120) : const Color(0xFFFFFFFF);
-    final bgSurface2  = isDark ? const Color(0xFF2A2A28) : const Color(0xFFF5F4F0);
-    final textPrimary = isDark ? const Color(0xFFEDEDEA) : const Color(0xFF1A1915);
-    final textSec     = isDark ? const Color(0xFF9B9A96) : const Color(0xFF5C5650);
-    final textTert    = isDark ? const Color(0xFF7A7774) : const Color(0xFF756F68);
-    final border      = isDark ? const Color(0x12FFFFFF) : const Color(0x14000000);
-    final border2     = isDark ? const Color(0x1CFFFFFF) : const Color(0x1F000000);
+    final bgPrimary =
+        isDark ? const Color(0xFF1A1917) : const Color(0xFFFAF9F7);
+    final bgSurface =
+        isDark ? const Color(0xFF212120) : const Color(0xFFFFFFFF);
+    final bgSurface2 =
+        isDark ? const Color(0xFF2A2A28) : const Color(0xFFF5F4F0);
+    final textPrimary =
+        isDark ? const Color(0xFFEDEDEA) : const Color(0xFF1A1915);
+    final textSec = isDark ? const Color(0xFF9B9A96) : const Color(0xFF5C5650);
+    final textTert = isDark ? const Color(0xFF7A7774) : const Color(0xFF756F68);
+    final border = isDark ? const Color(0x12FFFFFF) : const Color(0x14000000);
+    final border2 = isDark ? const Color(0x1CFFFFFF) : const Color(0x1F000000);
 
     return ThemeData(
       useMaterial3: true,
@@ -214,13 +252,46 @@ class AppTheme {
       fontFamily: fontFamily,
       fontFamilyFallback: const ['Calibri'],
       textTheme: base.copyWith(
-        displayLarge: base.displayLarge?.copyWith(fontSize: 28, fontWeight: FontWeight.w600, color: textPrimary, letterSpacing: -0.5, fontFamilyFallback: const ['Calibri']),
-        titleLarge:   base.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.w600, color: textPrimary, letterSpacing: -0.3, fontFamilyFallback: const ['Calibri']),
-        titleMedium:  base.titleMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w600, color: textPrimary, fontFamilyFallback: const ['Calibri']),
-        bodyLarge:    base.bodyLarge?.copyWith(fontSize: 14, fontWeight: FontWeight.w400, color: textPrimary, height: 1.5, fontFamilyFallback: const ['Calibri']),
-        bodyMedium:   base.bodyMedium?.copyWith(fontSize: 13, fontWeight: FontWeight.w400, color: textSec, height: 1.5, fontFamilyFallback: const ['Calibri']),
-        bodySmall:    base.bodySmall?.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: textTert, fontFamilyFallback: const ['Calibri']),
-        labelSmall:   base.labelSmall?.copyWith(fontSize: 10, fontWeight: FontWeight.w500, color: textTert, letterSpacing: 0.06, fontFamilyFallback: const ['Calibri']),
+        displayLarge: base.displayLarge?.copyWith(
+            fontSize: 28 * fontScale,
+            fontWeight: FontWeight.w600,
+            color: textPrimary,
+            letterSpacing: -0.5,
+            fontFamilyFallback: const ['Calibri']),
+        titleLarge: base.titleLarge?.copyWith(
+            fontSize: 20 * fontScale,
+            fontWeight: FontWeight.w600,
+            color: textPrimary,
+            letterSpacing: -0.3,
+            fontFamilyFallback: const ['Calibri']),
+        titleMedium: base.titleMedium?.copyWith(
+            fontSize: 16 * fontScale,
+            fontWeight: FontWeight.w600,
+            color: textPrimary,
+            fontFamilyFallback: const ['Calibri']),
+        bodyLarge: base.bodyLarge?.copyWith(
+            fontSize: 14 * fontScale,
+            fontWeight: FontWeight.w400,
+            color: textPrimary,
+            height: 1.5,
+            fontFamilyFallback: const ['Calibri']),
+        bodyMedium: base.bodyMedium?.copyWith(
+            fontSize: 13 * fontScale,
+            fontWeight: FontWeight.w400,
+            color: textSec,
+            height: 1.5,
+            fontFamilyFallback: const ['Calibri']),
+        bodySmall: base.bodySmall?.copyWith(
+            fontSize: 11 * fontScale,
+            fontWeight: FontWeight.w400,
+            color: textTert,
+            fontFamilyFallback: const ['Calibri']),
+        labelSmall: base.labelSmall?.copyWith(
+            fontSize: 10 * fontScale,
+            fontWeight: FontWeight.w500,
+            color: textTert,
+            letterSpacing: 0.06,
+            fontFamilyFallback: const ['Calibri']),
       ),
       cardTheme: CardThemeData(
         elevation: 0,
@@ -234,12 +305,19 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: bgSurface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: border2, width: 0.5)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: border2, width: 0.5)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: accent, width: 2)),
-        hintStyle: TextStyle(color: textTert, fontSize: 13),
-        labelStyle: TextStyle(color: textSec, fontSize: 11),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: border2, width: 0.5)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: border2, width: 0.5)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: accent, width: 2)),
+        hintStyle: TextStyle(color: textTert, fontSize: 13 * fontScale),
+        labelStyle: TextStyle(color: textSec, fontSize: 11 * fontScale),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -247,8 +325,10 @@ class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          textStyle:
+              TextStyle(fontSize: 13 * fontScale, fontWeight: FontWeight.w500),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -256,14 +336,19 @@ class AppTheme {
           foregroundColor: textPrimary,
           side: BorderSide(color: border2, width: 0.5),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          textStyle:
+              TextStyle(fontSize: 13 * fontScale, fontWeight: FontWeight.w500),
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: bgSurface2,
         selectedColor: textPrimary,
-        labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textSec),
+        labelStyle: TextStyle(
+            fontSize: 12 * fontScale,
+            fontWeight: FontWeight.w500,
+            color: textSec),
         side: BorderSide(color: border2, width: 0.5),
         shape: const StadiumBorder(),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -272,12 +357,20 @@ class AppTheme {
         backgroundColor: bgSurface,
         indicatorColor: accent.withValues(alpha: 0.12),
         iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return IconThemeData(color: accent, size: 22);
+          if (states.contains(WidgetState.selected))
+            return IconThemeData(color: accent, size: 22);
           return IconThemeData(color: textTert, size: 22);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: accent);
-          return TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: textTert);
+          if (states.contains(WidgetState.selected))
+            return TextStyle(
+                fontSize: 10 * fontScale,
+                fontWeight: FontWeight.w500,
+                color: accent);
+          return TextStyle(
+              fontSize: 10 * fontScale,
+              fontWeight: FontWeight.w500,
+              color: textTert);
         }),
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
@@ -289,7 +382,11 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         foregroundColor: textPrimary,
-        titleTextStyle: GoogleFonts.getFont(fontFamily, textStyle: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textPrimary)),
+        titleTextStyle: GoogleFonts.getFont(fontFamily,
+            textStyle: TextStyle(
+                fontSize: 17 * fontScale,
+                fontWeight: FontWeight.w600,
+                color: textPrimary)),
         iconTheme: IconThemeData(color: textSec, size: 20),
         surfaceTintColor: Colors.transparent,
       ),

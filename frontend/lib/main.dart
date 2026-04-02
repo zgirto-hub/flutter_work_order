@@ -42,8 +42,16 @@ class _MyAppState extends State<MyApp> {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'Work Order',
-          theme: AppTheme.light(themeController.color, themeController.fontFamily),
-          darkTheme: AppTheme.dark(themeController.color, themeController.fontFamily),
+          theme: AppTheme.light(
+            themeController.color,
+            themeController.fontFamily,
+            themeController.fontScale,
+          ),
+          darkTheme: AppTheme.dark(
+            themeController.color,
+            themeController.fontFamily,
+            themeController.fontScale,
+          ),
           themeMode: themeController.mode,
           home: FutureBuilder<void>(
             future: _supabaseReady,
@@ -128,11 +136,11 @@ class _TicketCard extends StatelessWidget {
   const _TicketCard();
 
   static const _terracotta = Color(0xFFCC785C);
-  static const _cream      = Color(0xFFFAF9F7);
-  static const _white      = Color(0xFFFFFFFF);
-  static const _textDark   = Color(0xFF1A1915);
-  static const _textLight  = Color(0xFF9B9A96);
-  static const _divider    = Color(0xFFE8E6E0);
+  static const _cream = Color(0xFFFAF9F7);
+  static const _white = Color(0xFFFFFFFF);
+  static const _textDark = Color(0xFF1A1915);
+  static const _textLight = Color(0xFF9B9A96);
+  static const _divider = Color(0xFFE8E6E0);
 
   @override
   Widget build(BuildContext context) {
@@ -194,9 +202,9 @@ class _TicketCard extends StatelessWidget {
   }
 
   Widget _buildDash() => SizedBox(
-    width: 1,
-    child: CustomPaint(painter: _DashPainter(_divider)),
-  );
+        width: 1,
+        child: CustomPaint(painter: _DashPainter(_divider)),
+      );
 
   Widget _buildContent() {
     return Column(
@@ -306,11 +314,11 @@ class _TicketCard extends StatelessWidget {
   }
 
   static TextStyle _labelStyle() => const TextStyle(
-    fontSize: 7,
-    fontWeight: FontWeight.w800,
-    color: _textLight,
-    letterSpacing: 1.5,
-  );
+        fontSize: 7,
+        fontWeight: FontWeight.w800,
+        color: _textLight,
+        letterSpacing: 1.5,
+      );
 }
 
 // ── Painters ─────────────────────────────────────────────────────────────────
@@ -349,7 +357,7 @@ class _AsteriskPainter extends CustomPainter {
 
     final cx = size.width / 2;
     final cy = size.height / 2;
-    final r  = size.width * 0.31;
+    final r = size.width * 0.31;
 
     for (int i = 0; i < 6; i++) {
       final a = (i * 60 - 90) * pi / 180;
@@ -385,7 +393,8 @@ class AuthWrapper extends StatelessWidget {
         final session = snapshot.data?.session;
         final child = session == null
             ? const LoginScreen(key: ValueKey('login'))
-            : MainScreen(key: const ValueKey('main'), themeController: themeController);
+            : MainScreen(
+                key: const ValueKey('main'), themeController: themeController);
 
         // 620px card shell for login / main app
         return Container(
@@ -410,7 +419,8 @@ class AuthWrapper extends StatelessWidget {
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 350),
                   transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+                    opacity: CurvedAnimation(
+                        parent: animation, curve: Curves.easeOut),
                     child: child,
                   ),
                   child: child,
