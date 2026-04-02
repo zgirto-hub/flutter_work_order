@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from db import supabase
 
 router = APIRouter()
@@ -254,12 +254,12 @@ async def get_uptime_report(
 
     systems_to_check = [system_name] if system_name and system_name in ALLOWED_SYSTEMS else ALLOWED_SYSTEMS
 
-    # Fetch all reports in the date range
+    # Fetch all reports whose downtime span overlaps the date range
     query = (
         supabase.table("system_status_reports")
-        .select("system_name, report_date")
-        .gte("report_date", start_date)
+        .select("system_name, report_date, resolved_at")
         .lte("report_date", end_date)
+        .or_(f"resolved_at.gte.{start_date},resolved_at.is.null")
     )
     if system_name and system_name in ALLOWED_SYSTEMS:
         query = query.eq("system_name", system_name)
@@ -267,13 +267,26 @@ async def get_uptime_report(
     result = query.execute()
     reports = result.data or []
 
-    # Count distinct days with issues per system
-    issues_by_system: dict[str, set[str]] = {}
+    # Count distinct downtime days per system, spreading each issue
+    # from report_date to resolved_at (or today), clamped to [sd, ed]
+    today = date.today()
+    issues_by_system: dict[str, set[date]] = {}
     for r in reports:
         sn = r["system_name"]
         if sn not in issues_by_system:
             issues_by_system[sn] = set()
-        issues_by_system[sn].add(r["report_date"])
+
+        issue_start = max(date.fromisoformat(r["report_date"]), sd)
+        if r.get("resolved_at"):
+            resolved_date = date.fromisoformat(r["resolved_at"][:10])
+            issue_end = min(resolved_date, ed)
+        else:
+            issue_end = min(today, ed)
+
+        d = issue_start
+        while d <= issue_end:
+            issues_by_system[sn].add(d)
+            d += timedelta(days=1)
 
     report_data = []
     for sn in systems_to_check:
