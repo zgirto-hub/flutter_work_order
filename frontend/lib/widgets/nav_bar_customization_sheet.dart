@@ -117,7 +117,11 @@ class _NavBarCustomizationSheetState extends State<NavBarCustomizationSheet> {
           const SizedBox(height: 16),
 
           // Screen list
-          ...available.map((screen) {
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              children: available.map((screen) {
             final isPinned = _pinned.contains(screen.key);
             final isFull = _pinned.length >= _maxPinned && !isPinned;
 
@@ -205,7 +209,9 @@ class _NavBarCustomizationSheetState extends State<NavBarCustomizationSheet> {
                 ),
               ),
             );
-          }),
+          }).toList(),
+            ),
+          ),
 
           const SizedBox(height: 8),
         ],
