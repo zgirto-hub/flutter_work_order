@@ -197,22 +197,19 @@ class AppTheme {
   static ThemeData light([
     Color accent = AppColors.accent,
     String fontFamily = 'DM Sans',
-    double fontScale = 1.0,
   ]) =>
-      _build(Brightness.light, accent, fontFamily, fontScale);
+      _build(Brightness.light, accent, fontFamily);
 
   static ThemeData dark([
     Color accent = AppColors.accent,
     String fontFamily = 'DM Sans',
-    double fontScale = 1.0,
   ]) =>
-      _build(Brightness.dark, accent, fontFamily, fontScale);
+      _build(Brightness.dark, accent, fontFamily);
 
   static ThemeData _build(
     Brightness brightness,
     Color accent,
     String fontFamily,
-    double fontScale,
   ) {
     final isDark = brightness == Brightness.dark;
     final base = _buildTextTheme(fontFamily);
@@ -253,41 +250,41 @@ class AppTheme {
       fontFamilyFallback: const ['Calibri'],
       textTheme: base.copyWith(
         displayLarge: base.displayLarge?.copyWith(
-            fontSize: 28 * fontScale,
+            fontSize: 28,
             fontWeight: FontWeight.w600,
             color: textPrimary,
             letterSpacing: -0.5,
             fontFamilyFallback: const ['Calibri']),
         titleLarge: base.titleLarge?.copyWith(
-            fontSize: 20 * fontScale,
+            fontSize: 20,
             fontWeight: FontWeight.w600,
             color: textPrimary,
             letterSpacing: -0.3,
             fontFamilyFallback: const ['Calibri']),
         titleMedium: base.titleMedium?.copyWith(
-            fontSize: 16 * fontScale,
+            fontSize: 16,
             fontWeight: FontWeight.w600,
             color: textPrimary,
             fontFamilyFallback: const ['Calibri']),
         bodyLarge: base.bodyLarge?.copyWith(
-            fontSize: 14 * fontScale,
+            fontSize: 14,
             fontWeight: FontWeight.w400,
             color: textPrimary,
             height: 1.5,
             fontFamilyFallback: const ['Calibri']),
         bodyMedium: base.bodyMedium?.copyWith(
-            fontSize: 13 * fontScale,
+            fontSize: 13,
             fontWeight: FontWeight.w400,
             color: textSec,
             height: 1.5,
             fontFamilyFallback: const ['Calibri']),
         bodySmall: base.bodySmall?.copyWith(
-            fontSize: 11 * fontScale,
+            fontSize: 11,
             fontWeight: FontWeight.w400,
             color: textTert,
             fontFamilyFallback: const ['Calibri']),
         labelSmall: base.labelSmall?.copyWith(
-            fontSize: 10 * fontScale,
+            fontSize: 10,
             fontWeight: FontWeight.w500,
             color: textTert,
             letterSpacing: 0.06,
@@ -316,8 +313,8 @@ class AppTheme {
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(color: accent, width: 2)),
-        hintStyle: TextStyle(color: textTert, fontSize: 13 * fontScale),
-        labelStyle: TextStyle(color: textSec, fontSize: 11 * fontScale),
+        hintStyle: TextStyle(color: textTert, fontSize: 13),
+        labelStyle: TextStyle(color: textSec, fontSize: 11),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -328,7 +325,7 @@ class AppTheme {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           textStyle:
-              TextStyle(fontSize: 13 * fontScale, fontWeight: FontWeight.w500),
+              TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -339,14 +336,14 @@ class AppTheme {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           textStyle:
-              TextStyle(fontSize: 13 * fontScale, fontWeight: FontWeight.w500),
+              TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: bgSurface2,
         selectedColor: textPrimary,
         labelStyle: TextStyle(
-            fontSize: 12 * fontScale,
+            fontSize: 12,
             fontWeight: FontWeight.w500,
             color: textSec),
         side: BorderSide(color: border2, width: 0.5),
@@ -364,11 +361,11 @@ class AppTheme {
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected))
             return TextStyle(
-                fontSize: 10 * fontScale,
+                fontSize: 10,
                 fontWeight: FontWeight.w500,
                 color: accent);
           return TextStyle(
-              fontSize: 10 * fontScale,
+              fontSize: 10,
               fontWeight: FontWeight.w500,
               color: textTert);
         }),
@@ -384,7 +381,7 @@ class AppTheme {
         foregroundColor: textPrimary,
         titleTextStyle: GoogleFonts.getFont(fontFamily,
             textStyle: TextStyle(
-                fontSize: 17 * fontScale,
+                fontSize: 17,
                 fontWeight: FontWeight.w600,
                 color: textPrimary)),
         iconTheme: IconThemeData(color: textSec, size: 20),
