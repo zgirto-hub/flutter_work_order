@@ -359,6 +359,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
   void _showResolveSheet(SystemStatusReport report) {
     final notesCtrl = TextEditingController();
     bool resolving = false;
+    DateTime selectedResolveDate = DateTime.now();
 
     showModalBottomSheet(
       context: context,
@@ -430,18 +431,65 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                 style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 16),
+              Text(
+                'Resolve Date',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () async {
+                  final reportDate =
+                      DateTime.tryParse(report.reportDate) ?? DateTime(2024);
+                  final picked = await showDatePicker(
+                    context: ctx,
+                    initialDate: selectedResolveDate,
+                    firstDate: reportDate,
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null) {
+                    setSheet(() => selectedResolveDate = picked);
+                  }
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface2,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.border2),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today,
+                          size: 16, color: AppColors.textSecondary),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${selectedResolveDate.year}-${selectedResolveDate.month.toString().padLeft(2, '0')}-${selectedResolveDate.day.toString().padLeft(2, '0')}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: resolving
                       ? null
                       : () async {
+                          final resolveDateStr =
+                              '${selectedResolveDate.year}-${selectedResolveDate.month.toString().padLeft(2, '0')}-${selectedResolveDate.day.toString().padLeft(2, '0')}';
                           setSheet(() => resolving = true);
                           try {
                             await _service.resolveIssue(
                               reportId: report.id,
                               resolvedBy: _email,
                               resolvedNotes: notesCtrl.text.trim(),
+                              resolvedAt: resolveDateStr,
                             );
                             if (!mounted) return;
                             Navigator.pop(ctx);
@@ -489,6 +537,10 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
     final notesController = TextEditingController(text: report.notes);
     DateTime selectedDate =
         DateTime.tryParse(report.reportDate) ?? DateTime.now();
+    DateTime? selectedResolveDate =
+        report.isResolved && report.resolvedAt != null
+            ? DateTime.tryParse(report.resolvedAt!)
+            : null;
 
     showModalBottomSheet(
       context: context,
@@ -595,6 +647,61 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              if (report.isResolved) ...[
+                Text(
+                  'Resolve Date',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () async {
+                    final initialResolveDate = selectedResolveDate != null &&
+                            !selectedResolveDate!.isBefore(selectedDate)
+                        ? selectedResolveDate!
+                        : selectedDate;
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: initialResolveDate,
+                      firstDate: selectedDate,
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) {
+                      setSheetState(() => selectedResolveDate = picked);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSurface2,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.border2),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.calendar_today,
+                            size: 16, color: AppColors.textSecondary),
+                        const SizedBox(width: 8),
+                        Text(
+                          selectedResolveDate != null
+                              ? '${selectedResolveDate!.year}-${selectedResolveDate!.month.toString().padLeft(2, '0')}-${selectedResolveDate!.day.toString().padLeft(2, '0')}'
+                              : 'Select a resolve date',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Save button
               SizedBox(
@@ -603,11 +710,15 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
                   onPressed: () async {
                     final dateStr =
                         '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+                    final resolveDateStr = selectedResolveDate != null
+                        ? '${selectedResolveDate!.year}-${selectedResolveDate!.month.toString().padLeft(2, '0')}-${selectedResolveDate!.day.toString().padLeft(2, '0')}'
+                        : null;
                     try {
                       await _service.updateIssue(
                         reportId: report.id,
                         notes: notesController.text.trim(),
                         reportDate: dateStr,
+                        resolvedAt: resolveDateStr,
                       );
                       if (!mounted) return;
                       Navigator.pop(ctx);

@@ -56,8 +56,14 @@ backend/version.json
 # Python
 venv/
 backend/venv/
+.venv/
 __pycache__/
 *.pyc
+dist/
+*.egg-info/
+
+# Environment files
+.env*
 
 # Flutter
 frontend/build/

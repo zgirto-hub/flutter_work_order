@@ -116,8 +116,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       limit: _pageSize,
       offset: 0,
     );
-    await _refreshUnreadNotifications(playSoundIfIncreased: false);
     if (!mounted) return;
+    _refreshUnreadNotifications(playSoundIfIncreased: false);
     final oldIds = _workOrders.map((wo) => wo.id).toSet();
     final newIds = result.items.map((wo) => wo.id).toSet();
     setState(() {

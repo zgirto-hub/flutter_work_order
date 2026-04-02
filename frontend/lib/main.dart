@@ -2,6 +2,7 @@ import 'dart:math' show cos, sin, pi;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/main_screen.dart';
 import 'screens/login_screen.dart';
@@ -10,35 +11,48 @@ import 'theme/theme_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  GoogleFonts.config.allowRuntimeFetching = false;
   await dotenv.load(fileName: '.env');
+  runApp(MyApp());
+}
+
+Future<void> _initSupabase() async {
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
-  runApp(MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   MyApp({super.key});
 
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
   final ThemeController themeController = ThemeController();
+  late final Future<void> _supabaseReady = _initSupabase();
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: themeController,
       builder: (context, _) {
-        return MediaQuery(
-          data: MediaQueryData.fromView(View.of(context)).copyWith(
-            textScaler: TextScaler.linear(themeController.fontScale),
-          ),
-          child: MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'Work Order',
-            theme: AppTheme.light(themeController.color, themeController.fontFamily),
-            darkTheme: AppTheme.dark(themeController.color, themeController.fontFamily),
-            themeMode: themeController.mode,
-            home: AuthWrapper(themeController: themeController),
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Work Order',
+          theme: AppTheme.light(themeController.color, themeController.fontFamily),
+          darkTheme: AppTheme.dark(themeController.color, themeController.fontFamily),
+          themeMode: themeController.mode,
+          home: FutureBuilder<void>(
+            future: _supabaseReady,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const _SplashScreen();
+              }
+              return AuthWrapper(themeController: themeController);
+            },
           ),
         );
       },

@@ -79,10 +79,7 @@ class _MainScreenState extends State<MainScreen> {
       _index = 0;
       _roleLoaded = true;
     });
-    try {
-      await ActivityLogService().logSignIn(email);
-    } catch (_) {}
-
+    ActivityLogService().logSignIn(email).catchError((_) {});
     _refreshWOCount();
     _startPolling();
     OneSignalService.subscribe(email, _userRole);
@@ -105,41 +102,46 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _startPolling() {
-    _pollTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
-      try {
-        final res = await http.get(
-          Uri.parse('${AppConfig.baseUrl}/work-orders/count?email=${Uri.encodeComponent(_email)}&user_role=${Uri.encodeComponent(_userRole)}'),
-        );
-        if (!mounted) return;
-        if (res.statusCode == 200) {
-          final data = jsonDecode(res.body);
-          final newCount = data['count'] as int? ?? 0;
-          if (newCount > _openWOCount) {
-            final diff = newCount - _openWOCount;
-            setState(() => _openWOCount = newCount);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.work_outline_rounded, color: Colors.white, size: 18),
-                    SizedBox(width: 10),
-                    Text(
-                      '$diff new work order${diff > 1 ? 's' : ''}',
-                      style: TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500),
-                    ),
-                  ],
+    _pollTimer?.cancel();
+    _pollTimer = Timer(const Duration(seconds: 30), () {
+      if (!mounted) return;
+      _refreshWOCount();
+      _pollTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
+        try {
+          final res = await http.get(
+            Uri.parse('${AppConfig.baseUrl}/work-orders/count?email=${Uri.encodeComponent(_email)}&user_role=${Uri.encodeComponent(_userRole)}'),
+          );
+          if (!mounted) return;
+          if (res.statusCode == 200) {
+            final data = jsonDecode(res.body);
+            final newCount = data['count'] as int? ?? 0;
+            if (newCount > _openWOCount) {
+              final diff = newCount - _openWOCount;
+              setState(() => _openWOCount = newCount);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      Icon(Icons.work_outline_rounded, color: Colors.white, size: 18),
+                      SizedBox(width: 10),
+                      Text(
+                        '$diff new work order${diff > 1 ? 's' : ''}',
+                        style: TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                  duration: const Duration(seconds: 6),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: AppColors.textPrimary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                duration: const Duration(seconds: 6),
-                behavior: SnackBarBehavior.floating,
-                backgroundColor: AppColors.textPrimary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            );
-          } else {
-            setState(() => _openWOCount = newCount);
+              );
+            } else {
+              setState(() => _openWOCount = newCount);
+            }
           }
-        }
-      } catch (_) {}
+        } catch (_) {}
+      });
     });
   }
 

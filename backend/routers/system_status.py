@@ -44,11 +44,13 @@ class ReportIssueBody(BaseModel):
 class UpdateIssueBody(BaseModel):
     notes: Optional[str] = None
     report_date: Optional[str] = None
+    resolved_at: Optional[str] = None
 
 
 class ResolveIssueBody(BaseModel):
     resolved_by: str
     resolved_notes: Optional[str] = ""
+    resolved_at: Optional[str] = None
 
 
 @router.get("/system-status/today")
@@ -92,7 +94,9 @@ async def get_history(
     )
     if system_name:
         if system_name not in ALLOWED_SYSTEMS:
-            raise HTTPException(status_code=400, detail=f"Unknown system: {system_name}")
+            raise HTTPException(
+                status_code=400, detail=f"Unknown system: {system_name}"
+            )
         query = query.eq("system_name", system_name)
 
     result = query.execute()
@@ -103,7 +107,9 @@ async def get_history(
 async def report_issue(body: ReportIssueBody):
     """Report an issue for a system on a specific date."""
     if body.system_name not in ALLOWED_SYSTEMS:
-        raise HTTPException(status_code=400, detail=f"Unknown system: {body.system_name}")
+        raise HTTPException(
+            status_code=400, detail=f"Unknown system: {body.system_name}"
+        )
 
     # Check for duplicate unresolved report on same system + date
     existing = (
@@ -146,20 +152,37 @@ async def resolve_issue(report_id: str, body: ResolveIssueBody):
     # Verify it exists and is not already resolved
     existing = (
         supabase.table("system_status_reports")
-        .select("id, resolved_at")
+        .select("id, resolved_at, report_date")
         .eq("id", report_id)
         .execute()
     )
     if not existing.data:
         raise HTTPException(status_code=404, detail="Report not found")
-    if existing.data[0].get("resolved_at"):
+    existing_report = existing.data[0]
+    if existing_report.get("resolved_at"):
         raise HTTPException(status_code=400, detail="Issue is already resolved")
+
+    if body.resolved_at:
+        resolved_date = date.fromisoformat(body.resolved_at)
+        report_date = date.fromisoformat(existing_report["report_date"])
+        if resolved_date < report_date:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Resolve date cannot be before the issue report date ({report_date})",
+            )
+        if resolved_date > date.today():
+            raise HTTPException(
+                status_code=400, detail="Resolve date cannot be in the future"
+            )
+        resolved_at_value = f"{body.resolved_at}T23:59:59"
+    else:
+        resolved_at_value = datetime.utcnow().isoformat()
 
     result = (
         supabase.table("system_status_reports")
         .update(
             {
-                "resolved_at": datetime.utcnow().isoformat(),
+                "resolved_at": resolved_at_value,
                 "resolved_by": body.resolved_by,
                 "resolved_notes": body.resolved_notes or "",
             }
@@ -183,12 +206,12 @@ async def update_issue(report_id: str, body: UpdateIssueBody):
     if not existing.data:
         raise HTTPException(status_code=404, detail="Report not found")
 
+    old_report = existing.data[0]
     updates = {}
     if body.notes is not None:
         updates["notes"] = body.notes
     if body.report_date is not None:
         # Check for duplicate if date is changing
-        old_report = existing.data[0]
         if body.report_date != old_report["report_date"]:
             dup = (
                 supabase.table("system_status_reports")
@@ -205,9 +228,29 @@ async def update_issue(report_id: str, body: UpdateIssueBody):
                     detail=f"An unresolved issue already exists for {old_report['system_name']} on {body.report_date}",
                 )
         updates["report_date"] = body.report_date
+    if body.resolved_at is not None:
+        if old_report["resolved_at"] is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot edit resolve date on an unresolved issue",
+            )
+
+        resolved_date = date.fromisoformat(body.resolved_at)
+        effective_report_date = body.report_date or old_report["report_date"]
+        if resolved_date < date.fromisoformat(effective_report_date):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Resolve date cannot be before the issue report date ({effective_report_date})",
+            )
+        if resolved_date > date.today():
+            raise HTTPException(
+                status_code=400, detail="Resolve date cannot be in the future"
+            )
+
+        updates["resolved_at"] = f"{body.resolved_at}T23:59:59"
 
     if not updates:
-        return {"report": existing.data[0]}
+        return {"report": old_report}
 
     result = (
         supabase.table("system_status_reports")
@@ -245,14 +288,20 @@ async def get_uptime_report(
         sd = date.fromisoformat(start_date)
         ed = date.fromisoformat(end_date)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+        raise HTTPException(
+            status_code=400, detail="Invalid date format. Use YYYY-MM-DD"
+        )
 
     if sd > ed:
         raise HTTPException(status_code=400, detail="start_date must be <= end_date")
 
     total_days = (ed - sd).days + 1
 
-    systems_to_check = [system_name] if system_name and system_name in ALLOWED_SYSTEMS else ALLOWED_SYSTEMS
+    systems_to_check = (
+        [system_name]
+        if system_name and system_name in ALLOWED_SYSTEMS
+        else ALLOWED_SYSTEMS
+    )
 
     # Fetch all reports whose downtime span overlaps the date range
     query = (
@@ -291,7 +340,9 @@ async def get_uptime_report(
     report_data = []
     for sn in systems_to_check:
         days_with_issues = len(issues_by_system.get(sn, set()))
-        downtime_pct = round((days_with_issues / total_days) * 100, 1) if total_days > 0 else 0
+        downtime_pct = (
+            round((days_with_issues / total_days) * 100, 1) if total_days > 0 else 0
+        )
         uptime_pct = round(100 - downtime_pct, 1)
         report_data.append(
             {

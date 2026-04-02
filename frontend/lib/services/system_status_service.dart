@@ -63,7 +63,8 @@ class SystemStatusService {
     );
 
     if (res.statusCode == 409) {
-      throw Exception('An unresolved issue already exists for this system on this date');
+      throw Exception(
+          'An unresolved issue already exists for this system on this date');
     }
     if (res.statusCode != 200) {
       throw Exception('Failed to report issue');
@@ -77,11 +78,16 @@ class SystemStatusService {
     required String reportId,
     required String resolvedBy,
     String resolvedNotes = '',
+    String? resolvedAt,
   }) async {
     final res = await http.patch(
       Uri.parse('${AppConfig.baseUrl}/system-status/$reportId/resolve'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'resolved_by': resolvedBy, 'resolved_notes': resolvedNotes}),
+      body: jsonEncode({
+        'resolved_by': resolvedBy,
+        'resolved_notes': resolvedNotes,
+        if (resolvedAt != null) 'resolved_at': resolvedAt,
+      }),
     );
 
     if (res.statusCode != 200) {
@@ -93,10 +99,12 @@ class SystemStatusService {
     required String reportId,
     String? notes,
     String? reportDate,
+    String? resolvedAt,
   }) async {
     final body = <String, dynamic>{};
     if (notes != null) body['notes'] = notes;
     if (reportDate != null) body['report_date'] = reportDate;
+    if (resolvedAt != null) body['resolved_at'] = resolvedAt;
 
     final res = await http.put(
       Uri.parse('${AppConfig.baseUrl}/system-status/$reportId'),
@@ -105,7 +113,8 @@ class SystemStatusService {
     );
 
     if (res.statusCode == 409) {
-      throw Exception('An unresolved issue already exists for this system on that date');
+      throw Exception(
+          'An unresolved issue already exists for this system on that date');
     }
     if (res.statusCode != 200) {
       throw Exception('Failed to update issue');
