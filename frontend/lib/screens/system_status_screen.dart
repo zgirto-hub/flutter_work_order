@@ -1456,18 +1456,17 @@ class _HistoryCard extends StatelessWidget {
                           if (value == 'delete') onDelete();
                         },
                         itemBuilder: (_) => [
-                          if (!isResolved)
-                            const PopupMenuItem(
-                              value: 'edit',
-                              height: 36,
-                              child: Row(
-                                children: [
-                                  Icon(Icons.edit_outlined, size: 16),
-                                  SizedBox(width: 8),
-                                  Text('Edit', style: TextStyle(fontSize: 13)),
-                                ],
-                              ),
+                          const PopupMenuItem(
+                            value: 'edit',
+                            height: 36,
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_outlined, size: 16),
+                                SizedBox(width: 8),
+                                Text('Edit', style: TextStyle(fontSize: 13)),
+                              ],
                             ),
+                          ),
                           PopupMenuItem(
                             value: 'delete',
                             height: 36,
