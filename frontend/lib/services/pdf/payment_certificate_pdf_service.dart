@@ -11,13 +11,13 @@ class PaymentCertificatePdfService {
     final calibri = pw.Font.ttf(calibriData);
     final calibriBold = pw.Font.ttf(calibriBoldData);
 
-    final baseStyle = pw.TextStyle(font: calibri, fontSize: 9);
+    final baseStyle = pw.TextStyle(font: calibri, fontSize: 11);
     final boldStyle = pw.TextStyle(
-        font: calibriBold, fontSize: 9, fontWeight: pw.FontWeight.bold);
+        font: calibriBold, fontSize: 11, fontWeight: pw.FontWeight.bold);
     final headerStyle = pw.TextStyle(
-        font: calibriBold, fontSize: 14, fontWeight: pw.FontWeight.bold);
+        font: calibriBold, fontSize: 16, fontWeight: pw.FontWeight.bold);
     final subHeaderStyle = pw.TextStyle(
-        font: calibriBold, fontSize: 10, fontWeight: pw.FontWeight.bold);
+        font: calibriBold, fontSize: 12, fontWeight: pw.FontWeight.bold);
 
     final pdf = pw.Document();
 
@@ -28,11 +28,14 @@ class PaymentCertificatePdfService {
         margin: const pw.EdgeInsets.all(30),
         theme: pw.ThemeData.withFont(base: calibri, bold: calibriBold),
         build: (context) => [
-          // ── 1. Title (2 lines) ────────────────────────────────
-          _buildTitle(cert, headerStyle, subHeaderStyle),
-          pw.SizedBox(height: 12),
+          // ── 1. Title (centered) ───────────────────────────────
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.center,
+            children: [_buildTitle(cert, headerStyle, subHeaderStyle)],
+          ),
+          pw.SizedBox(height: 16),
 
-          // ── 2. Subject & Contract ─────────────────────────────
+          // ── 2. Subject & Contract ────────────────────────────
           _buildSubjectRow(cert, boldStyle),
           pw.SizedBox(height: 6),
 
@@ -53,7 +56,7 @@ class PaymentCertificatePdfService {
               style: subHeaderStyle,
               textDirection: pw.TextDirection.rtl),
           pw.SizedBox(height: 4),
-          _buildAttachmentsList(cert, baseStyle),
+          _buildAttachmentsList(cert, boldStyle),
           pw.SizedBox(height: 12),
 
           // ── 7. Signatures ─────────────────────────────────────
@@ -81,10 +84,12 @@ class PaymentCertificatePdfService {
 
   /// Table cell widget for pw.Table rows (no Expanded needed).
   static pw.Widget _tcell(String text, pw.TextStyle style,
-      {pw.Alignment alignment = pw.Alignment.centerRight}) {
+      {pw.Alignment alignment = pw.Alignment.centerRight,
+      PdfColor? bgColor}) {
     return pw.Container(
       padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
       alignment: alignment,
+      color: bgColor,
       child:
           pw.Text(text, style: style, textDirection: pw.TextDirection.rtl),
     );
@@ -123,7 +128,17 @@ class PaymentCertificatePdfService {
       ));
     }
 
-    return pw.Column(children: widgets);
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(width: 1.5),
+        color: PdfColor.fromHex('#DCE6F1'),
+      ),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 30, vertical: 8),
+      child: pw.Column(
+        mainAxisSize: pw.MainAxisSize.min,
+        children: widgets,
+      ),
+    );
   }
 
   // ── 2. Subject & Contract ───────────────────────────────────────────
@@ -133,13 +148,14 @@ class PaymentCertificatePdfService {
     return pw.Table(
       border: pw.TableBorder.all(width: 0.5),
       columnWidths: {
-        0: const pw.FlexColumnWidth(3),
-        1: const pw.FlexColumnWidth(1),
+        0: const pw.FlexColumnWidth(1),
+        1: const pw.FlexColumnWidth(3),
       },
       children: [
         pw.TableRow(children: [
-          _tcell('الموضوع: ${cert.subject}', bold),
           _tcell('عقد رقم ${cert.contractNumber}', bold),
+          _tcell('الموضوع: ${cert.subject}', bold,
+              bgColor: PdfColor.fromHex('#DCE6F1')),
         ]),
       ],
     );
@@ -149,8 +165,16 @@ class PaymentCertificatePdfService {
 
   static pw.Widget _buildInvoiceTable(
       PaymentCertificate cert, pw.TextStyle bold, pw.TextStyle base) {
+    final bg = PdfColor.fromHex('#DCE6F1');
     return pw.Table(
-      border: pw.TableBorder.all(width: 0.5),
+      border: pw.TableBorder(
+        left: const pw.BorderSide(width: 2.5),
+        right: const pw.BorderSide(width: 2.5),
+        top: const pw.BorderSide(width: 2.5),
+        bottom: const pw.BorderSide(width: 2.5),
+        horizontalInside: const pw.BorderSide(width: 0.5),
+        verticalInside: const pw.BorderSide(width: 0.5),
+      ),
       columnWidths: {
         0: const pw.FlexColumnWidth(1),
         1: const pw.FlexColumnWidth(1),
@@ -159,16 +183,16 @@ class PaymentCertificatePdfService {
       },
       children: [
         pw.TableRow(children: [
-          _tcell('رقم الفاتورة:', bold),
-          _tcell(cert.invoiceNumber, base),
-          _tcell('مبلغ الفاتورة:', bold),
           _tcell('${_fmtNum(cert.invoiceAmount)} ${cert.currency}', base),
+          _tcell('مبلغ الفاتورة:', bold, bgColor: bg),
+          _tcell(cert.invoiceNumber, base),
+          _tcell('رقم الفاتورة:', bold, bgColor: bg),
         ]),
         pw.TableRow(children: [
-          _tcell('فترة الفاتورة:', bold),
-          _tcell('من  ${_fmtDate(cert.periodFrom)}', base),
-          _tcell('إلى', bold, alignment: pw.Alignment.center),
           _tcell(_fmtDate(cert.periodTo), base),
+          _tcell('إلى', bold, alignment: pw.Alignment.center, bgColor: bg),
+          _tcell('من  ${_fmtDate(cert.periodFrom)}', base),
+          _tcell('فترة الفاتورة:', bold, bgColor: bg),
         ]),
       ],
     );
@@ -231,10 +255,10 @@ class PaymentCertificatePdfService {
     return pw.Table(
       border: pw.TableBorder.all(width: 0.5),
       columnWidths: {
-        0: const pw.FlexColumnWidth(1),
-        1: const pw.FlexColumnWidth(1),
-        2: const pw.FlexColumnWidth(1),
-        3: const pw.FlexColumnWidth(1),
+        0: const pw.FlexColumnWidth(1.0),
+        1: const pw.FlexColumnWidth(0.8),
+        2: const pw.FlexColumnWidth(1.5),
+        3: const pw.FlexColumnWidth(0.8),
       },
       children: rows,
     );
@@ -242,26 +266,29 @@ class PaymentCertificatePdfService {
 
   static pw.TableRow _contractRow(String label1, String val1, String label2,
       String val2, pw.TextStyle bold, pw.TextStyle base) {
-    return pw.TableRow(children: [
-      _tcell(label1, bold),
-      _tcell(val1, base),
-      _tcell(label2, bold),
-      _tcell(val2, base),
-    ]);
+    final bgColor = PdfColor.fromHex('#DCE6F1');
+    return pw.TableRow(
+      children: [
+        _tcell(val2, base, alignment: pw.Alignment.center),
+        _tcell(label2, bold, bgColor: bgColor, alignment: pw.Alignment.center),
+        _tcell(val1, base, alignment: pw.Alignment.center),
+        _tcell(label1, bold, bgColor: bgColor, alignment: pw.Alignment.center),
+      ],
+    );
   }
 
   // ── 5. Payment Table ────────────────────────────────────────────────
 
   static pw.Widget _buildPaymentTable(
       PaymentCertificate cert, pw.TextStyle bold, pw.TextStyle base) {
-    final headerBg = PdfColor.fromHex('#E8E8E8');
-    final hBold = bold.copyWith(fontSize: 8);
-    final hSmall = bold.copyWith(fontSize: 7);
-    final dStyle = base.copyWith(fontSize: 8);
+    final headerBg = PdfColor.fromHex('#DCE6F1');
+    final hBold = bold.copyWith(fontSize: 10);
+    final hSmall = bold.copyWith(fontSize: 9);
+    final dStyle = base.copyWith(fontSize: 10);
 
     // Column widths: reason(2) + 6 numeric cols (1 each) = 8 flex total
     final colWidths = <int, pw.TableColumnWidth>{
-      0: const pw.FlexColumnWidth(2), // أسباب
+      0: const pw.FlexColumnWidth(4), // أسباب
       1: const pw.FlexColumnWidth(1), // صافي دينار
       2: const pw.FlexColumnWidth(1), // صافي فلس
       3: const pw.FlexColumnWidth(1), // خصم دينار
@@ -270,55 +297,70 @@ class PaymentCertificatePdfService {
       6: const pw.FlexColumnWidth(1), // مستحق فلس
     };
 
-    // ── Group header row ──
-    pw.Widget groupCell(String text) => pw.Container(
-          padding: const pw.EdgeInsets.all(4),
+    // ── Header (Row-based to avoid Table border gaps) ──
+    pw.Widget hText(String text, pw.TextStyle style) => pw.Container(
           alignment: pw.Alignment.center,
+          padding: const pw.EdgeInsets.all(3),
           child: pw.Text(text,
-              style: hBold,
+              style: style,
               textAlign: pw.TextAlign.center,
               textDirection: pw.TextDirection.rtl),
         );
 
-    final groupRow = pw.Container(
+    // Each numeric group: 2 sub-columns (دينار + فلس) with group label on top
+    pw.Widget numGroup(String label) => pw.Expanded(
+          flex: 2,
+          child: pw.Container(
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(left: pw.BorderSide(width: 0.5)),
+            ),
+            child: pw.Column(
+              children: [
+                hText(label, hBold),
+                pw.Container(
+                  decoration: const pw.BoxDecoration(
+                    border: pw.Border(top: pw.BorderSide(width: 0.5)),
+                  ),
+                  child: pw.Row(
+                    children: [
+                      pw.Expanded(
+                        child: hText('فلس', hSmall),
+                      ),
+                      pw.Expanded(
+                        child: pw.Container(
+                          decoration: const pw.BoxDecoration(
+                            border: pw.Border(
+                                left: pw.BorderSide(width: 0.5)),
+                          ),
+                          child: hText('دينار', hSmall),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+    final header = pw.Container(
       decoration: pw.BoxDecoration(
         color: headerBg,
         border: pw.Border.all(width: 0.5),
       ),
       child: pw.Row(
         children: [
-          pw.Expanded(flex: 2, child: groupCell('الدفعة المستحقة')),
-          pw.Container(width: 0.5, color: PdfColors.black),
-          pw.Expanded(flex: 2, child: groupCell('الخصم')),
-          pw.Container(width: 0.5, color: PdfColors.black),
-          pw.Expanded(flex: 2, child: groupCell('الصافي')),
-          pw.Container(width: 0.5, color: PdfColors.black),
-          pw.Expanded(flex: 2, child: groupCell('أسباب (الاستحقاق/ الخصم)')),
+          numGroup('الدفعة المستحقة'),
+          numGroup('الخصم'),
+          numGroup('الصافي'),
+          // أسباب spans full height
+          pw.Expanded(
+            flex: 4,
+            child: hText('أسباب (الاستحقاق/ الخصم)', hBold),
+          ),
         ],
       ),
     );
-
-    // ── Sub-header row ──
-    final subHeaderRow = pw.Container(
-      decoration: pw.BoxDecoration(color: headerBg),
-      child: pw.Table(
-        columnWidths: colWidths,
-        border: pw.TableBorder.all(width: 0.5),
-        children: [
-          pw.TableRow(children: [
-            pw.SizedBox(), // empty under أسباب
-            _headerCell('دينار', hSmall),
-            _headerCell('فلس', hSmall),
-            _headerCell('دينار', hSmall),
-            _headerCell('فلس', hSmall),
-            _headerCell('دينار', hSmall),
-            _headerCell('فلس', hSmall),
-          ]),
-        ],
-      ),
-    );
-
-    final header = pw.Column(children: [groupRow, subHeaderRow]);
 
     // ── Compute totals ──
     double totalDueDinar = 0, totalDueFils = 0;
@@ -334,10 +376,56 @@ class PaymentCertificatePdfService {
     }
 
     // ── Data rows ──
-    final dataRows = <List<String>>[
-      for (final r in cert.paymentRows)
-        [
-          r.reason,
+    final boldDStyle = hBold;
+    final redStyle = boldDStyle.copyWith(color: PdfColors.red);
+
+    // Build reason widgets with rich text
+    final periodText =
+        'من (${_fmtDate(cert.periodFrom)}) إلى (${_fmtDate(cert.periodTo)})';
+    final certLabel = cert.extensionPeriodLabel.isNotEmpty
+        ? '(الدفعة رقم ${cert.certificateNumber} – ${cert.extensionPeriodLabel}) بناء على شروط العقد'
+        : '(الدفعة رقم ${cert.certificateNumber}) بناء على شروط العقد';
+
+    // Row data: [reasonWidget, netD, netF, dedD, dedF, dueD, dueF, isTotalRow]
+    final rows = <Map<String, dynamic>>[];
+
+    for (final r in cert.paymentRows) {
+      pw.Widget reasonWidget;
+      if (r.reason.contains('المستحقة عن العقد')) {
+        reasonWidget = pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Text('قيمة الاعمال المستحقة عن العقد',
+                style: boldDStyle, textDirection: pw.TextDirection.rtl),
+            pw.Text(periodText,
+                style: boldDStyle, textDirection: pw.TextDirection.rtl),
+          ],
+        );
+      } else if (r.reason.contains('الغرامات')) {
+        reasonWidget = pw.RichText(
+          textDirection: pw.TextDirection.rtl,
+          textAlign: pw.TextAlign.center,
+          text: pw.TextSpan(children: [
+            pw.TextSpan(text: 'قيمة الغرامات ', style: boldDStyle),
+            pw.TextSpan(text: '– (ان وجد)', style: redStyle),
+          ]),
+        );
+      } else if (r.reason.contains('المستحقة') &&
+          r.reason.contains('الدفعة')) {
+        reasonWidget = pw.Text(
+            'قيمة الاعمال المستحقة $certLabel',
+            style: boldDStyle,
+            textDirection: pw.TextDirection.rtl,
+            textAlign: pw.TextAlign.center);
+      } else {
+        reasonWidget = pw.Text(r.reason,
+            style: dStyle, textDirection: pw.TextDirection.rtl,
+            textAlign: pw.TextAlign.center);
+      }
+
+      rows.add({
+        'reason': reasonWidget,
+        'values': [
           _fmtNum(r.netDinar),
           _fmtNum(r.netFils),
           _fmtNum(r.deductionDinar),
@@ -345,8 +433,17 @@ class PaymentCertificatePdfService {
           _fmtNum(r.duePaymentDinar),
           _fmtNum(r.duePaymentFils),
         ],
-      [
-        'الاجمالي',
+        'isTotal': false,
+      });
+    }
+
+    // Total row
+    rows.add({
+      'reason': pw.Text('الاجمالي',
+          style: boldDStyle,
+          textDirection: pw.TextDirection.rtl,
+          textAlign: pw.TextAlign.center),
+      'values': [
         _fmtNum(totalNetDinar),
         _fmtNum(totalNetFils),
         _fmtNum(totalDeductDinar),
@@ -354,25 +451,35 @@ class PaymentCertificatePdfService {
         _fmtNum(totalDueDinar),
         _fmtNum(totalDueFils),
       ],
-    ];
+      'isTotal': true,
+    });
 
     final dataTable = pw.Table(
       columnWidths: colWidths,
       border: pw.TableBorder.all(width: 0.5),
       children: [
-        for (final row in dataRows)
+        for (final row in rows)
           pw.TableRow(
+            decoration: (row['isTotal'] as bool)
+                ? pw.BoxDecoration(color: headerBg)
+                : null,
             children: [
-              for (int c = 0; c < row.length; c++)
+              // Reason column (index 0 in table = rightmost visually)
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(
+                    vertical: 4, horizontal: 4),
+                alignment: pw.Alignment.center,
+                child: row['reason'] as pw.Widget,
+              ),
+              // Value columns
+              for (final v in (row['values'] as List<String>))
                 pw.Container(
                   padding: const pw.EdgeInsets.symmetric(
                       vertical: 4, horizontal: 4),
-                  alignment:
-                      c == 0 ? pw.Alignment.centerRight : pw.Alignment.center,
-                  child: pw.Text(row[c],
+                  alignment: pw.Alignment.center,
+                  child: pw.Text(v,
                       style: dStyle,
-                      textAlign:
-                          c == 0 ? pw.TextAlign.right : pw.TextAlign.center,
+                      textAlign: pw.TextAlign.center,
                       textDirection: pw.TextDirection.rtl),
                 ),
             ],
@@ -383,47 +490,47 @@ class PaymentCertificatePdfService {
     return pw.Column(children: [header, dataTable]);
   }
 
-  static pw.Widget _headerCell(String text, pw.TextStyle style) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(3),
-      alignment: pw.Alignment.center,
-      child: pw.Text(text,
-          style: style,
-          textAlign: pw.TextAlign.center,
-          textDirection: pw.TextDirection.rtl),
-    );
-  }
 
   // ── 6. Attachments ──────────────────────────────────────────────────
 
   static pw.Widget _buildAttachmentsList(
       PaymentCertificate cert, pw.TextStyle base) {
     final checked = cert.attachmentChecklist.entries.toList();
-    return pw.Container(
-      decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
-      child: pw.Column(
-        children: [
-          for (int i = 0; i < checked.length; i++)
-            pw.Container(
-              decoration: const pw.BoxDecoration(
-                border: pw.Border(bottom: pw.BorderSide(width: 0.25)),
-              ),
-              padding:
-                  const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              child: pw.Row(
-                children: [
-                  pw.Text('${i + 1}-',
-                      style: base, textDirection: pw.TextDirection.rtl),
-                  pw.SizedBox(width: 8),
-                  pw.Expanded(
-                    child: pw.Text(checked[i].key,
-                        style: base, textDirection: pw.TextDirection.rtl),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.start,
+      children: [
+        pw.SizedBox(
+          width: 300,
+          child: pw.Table(
+            border: pw.TableBorder.all(width: 0.5),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(1),
+              1: const pw.FixedColumnWidth(40),
+            },
+            children: [
+              for (int i = 0; i < checked.length; i++)
+                pw.TableRow(
+                  children: [
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 3),
+                      alignment: pw.Alignment.centerRight,
+                      child: pw.Text(checked[i].key,
+                          style: base, textDirection: pw.TextDirection.rtl),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 3),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('.${i + 1}',
+                          style: base, textDirection: pw.TextDirection.rtl),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -434,37 +541,40 @@ class PaymentCertificatePdfService {
     pw.Widget sigBlock(String title, String name) {
       return pw.Expanded(
         child: pw.Container(
-          padding: const pw.EdgeInsets.all(6),
+          height: 100,
+          decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
           child: pw.Column(
             children: [
-              pw.Text(title,
-                  style: bold, textDirection: pw.TextDirection.rtl),
-              pw.SizedBox(height: 20),
-              pw.Text(name,
-                  style: base, textDirection: pw.TextDirection.rtl),
-              pw.SizedBox(height: 6),
               pw.Container(
-                width: 80,
+                width: double.infinity,
+                padding: const pw.EdgeInsets.symmetric(
+                    horizontal: 6, vertical: 4),
                 decoration: const pw.BoxDecoration(
-                  border: pw.Border(bottom: pw.BorderSide(width: 0.5)),
+                  border: pw.Border(
+                      bottom: pw.BorderSide(width: 0.5)),
                 ),
+                child: pw.Text(title,
+                    style: bold,
+                    textAlign: pw.TextAlign.center,
+                    textDirection: pw.TextDirection.rtl),
               ),
+              pw.Spacer(),
             ],
           ),
         ),
       );
     }
 
-    return pw.Container(
-      decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.5)),
-      child: pw.Row(
-        children: [
-          sigBlock('رئيس القسم المختص', cert.deptHead),
-          sigBlock('المراقب المختص', cert.controller),
-          sigBlock('المدير المختص', cert.director),
-          sigBlock('المدقق / المحاسب', cert.auditor),
-        ],
-      ),
+    return pw.Row(
+      children: [
+        sigBlock('رئيس القسم المختص', cert.deptHead),
+        pw.SizedBox(width: 10),
+        sigBlock('المراقب المختص', cert.controller),
+        pw.SizedBox(width: 10),
+        sigBlock('المدير المختص', cert.director),
+        pw.SizedBox(width: 10),
+        sigBlock('المدقق / المحاسب', cert.auditor),
+      ],
     );
   }
 }
