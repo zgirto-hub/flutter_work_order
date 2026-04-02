@@ -45,14 +45,20 @@ class _MyAppState extends State<MyApp> {
           theme: AppTheme.light(
             themeController.color,
             themeController.fontFamily,
-            themeController.fontScale,
           ),
           darkTheme: AppTheme.dark(
             themeController.color,
             themeController.fontFamily,
-            themeController.fontScale,
           ),
           themeMode: themeController.mode,
+          builder: (context, child) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: TextScaler.linear(themeController.fontScale),
+              ),
+              child: child!,
+            );
+          },
           home: FutureBuilder<void>(
             future: _supabaseReady,
             builder: (context, snapshot) {
