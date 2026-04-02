@@ -297,8 +297,11 @@ class PaymentCertificatePdfService {
       6: const pw.FlexColumnWidth(1), // مستحق فلس
     };
 
-    // ── Header (Row-based to avoid Table border gaps) ──
-    pw.Widget hText(String text, pw.TextStyle style) => pw.Container(
+    // ── Header cell helper ──
+    pw.Widget hCell(String text, pw.TextStyle style,
+            {PdfColor? bg}) =>
+        pw.Container(
+          color: bg ?? headerBg,
           alignment: pw.Alignment.center,
           padding: const pw.EdgeInsets.all(3),
           child: pw.Text(text,
@@ -307,60 +310,116 @@ class PaymentCertificatePdfService {
               textDirection: pw.TextDirection.rtl),
         );
 
-    // Each numeric group: 2 sub-columns (دينار + فلس) with group label on top
-    pw.Widget numGroup(String label) => pw.Expanded(
-          flex: 2,
-          child: pw.Container(
-            decoration: const pw.BoxDecoration(
-              border: pw.Border(left: pw.BorderSide(width: 0.5)),
-            ),
-            child: pw.Column(
-              children: [
-                hText(label, hBold),
-                pw.Container(
-                  decoration: const pw.BoxDecoration(
-                    border: pw.Border(top: pw.BorderSide(width: 0.5)),
-                  ),
-                  child: pw.Row(
-                    children: [
-                      pw.Expanded(
-                        child: hText('فلس', hSmall),
-                      ),
-                      pw.Expanded(
-                        child: pw.Container(
-                          decoration: const pw.BoxDecoration(
-                            border: pw.Border(
-                                left: pw.BorderSide(width: 0.5)),
-                          ),
-                          child: hText('دينار', hSmall),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+    // Merged header using same 7-column layout as data table.
+    // Row 1: pairs are visually merged by hiding the inner border.
+    // Row 2: أسباب cell is empty (visually merged with row 1 above).
 
-    final header = pw.Container(
+    // Row 1 — built as a Row matching colWidths flex proportions (4 + 1*6 = 10)
+    final headerRow1Widget = pw.Container(
       decoration: pw.BoxDecoration(
         color: headerBg,
-        border: pw.Border.all(width: 0.5),
+        border: const pw.Border(
+          top: pw.BorderSide(width: 0.5),
+          left: pw.BorderSide(width: 0.5),
+          right: pw.BorderSide(width: 0.5),
+          bottom: pw.BorderSide(width: 0.5),
+        ),
       ),
       child: pw.Row(
         children: [
-          numGroup('الدفعة المستحقة'),
-          numGroup('الخصم'),
-          numGroup('الصافي'),
-          // أسباب spans full height
+          // الصافي (flex 2 = cols 1+2)
+          pw.Expanded(
+            flex: 2,
+            child: pw.Container(
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(
+                  left: pw.BorderSide(width: 0.5),
+                ),
+              ),
+              alignment: pw.Alignment.center,
+              padding: const pw.EdgeInsets.all(3),
+              child: pw.Text('الصافي',
+                  style: hBold,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
+            ),
+          ),
+          // الخصم (flex 2 = cols 3+4)
+          pw.Expanded(
+            flex: 2,
+            child: pw.Container(
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(
+                  left: pw.BorderSide(width: 0.5),
+                ),
+              ),
+              alignment: pw.Alignment.center,
+              padding: const pw.EdgeInsets.all(3),
+              child: pw.Text('الخصم',
+                  style: hBold,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
+            ),
+          ),
+          // الدفعة المستحقة (flex 2 = cols 5+6)
+          pw.Expanded(
+            flex: 2,
+            child: pw.Container(
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(
+                  left: pw.BorderSide(width: 0.5),
+                ),
+              ),
+              alignment: pw.Alignment.center,
+              padding: const pw.EdgeInsets.all(3),
+              child: pw.Text('الدفعة المستحقة',
+                  style: hBold,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
+            ),
+          ),
+          // أسباب (flex 4)
           pw.Expanded(
             flex: 4,
-            child: hText('أسباب (الاستحقاق/ الخصم)', hBold),
+            child: pw.Container(
+              alignment: pw.Alignment.center,
+              padding: const pw.EdgeInsets.all(3),
+              child: pw.Text('أسباب (الاستحقاق/ الخصم)',
+                  style: hBold,
+                  textAlign: pw.TextAlign.center,
+                  textDirection: pw.TextDirection.rtl),
+            ),
           ),
         ],
       ),
     );
+
+    // Row 2: sub-headers — uses exact same colWidths as data table
+    final headerRow2 = pw.Table(
+      columnWidths: colWidths,
+      border: pw.TableBorder(
+        left: const pw.BorderSide(width: 0.5),
+        right: const pw.BorderSide(width: 0.5),
+        bottom: const pw.BorderSide(width: 0.5),
+        verticalInside: const pw.BorderSide(width: 0.5),
+      ),
+      children: [
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: headerBg),
+          children: [
+            hCell('', hSmall), // أسباب (merged with row above)
+            hCell('دينار', hSmall),
+            hCell('فلس', hSmall),
+            hCell('دينار', hSmall),
+            hCell('فلس', hSmall),
+            hCell('دينار', hSmall),
+            hCell('فلس', hSmall),
+          ],
+        ),
+      ],
+    );
+
+    final header = pw.Column(children: [headerRow1Widget, headerRow2]);
 
     // ── Compute totals ──
     double totalDueDinar = 0, totalDueFils = 0;
@@ -461,7 +520,7 @@ class PaymentCertificatePdfService {
         for (final row in rows)
           pw.TableRow(
             decoration: (row['isTotal'] as bool)
-                ? pw.BoxDecoration(color: headerBg)
+                ? pw.BoxDecoration(color: PdfColor.fromHex('#FDE9D9'))
                 : null,
             children: [
               // Reason column (index 0 in table = rightmost visually)
