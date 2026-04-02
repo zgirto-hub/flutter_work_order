@@ -328,7 +328,7 @@ class _PaymentCertificateListScreenState
       color: AppColors.accent,
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
         itemCount: _filtered.length,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (_, i) => _buildCard(_filtered[i]),

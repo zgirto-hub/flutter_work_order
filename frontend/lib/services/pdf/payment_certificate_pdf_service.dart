@@ -149,7 +149,7 @@ class PaymentCertificatePdfService {
         pw.TableRow(
           decoration: pw.BoxDecoration(color: PdfColor.fromHex('#DCE6F1')),
           children: [
-            _tcell('عقد رقم ${cert.contractNumber}', bold, bgColor: PdfColors.white),
+            _tcell('عقد رقم \u200E${cert.contractNumber}', bold, bgColor: PdfColors.white),
             _tcell('الموضوع: ${cert.subject}', bold),
           ],
         ),
@@ -180,7 +180,7 @@ class PaymentCertificatePdfService {
         pw.TableRow(children: [
           _tcell('${_fmtNum(cert.invoiceAmount)} ${cert.currency}', base, textAlign: pw.TextAlign.center),
           _tcell('مبلغ الفاتورة:', bold),
-          _tcell(cert.invoiceNumber, base, textAlign: pw.TextAlign.center),
+          _tcell('\u200E${cert.invoiceNumber}', base, textAlign: pw.TextAlign.center),
           _tcell('رقم الفاتورة:', bold),
         ]),
         pw.TableRow(children: [
