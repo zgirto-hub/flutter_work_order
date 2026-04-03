@@ -455,17 +455,15 @@ async def create_work_order(body: CreateWorkOrderBody):
                     )
 
     # Resolve the public.users.id from email (frontend sends auth UUID which differs)
-    resolved_created_by = body.created_by
+    resolved_created_by = None
     if body.created_by_email:
-        resolved_id = _get_user_id_by_email(body.created_by_email)
-        if resolved_id:
-            resolved_created_by = resolved_id
+        resolved_created_by = _get_user_id_by_email(body.created_by_email)
     # Fallback: if email lookup failed, try matching via auth_id
-    if resolved_created_by == body.created_by and body.created_by:
+    if not resolved_created_by and body.created_by:
         auth_user = _get_user_by_auth_id(body.created_by)
         if auth_user:
-            resolved_created_by = auth_user.get("id", body.created_by)
-    if resolved_created_by == body.created_by:
+            resolved_created_by = auth_user.get("id")
+    if not resolved_created_by:
         raise HTTPException(
             status_code=400,
             detail="Unable to resolve user identity. Work order could not be saved.",
