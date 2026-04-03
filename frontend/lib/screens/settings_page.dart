@@ -170,13 +170,23 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _saveSignatureFromFile() async {
-    if (_currentUserId == null) return;
+    if (_currentUserId == null || _signatureLoading) return;
     final result = await FilePicker.platform.pickFiles(
       type: FileType.image,
       withData: true,
     );
     if (result == null || result.files.isEmpty || !mounted) return;
     final file = result.files.single;
+    if (file.bytes == null || file.bytes!.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Could not read file data. Please try again.'),
+              backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
     await _saveSignature(
       fileBytes: file.bytes,
       fileName: file.name,
@@ -424,7 +434,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                 icon:
                                     const Icon(Icons.upload_outlined, size: 16),
                                 label: const Text('Upload'),
-                                onPressed: _saveSignatureFromFile,
+                                onPressed: _signatureLoading
+                                    ? null
+                                    : _saveSignatureFromFile,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -436,7 +448,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.red,
                                 ),
-                                onPressed: _removeSignature,
+                                onPressed: _signatureLoading
+                                    ? null
+                                    : _removeSignature,
                               ),
                             ),
                           ],
@@ -447,7 +461,9 @@ class _SettingsPageState extends State<SettingsPage> {
                           child: TextButton.icon(
                             icon: const Icon(Icons.draw_outlined, size: 16),
                             label: const Text('Draw New Signature'),
-                            onPressed: _saveSignatureFromCanvas,
+                            onPressed: _signatureLoading
+                                ? null
+                                : _saveSignatureFromCanvas,
                           ),
                         ),
                       ] else ...[
@@ -465,7 +481,9 @@ class _SettingsPageState extends State<SettingsPage> {
                               child: ElevatedButton.icon(
                                 icon: const Icon(Icons.draw_outlined, size: 16),
                                 label: const Text('Draw Signature'),
-                                onPressed: _saveSignatureFromCanvas,
+                                onPressed: _signatureLoading
+                                    ? null
+                                    : _saveSignatureFromCanvas,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -473,8 +491,10 @@ class _SettingsPageState extends State<SettingsPage> {
                               child: OutlinedButton.icon(
                                 icon:
                                     const Icon(Icons.upload_outlined, size: 16),
-                                label: const Text('Upload'),
-                                onPressed: _saveSignatureFromFile,
+                                label: const Text('Upload Image'),
+                                onPressed: _signatureLoading
+                                    ? null
+                                    : _saveSignatureFromFile,
                               ),
                             ),
                           ],
