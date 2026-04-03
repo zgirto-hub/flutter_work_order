@@ -75,6 +75,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
   // Activity tab state
   int _tabIndex = 0;
+  bool _activityViewed = false;
   List<WorkOrderComment> _comments = [];
   List<WorkOrderAttachment> _attachments = [];
   bool _commentsLoading = false;
@@ -165,6 +166,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
           ? widget.workOrder!.type
           : "Technical";
       _tabIndex = widget.initialTab;
+      if (widget.initialTab == 1) _activityViewed = true;
       _loadComments();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _originalSnapshot = _formSnapshot();
@@ -902,12 +904,15 @@ Future<void> _loadDepartments() async {
                         _Tab(
                           label: 'Activity',
                           active: _tabIndex == 1,
-                          badge: _tabIndex == 0
-                              ? _comments
+                          badge: _activityViewed
+                              ? 0
+                              : _comments
                                   .where((c) => c.type == 'comment')
-                                  .length
-                              : 0,
-                          onTap: () => setState(() => _tabIndex = 1),
+                                  .length,
+                          onTap: () => setState(() {
+                            _tabIndex = 1;
+                            _activityViewed = true;
+                          }),
                         ),
                       ],
                     ),
