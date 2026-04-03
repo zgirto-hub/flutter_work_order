@@ -11,6 +11,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-03
 - Dart 3.x / Flutter 3.x + Flutter Material, GoogleFonts, app_theme.dart (centralized theme), ThemeController (007-increase-font-size)
 - SharedPreferences (already used by ThemeController for fontScale persistence) (007-increase-font-size)
 - Dart 3.x / Flutter 3.x + Flutter Material, MediaQuery.textScaler (008-fix-status-font-scale)
+- Dart 3.x / Flutter 3.x (frontend), Bash (deploy scripts), Nginx (server config) + Flutter Web (canvaskit renderer), OneSignal SDK, Supabase, Nginx (009-optimize-pwa-launch)
+- N/A (no data model changes) (009-optimize-pwa-launch)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 
@@ -31,9 +33,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 009-optimize-pwa-launch: Added Dart 3.x / Flutter 3.x (frontend), Bash (deploy scripts), Nginx (server config) + Flutter Web (canvaskit renderer), OneSignal SDK, Supabase, Nginx
 - 008-fix-status-font-scale: Added Dart 3.x / Flutter 3.x + Flutter Material, MediaQuery.textScaler
 - 007-increase-font-size: Added Dart 3.x / Flutter 3.x + Flutter Material, GoogleFonts, app_theme.dart (centralized theme), ThemeController
-- 007-increase-font-size: Added Dart 3.x / Flutter 3.x + Flutter Material, GoogleFonts, app_theme.dart (centralized theme)
 
 
 <!-- MANUAL ADDITIONS START -->
