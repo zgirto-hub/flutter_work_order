@@ -115,7 +115,7 @@ async def add_signature(work_order_id: str, body: AddSignatureBody):
     if signer_role == "admin":
         if actual_role != "admin":
             raise HTTPException(status_code=403, detail="Only admins can sign as admin")
-        # Validate technician signature exists and is pending
+        # Validate technician has signed (pending or already approved)
         tech_sig = (
             supabase.table("work_order_signatures")
             .select("id, status")
@@ -132,10 +132,6 @@ async def add_signature(work_order_id: str, body: AddSignatureBody):
         )
         if not latest_tech:
             raise HTTPException(status_code=400, detail="Technician must sign first")
-        if latest_tech.get("status") != "pending":
-            raise HTTPException(
-                status_code=400, detail="Technician signature must be in pending state"
-            )
 
     # Upsert: only block if there's already a pending or approved signature
     # (rejected records are preserved for audit)
