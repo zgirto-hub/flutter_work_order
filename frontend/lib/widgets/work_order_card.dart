@@ -14,6 +14,7 @@ class WorkOrderCard extends StatefulWidget {
   final bool selectionMode;
   final bool isSelected;
   final VoidCallback? onLongPress;
+  final bool showSigBadge;
 
   const WorkOrderCard({
     super.key,
@@ -27,6 +28,7 @@ class WorkOrderCard extends StatefulWidget {
     this.selectionMode = false,
     this.isSelected = false,
     this.onLongPress,
+    this.showSigBadge = false,
   });
 
   @override
@@ -152,6 +154,10 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                             if (widget.unreadActivityCount > 0) ...[
                               SizedBox(width: 6),
                               _UnreadBadge(count: widget.unreadActivityCount),
+                            ],
+                            if (widget.showSigBadge) ...[
+                              SizedBox(width: 6),
+                              _SigBadge(),
                             ],
                             const Spacer(),
                             canTapStatus
@@ -458,6 +464,27 @@ class _UnreadBadge extends StatelessWidget {
 }
 
 // ── Inspection Badge ──────────────────────────────────────────────────────────
+
+class _SigBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppColors.pendingBg,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        'SIG',
+        style: TextStyle(
+          fontSize: 9,
+          color: AppColors.pendingText,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
 
 class _InspectionBadge extends StatelessWidget {
   @override

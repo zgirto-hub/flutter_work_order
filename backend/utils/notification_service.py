@@ -237,6 +237,116 @@ def _log_delivery(
     }).execute()
 
 
+def dispatch_signature_notification(
+    *,
+    work_order_id: str,
+    signature_id: str,
+    signer_email: str,
+    kind: str,
+    job_no: str = "",
+    actor_email: str = "",
+):
+    """Dispatch notifications for signature events.
+
+    kind: 'signature_pending' | 'signature_approved' | 'signature_rejected'
+    """
+    signer = _norm(signer_email)
+
+    if kind == "signature_pending":
+        # Technician signed → notify all admins
+        admins_res = supabase.table("users") \
+            .select("email") \
+            .eq("user_type", "admin") \
+            .eq("is_active", True) \
+            .execute()
+        recipients = [
+            _norm(r.get("email", ""))
+            for r in (admins_res.data or [])
+            if _is_valid(_norm(r.get("email", "")))
+        ]
+        recipients = [e for e in recipients if e != signer]
+        title = "Signature Required"
+        body = f"Technician {signer} has signed {job_no or 'a work order'}. Admin approval needed."
+    elif kind == "signature_approved":
+        recipients = [signer]
+        title = "Signature Approved"
+        body = f"Your signature on {job_no or 'work order'} has been approved by admin."
+    elif kind == "signature_rejected":
+        recipients = [signer]
+        title = "Signature Rejected"
+        body = f"Your signature on {job_no or 'work order'} was rejected. Please re-sign."
+    else:
+        return
+
+    if not recipients:
+        return
+
+    prefs_map = _get_preferences(recipients)
+    in_app_recipients: List[str] = []
+    push_recipients: List[str] = []
+
+    for email in recipients:
+        pref = DEFAULT_PREFS.copy()
+        pref.update(prefs_map.get(email, {}))
+        if pref.get("mute_all"):
+            continue
+        if pref.get("in_app_enabled", True):
+            in_app_recipients.append(email)
+        if pref.get("push_enabled", True):
+            push_recipients.append(email)
+
+    payload = {
+        "type": kind,
+        "work_order_id": work_order_id,
+        "signature_id": signature_id,
+        "job_no": job_no,
+    }
+
+    notification_id_by_email = {}
+    if in_app_recipients:
+        try:
+            inserted = _insert_notifications(
+                recipients=in_app_recipients,
+                kind=kind,
+                title=title,
+                body=body,
+                source_type="work_order_signature",
+                source_id=signature_id,
+                data=payload,
+            )
+            notification_id_by_email = {
+                _norm(r.get("user_email") or ""): r.get("id") for r in inserted
+            }
+        except Exception as e:
+            print(f"Signature notification insert failed: {e}")
+
+    if push_recipients:
+        push_result = send_push_to_external_ids(
+            title=title,
+            body=body,
+            external_ids=push_recipients,
+            data=payload,
+        )
+        message_id = None
+        status = "sent"
+        error = None
+
+        if isinstance(push_result, dict):
+            message_id = push_result.get("id")
+            if push_result.get("error"):
+                status = "failed"
+                error = str(push_result.get("error"))
+
+        for email in push_recipients:
+            _log_delivery(
+                notification_id=notification_id_by_email.get(_norm(email)),
+                recipient=email,
+                status=status,
+                provider_message_id=message_id,
+                error=error,
+            )
+
+
 def dispatch_work_order_comment_notification(
     *,
     work_order_id: str,

@@ -10,6 +10,7 @@ import '../../services/notification_service.dart';
 import '../../widgets/claude_widgets.dart';
 import '../../widgets/work_order_card.dart';
 import '../../services/work_order_service.dart';
+import '../../services/signature_service.dart';
 import '../../controllers/filter_controller.dart';
 import '../../filters/work_order_filter_engine.dart';
 import '../../models/technician_assignment.dart';
@@ -72,6 +73,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   Set<String> _removingWoIds = {};
   bool _refreshing = false;
   String _userRole = 'admin';
+  final SignatureService _signatureService = SignatureService();
+  Set<String> _pendingSigWoIds = {};
 
   bool _profileLoaded = false;
 
@@ -129,6 +132,31 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
         if (mounted) setState(() => _newWoIds = {});
       });
     }
+    _refreshSignatureStatus(result.items);
+  }
+
+  Future<void> _refreshSignatureStatus(List<WorkOrder> workOrders) async {
+    final closedIds = workOrders
+        .where((wo) => wo.status == 'Closed')
+        .map((wo) => wo.id)
+        .toList();
+    if (closedIds.isEmpty) {
+      if (_pendingSigWoIds.isNotEmpty && mounted) {
+        setState(() => _pendingSigWoIds = {});
+      }
+      return;
+    }
+    final pending = <String>{};
+    for (final woId in closedIds) {
+      try {
+        final sigs = await _signatureService.fetchSignatures(woId);
+        final techSig = sigs.where((s) => s.signerRole == 'technician').firstOrNull;
+        if (techSig != null && techSig.status == 'pending') {
+          pending.add(woId);
+        }
+      } catch (_) {}
+    }
+    if (mounted) setState(() => _pendingSigWoIds = pending);
   }
 
   Future<void> _loadMore() async {
@@ -885,6 +913,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                     ? () => _showQuickStatusSheet(wo)
                     : null,
                 isSelected: _selectedIds.contains(wo.id),
+                showSigBadge: _pendingSigWoIds.contains(wo.id),
                 onLongPress: () => _enterSelectionMode(wo.id),
                 onTap: () {
                   if (_selectionMode) {

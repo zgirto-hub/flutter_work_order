@@ -18,6 +18,9 @@ import '../../models/department.dart';
 import '../../models/technician_assignment.dart';
 import '../../widgets/technician_selector.dart';
 import '../../widgets/attachment_widget.dart';
+import '../../widgets/signature_canvas.dart';
+import '../../models/work_order_signature.dart';
+import '../../services/signature_service.dart';
 import '../../theme/app_theme.dart';
 import '../../config.dart';
 
@@ -99,6 +102,11 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   Map<String, dynamic>? _lastSavedSnapshot;
   Map<String, dynamic>? _originalSnapshot;
 
+  // Signature state
+  final SignatureService _signatureService = SignatureService();
+  List<WorkOrderSignature> _signatures = [];
+  bool _signaturesLoading = false;
+
   static const List<String> _allowedTypes = [
     "Technical",
     "Inspection",
@@ -168,6 +176,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       _tabIndex = widget.initialTab;
       if (widget.initialTab == 1) _activityViewed = true;
       _loadComments();
+      if (widget.workOrder!.status == 'Closed') _loadSignatures();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _originalSnapshot = _formSnapshot();
         _lastSavedSnapshot = Map.from(_originalSnapshot!);
@@ -611,6 +620,16 @@ Future<void> _loadDepartments() async {
         _refreshing = false;
       });
     }
+  }
+
+  Future<void> _loadSignatures() async {
+    if (widget.workOrder == null) return;
+    setState(() => _signaturesLoading = true);
+    try {
+      final sigs = await _signatureService.fetchSignatures(widget.workOrder!.id);
+      if (mounted) setState(() => _signatures = sigs);
+    } catch (_) {}
+    if (mounted) setState(() => _signaturesLoading = false);
   }
 
   Future<void> _pickAttachment() async {
@@ -1113,6 +1132,10 @@ Future<void> _loadDepartments() async {
               ),
               SizedBox(height: 25),
             ],
+            // ── Signature Section (Closed WOs only) ──────────────
+            if (widget.workOrder != null && widget.workOrder!.status == 'Closed')
+              _buildSignatureSection(),
+
             if (canEdit)
               ElevatedButton(
                 onPressed: submit,
@@ -1134,6 +1157,300 @@ Future<void> _loadDepartments() async {
         ),
       ),
     );
+  }
+
+  Widget _buildSignatureSection() {
+    final currentEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
+    final isAdmin = _userRole == 'admin';
+    final isTech = _userRole == 'technician';
+
+    final techSig = _signatures.where((s) => s.signerRole == 'technician').firstOrNull;
+    final adminSig = _signatures.where((s) => s.signerRole == 'admin').firstOrNull;
+
+    // Check if current user is assigned technician
+    final isAssigned = widget.workOrder?.assignedTechnicians
+        .any((t) => t.email?.toLowerCase() == currentEmail.toLowerCase()) ?? false;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(height: 25),
+        Text(
+          'Electronic Signatures',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+        ),
+        SizedBox(height: 12),
+
+        if (_signaturesLoading)
+          Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2))
+
+        // Rejected: allow technician to re-sign
+        else if (techSig != null && techSig.status == 'rejected') ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.dangerBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.error_outline, size: 16, color: Colors.red),
+                    SizedBox(width: 6),
+                    Text('Signature Rejected', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.red)),
+                  ],
+                ),
+                if (techSig.rejectionReason != null && techSig.rejectionReason!.isNotEmpty) ...[
+                  SizedBox(height: 6),
+                  Text('Reason: ${techSig.rejectionReason}', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                ],
+                if ((isTech && isAssigned) || isAdmin) ...[
+                  SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    icon: Icon(Icons.draw, size: 16),
+                    label: Text('Re-sign'),
+                    onPressed: () => _openSignatureCanvas('technician'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ]
+
+        // No technician signature yet
+        else if (techSig == null) ...[
+          if ((isTech && isAssigned) || isAdmin)
+            ElevatedButton.icon(
+              icon: Icon(Icons.draw, size: 16),
+              label: Text('Sign Job Order'),
+              onPressed: () => _openSignatureCanvas('technician'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: Colors.white,
+              ),
+            )
+          else
+            Text('Awaiting technician signature', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+        ]
+
+        // Technician signed, pending admin
+        else if (techSig.status == 'pending' && adminSig == null) ...[
+          _signaturePreview(techSig, 'Technician'),
+          SizedBox(height: 10),
+          if (!isAdmin)
+            Row(
+              children: [
+                Icon(Icons.hourglass_top, size: 14, color: AppColors.pendingText),
+                SizedBox(width: 6),
+                Text('Awaiting admin approval', style: TextStyle(fontSize: 12, color: AppColors.pendingText)),
+              ],
+            )
+          else ...[
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  icon: Icon(Icons.check, size: 16),
+                  label: Text('Approve & Sign'),
+                  onPressed: () => _approveAndSign(techSig),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.closedText,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                SizedBox(width: 10),
+                OutlinedButton.icon(
+                  icon: Icon(Icons.close, size: 16, color: Colors.red),
+                  label: Text('Reject', style: TextStyle(color: Colors.red)),
+                  onPressed: () => _rejectSignature(techSig),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ]
+
+        // Both signed and approved
+        else if (techSig.status == 'approved' || (techSig.status == 'pending' && adminSig != null)) ...[
+          _signaturePreview(techSig, 'Technician'),
+          SizedBox(height: 10),
+          if (adminSig != null) _signaturePreview(adminSig, 'Admin'),
+        ],
+
+        SizedBox(height: 25),
+      ],
+    );
+  }
+
+  Widget _signaturePreview(WorkOrderSignature sig, String roleLabel) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.bgSurface2,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(roleLabel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              Spacer(),
+              if (sig.status == 'approved')
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.closedBg,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text('Approved', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.closedText)),
+                )
+              else if (sig.status == 'pending')
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.pendingBg,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text('Pending', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.pendingText)),
+                ),
+            ],
+          ),
+          SizedBox(height: 4),
+          Text(sig.signerEmail, style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+          Text(
+            '${sig.signedAt.day}/${sig.signedAt.month}/${sig.signedAt.year}',
+            style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
+          ),
+          SizedBox(height: 8),
+          Container(
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Center(
+              child: Image.memory(
+                base64Decode(sig.signatureData),
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openSignatureCanvas(String role) async {
+    final base64Png = await SignatureCanvas.show(context);
+    if (base64Png == null || !mounted) return;
+
+    final email = Supabase.instance.client.auth.currentUser?.email ?? '';
+    try {
+      await _signatureService.saveSignature(
+        workOrderId: widget.workOrder!.id,
+        signerEmail: email,
+        signerRole: role,
+        signatureData: base64Png,
+      );
+      await _loadSignatures();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _approveAndSign(WorkOrderSignature techSig) async {
+    // First approve the technician signature
+    try {
+      await _signatureService.updateSignature(
+        workOrderId: widget.workOrder!.id,
+        signatureId: techSig.id,
+        status: 'approved',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+    // Then open canvas for admin signature
+    if (!mounted) return;
+    final base64Png = await SignatureCanvas.show(context);
+    if (base64Png == null || !mounted) return;
+
+    final email = Supabase.instance.client.auth.currentUser?.email ?? '';
+    try {
+      await _signatureService.saveSignature(
+        workOrderId: widget.workOrder!.id,
+        signerEmail: email,
+        signerRole: 'admin',
+        signatureData: base64Png,
+      );
+      await _loadSignatures();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _rejectSignature(WorkOrderSignature techSig) async {
+    final reasonCtrl = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Reject Signature'),
+        content: TextField(
+          controller: reasonCtrl,
+          decoration: InputDecoration(
+            labelText: 'Reason for rejection',
+            hintText: 'Enter reason...',
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, reasonCtrl.text),
+            child: Text('Reject', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (reason == null || !mounted) return;
+
+    try {
+      await _signatureService.updateSignature(
+        workOrderId: widget.workOrder!.id,
+        signatureId: techSig.id,
+        status: 'rejected',
+        rejectionReason: reason,
+      );
+      await _loadSignatures();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Widget _buildActivityTab() {

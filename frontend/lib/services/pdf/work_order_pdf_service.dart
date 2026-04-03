@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -5,6 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../models/work_order_signature.dart';
 import '../../models/workorder_report.dart';
 
 enum WorkOrderPdfTheme {
@@ -1461,6 +1463,72 @@ class WorkOrderPdfService {
 
   static String _fmtShort(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Build a PDF signatures section for a work order.
+  /// Call this to append signatures at the bottom of a work order PDF.
+  static pw.Widget buildSignaturesSection(List<WorkOrderSignature> signatures) {
+    final techSig = signatures.where((s) => s.signerRole == 'technician').firstOrNull;
+    final adminSig = signatures.where((s) => s.signerRole == 'admin').firstOrNull;
+
+    if (techSig == null) return pw.SizedBox.shrink();
+
+    pw.Widget sigColumn(WorkOrderSignature sig, String roleLabel) {
+      final dateStr = '${sig.signedAt.day}/${sig.signedAt.month}/${sig.signedAt.year}';
+      final imgBytes = base64Decode(sig.signatureData);
+
+      return pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(roleLabel, style: pw.TextStyle(
+            fontSize: 10,
+            fontWeight: pw.FontWeight.bold,
+          )),
+          pw.SizedBox(height: 4),
+          pw.Text(sig.signerEmail, style: const pw.TextStyle(fontSize: 8)),
+          pw.Text(dateStr, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+          pw.SizedBox(height: 6),
+          pw.Container(
+            width: 180,
+            height: 50,
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300),
+              borderRadius: pw.BorderRadius.circular(4),
+            ),
+            child: pw.Center(
+              child: pw.Image(pw.MemoryImage(imgBytes), width: 160, height: 40, fit: pw.BoxFit.contain),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(top: 20),
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey400),
+        borderRadius: pw.BorderRadius.circular(6),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text('Signatures', style: pw.TextStyle(
+            fontSize: 12,
+            fontWeight: pw.FontWeight.bold,
+          )),
+          pw.SizedBox(height: 10),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Expanded(child: sigColumn(techSig, 'Technician')),
+              if (adminSig != null)
+                pw.Expanded(child: sigColumn(adminSig, 'Admin')),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 
