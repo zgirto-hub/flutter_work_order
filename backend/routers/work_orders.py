@@ -322,22 +322,23 @@ async def list_work_orders(
     offset: int = Query(0),
 ):
     # Updated query to include department details
+    # Use left joins (via !left) so WOs still appear when FK doesn't match
     query = supabase.table("work_orders").select("""
         *,
-        creator:users!work_orders_created_by_fkey (
+        creator:users!work_orders_created_by_fkey!left (
             full_name,
             email
         ),
-        departments!work_orders_department_id_fkey (
+        departments!work_orders_department_id_fkey!left (
             id,
             name,
             is_active
         ),
-        work_order_assignments (
+        work_order_assignments!left (
             technician_id,
             assigned_at,
             assigned_by,
-            users!work_order_assignments_technician_id_fkey (
+            users!work_order_assignments_technician_id_fkey!left (
                 id,
                 email,
                 full_name
