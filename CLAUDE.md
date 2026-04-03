@@ -17,6 +17,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-03
 - Supabase (PostgreSQL) — `work_orders`, `users` tables (010-fix-wo-disappear-refresh)
 - Dart 3.x / Flutter 3.x + Flutter Material (BottomSheet, AlertDialog), existing WorkOrderService, StatusBadge widget (012-quick-status-update)
 - N/A (uses existing Supabase endpoints via WorkOrderService) (012-quick-status-update)
+- Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, signature, supabase_flutter, file_picker (frontend) (014-signature-workflow)
+- Supabase (PostgreSQL) — `work_order_signatures`, `users.signature_path` columns; `backend/uploaded_files/` for signature PNG files served at `/files/<filename>` (014-signature-workflow)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 
@@ -37,9 +39,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 014-signature-workflow: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, signature, supabase_flutter, file_picker (frontend)
 - 012-quick-status-update: Added Dart 3.x / Flutter 3.x + Flutter Material (BottomSheet, AlertDialog), existing WorkOrderService, StatusBadge widget
 - 010-fix-wo-disappear-refresh: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI (backend), Supabase Python client, Flutter Material, http package
-- 009-optimize-pwa-launch: Added Dart 3.x / Flutter 3.x (frontend), Bash (deploy scripts), Nginx (server config) + Flutter Web (canvaskit renderer), OneSignal SDK, Supabase, Nginx
 
 
 <!-- MANUAL ADDITIONS START -->
