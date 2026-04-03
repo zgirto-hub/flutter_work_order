@@ -902,9 +902,11 @@ Future<void> _loadDepartments() async {
                         _Tab(
                           label: 'Activity',
                           active: _tabIndex == 1,
-                          badge: _comments
-                              .where((c) => c.type == 'comment')
-                              .length,
+                          badge: _tabIndex == 0
+                              ? _comments
+                                  .where((c) => c.type == 'comment')
+                                  .length
+                              : 0,
                           onTap: () => setState(() => _tabIndex = 1),
                         ),
                       ],
