@@ -299,8 +299,10 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         # Embed signature image as a proper RLImage flowable
         sig_path = sig.get("signature_path")
         if sig_path:
+            # signature_path is stored as "/files/sig_xxx.png" — extract filename
+            sig_filename = os.path.basename(sig_path)
             sig_file_path = os.path.join(
-                os.path.dirname(__file__), "..", "uploaded_files", sig_path
+                os.path.dirname(__file__), "..", "uploaded_files", sig_filename
             )
             if os.path.exists(sig_file_path):
                 try:
