@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -8,6 +7,7 @@ import 'package:printing/printing.dart';
 
 import '../../models/work_order_signature.dart';
 import '../../models/workorder_report.dart';
+import '../../config.dart';
 
 enum WorkOrderPdfTheme {
   copperNight,
@@ -569,8 +569,7 @@ class WorkOrderPdfService {
           final index = entry.key;
           final stat = entry.value;
           final ratio = stat.count / maxCount;
-          final share =
-              total == 0 ? 0 : ((stat.count / total) * 100).round();
+          final share = total == 0 ? 0 : ((stat.count / total) * 100).round();
           final isLast = index == topStats.length - 1;
 
           return pw.Container(
@@ -717,9 +716,8 @@ class WorkOrderPdfService {
           final index = entry.key;
           final item = entry.value;
           final isLast = index == results.length - 1;
-          final loc = item.location.trim().isEmpty
-              ? 'Unspecified'
-              : item.location;
+          final loc =
+              item.location.trim().isEmpty ? 'Unspecified' : item.location;
 
           return pw.Container(
             decoration: isLast
@@ -1178,8 +1176,7 @@ class WorkOrderPdfService {
             final index = entry.key;
             final stat = entry.value;
             final ratio = maxCount == 0 ? 0.0 : stat.count / maxCount;
-            final share =
-                total == 0 ? 0 : ((stat.count / total) * 100).round();
+            final share = total == 0 ? 0 : ((stat.count / total) * 100).round();
 
             return pw.Padding(
               padding: pw.EdgeInsets.only(
@@ -1198,8 +1195,7 @@ class WorkOrderPdfService {
                     child: pw.Text(
                       '${index + 1}',
                       style: pw.TextStyle(
-                        color:
-                            index == 0 ? palette.ink : palette.text,
+                        color: index == 0 ? palette.ink : palette.text,
                         fontSize: 10,
                         fontWeight: pw.FontWeight.bold,
                       ),
@@ -1234,10 +1230,7 @@ class WorkOrderPdfService {
                           width: math.max(18, ratio * 220),
                           decoration: pw.BoxDecoration(
                             gradient: pw.LinearGradient(
-                              colors: [
-                                palette.accent,
-                                palette.accentStrong
-                              ],
+                              colors: [palette.accent, palette.accentStrong],
                             ),
                             borderRadius: pw.BorderRadius.circular(10),
                           ),
@@ -1327,8 +1320,8 @@ class WorkOrderPdfService {
                 border: isLast
                     ? null
                     : pw.Border(
-                        bottom: pw.BorderSide(
-                            color: palette.border, width: 0.7),
+                        bottom:
+                            pw.BorderSide(color: palette.border, width: 0.7),
                       ),
               ),
               child: pw.Row(
@@ -1468,25 +1461,45 @@ class WorkOrderPdfService {
   /// Build a PDF signatures section for a work order.
   /// Call this to append signatures at the bottom of a work order PDF.
   static pw.Widget buildSignaturesSection(List<WorkOrderSignature> signatures) {
-    final techSig = signatures.where((s) => s.signerRole == 'technician').firstOrNull;
-    final adminSig = signatures.where((s) => s.signerRole == 'admin').firstOrNull;
+    final techSig =
+        signatures.where((s) => s.signerRole == 'technician').firstOrNull;
+    final adminSig =
+        signatures.where((s) => s.signerRole == 'admin').firstOrNull;
 
     if (techSig == null) return pw.SizedBox.shrink();
 
     pw.Widget sigColumn(WorkOrderSignature sig, String roleLabel) {
-      final dateStr = '${sig.signedAt.day}/${sig.signedAt.month}/${sig.signedAt.year}';
-      final imgBytes = base64Decode(sig.signatureData);
+      final dateStr =
+          '${sig.signedAt.day}/${sig.signedAt.month}/${sig.signedAt.year}';
+
+      pw.Widget imageWidget;
+      final path = sig.signaturePath;
+      if (path != null && path.isNotEmpty) {
+        final url = '${AppConfig.downloadUrl}$path';
+        imageWidget = pw.Expanded(
+          child: pw.UrlLink(
+            child: pw.Text(url,
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.blue)),
+            destination: url,
+          ),
+        );
+      } else {
+        imageWidget = pw.Text('(no signature)',
+            style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500));
+      }
 
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(roleLabel, style: pw.TextStyle(
-            fontSize: 10,
-            fontWeight: pw.FontWeight.bold,
-          )),
+          pw.Text(roleLabel,
+              style: pw.TextStyle(
+                fontSize: 10,
+                fontWeight: pw.FontWeight.bold,
+              )),
           pw.SizedBox(height: 4),
           pw.Text(sig.signerEmail, style: const pw.TextStyle(fontSize: 8)),
-          pw.Text(dateStr, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+          pw.Text(dateStr,
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
           pw.SizedBox(height: 6),
           pw.Container(
             width: 180,
@@ -1495,9 +1508,7 @@ class WorkOrderPdfService {
               border: pw.Border.all(color: PdfColors.grey300),
               borderRadius: pw.BorderRadius.circular(4),
             ),
-            child: pw.Center(
-              child: pw.Image(pw.MemoryImage(imgBytes), width: 160, height: 40, fit: pw.BoxFit.contain),
-            ),
+            child: pw.Center(child: imageWidget),
           ),
         ],
       );
@@ -1513,10 +1524,11 @@ class WorkOrderPdfService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('Signatures', style: pw.TextStyle(
-            fontSize: 12,
-            fontWeight: pw.FontWeight.bold,
-          )),
+          pw.Text('Signatures',
+              style: pw.TextStyle(
+                fontSize: 12,
+                fontWeight: pw.FontWeight.bold,
+              )),
           pw.SizedBox(height: 10),
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,

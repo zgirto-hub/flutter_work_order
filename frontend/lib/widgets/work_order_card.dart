@@ -14,7 +14,7 @@ class WorkOrderCard extends StatefulWidget {
   final bool selectionMode;
   final bool isSelected;
   final VoidCallback? onLongPress;
-  final bool showSigBadge;
+  final String? signatureState;
 
   const WorkOrderCard({
     super.key,
@@ -28,7 +28,7 @@ class WorkOrderCard extends StatefulWidget {
     this.selectionMode = false,
     this.isSelected = false,
     this.onLongPress,
-    this.showSigBadge = false,
+    this.signatureState,
   });
 
   @override
@@ -155,9 +155,9 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                               SizedBox(width: 6),
                               _UnreadBadge(count: widget.unreadActivityCount),
                             ],
-                            if (widget.showSigBadge) ...[
+                            if (widget.signatureState != null) ...[
                               SizedBox(width: 6),
-                              _SigBadge(),
+                              _SignatureBadge(state: widget.signatureState!),
                             ],
                             const Spacer(),
                             canTapStatus
@@ -463,25 +463,39 @@ class _UnreadBadge extends StatelessWidget {
   }
 }
 
-// ── Inspection Badge ──────────────────────────────────────────────────────────
+// ── Signature Badge ──────────────────────────────────────────────────────────
 
-class _SigBadge extends StatelessWidget {
+class _SignatureBadge extends StatelessWidget {
+  final String state;
+
+  const _SignatureBadge({required this.state});
+
   @override
   Widget build(BuildContext context) {
+    Color color;
+    IconData icon;
+
+    switch (state) {
+      case 'fully_signed':
+        color = AppColors.closedText;
+        icon = Icons.check_circle;
+        break;
+      case 'pending':
+        color = AppColors.pendingText;
+        icon = Icons.pending;
+        break;
+      default:
+        color = AppColors.textTertiary;
+        icon = Icons.draw;
+    }
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.pendingBg,
-        borderRadius: BorderRadius.circular(10),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(
-        'SIG',
-        style: TextStyle(
-          fontSize: 9,
-          color: AppColors.pendingText,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+      child: Icon(icon, size: 14, color: color),
     );
   }
 }

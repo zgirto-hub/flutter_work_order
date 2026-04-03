@@ -3,7 +3,7 @@ class WorkOrderSignature {
   final String workOrderId;
   final String signerEmail;
   final String signerRole;
-  final String signatureData;
+  final String? signaturePath;
   final DateTime signedAt;
   final String status;
   final String? rejectionReason;
@@ -13,7 +13,7 @@ class WorkOrderSignature {
     required this.workOrderId,
     required this.signerEmail,
     required this.signerRole,
-    required this.signatureData,
+    this.signaturePath,
     required this.signedAt,
     required this.status,
     this.rejectionReason,
@@ -25,7 +25,7 @@ class WorkOrderSignature {
       workOrderId: json['work_order_id'] as String,
       signerEmail: json['signer_email'] as String,
       signerRole: json['signer_role'] as String,
-      signatureData: json['signature_data'] as String,
+      signaturePath: json['signature_path'] as String?,
       signedAt: DateTime.parse(json['signed_at'] as String),
       status: json['status'] as String,
       rejectionReason: json['rejection_reason'] as String?,

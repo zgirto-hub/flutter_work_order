@@ -74,7 +74,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   bool _refreshing = false;
   String _userRole = 'admin';
   final SignatureService _signatureService = SignatureService();
-  Set<String> _pendingSigWoIds = {};
+  Map<String, String> _signatureStates = {};
 
   bool _profileLoaded = false;
 
@@ -141,22 +141,36 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
         .map((wo) => wo.id)
         .toList();
     if (closedIds.isEmpty) {
-      if (_pendingSigWoIds.isNotEmpty && mounted) {
-        setState(() => _pendingSigWoIds = {});
+      if (_signatureStates.isNotEmpty && mounted) {
+        setState(() => _signatureStates = {});
       }
       return;
     }
-    final pending = <String>{};
-    for (final woId in closedIds) {
-      try {
-        final sigs = await _signatureService.fetchSignatures(woId);
-        final techSig = sigs.where((s) => s.signerRole == 'technician').firstOrNull;
-        if (techSig != null && techSig.status == 'pending') {
-          pending.add(woId);
+
+    try {
+      final statuses =
+          await _signatureService.fetchBulkSignatureStatus(closedIds);
+      if (!mounted) return;
+
+      final newStates = <String, String>{};
+      for (final wo in workOrders.where((wo) => wo.status == 'Closed')) {
+        final status = statuses[wo.id];
+        if (status == null) {
+          newStates[wo.id] = 'unsigned';
+        } else {
+          final techStatus = status['technician_status'] as String?;
+          final adminStatus = status['admin_status'] as String?;
+          if (techStatus == null) {
+            newStates[wo.id] = 'unsigned';
+          } else if (techStatus == 'approved' && adminStatus == 'approved') {
+            newStates[wo.id] = 'fully_signed';
+          } else {
+            newStates[wo.id] = 'pending';
+          }
         }
-      } catch (_) {}
-    }
-    if (mounted) setState(() => _pendingSigWoIds = pending);
+      }
+      if (mounted) setState(() => _signatureStates = newStates);
+    } catch (_) {}
   }
 
   Future<void> _loadMore() async {
@@ -913,7 +927,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                     ? () => _showQuickStatusSheet(wo)
                     : null,
                 isSelected: _selectedIds.contains(wo.id),
-                showSigBadge: _pendingSigWoIds.contains(wo.id),
+                signatureState: _signatureStates[wo.id],
                 onLongPress: () => _enterSelectionMode(wo.id),
                 onTap: () {
                   if (_selectionMode) {
