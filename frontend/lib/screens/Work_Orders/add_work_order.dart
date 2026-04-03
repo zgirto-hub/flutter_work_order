@@ -21,6 +21,8 @@ import '../../widgets/attachment_widget.dart';
 import '../../widgets/signature_canvas.dart';
 import '../../models/work_order_signature.dart';
 import '../../services/signature_service.dart';
+import '../../services/report_service.dart';
+import '../../widgets/pdf_preview_screen.dart';
 import '../../theme/app_theme.dart';
 import '../../config.dart';
 
@@ -1210,6 +1212,20 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                 widget.workOrder!.status == 'Closed')
               _buildSignatureSection(),
 
+            // ── Export PDF Report (Closed WOs only) ──────────────
+            if (widget.workOrder != null &&
+                widget.workOrder!.status == 'Closed') ...[
+              SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: Icon(Icons.picture_as_pdf_outlined, size: 18),
+                  label: Text("Export PDF Report"),
+                  onPressed: _exportPdf,
+                ),
+              ),
+            ],
+
             if (canEdit)
               ElevatedButton(
                 onPressed: submit,
@@ -1903,6 +1919,41 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         ],
       ),
     );
+  }
+
+  bool _exportingPdf = false;
+
+  Future<void> _exportPdf() async {
+    if (_exportingPdf) return;
+    setState(() => _exportingPdf = true);
+    try {
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      final email = currentUser?.email ?? '';
+      final workOrderId = widget.workOrder!.id;
+      final jobNo = widget.workOrder!.jobNo ?? 'unknown';
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PdfPreviewScreen(
+            title: 'WO-$jobNo Report',
+            buildPdf: () => ReportService().exportWorkOrderPdf(
+              workOrderId: workOrderId,
+              email: email,
+              userRole: _userRole ?? 'reporter',
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to export PDF: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exportingPdf = false);
+    }
   }
 
   Future<void> _confirmDelete() async {

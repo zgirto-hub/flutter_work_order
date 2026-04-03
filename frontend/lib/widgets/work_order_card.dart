@@ -11,6 +11,7 @@ class WorkOrderCard extends StatefulWidget {
   final VoidCallback onEdit;
   final VoidCallback? onActivity;
   final VoidCallback? onStatusTap;
+  final VoidCallback? onExportPdf;
   final bool selectionMode;
   final bool isSelected;
   final VoidCallback? onLongPress;
@@ -25,6 +26,7 @@ class WorkOrderCard extends StatefulWidget {
     required this.onEdit,
     this.onActivity,
     this.onStatusTap,
+    this.onExportPdf,
     this.selectionMode = false,
     this.isSelected = false,
     this.onLongPress,
@@ -354,6 +356,45 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
+                            if (widget.onExportPdf != null &&
+                                widget.workOrder.status.toLowerCase() ==
+                                    'closed')
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: Semantics(
+                                  label: 'Export PDF report',
+                                  button: true,
+                                  child: GestureDetector(
+                                    onTap: widget.onExportPdf,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 7),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.bgSurface,
+                                        borderRadius: BorderRadius.circular(9),
+                                        border: Border.all(
+                                            color: AppColors.border2,
+                                            width: 0.5),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.picture_as_pdf_outlined,
+                                              size: 13,
+                                              color: AppColors.textSecondary),
+                                          SizedBox(width: 5),
+                                          Text('PDF',
+                                              style: TextStyle(
+                                                  fontSize: 12,
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                  fontWeight: FontWeight.w500)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             if (widget.onActivity != null)
                               Semantics(
                                 label: 'View activity for work order',

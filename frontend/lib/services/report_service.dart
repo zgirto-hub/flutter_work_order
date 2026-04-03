@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models/workorder_report.dart';
 import '../config.dart';
@@ -20,7 +21,8 @@ class ReportService {
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    final uri = Uri.parse('${AppConfig.baseUrl}/reports/closed-work-orders').replace(
+    final uri =
+        Uri.parse('${AppConfig.baseUrl}/reports/closed-work-orders').replace(
       queryParameters: {
         'technician_id': technicianId,
         'start_date': startDate.toIso8601String(),
@@ -32,6 +34,28 @@ class ReportService {
       throw Exception(_errorDetail(res, 'Failed to fetch work orders'));
     }
     final data = jsonDecode(res.body) as List;
-    return data.map((e) => WorkOrderReport.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => WorkOrderReport.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Export a work order as a PDF report.
+  /// Returns raw PDF bytes from the server.
+  Future<Uint8List> exportWorkOrderPdf({
+    required String workOrderId,
+    required String email,
+    required String userRole,
+  }) async {
+    final uri = Uri.parse(
+      '${AppConfig.baseUrl}/reports/work-order-pdf/$workOrderId',
+    ).replace(queryParameters: {
+      'email': email,
+      'user_role': userRole,
+    });
+    final res = await http.post(uri);
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to generate PDF'));
+    }
+    return res.bodyBytes;
   }
 }

@@ -1,6 +1,6 @@
 ﻿# flutter_work_order Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-03
+Auto-generated from all feature plans. Last updated: 2026-04-04
 
 ## Active Technologies
 - Dart 3.x / Flutter 3.x + `pdf` ^3.10.7 (existing), `printing` ^5.12.0 (existing), `htmltopdfwidgets` (NEW) (002-use-html-css)
@@ -19,6 +19,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-03
 - N/A (uses existing Supabase endpoints via WorkOrderService) (012-quick-status-update)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, signature, supabase_flutter, file_picker (frontend) (014-signature-workflow)
 - Supabase (PostgreSQL) — `work_order_signatures`, `users.signature_path` columns; `backend/uploaded_files/` for signature PNG files served at `/files/<filename>` (014-signature-workflow)
+- Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, reportlab (backend — NEW dependency); http, Flutter Material (frontend) (015-export-wo-pdf)
+- Supabase (PostgreSQL) — existing `work_orders`, `work_order_signatures`, `users`, `departments` tables; server filesystem for signature/logo PNGs (015-export-wo-pdf)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 
@@ -39,9 +41,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 015-export-wo-pdf: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, reportlab (backend — NEW dependency); http, Flutter Material (frontend)
 - 014-signature-workflow: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, signature, supabase_flutter, file_picker (frontend)
 - 012-quick-status-update: Added Dart 3.x / Flutter 3.x + Flutter Material (BottomSheet, AlertDialog), existing WorkOrderService, StatusBadge widget
-- 010-fix-wo-disappear-refresh: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI (backend), Supabase Python client, Flutter Material, http package
 
 
 <!-- MANUAL ADDITIONS START -->

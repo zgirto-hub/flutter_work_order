@@ -11,6 +11,8 @@ import '../../widgets/claude_widgets.dart';
 import '../../widgets/work_order_card.dart';
 import '../../services/work_order_service.dart';
 import '../../services/signature_service.dart';
+import '../../services/report_service.dart';
+import '../../widgets/pdf_preview_screen.dart';
 import '../../controllers/filter_controller.dart';
 import '../../filters/work_order_filter_engine.dart';
 import '../../models/technician_assignment.dart';
@@ -984,6 +986,36 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                     _navigatingToEdit = false;
                   }
                 },
+                onExportPdf: wo.status.toLowerCase() == 'closed'
+                    ? () async {
+                        final currentUser =
+                            Supabase.instance.client.auth.currentUser;
+                        final email = currentUser?.email ?? '';
+                        try {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PdfPreviewScreen(
+                                title: 'WO-${wo.jobNo ?? "unknown"} Report',
+                                buildPdf: () =>
+                                    ReportService().exportWorkOrderPdf(
+                                  workOrderId: wo.id,
+                                  email: email,
+                                  userRole: _userRole ?? 'reporter',
+                                ),
+                              ),
+                            ),
+                          );
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('Failed to export PDF: $e')),
+                            );
+                          }
+                        }
+                      }
+                    : null,
               ),
             )));
       }
