@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/app_notification.dart';
 import '../../models/work_order.dart';
 import '../../services/notification_service.dart';
@@ -166,7 +167,10 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
     }
 
     final total = unread.length;
-    if (_soundPrimed && playSoundIfIncreased && _isForeground && total > _lastUnreadTotal) {
+    if (_soundPrimed &&
+        playSoundIfIncreased &&
+        _isForeground &&
+        total > _lastUnreadTotal) {
       try {
         SystemSound.play(SystemSoundType.alert);
       } catch (_) {}
@@ -239,6 +243,178 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       _selectionMode = false;
       _selectedIds.clear();
     });
+  }
+
+  String? _getNextStatus(String currentStatus) {
+    switch (currentStatus.toLowerCase()) {
+      case 'pending':
+        return 'In Progress';
+      case 'in progress':
+        return 'Resolved';
+      case 'resolved':
+        return 'Closed';
+      case 'closed':
+        return null;
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _showQuickStatusSheet(WorkOrder wo) async {
+    final nextStatus = _getNextStatus(wo.status);
+    if (nextStatus == null) return;
+
+    final isCloseFlow = wo.status.toLowerCase() == 'resolved';
+    final techNotesController = TextEditingController();
+    var isLoading = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> submitStatusUpdate() async {
+              if (isLoading) return;
+
+              setSheetState(() => isLoading = true);
+
+              try {
+                if (isCloseFlow) {
+                  final closedBy =
+                      Supabase.instance.client.auth.currentUser?.id;
+                  if (closedBy == null || closedBy.isEmpty) {
+                    throw Exception('Unable to determine the current user.');
+                  }
+
+                  final techNotes = techNotesController.text.trim();
+                  await _service.closeWorkOrder(
+                    wo.id,
+                    closedBy: closedBy,
+                    techNotes: techNotes.isEmpty ? null : techNotes,
+                  );
+
+                  final index =
+                      _workOrders.indexWhere((item) => item.id == wo.id);
+                  if (index != -1) {
+                    _workOrders[index] = _workOrders[index].copyWith(
+                      status: 'Closed',
+                      closedBy: closedBy,
+                      closedAt: DateTime.now().toIso8601String(),
+                      techNotes: techNotes.isEmpty ? null : techNotes,
+                    );
+                  }
+                } else {
+                  final updatedWo = wo.copyWith(status: nextStatus);
+                  await _service.updateWorkOrder(updatedWo);
+
+                  final index =
+                      _workOrders.indexWhere((item) => item.id == wo.id);
+                  if (index != -1) {
+                    _workOrders[index] = updatedWo;
+                  }
+                }
+
+                if (!mounted) return;
+                setState(() {});
+                Navigator.of(this.context).pop();
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to update status: $e'),
+                    backgroundColor: AppColors.dangerText,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                setSheetState(() => isLoading = false);
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                16 + MediaQuery.of(sheetContext).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.border2,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  StatusBadge(status: wo.status),
+                  const SizedBox(height: 12),
+                  Text(
+                    wo.title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    wo.jobNo,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (isCloseFlow) ...[
+                    TextField(
+                      controller: techNotesController,
+                      enabled: !isLoading,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Tech Notes (optional)',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: isLoading ? null : submitStatusUpdate,
+                      child: isLoading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              isCloseFlow
+                                  ? 'Close Work Order'
+                                  : 'Mark as $nextStatus',
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    techNotesController.dispose();
   }
 
   Future<void> _deleteSelected() async {
@@ -350,12 +526,9 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       setState(() => _filter.selectedEmployeeId = null);
       return;
     }
-    final employees = _workOrders
-        .expand((wo) => wo.assignedTechnicians)
-        .toList();
-    final unique = {
-      for (var e in employees) e.id: e
-    }.values.toList();
+    final employees =
+        _workOrders.expand((wo) => wo.assignedTechnicians).toList();
+    final unique = {for (var e in employees) e.id: e}.values.toList();
     final selected = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: AppColors.bgSurface,
@@ -371,8 +544,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
 
   @override
   Widget build(BuildContext context) {
-    final filtered =
-        WorkOrderFilterEngine.applyFilters(_workOrders, _filter);
+    final filtered = WorkOrderFilterEngine.applyFilters(_workOrders, _filter);
 
     return Shortcuts(
       shortcuts: <LogicalKeySet, Intent>{
@@ -401,7 +573,6 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
             body: SafeArea(
               child: Column(
                 children: [
-
                   // ── App Bar ───────────────────────────────────────
                   Container(
                     color: AppColors.bgSurface,
@@ -451,8 +622,12 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                                           ? Icons.close_rounded
                                           : Icons.search_rounded,
                                       onTap: _toggleSearch,
-                                      tooltip: _showSearch ? 'Close search' : 'Search',
-                                      semanticsLabel: _showSearch ? 'Close search' : 'Search work orders',
+                                      tooltip: _showSearch
+                                          ? 'Close search'
+                                          : 'Search',
+                                      semanticsLabel: _showSearch
+                                          ? 'Close search'
+                                          : 'Search work orders',
                                     ),
                                     SizedBox(width: 6),
                                     ClaudeIconButton(
@@ -471,17 +646,23 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                                     SizedBox(width: 6),
                                     if (_refreshing)
                                       Container(
-                                        width: 34, height: 34,
+                                        width: 34,
+                                        height: 34,
                                         decoration: BoxDecoration(
                                           color: AppColors.bgSurface2,
-                                          borderRadius: BorderRadius.circular(9),
-                                          border: Border.all(color: AppColors.border2, width: 0.5),
+                                          borderRadius:
+                                              BorderRadius.circular(9),
+                                          border: Border.all(
+                                              color: AppColors.border2,
+                                              width: 0.5),
                                         ),
                                         child: Center(
                                           child: SizedBox(
-                                            width: 14, height: 14,
+                                            width: 14,
+                                            height: 14,
                                             child: CircularProgressIndicator(
-                                              strokeWidth: 1.5, color: AppColors.textTertiary),
+                                                strokeWidth: 1.5,
+                                                color: AppColors.textTertiary),
                                           ),
                                         ),
                                       )
@@ -491,7 +672,9 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                                         onTap: () async {
                                           setState(() => _refreshing = true);
                                           await _load();
-                                          if (mounted) setState(() => _refreshing = false);
+                                          if (mounted) {
+                                            setState(() => _refreshing = false);
+                                          }
                                         },
                                         tooltip: 'Refresh',
                                         semanticsLabel: 'Refresh work orders',
@@ -555,8 +738,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                                   .expand((w) => w.assignedTechnicians)
                                   .firstWhere(
                                     (e) => e.id == _filter.selectedEmployeeId,
-                                    orElse: () =>
-                                        TechnicianAssignment(id: '', fullName: ''),
+                                    orElse: () => TechnicianAssignment(
+                                        id: '', fullName: ''),
                                   )
                                   .fullName,
                               onRemove: () => setState(
@@ -566,8 +749,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                       ),
                     ),
 
-                  Divider(
-                      height: 0, thickness: 0.5, color: AppColors.border),
+                  Divider(height: 0, thickness: 0.5, color: AppColors.border),
 
                   // ── List ──────────────────────────────────────────
                   Expanded(
@@ -576,12 +758,13 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                 ],
               ),
             ),
-            floatingActionButton:
-                _selectionMode ? null : ClaudeFAB(
-                  onTap: _openAdd,
-                  tooltip: 'Create work order',
-                  semanticsLabel: 'Create new work order',
-                ),
+            floatingActionButton: _selectionMode
+                ? null
+                : ClaudeFAB(
+                    onTap: _openAdd,
+                    tooltip: 'Create work order',
+                    semanticsLabel: 'Create new work order',
+                  ),
           ),
         ),
       ),
@@ -632,8 +815,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
     }
 
     // Group by date
-    final grouped = groupBy<WorkOrder, String>(
-        items, (wo) => _dateLabel(wo.dateCreated));
+    final grouped =
+        groupBy<WorkOrder, String>(items, (wo) => _dateLabel(wo.dateCreated));
 
     // Build flat list of widgets with date headers
     final widgets = <Widget>[];
@@ -643,18 +826,18 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
         padding: const EdgeInsets.only(bottom: 8, top: 4),
         child: Row(
           children: [
-            Expanded(child: Divider(
-                height: 1, thickness: 0.5, color: AppColors.border2)),
+            Expanded(
+                child: Divider(
+                    height: 1, thickness: 0.5, color: AppColors.border2)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.bgSurface2,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                      color: AppColors.border2, width: 0.5),
+                  border: Border.all(color: AppColors.border2, width: 0.5),
                 ),
                 child: Text(entry.key,
                     style: TextStyle(
@@ -663,8 +846,9 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                         color: AppColors.textSecondary)),
               ),
             ),
-            Expanded(child: Divider(
-                height: 1, thickness: 0.5, color: AppColors.border2)),
+            Expanded(
+                child: Divider(
+                    height: 1, thickness: 0.5, color: AppColors.border2)),
           ],
         ),
       ));
@@ -674,84 +858,91 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
         final isNew = _newWoIds.contains(wo.id);
         final isRemoving = _removingWoIds.contains(wo.id);
         widgets.add(TweenAnimationBuilder<double>(
-          key: ValueKey('anim_${wo.id}_${isRemoving ? 'out' : 'in'}'),
-          tween: isRemoving
-              ? Tween(begin: 1.0, end: 0.0)
-              : Tween(begin: isNew ? 0.0 : 1.0, end: 1.0),
-          duration: Duration(milliseconds: isRemoving ? 500 : (isNew ? 600 : 0)),
-          curve: isRemoving ? Curves.easeInCubic : Curves.easeOutCubic,
-          builder: (context, value, child) => Opacity(
-            opacity: value.clamp(0.0, 1.0),
-            child: Transform.translate(
-              offset: Offset(isRemoving ? -20 * (1 - value) : 0, isRemoving ? 0 : 12 * (1 - value)),
-              child: child,
-            ),
-          ),
-          child: Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: WorkOrderCard(
-            workOrder: wo,
-            unreadActivityCount: _unreadByWorkOrderId[wo.id] ?? 0,
-            expanded: !_selectionMode && _expandedIndex == i,
-            selectionMode: _selectionMode,
-            isSelected: _selectedIds.contains(wo.id),
-            onLongPress: () => _enterSelectionMode(wo.id),
-            onTap: () {
-              if (_selectionMode) {
-                _toggleSelection(wo.id);
-              } else {
-                setState(() {
-                  _expandedIndex = _expandedIndex == i ? null : i;
-                });
-              }
-            },
-            onActivity: () async {
-              if (_selectionMode) return;
-              if (_navigatingToActivity) return;
-              _navigatingToActivity = true;
-              try {
-                await _markWorkOrderNotificationsRead(wo.id);
-                if (!context.mounted) return;
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AddWorkOrderScreen(
-                        workOrder: wo, initialTab: 1),
+            key: ValueKey('anim_${wo.id}_${isRemoving ? 'out' : 'in'}'),
+            tween: isRemoving
+                ? Tween(begin: 1.0, end: 0.0)
+                : Tween(begin: isNew ? 0.0 : 1.0, end: 1.0),
+            duration:
+                Duration(milliseconds: isRemoving ? 500 : (isNew ? 600 : 0)),
+            curve: isRemoving ? Curves.easeInCubic : Curves.easeOutCubic,
+            builder: (context, value, child) => Opacity(
+                  opacity: value.clamp(0.0, 1.0),
+                  child: Transform.translate(
+                    offset: Offset(isRemoving ? -20 * (1 - value) : 0,
+                        isRemoving ? 0 : 12 * (1 - value)),
+                    child: child,
                   ),
-                );
-                if (!mounted) return;
-                if (result == 'updated' || result == 'deleted') {
-                  await _load();
-                  widget.onWorkOrderCreated?.call();
-                }
-                await _refreshUnreadNotifications(playSoundIfIncreased: false);
-              } finally {
-                _navigatingToActivity = false;
-              }
-            },
-            onEdit: () async {
-              if (_selectionMode) return;
-              if (_navigatingToEdit) return;
-              _navigatingToEdit = true;
-              try {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AddWorkOrderScreen(workOrder: wo),
-                  ),
-                );
-                if (!mounted) return;
-                if (result == 'updated' || result == 'deleted') {
-                  await _load();
-                  widget.onWorkOrderCreated?.call();
-                }
-                await _refreshUnreadNotifications(playSoundIfIncreased: false);
-              } finally {
-                _navigatingToEdit = false;
-              }
-            },
-          ),
-        )));
+                ),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: WorkOrderCard(
+                workOrder: wo,
+                unreadActivityCount: _unreadByWorkOrderId[wo.id] ?? 0,
+                expanded: !_selectionMode && _expandedIndex == i,
+                selectionMode: _selectionMode,
+                onStatusTap: (_userRole != 'reporter' &&
+                        _getNextStatus(wo.status) != null)
+                    ? () => _showQuickStatusSheet(wo)
+                    : null,
+                isSelected: _selectedIds.contains(wo.id),
+                onLongPress: () => _enterSelectionMode(wo.id),
+                onTap: () {
+                  if (_selectionMode) {
+                    _toggleSelection(wo.id);
+                  } else {
+                    setState(() {
+                      _expandedIndex = _expandedIndex == i ? null : i;
+                    });
+                  }
+                },
+                onActivity: () async {
+                  if (_selectionMode) return;
+                  if (_navigatingToActivity) return;
+                  _navigatingToActivity = true;
+                  try {
+                    await _markWorkOrderNotificationsRead(wo.id);
+                    if (!mounted) return;
+                    final result = await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            AddWorkOrderScreen(workOrder: wo, initialTab: 1),
+                      ),
+                    );
+                    if (!mounted) return;
+                    if (result == 'updated' || result == 'deleted') {
+                      await _load();
+                      widget.onWorkOrderCreated?.call();
+                    }
+                    await _refreshUnreadNotifications(
+                        playSoundIfIncreased: false);
+                  } finally {
+                    _navigatingToActivity = false;
+                  }
+                },
+                onEdit: () async {
+                  if (_selectionMode) return;
+                  if (_navigatingToEdit) return;
+                  _navigatingToEdit = true;
+                  try {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AddWorkOrderScreen(workOrder: wo),
+                      ),
+                    );
+                    if (!mounted) return;
+                    if (result == 'updated' || result == 'deleted') {
+                      await _load();
+                      widget.onWorkOrderCreated?.call();
+                    }
+                    await _refreshUnreadNotifications(
+                        playSoundIfIncreased: false);
+                  } finally {
+                    _navigatingToEdit = false;
+                  }
+                },
+              ),
+            )));
       }
     }
 
@@ -761,9 +952,10 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Center(
           child: SizedBox(
-            width: 20, height: 20,
+            width: 20,
+            height: 20,
             child: CircularProgressIndicator(
-              strokeWidth: 2, color: AppColors.accent),
+                strokeWidth: 2, color: AppColors.accent),
           ),
         ),
       ));
@@ -772,7 +964,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       widgets.add(Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Center(
-          child: Text('All ${_total} work orders loaded',
+          child: Text('All $_total work orders loaded',
               style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
         ),
       ));
@@ -806,8 +998,8 @@ class _SelectionBar extends StatelessWidget {
     return Row(
       children: [
         IconButton(
-          icon: Icon(Icons.close_rounded,
-              size: 20, color: AppColors.textPrimary),
+          icon:
+              Icon(Icons.close_rounded, size: 20, color: AppColors.textPrimary),
           onPressed: onCancel,
           padding: const EdgeInsets.all(8),
         ),
@@ -860,8 +1052,7 @@ class _ActiveFilterChip extends StatelessWidget {
           SizedBox(width: 4),
           GestureDetector(
             onTap: onRemove,
-            child: Icon(Icons.close_rounded,
-                size: 12, color: AppColors.accent),
+            child: Icon(Icons.close_rounded, size: 12, color: AppColors.accent),
           ),
         ],
       ),
@@ -894,8 +1085,8 @@ class _EmployeePicker extends StatelessWidget {
                 leading:
                     InitialsAvatar(name: emp.fullName, size: 34, large: false),
                 title: Text(emp.fullName,
-                    style: TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w500)),
+                    style:
+                        TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                 onTap: () => Navigator.pop(context, emp.id),
               )),
         ],

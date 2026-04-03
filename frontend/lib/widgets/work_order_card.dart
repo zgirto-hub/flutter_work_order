@@ -10,6 +10,7 @@ class WorkOrderCard extends StatefulWidget {
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback? onActivity;
+  final VoidCallback? onStatusTap;
   final bool selectionMode;
   final bool isSelected;
   final VoidCallback? onLongPress;
@@ -22,6 +23,7 @@ class WorkOrderCard extends StatefulWidget {
     required this.onTap,
     required this.onEdit,
     this.onActivity,
+    this.onStatusTap,
     this.selectionMode = false,
     this.isSelected = false,
     this.onLongPress,
@@ -66,6 +68,10 @@ class _WorkOrderCardState extends State<WorkOrderCard>
 
   @override
   Widget build(BuildContext context) {
+    final canTapStatus = widget.onStatusTap != null &&
+        !widget.selectionMode &&
+        widget.workOrder.status.toLowerCase() != 'closed';
+
     return GestureDetector(
       onTap: widget.onTap,
       onLongPress: widget.onLongPress,
@@ -79,22 +85,18 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                 ? AppColors.accent
                 : (_isInspection
                     ? AppColors.inProgressText.withValues(alpha: 0.3)
-                    : (widget.expanded
-                        ? AppColors.border2
-                        : AppColors.border)),
+                    : (widget.expanded ? AppColors.border2 : AppColors.border)),
             width: widget.isSelected ? 1.5 : 0.5,
           ),
         ),
         child: Column(
           children: [
-
             // ── Main Row ─────────────────────────────────────
             Padding(
               padding: const EdgeInsets.all(14),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   // Left: checkbox or dot
                   Padding(
                     padding: const EdgeInsets.only(top: 3, right: 12),
@@ -131,7 +133,6 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-
                         // Top row: job no + inspection badge + status badge
                         Row(
                           children: [
@@ -153,7 +154,14 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                               _UnreadBadge(count: widget.unreadActivityCount),
                             ],
                             const Spacer(),
-                            StatusBadge(status: widget.workOrder.status),
+                            canTapStatus
+                                ? GestureDetector(
+                                    onTap: widget.onStatusTap,
+                                    child: StatusBadge(
+                                      status: widget.workOrder.status,
+                                    ),
+                                  )
+                                : StatusBadge(status: widget.workOrder.status),
                           ],
                         ),
 
@@ -224,7 +232,8 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                         ),
 
                         // Employees
-                        if (widget.workOrder.assignedTechnicians.isNotEmpty) ...[
+                        if (widget
+                            .workOrder.assignedTechnicians.isNotEmpty) ...[
                           SizedBox(height: 8),
                           Row(
                             children: [
@@ -286,8 +295,8 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                     padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
                     decoration: BoxDecoration(
                       color: AppColors.bgSurface2,
-                      borderRadius: BorderRadius.vertical(
-                          bottom: Radius.circular(14)),
+                      borderRadius:
+                          BorderRadius.vertical(bottom: Radius.circular(14)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -302,7 +311,8 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                           ),
                           SizedBox(height: 10),
                         ],
-                        if (widget.workOrder.assignedTechnicians.isNotEmpty) ...[
+                        if (widget
+                            .workOrder.assignedTechnicians.isNotEmpty) ...[
                           Wrap(
                             spacing: 6,
                             runSpacing: 6,
@@ -367,15 +377,16 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                                                 fontWeight: FontWeight.w500)),
                                         if (widget.unreadActivityCount > 0) ...[
                                           SizedBox(width: 6),
-                                          _UnreadBadge(count: widget.unreadActivityCount),
+                                          _UnreadBadge(
+                                              count:
+                                                  widget.unreadActivityCount),
                                         ],
                                       ],
                                     ),
                                   ),
                                 ),
                               ),
-                            if (widget.onActivity != null)
-                              SizedBox(width: 8),
+                            if (widget.onActivity != null) SizedBox(width: 8),
                             Semantics(
                               label: 'Edit work order',
                               button: true,
