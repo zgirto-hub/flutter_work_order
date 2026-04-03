@@ -121,11 +121,18 @@ async def add_signature(work_order_id: str, body: AddSignatureBody):
             .select("id, status")
             .eq("work_order_id", work_order_id)
             .eq("signer_role", "technician")
+            .order("signed_at", desc=True)
             .execute()
         )
         if not tech_sig.data:
             raise HTTPException(status_code=400, detail="Technician must sign first")
-        if tech_sig.data[0].get("status") != "pending":
+        # Find the latest non-rejected technician signature
+        latest_tech = next(
+            (s for s in tech_sig.data if s.get("status") != "rejected"), None
+        )
+        if not latest_tech:
+            raise HTTPException(status_code=400, detail="Technician must sign first")
+        if latest_tech.get("status") != "pending":
             raise HTTPException(
                 status_code=400, detail="Technician signature must be in pending state"
             )
