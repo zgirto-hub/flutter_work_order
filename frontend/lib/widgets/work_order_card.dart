@@ -161,8 +161,8 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                             ],
                             const Spacer(),
                             canTapStatus
-                                ? GestureDetector(
-                                    onTap: widget.onStatusTap,
+                                ? _StatusTapTarget(
+                                    onTap: widget.onStatusTap!,
                                     child: StatusBadge(
                                       status: widget.workOrder.status,
                                     ),
@@ -516,6 +516,35 @@ class _InspectionBadge extends StatelessWidget {
 }
 
 // ── Status Dot ────────────────────────────────────────────────────────────────
+
+/// Tappable status badge wrapper. Uses [HitTestBehavior.opaque] so the
+/// inner tap wins the gesture arena over the outer card GestureDetector.
+/// Adds a small chevron icon as a visual affordance.
+class _StatusTapTarget extends StatelessWidget {
+  final VoidCallback onTap;
+  final Widget child;
+  const _StatusTapTarget({required this.onTap, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          child,
+          const SizedBox(width: 2),
+          Icon(
+            Icons.arrow_drop_down,
+            size: 16,
+            color: AppColors.textTertiary,
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _StatusDot extends StatelessWidget {
   final String status;
