@@ -181,7 +181,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       _tabIndex = widget.initialTab;
       if (widget.initialTab == 1) _activityViewed = true;
       _loadComments();
-      if (widget.workOrder!.status == 'Closed') _loadSignatures();
+      _loadSignatures();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _originalSnapshot = _formSnapshot();
         _lastSavedSnapshot = Map.from(_originalSnapshot!);
@@ -1207,9 +1207,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               ),
               SizedBox(height: 25),
             ],
-            // ── Signature Section (Closed WOs only) ──────────────
-            if (widget.workOrder != null &&
-                widget.workOrder!.status == 'Closed')
+            // ── Signature Section (any existing WO) ──────────────
+            if (widget.workOrder != null)
               _buildSignatureSection(),
 
             // ── Export PDF Report (Closed WOs only) ──────────────

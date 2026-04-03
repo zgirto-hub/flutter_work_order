@@ -85,8 +85,7 @@ async def add_signature(work_order_id: str, body: AddSignatureBody):
     )
     if not wo.data:
         raise HTTPException(status_code=404, detail="Work order not found")
-    if wo.data[0].get("status") != "Closed":
-        raise HTTPException(status_code=400, detail="Work order must be Closed to sign")
+    # Signatures allowed on any status (not just Closed)
 
     signer_email = body.signer_email.strip().lower()
     signer_role = body.signer_role.strip().lower()
