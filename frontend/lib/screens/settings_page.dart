@@ -26,7 +26,10 @@ class SettingsPage extends StatefulWidget {
   final String userRole;
   final List<String>? allowedScreens;
   const SettingsPage(
-      {super.key, required this.themeController, this.userRole = 'admin', this.allowedScreens});
+      {super.key,
+      required this.themeController,
+      this.userRole = 'admin',
+      this.allowedScreens});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -121,18 +124,16 @@ class _SettingsPageState extends State<SettingsPage> {
     if (kIsWeb) applyPWAUpdate();
   }
 
-
   Future<void> _signOut() async {
-    final fs = widget.themeController.fontScale;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: Text('Sign out',
-            style: TextStyle(fontSize: 15 * fs, fontWeight: FontWeight.w600)),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         content: Text('Are you sure you want to sign out?',
-            style: TextStyle(fontSize: 13 * fs, color: AppColors.textSecondary)),
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -164,7 +165,6 @@ class _SettingsPageState extends State<SettingsPage> {
     final email = user?.email ?? 'Unknown';
     final nameInitials = email.split('@').first;
     final currentScale = widget.themeController.fontScale;
-    final s = currentScale; // shorthand for font scale multiplier
 
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
@@ -195,7 +195,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   Text('Settings',
                       style: TextStyle(
-                          fontSize: 20 * s,
+                          fontSize: 20,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
                           letterSpacing: -0.3)),
@@ -217,13 +217,13 @@ class _SettingsPageState extends State<SettingsPage> {
                         children: [
                           Text(nameInitials,
                               style: TextStyle(
-                                  fontSize: 14 * s,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.textPrimary)),
                           SizedBox(height: 2),
                           Text(email,
                               style: TextStyle(
-                                  fontSize: 11 * s, color: AppColors.textTertiary)),
+                                  fontSize: 11, color: AppColors.textTertiary)),
                         ],
                       ),
                     ),
@@ -252,14 +252,12 @@ class _SettingsPageState extends State<SettingsPage> {
                     _DarkModeRow(
                       mode: widget.themeController.mode,
                       onChanged: widget.themeController.setThemeMode,
-                      fontScale: s,
                     ),
                     Divider(height: 0, thickness: 0.5, color: AppColors.border),
                     _FontSizeRow(
                       currentScale: currentScale,
                       scales: _fontScales,
                       labels: _fontLabels,
-                      fontScale: s,
                       onChanged: (scale) =>
                           widget.themeController.setFontScale(scale),
                     ),
@@ -268,12 +266,11 @@ class _SettingsPageState extends State<SettingsPage> {
                       currentFamily: widget.themeController.fontFamily,
                       onChanged: (family) =>
                           widget.themeController.setFontFamily(family),
-                      fontScale: s,
                     ),
                     Divider(height: 0, thickness: 0.5, color: AppColors.border),
                     _NavBarRow(
-                      pinnedCount: widget.themeController.pinnedNavScreens.length,
-                      fontScale: s,
+                      pinnedCount:
+                          widget.themeController.pinnedNavScreens.length,
                       onTap: () => showAppBottomSheet(
                         context: context,
                         child: NavBarCustomizationSheet(
@@ -354,7 +351,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: SettingsRow(
                   icon: Icons.system_update_outlined,
                   label: 'Check for updates',
-                  subtitle: version.isNotEmpty ? 'v$version (Build $buildNumber)' : null,
+                  subtitle: version.isNotEmpty
+                      ? 'v$version (Build $buildNumber)'
+                      : null,
                   showDivider: false,
                   onTap: checkingUpdate ? null : _checkUpdates,
                   trailing: AnimatedSwitcher(
@@ -365,10 +364,12 @@ class _SettingsPageState extends State<SettingsPage> {
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
-                                strokeWidth: 1.5, color: AppColors.textTertiary))
+                                strokeWidth: 1.5,
+                                color: AppColors.textTertiary))
                         : Icon(Icons.chevron_right_rounded,
                             key: ValueKey('chevron'),
-                            size: 16, color: AppColors.textTertiary),
+                            size: 16,
+                            color: AppColors.textTertiary),
                   ),
                 ),
               ),
@@ -382,14 +383,15 @@ class _SettingsPageState extends State<SettingsPage> {
                           children: [
                             Text(updateMessage,
                                 style: TextStyle(
-                                    fontSize: 12 * s, color: AppColors.textTertiary)),
+                                    fontSize: 12,
+                                    color: AppColors.textTertiary)),
                             if (updateAvailable) ...[
                               SizedBox(width: 10),
                               GestureDetector(
                                 onTap: _applyUpdate,
                                 child: Text('Update now',
                                     style: TextStyle(
-                                        fontSize: 12 * s,
+                                        fontSize: 12,
                                         color: AppColors.accent,
                                         fontWeight: FontWeight.w600)),
                               ),
@@ -414,7 +416,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   child: Text('Sign out',
                       style:
-                          TextStyle(fontSize: 13 * s, fontWeight: FontWeight.w500)),
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                 ),
               ),
               SizedBox(height: 24),
@@ -423,18 +425,18 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: [
                     Text('Work Order',
                         style: TextStyle(
-                            fontSize: 12 * s,
+                            fontSize: 12,
                             color: AppColors.textTertiary,
                             fontWeight: FontWeight.w500)),
                     SizedBox(height: 3),
                     if (version.isNotEmpty)
                       Text('Version $version · Build $buildNumber',
                           style: TextStyle(
-                              fontSize: 10 * s, color: AppColors.textTertiary)),
+                              fontSize: 10, color: AppColors.textTertiary)),
                     SizedBox(height: 2),
                     Text('Developed by Salah · 2026',
                         style: TextStyle(
-                            fontSize: 10 * s, color: AppColors.textTertiary)),
+                            fontSize: 10, color: AppColors.textTertiary)),
                   ],
                 ),
               ),
@@ -451,9 +453,8 @@ class _SettingsPageState extends State<SettingsPage> {
 class _DarkModeRow extends StatelessWidget {
   final ThemeMode mode;
   final ValueChanged<ThemeMode> onChanged;
-  final double fontScale;
 
-  const _DarkModeRow({required this.mode, required this.onChanged, this.fontScale = 1.0});
+  const _DarkModeRow({required this.mode, required this.onChanged});
 
   static const _options = [
     (ThemeMode.light, Icons.wb_sunny_rounded, 'Light'),
@@ -487,7 +488,7 @@ class _DarkModeRow extends StatelessWidget {
           Expanded(
             child: Text('Appearance',
                 style: TextStyle(
-                    fontSize: 13 * fontScale,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary)),
           ),
@@ -540,7 +541,7 @@ class _DarkModeRow extends StatelessWidget {
                         Text(
                           label,
                           style: TextStyle(
-                            fontSize: 11 * fontScale,
+                            fontSize: 11,
                             fontWeight:
                                 isSelected ? FontWeight.w600 : FontWeight.w400,
                             color: isSelected
@@ -566,18 +567,17 @@ class _DarkModeRow extends StatelessWidget {
 class _FontTypeRow extends StatelessWidget {
   final String currentFamily;
   final ValueChanged<String> onChanged;
-  final double fontScale;
 
-  const _FontTypeRow({required this.currentFamily, required this.onChanged, this.fontScale = 1.0});
+  const _FontTypeRow({required this.currentFamily, required this.onChanged});
 
-  TextStyle _previewStyle(String family) {
+  static TextStyle _previewStyle(String family) {
     return switch (family) {
-      'Roboto' => GoogleFonts.roboto(fontSize: 13 * fontScale, fontWeight: FontWeight.w500),
+      'Roboto' => GoogleFonts.roboto(fontSize: 13, fontWeight: FontWeight.w500),
       'Poppins' =>
-        GoogleFonts.poppins(fontSize: 13 * fontScale, fontWeight: FontWeight.w500),
-      'Lato' => GoogleFonts.lato(fontSize: 13 * fontScale, fontWeight: FontWeight.w500),
-      'Nunito' => GoogleFonts.nunito(fontSize: 13 * fontScale, fontWeight: FontWeight.w500),
-      _ => GoogleFonts.inter(fontSize: 13 * fontScale, fontWeight: FontWeight.w500),
+        GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500),
+      'Lato' => GoogleFonts.lato(fontSize: 13, fontWeight: FontWeight.w500),
+      'Nunito' => GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w500),
+      _ => GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
     };
   }
 
@@ -603,7 +603,7 @@ class _FontTypeRow extends StatelessWidget {
               Expanded(
                 child: Text('Font type',
                     style: TextStyle(
-                        fontSize: 13 * fontScale,
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textPrimary)),
               ),
@@ -614,7 +614,7 @@ class _FontTypeRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10)),
                 child: Text(currentFamily,
                     style: TextStyle(
-                        fontSize: 11 * fontScale,
+                        fontSize: 11,
                         fontWeight: FontWeight.w500,
                         color: AppColors.accent)),
               ),
@@ -664,14 +664,12 @@ class _FontSizeRow extends StatelessWidget {
   final List<double> scales;
   final List<String> labels;
   final ValueChanged<double> onChanged;
-  final double fontScale;
 
   const _FontSizeRow({
     required this.currentScale,
     required this.scales,
     required this.labels,
     required this.onChanged,
-    this.fontScale = 1.0,
   });
 
   @override
@@ -696,7 +694,7 @@ class _FontSizeRow extends StatelessWidget {
               Expanded(
                 child: Text('Text size',
                     style: TextStyle(
-                        fontSize: 13 * fontScale,
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textPrimary)),
               ),
@@ -710,7 +708,7 @@ class _FontSizeRow extends StatelessWidget {
                       .indexWhere((s) => (s - currentScale).abs() < 0.01)
                       .clamp(0, labels.length - 1)],
                   style: TextStyle(
-                      fontSize: 11 * fontScale,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: AppColors.accent),
                 ),
@@ -755,7 +753,7 @@ class _FontSizeRow extends StatelessWidget {
                         Text(
                           labels[i],
                           style: TextStyle(
-                            fontSize: 9 * fontScale,
+                            fontSize: 9,
                             color: isSelected
                                 ? Colors.white.withValues(alpha: 0.7)
                                 : AppColors.textTertiary,
@@ -779,9 +777,8 @@ class _FontSizeRow extends StatelessWidget {
 class _NavBarRow extends StatelessWidget {
   final int pinnedCount;
   final VoidCallback onTap;
-  final double fontScale;
 
-  const _NavBarRow({required this.pinnedCount, required this.onTap, this.fontScale = 1.0});
+  const _NavBarRow({required this.pinnedCount, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -807,7 +804,7 @@ class _NavBarRow extends StatelessWidget {
               child: Text(
                 'Navigation bar',
                 style: TextStyle(
-                  fontSize: 13 * fontScale,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,
                 ),
@@ -822,7 +819,7 @@ class _NavBarRow extends StatelessWidget {
               child: Text(
                 pinnedCount > 0 ? '$pinnedCount pinned' : 'Default',
                 style: TextStyle(
-                  fontSize: 11 * fontScale,
+                  fontSize: 11,
                   fontWeight: FontWeight.w500,
                   color: AppColors.accent,
                 ),
