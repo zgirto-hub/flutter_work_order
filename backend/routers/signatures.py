@@ -48,7 +48,7 @@ def _is_technician_assigned(work_order_id: str, email: str) -> bool:
         return False
     user_id = user.get("id")
     result = supabase.table("work_order_assignments") \
-        .select("id") \
+        .select("technician_id") \
         .eq("work_order_id", work_order_id) \
         .eq("technician_id", user_id) \
         .execute()
