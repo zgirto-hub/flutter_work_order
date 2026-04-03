@@ -203,7 +203,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     elements.append(Paragraph(f"{dept_name} • {export_date}", subtitle_style))
 
     line_style = TableStyle([("LINEABOVE", (0, 0), (-1, 0), 0.5, lightgrey)])
-    line_table = Table([[""]], width=15 * cm)
+    line_table = Table([[""]], colWidths=[15 * cm])
     line_table.setStyle(line_style)
     elements.append(line_table)
     elements.append(Spacer(1, 8))
