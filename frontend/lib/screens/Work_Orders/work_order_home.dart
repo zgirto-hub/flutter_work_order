@@ -71,7 +71,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   Set<String> _removingWoIds = {};
   bool _refreshing = false;
   String _userRole = 'admin';
-  String? _userDepartment;
+
   bool _profileLoaded = false;
 
   @override
@@ -89,7 +89,6 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       if (profile != null && mounted) {
         setState(() {
           _userRole = (profile['user_type'] ?? widget.userRole).toString();
-          _userDepartment = (profile['department_id'] ?? '').toString();
           _profileLoaded = true;
         });
         await _load();
@@ -109,9 +108,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
 
   Future<void> _load() async {
     if (!_profileLoaded) return;
-    final department = _userRole == 'reporter' ? _userDepartment : null;
     final result = await _service.fetchWorkOrders(
-      department: department,
       userRole: _userRole,
       limit: _pageSize,
       offset: 0,
@@ -137,9 +134,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
     if (_loadingMore || !_hasMore || !_profileLoaded) return;
     setState(() => _loadingMore = true);
     try {
-      final department = _userRole == 'reporter' ? _userDepartment : null;
       final result = await _service.fetchWorkOrders(
-        department: department,
         userRole: _userRole,
         limit: _pageSize,
         offset: _workOrders.length,
