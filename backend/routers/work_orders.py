@@ -461,6 +461,11 @@ async def create_work_order(body: CreateWorkOrderBody):
         auth_user = _get_user_by_auth_id(body.created_by)
         if auth_user:
             resolved_created_by = auth_user.get("id", body.created_by)
+    if resolved_created_by == body.created_by:
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to resolve user identity. Work order could not be saved.",
+        )
 
     now = datetime.utcnow().isoformat()
     payload = {

@@ -47,7 +47,7 @@ class WorkOrderService {
     };
     if (status != null) params['status'] = status;
     if (type != null) params['type'] = type;
-    if (department != null) params['department'] = department;
+    if (department != null) params['department_id'] = department;
     if (limit != null) params['limit'] = '$limit';
 
     final uri = Uri.parse('${AppConfig.baseUrl}/work-orders')
