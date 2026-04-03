@@ -202,11 +202,11 @@ class WorkOrderService {
         'type': type,
       }),
     );
-    if (res.statusCode == 200) {
-      final data = jsonDecode(res.body);
-      return WorkOrderComment.fromJson(data['comment']);
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to add comment'));
     }
-    return null;
+    final data = jsonDecode(res.body);
+    return WorkOrderComment.fromJson(data['comment']);
   }
 
   Future<Map<String, dynamic>?> getEmployeeProfile() async {
@@ -265,14 +265,13 @@ class WorkOrderService {
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final attachments = await fetchAttachments(workOrderId);
-        return attachments.isNotEmpty ? attachments.last : null;
+      if (response.statusCode != 200) {
+        throw Exception('Failed to upload attachment: ${response.statusCode} ${response.body}');
       }
-      return null;
+      final attachments = await fetchAttachments(workOrderId);
+      return attachments.isNotEmpty ? attachments.last : null;
     } catch (e) {
-      return null;
+      rethrow;
     }
   }
 

@@ -89,7 +89,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       if (profile != null && mounted) {
         setState(() {
           _userRole = (profile['user_type'] ?? widget.userRole).toString();
-          _userDepartment = (profile['department'] ?? '').toString();
+          _userDepartment = (profile['department_id'] ?? '').toString();
           _profileLoaded = true;
         });
         await _load();

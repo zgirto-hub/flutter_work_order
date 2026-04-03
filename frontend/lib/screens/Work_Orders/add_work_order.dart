@@ -273,10 +273,12 @@ Future<void> _loadDepartments() async {
             }
             if (mounted) {
               setState(() {
-                selectedDepartmentId = deptId;
-                if (deptName.isNotEmpty) selectedDepartment = deptName;
+                if (widget.workOrder == null) {
+                  selectedDepartmentId = deptId;
+                  if (deptName.isNotEmpty) selectedDepartment = deptName;
+                }
               });
-              _loadEmployees(departmentId: deptId);
+              _loadEmployees(departmentId: widget.workOrder?.departmentId ?? deptId);
             }
           }
         }

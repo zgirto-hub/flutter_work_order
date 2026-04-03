@@ -184,20 +184,24 @@ def _fetch_full_work_order(work_order_id: str):
 
 
 def _sync_assignments(work_order_id: str, technician_ids: List[str], assigned_by: str):
-    supabase.table("work_order_assignments") \
-        .delete() \
-        .eq("work_order_id", work_order_id) \
-        .execute()
-    if technician_ids:
-        assignments = [
-            {
-                "work_order_id": work_order_id,
-                "technician_id": technician_id,
-                "assigned_by": assigned_by
-            }
-            for technician_id in technician_ids
-        ]
-        supabase.table("work_order_assignments").insert(assignments).execute()
+    try:
+        supabase.table("work_order_assignments") \
+            .delete() \
+            .eq("work_order_id", work_order_id) \
+            .execute()
+        if technician_ids:
+            assignments = [
+                {
+                    "work_order_id": work_order_id,
+                    "technician_id": technician_id,
+                    "assigned_by": assigned_by
+                }
+                for technician_id in technician_ids
+            ]
+            supabase.table("work_order_assignments").insert(assignments).execute()
+    except Exception as e:
+        print(f"[_sync_assignments] Failed for WO {work_order_id}: {e}")
+        raise
 
 
 def _log_assignment_changes(
@@ -755,7 +759,11 @@ async def add_comment(work_order_id: str, body: AddCommentBody):
         "type": body.type,
         "meta": body.meta,
     }
-    result = supabase.table("work_order_comments").insert(record).execute()
+    try:
+        result = supabase.table("work_order_comments").insert(record).execute()
+    except Exception as e:
+        print(f"[add_comment] Failed to insert comment for WO {work_order_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save comment: {e}")
     comment = result.data[0] if result.data else {}
 
     if body.type == "comment" and comment.get("id"):
@@ -858,13 +866,17 @@ async def upload_attachment(
 
     public_url = f"/files/{filename}"
 
-    supabase.table("work_order_attachments").insert({
-        "work_order_id": work_order_id,
-        "file_name": file.filename,
-        "file_url": public_url,
-        "file_type": file.content_type or f"image/{extension}" if extension in IMAGE_EXTENSIONS else "application/octet-stream",
-        "uploaded_by": uploaded_by,
-    }).execute()
+    try:
+        supabase.table("work_order_attachments").insert({
+            "work_order_id": work_order_id,
+            "file_name": file.filename,
+            "file_url": public_url,
+            "file_type": file.content_type or f"image/{extension}" if extension in IMAGE_EXTENSIONS else "application/octet-stream",
+            "uploaded_by": uploaded_by,
+        }).execute()
+    except Exception as e:
+        print(f"[upload_attachment] Failed to insert attachment for WO {work_order_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save attachment: {e}")
 
     return {"status": "uploaded", "file_url": public_url, "file_name": file.filename}
 
