@@ -143,11 +143,13 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final profileRes = await http.get(
         Uri.parse(
-            '${AppConfig.baseUrl}/user-role?email=${Uri.encodeComponent(user.email ?? '')}'),
+            '${AppConfig.baseUrl}/users/me?email=${Uri.encodeComponent(user.email ?? '')}'),
       );
       if (profileRes.statusCode == 200) {
-        final profileData = jsonDecode(profileRes.body) as Map<String, dynamic>;
-        final role = profileData['user_type'] as String? ?? '';
+        final body = jsonDecode(profileRes.body) as Map<String, dynamic>;
+        final profileData = (body['user'] as Map<String, dynamic>?) ?? {};
+        final role =
+            (profileData['user_type'] as String? ?? '').trim().toLowerCase();
 
         if (role == 'technician' || role == 'admin') {
           final userId = profileData['id'] as String?;
