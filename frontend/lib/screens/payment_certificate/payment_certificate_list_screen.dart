@@ -3,6 +3,7 @@ import '../../models/payment_certificate.dart';
 import '../../services/payment_certificate_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/claude_widgets.dart';
+import '../../services/pdf/payment_certificate_pdf_service.dart';
 import '../../widgets/pdf_preview_screen.dart';
 import 'add_payment_certificate_screen.dart';
 
@@ -99,7 +100,7 @@ class _PaymentCertificateListScreenState
         MaterialPageRoute(
           builder: (_) => PdfPreviewScreen(
             title: 'PC-${cert.certificateNumber} Report',
-            buildPdf: () => _service.exportPdf(cert.id),
+            buildPdf: () => PaymentCertificatePdfService.build(cert),
           ),
         ),
       );
