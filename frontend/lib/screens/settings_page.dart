@@ -9,7 +9,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/claude_widgets.dart';
@@ -41,8 +40,6 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  static const String _currentReleaseId =
-      String.fromEnvironment('RELEASE_ID', defaultValue: '');
   String version = '';
   String buildNumber = '';
   String updateMessage = '';
@@ -63,7 +60,6 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _loadVersion();
     _loadUserSignature();
-    _persistCurrentRelease();
   }
 
   Future<void> _loadVersion() async {
@@ -72,24 +68,6 @@ class _SettingsPageState extends State<SettingsPage> {
       version = info.version;
       buildNumber = info.buildNumber;
     });
-  }
-
-  /// Get the release_id that represents the currently running app.
-  /// Saved to SharedPreferences on every page load so it survives
-  /// iOS Safari's aggressive JS caching.
-  static Future<String> _getMyReleaseId() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString('current_release_id');
-    if (stored != null && stored.isNotEmpty) return stored;
-    return _currentReleaseId;
-  }
-
-  /// Called once at startup: persists the baked-in RELEASE_ID so that
-  /// after an update+reload, the new binary's ID becomes the baseline.
-  static Future<void> _persistCurrentRelease() async {
-    if (_currentReleaseId.isEmpty) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('current_release_id', _currentReleaseId);
   }
 
   Future<void> _checkUpdates() async {
@@ -102,57 +80,16 @@ class _SettingsPageState extends State<SettingsPage> {
     if (email != null) {
       ActivityLogService().logUpdateCheck(email);
     }
-    try {
-      final myReleaseId = await _getMyReleaseId();
 
-      if (kIsWeb) {
-        final releaseRes = await http.get(
-          Uri.parse(
-            '${Uri.base.origin}/release.json?ts=${DateTime.now().millisecondsSinceEpoch}',
-          ),
-        );
-        if (releaseRes.statusCode == 200) {
-          final data = jsonDecode(releaseRes.body) as Map<String, dynamic>;
-          final latest = (data['version'] as String?)?.trim() ?? '';
-          final latestReleaseId = (data['release_id'] as String?)?.trim() ?? '';
+    final hasUpdate = kIsWeb && checkSwUpdate();
 
-          final hasUpdate =
-              latestReleaseId.isNotEmpty && myReleaseId.isNotEmpty
-                  ? latestReleaseId != myReleaseId
-                  : latest.isNotEmpty && latest != version.split('+')[0];
-          setState(() {
-            updateAvailable = hasUpdate;
-            updateMessage = hasUpdate
-                ? 'Update available: ${latest.isNotEmpty ? latest : 'new release'}'
-                : 'You are on the latest version';
-          });
-          setState(() => checkingUpdate = false);
-          return;
-        }
-      }
-
-      final res = await http.get(Uri.parse('${AppConfig.baseUrl}/version'));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        final latest = (data['version'] as String?)?.trim() ?? '';
-        final latestReleaseId = (data['release_id'] as String?)?.trim() ?? '';
-        final hasUpdate =
-            latestReleaseId.isNotEmpty && myReleaseId.isNotEmpty
-                ? latestReleaseId != myReleaseId
-                : latest != version.split('+')[0];
-        setState(() {
-          updateAvailable = hasUpdate;
-          updateMessage = hasUpdate
-              ? 'Update available: $latest'
-              : 'You are on the latest version';
-        });
-      } else {
-        setState(() => updateMessage = 'Could not check for updates');
-      }
-    } catch (_) {
-      setState(() => updateMessage = 'Update check failed');
-    }
-    setState(() => checkingUpdate = false);
+    setState(() {
+      updateAvailable = hasUpdate;
+      updateMessage = hasUpdate
+          ? 'A new version is ready to install'
+          : 'You are on the latest version';
+      checkingUpdate = false;
+    });
   }
 
   void _applyUpdate() {

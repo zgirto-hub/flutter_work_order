@@ -47,7 +47,7 @@ RELEASE_ID=$(date +%Y%m%d%H%M%S)
 
 echo "Building Flutter Web (v$NEW_VERSION+$BUILD_NUMBER, release $RELEASE_ID)..."
 cd "$LOCAL_PROJECT"
-flutter build web --dart-define=BUILD_DATE=$BUILD_DATE --dart-define=RELEASE_ID=$RELEASE_ID
+flutter build web --dart-define=BUILD_DATE=$BUILD_DATE
 
 # Replace Flutter's generated cleanup worker with a cache-first worker.
 cat > build/web/flutter_service_worker.js <<SWEOF
@@ -74,7 +74,7 @@ self.addEventListener('install', function(event) {
       );
     })
   );
-  self.skipWaiting();
+  // Do NOT skipWaiting here — wait for the page to confirm via message
 });
 
 self.addEventListener('activate', function(event) {
@@ -88,6 +88,12 @@ self.addEventListener('activate', function(event) {
     })
   );
   self.clients.claim();
+});
+
+self.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', function(event) {
@@ -138,21 +144,6 @@ self.addEventListener('fetch', function(event) {
 });
 SWEOF
 
-cat > build/web/release.json <<EOF
-{
-  "version": "$NEW_VERSION",
-  "build": "$BUILD_NUMBER",
-  "release_id": "$RELEASE_ID",
-  "build_date": "$BUILD_DATE"
-}
-EOF
-echo "Wrote build/web/release.json (release_id=$RELEASE_ID)."
-
-if [[ ! -f build/web/release.json ]]; then
-  echo "ERROR: release.json was not generated. Aborting deploy."
-  exit 1
-fi
-
 # ── Deploy ────────────────────────────────────────────────────────────────────
 TIMESTAMP=$(date +%F_%H-%M)
 NEW_RELEASE="$RELEASE_DIR/release_$TIMESTAMP"
@@ -168,9 +159,6 @@ scp -r build/web/* $SERVER:$NEW_RELEASE/
 
 echo "Switching to new release..."
 ssh $SERVER "ln -sfn $NEW_RELEASE $CURRENT_LINK"
-
-echo "Verifying deployed release metadata..."
-ssh $SERVER "test -f $CURRENT_LINK/release.json"
 
 echo "Cleaning old releases (keep last 10)..."
 ssh $SERVER "ls -dt $RELEASE_DIR/release_* 2>/dev/null | tail -n +11 | xargs -r rm -rf"

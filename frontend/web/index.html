@@ -509,7 +509,8 @@
 
   <script>
     (function() {
-      var flutterCleanupKey = 'flutter_sw_cleanup_done_v2';
+      // Flag that Dart reads via JS interop
+      window._swUpdateReady = false;
 
       function loadFlutter() {
         var script = document.createElement('script');
@@ -518,49 +519,28 @@
         document.body.appendChild(script);
       }
 
-      function isFlutterServiceWorkerRegistration(reg) {
-        var workers = [reg.active, reg.waiting, reg.installing];
-        for (var i = 0; i < workers.length; i++) {
-          var worker = workers[i];
-          if (worker && worker.scriptURL && worker.scriptURL.indexOf('flutter_service_worker.js') !== -1) {
-            return true;
+      if ('serviceWorker' in navigator) {
+        // After Flutter registers the SW, detect when a new version is available
+        navigator.serviceWorker.ready.then(function(reg) {
+          // A waiting worker means an update installed before we got here
+          if (reg.waiting) {
+            window._swUpdateReady = true;
+            return;
           }
-        }
-        return false;
+          reg.addEventListener('updatefound', function() {
+            var nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', function() {
+              // installed + controller exists = update ready (not first install)
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                window._swUpdateReady = true;
+              }
+            });
+          });
+        });
       }
 
-      async function cleanupLegacyServiceWorker() {
-        if (!('serviceWorker' in navigator)) return false;
-        if (localStorage.getItem(flutterCleanupKey) === '1') return false;
-
-        try {
-          var regs = await navigator.serviceWorker.getRegistrations();
-          var flutterRegs = regs.filter(isFlutterServiceWorkerRegistration);
-          if (!flutterRegs.length) {
-            localStorage.setItem(flutterCleanupKey, '1');
-            return false;
-          }
-
-          var removedAny = false;
-          await Promise.all(flutterRegs.map(async function(reg) {
-            var removed = await reg.unregister();
-            if (removed) removedAny = true;
-          }));
-
-          localStorage.setItem(flutterCleanupKey, '1');
-          if (!removedAny) return false;
-          var url = new URL(window.location.href);
-          url.searchParams.set('swreset', String(Date.now()));
-          window.location.replace(url.toString());
-          return true;
-        } catch (_) {
-          return false;
-        }
-      }
-
-      cleanupLegacyServiceWorker().then(function(reloaded) {
-        if (!reloaded) loadFlutter();
-      });
+      loadFlutter();
     })();
   </script>
 
@@ -659,35 +639,31 @@
       await updateProgress(45, 1800);
 
       try {
-        // Clear ALL Cache Storage entries so stale API responses are gone
-        if ('caches' in window) {
-          var cacheNames = await caches.keys();
-          await Promise.all(cacheNames.map(function(name) {
-            return caches.delete(name);
-          }));
-        }
-
         if ('serviceWorker' in navigator) {
-          const registrations = await navigator.serviceWorker.getRegistrations();
+          var registration = await navigator.serviceWorker.getRegistration();
+          if (registration && registration.waiting) {
+            // Reload when the new SW takes control
+            var reloadPromise = new Promise(function(resolve) {
+              navigator.serviceWorker.addEventListener('controllerchange', resolve);
+            });
 
-          var unregisterPromise = Promise.all(registrations.map(function(reg) {
-            return reg.unregister();
-          }));
+            // Tell the waiting SW to activate
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
 
-          await Promise.all([
-            unregisterPromise,
-            updateProgress(75, 1200)
-          ]);
+            await Promise.all([
+              reloadPromise,
+              updateProgress(75, 1200)
+            ]);
+          } else {
+            await updateProgress(75, 1200);
+          }
         }
       } catch (_) {}
-      
+
       await updateProgress(100, 1000);
       await new Promise(function(resolve) { setTimeout(resolve, 200); });
-      
-      const finalTs = Date.now();
-      const finalUrl = new URL(window.location.href);
-      finalUrl.searchParams.set('refresh', String(finalTs));
-      window.location.replace(finalUrl.toString());
+
+      window.location.reload();
     };
   </script>
 

@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/pwa_update_stub.dart'
     if (dart.library.js_interop) '../services/pwa_update_web.dart';
 import '../theme/app_theme.dart';
@@ -33,8 +32,6 @@ class DashboardScreen extends StatefulWidget {
 
 class DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
-  static const String _currentReleaseId =
-      String.fromEnvironment('RELEASE_ID', defaultValue: '');
 
   bool _loading = true;
   bool _refreshing = false;
@@ -59,7 +56,6 @@ class DashboardScreenState extends State<DashboardScreen>
     WidgetsBinding.instance.addObserver(this);
     _load();
     _loadVersion();
-    _persistCurrentRelease();
   }
 
   @override
@@ -163,19 +159,6 @@ class DashboardScreenState extends State<DashboardScreen>
     } catch (_) {}
   }
 
-  Future<String> _getMyReleaseId() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString('current_release_id');
-    if (stored != null && stored.isNotEmpty) return stored;
-    return _currentReleaseId;
-  }
-
-  Future<void> _persistCurrentRelease() async {
-    if (_currentReleaseId.isEmpty) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('current_release_id', _currentReleaseId);
-  }
-
   Future<void> _checkUpdates() async {
     if (_checkingUpdate) return;
     setState(() {
@@ -183,57 +166,18 @@ class DashboardScreenState extends State<DashboardScreen>
       _updateMessage = '';
       _updateAvailable = false;
     });
-    try {
-      final myReleaseId = await _getMyReleaseId();
 
-      if (kIsWeb) {
-        final releaseRes = await http.get(
-          Uri.parse(
-            '${Uri.base.origin}/release.json?ts=${DateTime.now().millisecondsSinceEpoch}',
-          ),
-        );
-        if (releaseRes.statusCode == 200) {
-          final data = jsonDecode(releaseRes.body) as Map<String, dynamic>;
-          final latest = (data['version'] as String?)?.trim() ?? '';
-          final latestReleaseId = (data['release_id'] as String?)?.trim() ?? '';
+    final hasUpdate = kIsWeb && checkSwUpdate();
 
-          final hasUpdate = latestReleaseId.isNotEmpty && myReleaseId.isNotEmpty
-              ? latestReleaseId != myReleaseId
-              : latest.isNotEmpty && latest != _appVersion.split('+')[0];
-          if (!mounted) return;
-          setState(() {
-            _updateAvailable = hasUpdate;
-            _updateMessage = hasUpdate
-                ? 'Update available: ${latest.isNotEmpty ? latest : 'new release'}'
-                : 'You are on the latest version';
-          });
-          setState(() => _checkingUpdate = false);
-          return;
-        }
-      }
-
-      final res = await http.get(Uri.parse('${AppConfig.baseUrl}/version'));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        final latest = (data['version'] as String?)?.trim() ?? '';
-        final latestReleaseId = (data['release_id'] as String?)?.trim() ?? '';
-        final hasUpdate = latestReleaseId.isNotEmpty && myReleaseId.isNotEmpty
-            ? latestReleaseId != myReleaseId
-            : latest.isNotEmpty && latest != _appVersion.split('+')[0];
-        if (!mounted) return;
-        setState(() {
-          _updateAvailable = hasUpdate;
-          _updateMessage = hasUpdate
-              ? 'Update available: $latest'
-              : 'You are on the latest version';
-        });
-      } else {
-        setState(() => _updateMessage = 'Could not check for updates');
-      }
-    } catch (_) {
-      setState(() => _updateMessage = 'Update check failed');
+    if (mounted) {
+      setState(() {
+        _updateAvailable = hasUpdate;
+        _updateMessage = hasUpdate
+            ? 'A new version is ready to install'
+            : 'You are on the latest version';
+        _checkingUpdate = false;
+      });
     }
-    if (mounted) setState(() => _checkingUpdate = false);
   }
 
   void _applyUpdate() {
