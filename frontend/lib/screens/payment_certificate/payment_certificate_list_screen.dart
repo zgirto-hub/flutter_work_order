@@ -3,6 +3,7 @@ import '../../models/payment_certificate.dart';
 import '../../services/payment_certificate_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/claude_widgets.dart';
+import '../../widgets/pdf_preview_screen.dart';
 import 'add_payment_certificate_screen.dart';
 
 class PaymentCertificateListScreen extends StatefulWidget {
@@ -88,6 +89,30 @@ class _PaymentCertificateListScreenState
             c.invoiceNumber.toLowerCase().contains(q) ||
             c.executingEntity.toLowerCase().contains(q);
       }).toList();
+    }
+  }
+
+  Future<void> _openPdf(PaymentCertificate cert) async {
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PdfPreviewScreen(
+            title: 'PC-${cert.certificateNumber} Report',
+            buildPdf: () => _service.exportPdf(cert.id),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export PDF: $e'),
+            backgroundColor: AppColors.dangerText,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -395,6 +420,12 @@ class _PaymentCertificateListScreenState
                   ],
                 ),
               ),
+              ClaudeIconButton(
+                icon: Icons.picture_as_pdf_outlined,
+                onTap: () => _openPdf(cert),
+                semanticsLabel: 'تصدير PDF',
+              ),
+              const SizedBox(width: 6),
               ClaudeIconButton(
                 icon: Icons.copy_outlined,
                 onTap: () => _openCopy(cert),

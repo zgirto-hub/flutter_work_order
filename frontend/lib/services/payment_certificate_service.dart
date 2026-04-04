@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config.dart';
@@ -83,5 +84,16 @@ class PaymentCertificateService {
     if (res.statusCode != 200) {
       throw Exception('Failed to delete certificate');
     }
+  }
+
+  /// Export a payment certificate as PDF. Returns raw PDF bytes.
+  Future<Uint8List> exportPdf(String certId) async {
+    final uri = Uri.parse(
+        '${AppConfig.baseUrl}/payment-certificates/$certId/pdf');
+    final res = await http.post(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to generate PDF');
+    }
+    return res.bodyBytes;
   }
 }

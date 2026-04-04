@@ -17,10 +17,14 @@ Future<void> main() async {
 
 Future<void> _initSupabase() async {
   await dotenv.load(fileName: '.env');
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-  );
+  try {
+    await Supabase.initialize(
+      url: dotenv.env['SUPABASE_URL']!,
+      anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+    );
+  } catch (_) {
+    // Already initialized (e.g. after hot restart / browser reload)
+  }
 }
 
 class MyApp extends StatefulWidget {
@@ -64,6 +68,13 @@ class _MyAppState extends State<MyApp> {
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
                 return const _SplashScreen();
+              }
+              if (snapshot.hasError) {
+                return Scaffold(
+                  body: Center(
+                    child: Text('Failed to connect. Pull down to retry.'),
+                  ),
+                );
               }
               return AuthWrapper(themeController: themeController);
             },

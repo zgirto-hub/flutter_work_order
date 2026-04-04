@@ -180,7 +180,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     # Order: NewKuwait (left), Emblem (center, largest), Civil Aviation (right)
     logo_newkuwait = _load_logo("logo_newkuwait.png", 3.5 * cm, 3.5 * cm)
     logo_emblem = _load_logo("logo_emblem.png", 4 * cm, 4 * cm)
-    logo_civilaviation = _load_logo("logo_civilaviation.png", 5 * cm, 3.5 * cm)
+    logo_civilaviation = _load_logo("logo_civilaviation.png", 7 * cm, 5 * cm)
 
     if any([logo_newkuwait, logo_emblem, logo_civilaviation]):
         logo_table = Table(
@@ -198,6 +198,15 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
             )
         )
         elements.append(logo_table)
+
+    # Red line below logos
+    from reportlab.lib.colors import HexColor
+    red_line = Table([[""]], colWidths=[16.5 * cm])
+    red_line.setStyle(TableStyle([
+        ("LINEBELOW", (0, 0), (-1, 0), 2, HexColor("#D42027")),
+    ]))
+    elements.append(red_line)
+    elements.append(Spacer(1, 8))
 
     elements.append(Paragraph("Work Order Completion Report", title_style))
 

@@ -111,7 +111,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _isForeground = state == AppLifecycleState.resumed;
     // Refresh data when app comes back to foreground
-    if (state == AppLifecycleState.resumed && _profileLoaded && !_loading) {
+    if (state == AppLifecycleState.resumed && _profileLoaded && !_loadingMore) {
       _load();
     }
   }
