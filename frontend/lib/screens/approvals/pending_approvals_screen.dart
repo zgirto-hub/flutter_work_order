@@ -187,12 +187,13 @@ class _PendingApprovalsScreenState extends State<PendingApprovalsScreen> {
                         itemCount: _workOrders.length,
                         itemBuilder: (ctx, i) {
                           final wo = _workOrders[i];
+                          final woId = wo['id']?.toString() ?? '';
+                          final sigId =
+                              wo['pending_signature_id']?.toString() ?? '';
                           return _ApprovalCard(
                             workOrder: wo,
-                            onApprove: () =>
-                                _approve(wo['id'], wo['pending_signature_id']),
-                            onReject: () =>
-                                _reject(wo['id'], wo['pending_signature_id']),
+                            onApprove: () => _approve(woId, sigId),
+                            onReject: () => _reject(woId, sigId),
                           );
                         },
                       ),

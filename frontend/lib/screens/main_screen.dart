@@ -23,7 +23,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _index = 0;
-  String _userRole = 'admin';
+  String _userRole = 'reporter';
   int _approvalLevel = 0;
   List<String>? _allowedScreens;
   bool _roleLoaded = false;
@@ -69,13 +69,17 @@ class _MainScreenState extends State<MainScreen> {
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        _userRole = data['user_type'] ?? 'admin';
-        _approvalLevel = data['approval_level'] as int? ?? 0;
+        _userRole = (data['user_type'] ?? 'reporter').toString();
+        _approvalLevel = (data['approval_level'] is int)
+            ? data['approval_level'] as int
+            : int.tryParse(data['approval_level']?.toString() ?? '') ?? 0;
         final raw = data['allowed_screens'];
-        _allowedScreens = raw != null ? List<String>.from(raw) : null;
+        _allowedScreens = (raw is List)
+            ? raw.map((e) => e.toString()).toList()
+            : null;
       }
     } catch (_) {
-      _userRole = 'admin';
+      _userRole = 'reporter';
     }
     if (!mounted) return;
     setState(() {
@@ -99,7 +103,8 @@ class _MainScreenState extends State<MainScreen> {
       if (!mounted) return;
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        setState(() => _openWOCount = data['count'] as int? ?? 0);
+        setState(() => _openWOCount =
+            (data['count'] is int) ? data['count'] : int.tryParse(data['count']?.toString() ?? '') ?? 0);
       }
     } catch (_) {}
   }
@@ -118,7 +123,9 @@ class _MainScreenState extends State<MainScreen> {
           if (!mounted) return;
           if (res.statusCode == 200) {
             final data = jsonDecode(res.body);
-            final newCount = data['count'] as int? ?? 0;
+            final newCount = (data['count'] is int)
+                ? data['count'] as int
+                : int.tryParse(data['count']?.toString() ?? '') ?? 0;
             if (newCount > _openWOCount) {
               final diff = newCount - _openWOCount;
               setState(() => _openWOCount = newCount);

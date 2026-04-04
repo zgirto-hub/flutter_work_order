@@ -23,15 +23,16 @@ class ActivityLogEntry {
 
   factory ActivityLogEntry.fromJson(Map<String, dynamic> json) {
     return ActivityLogEntry(
-      id: json['id'] as String,
-      userEmail: json['user_email'] as String,
-      userName: json['user_name'] as String,
-      category: json['category'] as String,
-      action: json['action'] as String,
-      targetLabel: json['target_label'] as String?,
-      targetId: json['target_id'] as String?,
-      detail: json['detail'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      id: (json['id'] ?? '').toString(),
+      userEmail: (json['user_email'] ?? '').toString(),
+      userName: (json['user_name'] ?? '').toString(),
+      category: (json['category'] ?? '').toString(),
+      action: (json['action'] ?? '').toString(),
+      targetLabel: json['target_label']?.toString(),
+      targetId: json['target_id']?.toString(),
+      detail: json['detail']?.toString(),
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
     );
   }
 

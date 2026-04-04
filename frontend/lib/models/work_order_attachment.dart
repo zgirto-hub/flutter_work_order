@@ -19,12 +19,13 @@ class WorkOrderAttachment {
 
   factory WorkOrderAttachment.fromJson(Map<String, dynamic> json) {
     return WorkOrderAttachment(
-      id: json['id'] as String,
-      workOrderId: json['work_order_id'] as String,
-      fileName: json['file_name'] as String,
-      fileUrl: json['file_url'] as String,
-      fileType: json['file_type'] as String? ?? 'application/octet-stream',
-      createdAt: DateTime.parse(json['created_at'] as String),
+      id: (json['id'] ?? '').toString(),
+      workOrderId: (json['work_order_id'] ?? '').toString(),
+      fileName: (json['file_name'] ?? '').toString(),
+      fileUrl: (json['file_url'] ?? '').toString(),
+      fileType: (json['file_type'] ?? 'application/octet-stream').toString(),
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
     );
   }
 

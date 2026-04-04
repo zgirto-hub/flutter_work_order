@@ -549,12 +549,6 @@ async def export_work_order_pdf(
     if not wo_data:
         raise HTTPException(status_code=404, detail="Work order not found")
 
-    sig_status = wo_data.get("signature_status", "unsigned")
-    if sig_status != "completed":
-        raise HTTPException(
-            status_code=403, detail="PDF export requires completed signature chain"
-        )
-
     if user_role == "reporter" and email:
         reporter_user_id = _get_user_id_by_email(email)
         if reporter_user_id and wo_data.get("created_by") != reporter_user_id:

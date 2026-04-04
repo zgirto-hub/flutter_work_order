@@ -741,7 +741,7 @@ async def update_work_order(
         target_id=work_order_id,
     )
 
-    return {"work_order": {"id": work_order_id, "status": body.status or old_status}}
+    return {"work_order": _fetch_full_work_order(work_order_id)}
 
 
 @router.post("/work-orders/{work_order_id}/close")
