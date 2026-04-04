@@ -1336,6 +1336,15 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         // Technician signed, pending admin
         else if (techSig.status == 'pending' && adminSig == null) ...[
           _signaturePreview(techSig, 'Technician'),
+          if (isAdmin) ...[
+            SizedBox(height: 4),
+            TextButton.icon(
+              icon: Icon(Icons.remove_circle_outline, size: 16, color: Colors.red),
+              label: Text('Remove Technician Signature',
+                  style: TextStyle(color: Colors.red, fontSize: 12)),
+              onPressed: () => _removeSignature(techSig, 'technician'),
+            ),
+          ],
           SizedBox(height: 10),
           if (!isAdmin)
             Row(
@@ -1366,16 +1375,25 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         else if (techSig.status == 'approved' ||
             (techSig.status == 'pending' && adminSig != null)) ...[
           _signaturePreview(techSig, 'Technician'),
+          if (isAdmin) ...[
+            SizedBox(height: 4),
+            TextButton.icon(
+              icon: Icon(Icons.remove_circle_outline, size: 16, color: Colors.red),
+              label: Text('Remove Technician Signature',
+                  style: TextStyle(color: Colors.red, fontSize: 12)),
+              onPressed: () => _removeSignature(techSig, 'technician'),
+            ),
+          ],
           SizedBox(height: 10),
           if (adminSig != null) ...[
             _signaturePreview(adminSig, 'Admin'),
             if (isAdmin) ...[
-              SizedBox(height: 8),
+              SizedBox(height: 4),
               TextButton.icon(
                 icon: Icon(Icons.remove_circle_outline, size: 16, color: Colors.red),
                 label: Text('Remove My Signature',
                     style: TextStyle(color: Colors.red, fontSize: 12)),
-                onPressed: () => _removeAdminSignature(adminSig),
+                onPressed: () => _removeSignature(adminSig, 'admin'),
               ),
             ],
           ],
@@ -1932,12 +1950,13 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     );
   }
 
-  Future<void> _removeAdminSignature(WorkOrderSignature sig) async {
+  Future<void> _removeSignature(WorkOrderSignature sig, String role) async {
+    final label = role == 'admin' ? 'your' : 'the technician\'s';
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Remove Signature'),
-        content: Text('Are you sure you want to remove your signature from this work order?'),
+        content: Text('Are you sure you want to remove $label signature from this work order?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
           TextButton(
