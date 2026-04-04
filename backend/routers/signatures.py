@@ -298,6 +298,84 @@ async def update_signature(
     return {"status": body.status}
 
 
+@router.delete("/work-orders/{work_order_id}/signatures/{signature_id}")
+async def delete_signature(
+    work_order_id: str,
+    signature_id: str,
+    user_email: str = Query(...),
+):
+    role = _get_user_role(user_email)
+    if role != "admin":
+        raise HTTPException(
+            status_code=403, detail="Only admins can remove signatures"
+        )
+
+    existing = (
+        supabase.table("work_order_signatures")
+        .select("id, signer_role, signer_email, signature_path")
+        .eq("id", signature_id)
+        .eq("work_order_id", work_order_id)
+        .execute()
+    )
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Signature not found")
+
+    sig = existing.data[0]
+
+    # Delete the signature record
+    supabase.table("work_order_signatures").delete().eq("id", signature_id).execute()
+
+    # Delete the signature file from disk
+    sig_path = sig.get("signature_path")
+    if sig_path:
+        sig_filename = os.path.basename(sig_path)
+        file_path = os.path.join(UPLOAD_DIR, sig_filename)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+
+    # If admin deleted their own signature, revert tech sig back to pending
+    if sig.get("signer_role") == "admin":
+        tech_sigs = (
+            supabase.table("work_order_signatures")
+            .select("id, status")
+            .eq("work_order_id", work_order_id)
+            .eq("signer_role", "technician")
+            .order("signed_at", desc=True)
+            .execute()
+        )
+        for ts in (tech_sigs.data or []):
+            if ts.get("status") == "approved":
+                supabase.table("work_order_signatures").update(
+                    {"status": "pending"}
+                ).eq("id", ts["id"]).execute()
+                break
+
+    wo = (
+        supabase.table("work_orders")
+        .select("job_no, title")
+        .eq("id", work_order_id)
+        .execute()
+    )
+    wo_info = wo.data[0] if wo.data else {}
+
+    try:
+        log_activity(
+            user_email,
+            "work_order",
+            "signature_removed",
+            target_label=wo_info.get("title", wo_info.get("job_no", "")),
+            target_id=work_order_id,
+            detail=f"Removed {sig.get('signer_role')} signature by {sig.get('signer_email')}",
+        )
+    except Exception:
+        pass
+
+    return {"deleted": True}
+
+
 @router.post("/users/{user_id}/signature")
 async def save_user_signature(
     user_id: str,

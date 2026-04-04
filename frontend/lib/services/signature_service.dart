@@ -80,6 +80,21 @@ class SignatureService {
     }
   }
 
+  Future<void> deleteSignature({
+    required String workOrderId,
+    required String signatureId,
+  }) async {
+    final uri = Uri.parse(
+      '${AppConfig.baseUrl}/work-orders/$workOrderId/signatures/$signatureId',
+    ).replace(queryParameters: {'user_email': _email});
+
+    final res = await http.delete(uri);
+    if (res.statusCode != 200) {
+      final detail = _errorDetail(res, 'Failed to remove signature');
+      throw Exception(detail);
+    }
+  }
+
   Future<Map<String, Map<String, dynamic>>> fetchBulkSignatureStatus(
       List<String> workOrderIds) async {
     if (workOrderIds.isEmpty) return {};

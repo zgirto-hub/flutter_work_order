@@ -1367,7 +1367,18 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
             (techSig.status == 'pending' && adminSig != null)) ...[
           _signaturePreview(techSig, 'Technician'),
           SizedBox(height: 10),
-          if (adminSig != null) _signaturePreview(adminSig, 'Admin'),
+          if (adminSig != null) ...[
+            _signaturePreview(adminSig, 'Admin'),
+            if (isAdmin) ...[
+              SizedBox(height: 8),
+              TextButton.icon(
+                icon: Icon(Icons.remove_circle_outline, size: 16, color: Colors.red),
+                label: Text('Remove My Signature',
+                    style: TextStyle(color: Colors.red, fontSize: 12)),
+                onPressed: () => _removeAdminSignature(adminSig),
+              ),
+            ],
+          ],
         ],
         SizedBox(height: 25),
       ],
@@ -1919,6 +1930,38 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _removeAdminSignature(WorkOrderSignature sig) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Remove Signature'),
+        content: Text('Are you sure you want to remove your signature from this work order?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Remove', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    try {
+      await _signatureService.deleteSignature(
+        workOrderId: widget.workOrder!.id,
+        signatureId: sig.id,
+      );
+      await _loadSignatures();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   bool _exportingPdf = false;
