@@ -216,6 +216,21 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     def safe_str(val):
         return str(val or "")
 
+    def fmt_date(val):
+        """Format ISO timestamp to readable date like '4 Apr 2026, 06:33 AM'."""
+        if not val:
+            return "N/A"
+        try:
+            from dateutil import parser as dateparser
+            dt = dateparser.parse(str(val))
+            return dt.strftime("%-d %b %Y, %I:%M %p")
+        except Exception:
+            try:
+                dt = datetime.fromisoformat(str(val).replace("+00:00", "").replace("Z", ""))
+                return dt.strftime("%d %b %Y, %I:%M %p").lstrip("0")
+            except Exception:
+                return str(val)
+
     details_data = [
         ("Job No:", safe_str(wo_data.get("job_no"))),
         ("Title:", safe_str(wo_data.get("title"))),
@@ -225,11 +240,8 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         ("Location:", safe_str(wo_data.get("location"))),
         ("Mobile Number:", safe_str(wo_data.get("mobile_number"))),
         ("Created By:", safe_str(wo_data.get("creator", {}).get("full_name"))),
-        ("Created At:", safe_str(wo_data.get("created_at"))),
-        (
-            "Closed At:",
-            safe_str(wo_data.get("closed_at")) if wo_data.get("closed_at") else "N/A",
-        ),
+        ("Created At:", fmt_date(wo_data.get("created_at"))),
+        ("Closed At:", fmt_date(wo_data.get("closed_at"))),
     ]
 
     details_table = Table(details_data, colWidths=[3.5 * cm, 11.5 * cm])
