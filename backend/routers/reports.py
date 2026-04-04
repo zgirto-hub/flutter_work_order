@@ -217,16 +217,20 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         return str(val or "")
 
     def fmt_date(val):
-        """Format ISO timestamp to readable date like '4 Apr 2026, 06:33 AM'."""
+        """Format ISO timestamp to Kuwait local time (UTC+3)."""
         if not val:
             return "N/A"
         try:
-            from dateutil import parser as dateparser
+            from dateutil import parser as dateparser, tz
             dt = dateparser.parse(str(val))
+            kuwait_tz = tz.tzoffset("AST", 3 * 3600)
+            dt = dt.astimezone(kuwait_tz)
             return dt.strftime("%-d %b %Y, %I:%M %p")
         except Exception:
             try:
-                dt = datetime.fromisoformat(str(val).replace("+00:00", "").replace("Z", ""))
+                from datetime import timedelta, timezone
+                dt = datetime.fromisoformat(str(val).replace("Z", "+00:00"))
+                dt = dt.astimezone(timezone(timedelta(hours=3)))
                 return dt.strftime("%d %b %Y, %I:%M %p").lstrip("0")
             except Exception:
                 return str(val)
