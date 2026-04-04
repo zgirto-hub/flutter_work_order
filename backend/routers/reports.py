@@ -24,7 +24,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-# Register Inter font (Claude-style clean geometric sans-serif)
+# Register fonts
 _font_dir = os.path.join(os.path.dirname(__file__), "..", "assets")
 try:
     pdfmetrics.registerFont(TTFont("Inter", os.path.join(_font_dir, "Inter-Regular.ttf")))
@@ -34,6 +34,22 @@ try:
 except Exception:
     _FONT = "Helvetica"
     _FONT_BOLD = "Helvetica-Bold"
+
+# Register Arabic font
+try:
+    pdfmetrics.registerFont(TTFont("NotoArabic", os.path.join(_font_dir, "NotoSansArabic-Regular.ttf")))
+    pdfmetrics.registerFont(TTFont("NotoArabic-Bold", os.path.join(_font_dir, "NotoSansArabic-Bold.ttf")))
+    _FONT_AR = "NotoArabic"
+    _FONT_AR_BOLD = "NotoArabic-Bold"
+except Exception:
+    _FONT_AR = _FONT
+    _FONT_AR_BOLD = _FONT_BOLD
+
+import re
+_ARABIC_RE = re.compile(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]')
+
+def _has_arabic(text: str) -> bool:
+    return bool(_ARABIC_RE.search(text or ""))
 
 router = APIRouter()
 
@@ -225,7 +241,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     elements.append(Spacer(1, 8))
     elements.append(Paragraph("Work Order Completion Report", title_style))
 
-    dept_name = wo_data.get("departments", {}).get("name", "N/A")
+    dept_name = _ar(wo_data.get("departments", {}).get("name") or "N/A")
     export_date = datetime.now().strftime("%Y-%m-%d %H:%M")
     elements.append(Paragraph(f"{dept_name} • {export_date}", subtitle_style))
 
@@ -239,6 +255,13 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
 
     def safe_str(val):
         return str(val or "")
+
+    def _ar(text):
+        """Wrap text with Arabic font if it contains Arabic characters."""
+        t = xml_escape(safe_str(text))
+        if _has_arabic(t):
+            return f'<font face="{_FONT_AR}">{t}</font>'
+        return t
 
     def fmt_date(val):
         """Format ISO timestamp to Kuwait local time (UTC+3)."""
@@ -259,26 +282,26 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
             except Exception:
                 return str(val)
 
+    label_style = ParagraphStyle(
+        "Label", parent=normal_style, fontName=_FONT_BOLD, fontSize=10,
+    )
     details_data = [
-        ("Job No:", safe_str(wo_data.get("job_no"))),
-        ("Title:", safe_str(wo_data.get("title"))),
-        ("Type:", safe_str(wo_data.get("type"))),
-        ("Status:", safe_str(wo_data.get("status"))),
-        ("Department:", safe_str(wo_data.get("departments", {}).get("name"))),
-        ("Location:", safe_str(wo_data.get("location"))),
-        ("Mobile Number:", safe_str(wo_data.get("mobile_number"))),
-        ("Created By:", safe_str(wo_data.get("creator", {}).get("full_name"))),
-        ("Created At:", fmt_date(wo_data.get("created_at"))),
-        ("Closed At:", fmt_date(wo_data.get("closed_at"))),
+        (Paragraph("Job No:", label_style), Paragraph(_ar(wo_data.get("job_no")), normal_style)),
+        (Paragraph("Title:", label_style), Paragraph(_ar(wo_data.get("title")), normal_style)),
+        (Paragraph("Type:", label_style), Paragraph(_ar(wo_data.get("type")), normal_style)),
+        (Paragraph("Status:", label_style), Paragraph(_ar(wo_data.get("status")), normal_style)),
+        (Paragraph("Department:", label_style), Paragraph(_ar(wo_data.get("departments", {}).get("name")), normal_style)),
+        (Paragraph("Location:", label_style), Paragraph(_ar(wo_data.get("location")), normal_style)),
+        (Paragraph("Mobile Number:", label_style), Paragraph(safe_str(wo_data.get("mobile_number")), normal_style)),
+        (Paragraph("Created By:", label_style), Paragraph(_ar(wo_data.get("creator", {}).get("full_name")), normal_style)),
+        (Paragraph("Created At:", label_style), Paragraph(fmt_date(wo_data.get("created_at")), normal_style)),
+        (Paragraph("Closed At:", label_style), Paragraph(fmt_date(wo_data.get("closed_at")), normal_style)),
     ]
 
     details_table = Table(details_data, colWidths=[3.5 * cm, 14 * cm])
     details_table.setStyle(
         TableStyle(
             [
-                ("FONTNAME", (0, 0), (0, -1), _FONT_BOLD),
-                ("FONTNAME", (1, 0), (1, -1), _FONT),
-                ("FONTSIZE", (0, 0), (-1, -1), 10),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
             ]
@@ -289,12 +312,12 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     description = wo_data.get("description")
     if description:
         elements.append(Paragraph("Description", section_style))
-        elements.append(Paragraph(xml_escape(safe_str(description)), normal_style))
+        elements.append(Paragraph(_ar(description), normal_style))
 
     tech_notes = wo_data.get("tech_notes")
     if tech_notes:
         elements.append(Paragraph("Tech Notes", section_style))
-        elements.append(Paragraph(xml_escape(safe_str(tech_notes)), normal_style))
+        elements.append(Paragraph(_ar(tech_notes), normal_style))
 
     assignments = wo_data.get("work_order_assignments", [])
     if assignments:
@@ -306,7 +329,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
                 tech_names.append(user["full_name"])
         if tech_names:
             for name in tech_names:
-                elements.append(Paragraph(f"• {xml_escape(name)}", normal_style))
+                elements.append(Paragraph(f"• {_ar(name)}", normal_style))
 
     elements.append(Paragraph("Signatures", section_style))
 
@@ -346,9 +369,8 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         sig_status = sig.get("status", "")
         status_color = "#228B22" if sig_status == "approved" else "black"
         status_text = "Approved" if sig_status == "approved" else sig_status
-        signer_name = xml_escape(
-            sig.get("signer_full_name") or sig.get("signer_email") or "Unknown"
-        )
+        raw_name = sig.get("signer_full_name") or sig.get("signer_email") or "Unknown"
+        signer_name = _ar(raw_name)
         signer_email = xml_escape(sig.get("signer_email") or "")
 
         sig_img = _load_sig_image(sig.get("signature_path"))
