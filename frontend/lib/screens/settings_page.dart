@@ -55,6 +55,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String? _currentUserId;
   String? _savedSignaturePath;
   bool _signatureLoading = false;
+  int _sigCacheBuster = DateTime.now().millisecondsSinceEpoch;
 
   @override
   void initState() {
@@ -206,7 +207,12 @@ class _SettingsPageState extends State<SettingsPage> {
         fileBytes: fileBytes,
         fileName: fileName,
       );
-      if (mounted) setState(() => _savedSignaturePath = path);
+      if (mounted) {
+        setState(() {
+          _savedSignaturePath = path;
+          _sigCacheBuster = DateTime.now().millisecondsSinceEpoch;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -260,7 +266,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _resolveFileUrl(String? path) {
     if (path == null || path.isEmpty) return '';
     final base = AppConfig.baseUrl.replaceFirst('/api', '');
-    return '$base$path';
+    return '$base$path?v=$_sigCacheBuster';
   }
 
   Future<void> _signOut() async {
