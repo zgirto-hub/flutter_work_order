@@ -185,7 +185,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     if any([logo_newkuwait, logo_emblem, logo_civilaviation]):
         logo_table = Table(
             [[logo_newkuwait, logo_emblem, logo_civilaviation]],
-            colWidths=[5.5 * cm, 5.5 * cm, 5.5 * cm],
+            colWidths=[4.5 * cm, 4.5 * cm, 7.5 * cm],
         )
         logo_table.setStyle(
             TableStyle(
