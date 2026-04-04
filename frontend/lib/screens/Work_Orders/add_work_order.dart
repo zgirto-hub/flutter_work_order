@@ -1557,7 +1557,6 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         signatureData: useSaved ? null : base64Png,
         useSaved: useSaved,
       );
-      await _loadSignatures();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1565,6 +1564,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         );
       }
     }
+    // Always refresh signatures (tech sig was already approved in step 1)
+    await _loadSignatures();
   }
 
   Widget _buildSignatureActionCard({

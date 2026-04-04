@@ -306,8 +306,15 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
             )
             if os.path.exists(sig_file_path):
                 try:
+                    from reportlab.lib.utils import ImageReader
+                    img_reader = ImageReader(sig_file_path)
+                    iw, ih = img_reader.getSize()
+                    max_w = 5.5 * cm
+                    max_h = 2.5 * cm
+                    # Scale to fit within max bounds preserving aspect ratio
+                    scale = min(max_w / iw, max_h / ih)
                     items.append(Spacer(1, 4))
-                    items.append(RLImage(sig_file_path, width=150, height=50))
+                    items.append(RLImage(sig_file_path, width=iw * scale, height=ih * scale))
                 except Exception:
                     items.append(Paragraph("[Signature image error]", normal_style))
             else:
