@@ -291,7 +291,6 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         items.append(Spacer(1, 4))
         items.append(Paragraph(signer_name, normal_style))
         items.append(Paragraph(signer_email, normal_style))
-        items.append(Paragraph(f"Signed: {signed_at}", normal_style))
         items.append(
             Paragraph(f'<font color="{status_color}">{xml_escape(status_text)}</font>', normal_style)
         )
@@ -309,11 +308,10 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
                     from reportlab.lib.utils import ImageReader
                     img_reader = ImageReader(sig_file_path)
                     iw, ih = img_reader.getSize()
-                    max_w = 5.5 * cm
-                    max_h = 2.5 * cm
-                    # Scale to fit within max bounds preserving aspect ratio
+                    max_w = 6.5 * cm
+                    max_h = 4 * cm
                     scale = min(max_w / iw, max_h / ih)
-                    items.append(Spacer(1, 4))
+                    items.append(Spacer(1, 6))
                     items.append(RLImage(sig_file_path, width=iw * scale, height=ih * scale))
                 except Exception:
                     items.append(Paragraph("[Signature image error]", normal_style))
@@ -349,13 +347,11 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     sig_table.setStyle(
         TableStyle(
             [
-                ("BOX", (0, 0), (0, 0), 0.5, lightgrey),
-                ("BOX", (1, 0), (1, 0), 0.5, lightgrey),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                ("TOPPADDING", (0, 0), (-1, -1), 8),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
             ]
         )
     )
