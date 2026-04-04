@@ -233,7 +233,6 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
     _notifPollTimer?.cancel();
     _notifPollTimer = Timer.periodic(const Duration(seconds: 20), (_) {
       _refreshUnreadNotifications();
-      _load();
     });
   }
 
