@@ -65,7 +65,13 @@ const PRECACHE_URLS = [
 self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function(cache) {
-      return cache.addAll(PRECACHE_URLS);
+      return Promise.all(
+        PRECACHE_URLS.map(function(url) {
+          return fetch(url, { cache: 'no-store' }).then(function(response) {
+            return cache.put(url, response);
+          });
+        })
+      );
     })
   );
   self.skipWaiting();
@@ -94,12 +100,32 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Cache-first only for static assets (js, css, fonts, images)
+  // Network-first for core app files (html, js, bootstrap) so updates apply immediately
+  var url = event.request.url;
+  var isCoreFile = url.endsWith('.html') || url.endsWith('.js') || url === self.location.origin + '/';
+  if (isCoreFile) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' }).then(function(response) {
+        if (response.ok) {
+          var clone = response.clone();
+          caches.open(CACHE_NAME).then(function(cache) {
+            cache.put(event.request, clone);
+          });
+        }
+        return response;
+      }).catch(function() {
+        return caches.match(event.request);
+      })
+    );
+    return;
+  }
+
+  // Cache-first for static assets (fonts, images, wasm)
   event.respondWith(
     caches.match(event.request).then(function(cached) {
       if (cached) return cached;
       return fetch(event.request).then(function(response) {
-        if (response.ok && /\.(js|css|woff2?|ttf|png|svg|webp|ico|wasm)(\?|$)/.test(event.request.url)) {
+        if (response.ok && /\.(css|woff2?|ttf|png|svg|webp|ico|wasm)(\?|$)/.test(event.request.url)) {
           var clone = response.clone();
           caches.open(CACHE_NAME).then(function(cache) {
             cache.put(event.request, clone);
