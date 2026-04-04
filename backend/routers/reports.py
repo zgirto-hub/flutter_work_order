@@ -238,6 +238,16 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         )
         elements.append(logo_table)
 
+    def safe_str(val):
+        return str(val or "")
+
+    def _ar(text):
+        """Wrap text with Arabic font if it contains Arabic characters."""
+        t = xml_escape(safe_str(text))
+        if _has_arabic(t):
+            return f'<font face="{_FONT_AR}">{t}</font>'
+        return t
+
     elements.append(Spacer(1, 8))
     elements.append(Paragraph("Work Order Completion Report", title_style))
 
@@ -252,16 +262,6 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     elements.append(Spacer(1, 8))
 
     elements.append(Paragraph("Work Order Details", section_style))
-
-    def safe_str(val):
-        return str(val or "")
-
-    def _ar(text):
-        """Wrap text with Arabic font if it contains Arabic characters."""
-        t = xml_escape(safe_str(text))
-        if _has_arabic(t):
-            return f'<font face="{_FONT_AR}">{t}</font>'
-        return t
 
     def fmt_date(val):
         """Format ISO timestamp to Kuwait local time (UTC+3)."""
