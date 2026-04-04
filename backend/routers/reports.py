@@ -51,6 +51,16 @@ _ARABIC_RE = re.compile(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\
 def _has_arabic(text: str) -> bool:
     return bool(_ARABIC_RE.search(text or ""))
 
+def _reshape_arabic(text: str) -> str:
+    """Reshape and reorder Arabic text for correct RTL display in reportlab."""
+    try:
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+        reshaped = arabic_reshaper.reshape(text)
+        return get_display(reshaped)
+    except Exception:
+        return text
+
 router = APIRouter()
 
 
@@ -242,11 +252,12 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         return str(val or "")
 
     def _ar(text):
-        """Wrap text with Arabic font if it contains Arabic characters."""
-        t = xml_escape(safe_str(text))
-        if _has_arabic(t):
-            return f'<font face="{_FONT_AR}">{t}</font>'
-        return t
+        """Reshape Arabic text for RTL display and wrap with Arabic font."""
+        raw = safe_str(text)
+        if _has_arabic(raw):
+            shaped = _reshape_arabic(raw)
+            return f'<font face="{_FONT_AR}">{xml_escape(shaped)}</font>'
+        return xml_escape(raw)
 
     elements.append(Spacer(1, 8))
     elements.append(Paragraph("Work Order Completion Report", title_style))
