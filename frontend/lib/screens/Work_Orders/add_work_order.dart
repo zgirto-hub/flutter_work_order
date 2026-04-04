@@ -88,6 +88,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   bool _sending = false;
   bool _roleLoaded = false;
   String _userRole = 'admin';
+  int? _approvalLevel;
   bool _isTechnician = false;
   bool _fieldHasFocus = false;
   bool _commentHasFocus = false;
@@ -277,10 +278,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final role = data['user_type'] ?? 'admin';
+        final approvalLevel = data['approval_level'] as int?;
         if (!mounted) return;
         setState(() {
           _roleLoaded = true;
           _userRole = role;
+          _approvalLevel = approvalLevel;
         });
 
         AppUser? currentUser;
@@ -465,9 +468,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         type: selectedType,
         dateCreated: widget.workOrder!.dateCreated,
         dateModified: now,
-        assignedTechnicians: _selectedEmployeeIds
-            .map((id) => TechnicianAssignment(id: id, fullName: ''))
-            .toList(),
+        assignedTechnician: _selectedEmployeeIds.isNotEmpty
+            ? TechnicianAssignment(id: _selectedEmployeeIds.first, fullName: '')
+            : null,
       );
 
       await _service.updateWorkOrder(workOrder);
@@ -598,8 +601,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       selectedType = _allowedTypes.contains(widget.workOrder!.type)
           ? widget.workOrder!.type
           : 'Technical';
-      _selectedEmployeeIds =
-          widget.workOrder!.assignedTechnicians.map((t) => t.id).toList();
+      _selectedEmployeeIds = widget.workOrder!.assignedTechnician != null
+          ? [widget.workOrder!.assignedTechnician!.id]
+          : [];
       _autoSaveStatus = AutoSaveStatus.idle;
     });
 
@@ -623,8 +627,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     setState(() {
       _employees = data;
       if (widget.workOrder != null) {
-        _selectedEmployeeIds =
-            widget.workOrder!.assignedTechnicians.map((t) => t.id).toList();
+        _selectedEmployeeIds = widget.workOrder!.assignedTechnician != null
+            ? [widget.workOrder!.assignedTechnician!.id]
+            : [];
         // Update snapshots now that technician IDs are loaded
         final snapshot = _formSnapshot();
         _originalSnapshot = Map.from(snapshot);
@@ -820,9 +825,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         type: selectedType,
         dateCreated: widget.workOrder?.dateCreated ?? now,
         dateModified: now,
-        assignedTechnicians: _selectedEmployeeIds
-            .map((id) => TechnicianAssignment(id: id, fullName: ''))
-            .toList(),
+        assignedTechnician: _selectedEmployeeIds.isNotEmpty
+            ? TechnicianAssignment(id: _selectedEmployeeIds.first, fullName: '')
+            : null,
       );
 
       if (widget.workOrder == null) {
@@ -1208,12 +1213,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               SizedBox(height: 25),
             ],
             // ── Signature Section (any existing WO) ──────────────
-            if (widget.workOrder != null)
-              _buildSignatureSection(),
+            if (widget.workOrder != null) _buildSignatureSection(),
 
             // ── Export PDF Report (Closed WOs only) ──────────────
             if (widget.workOrder != null &&
-                widget.workOrder!.status == 'Closed') ...[
+                widget.workOrder!.status == 'Closed' &&
+                widget.workOrder!.signatureStatus == 'completed') ...[
               SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -1250,17 +1255,63 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   Widget _buildSignatureSection() {
     final currentEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
     final isAdmin = _userRole == 'admin';
-    final isTech = _userRole == 'technician';
+    final approvalLevel = _approvalLevel ?? 0;
 
     final techSig =
         _signatures.where((s) => s.signerRole == 'technician').firstOrNull;
-    final adminSig =
-        _signatures.where((s) => s.signerRole == 'admin').firstOrNull;
+    final supSig =
+        _signatures.where((s) => s.signerRole == 'supervisor').firstOrNull;
+    final superSig =
+        _signatures.where((s) => s.signerRole == 'superintendent').firstOrNull;
+
+    final signatureStatus = widget.workOrder?.signatureStatus ?? 'unsigned';
+
+    // No technician assigned
+    if (widget.workOrder?.assignedTechnician == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: 25),
+          Text(
+            'Electronic Signatures',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary),
+          ),
+          SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.bgSurface2,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline,
+                    size: 16, color: AppColors.textTertiary),
+                SizedBox(width: 8),
+                Text('No technician assigned — contact admin',
+                    style:
+                        TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // T014: Admin sees all signature data read-only
+    if (isAdmin) {
+      return _buildReadOnlySignatureSection(techSig, supSig, superSig);
+    }
+
+    final isTech = _userRole == 'technician';
 
     // Check if current user is assigned technician
-    final isAssigned = widget.workOrder?.assignedTechnicians
-            .any((t) => t.email?.toLowerCase() == currentEmail.toLowerCase()) ??
-        false;
+    final isAssigned = widget.workOrder?.assignedTechnician != null &&
+        widget.workOrder!.assignedTechnician!.email?.toLowerCase() ==
+            currentEmail.toLowerCase();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1279,127 +1330,186 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               child: CircularProgressIndicator(
                   color: AppColors.accent, strokeWidth: 2))
 
-        // Rejected: allow technician to re-sign
-        else if (techSig != null && techSig.status == 'rejected') ...[
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.dangerBg,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.error_outline, size: 16, color: Colors.red),
-                    SizedBox(width: 6),
-                    Text('Signature Rejected',
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.red)),
-                  ],
-                ),
-                if (techSig.rejectionReason != null &&
-                    techSig.rejectionReason!.isNotEmpty) ...[
-                  SizedBox(height: 6),
-                  Text('Reason: ${techSig.rejectionReason}',
-                      style: TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary)),
-                ],
-                if ((isTech && isAssigned) || isAdmin) ...[
-                  SizedBox(height: 10),
-                  _buildSignatureActionCard(
-                    role: 'technician',
-                    primaryLabel: 'Re-sign',
-                  ),
-                ],
-              ],
-            ),
+        // TECHNICIAN STEP
+        else ...[
+          _buildSignatureStep(
+            label: 'Technician',
+            signature: techSig,
+            canSign: (isTech && isAssigned) &&
+                (signatureStatus == 'unsigned' ||
+                    signatureStatus == 'rejected'),
+            onSign: (isTech && isAssigned) &&
+                    (signatureStatus == 'unsigned' ||
+                        signatureStatus == 'rejected')
+                ? _buildSignatureActionCard(
+                    role: 'technician', primaryLabel: 'Sign Job Order')
+                : SizedBox.shrink(),
+            showRemove: isTech && isAssigned && techSig != null,
+            onRemove: techSig != null
+                ? () => _removeSignature(techSig, 'technician')
+                : null,
           ),
-        ]
+          _buildStepConnector(isComplete: techSig?.status == 'approved'),
 
-        // No technician signature yet
-        else if (techSig == null) ...[
-          if ((isTech && isAssigned) || isAdmin)
-            _buildSignatureActionCard(
-              role: 'technician',
-              primaryLabel: 'Sign Job Order',
-            )
-          else
-            Text('Awaiting technician signature',
-                style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
-        ]
+          // SUPERVISOR STEP
+          _buildSignatureStep(
+            label: 'Supervisor',
+            signature: supSig,
+            canSign: approvalLevel == 1 && signatureStatus == 'tech_signed',
+            onSign: approvalLevel == 1 && signatureStatus == 'tech_signed'
+                ? _buildAdminApprovalActions(techSig!)
+                : SizedBox.shrink(),
+            showRemove: false,
+            onRemove: null,
+          ),
+          _buildStepConnector(isComplete: supSig?.status == 'approved'),
 
-        // Technician signed, pending admin
-        else if (techSig.status == 'pending' && adminSig == null) ...[
-          _signaturePreview(techSig, 'Technician'),
-          if (isAdmin) ...[
-            SizedBox(height: 4),
-            TextButton.icon(
-              icon: Icon(Icons.remove_circle_outline, size: 16, color: Colors.red),
-              label: Text('Remove Technician Signature',
-                  style: TextStyle(color: Colors.red, fontSize: 12)),
-              onPressed: () => _removeSignature(techSig, 'technician'),
-            ),
-          ],
-          SizedBox(height: 10),
-          if (!isAdmin)
-            Row(
-              children: [
-                Icon(Icons.hourglass_top,
-                    size: 14, color: AppColors.pendingText),
-                SizedBox(width: 6),
-                Text('Awaiting admin approval',
-                    style:
-                        TextStyle(fontSize: 12, color: AppColors.pendingText)),
-              ],
-            )
-          else ...[
-            _buildAdminApprovalActions(techSig),
-            SizedBox(height: 10),
-            OutlinedButton.icon(
-              icon: Icon(Icons.close, size: 16, color: Colors.red),
-              label: Text('Reject', style: TextStyle(color: Colors.red)),
-              onPressed: () => _rejectSignature(techSig),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
-              ),
-            ),
-          ],
-        ]
-
-        // Both signed and approved
-        else if (techSig.status == 'approved' ||
-            (techSig.status == 'pending' && adminSig != null)) ...[
-          _signaturePreview(techSig, 'Technician'),
-          if (isAdmin) ...[
-            SizedBox(height: 4),
-            TextButton.icon(
-              icon: Icon(Icons.remove_circle_outline, size: 16, color: Colors.red),
-              label: Text('Remove Technician Signature',
-                  style: TextStyle(color: Colors.red, fontSize: 12)),
-              onPressed: () => _removeSignature(techSig, 'technician'),
-            ),
-          ],
-          SizedBox(height: 10),
-          if (adminSig != null) ...[
-            _signaturePreview(adminSig, 'Admin'),
-            if (isAdmin) ...[
-              SizedBox(height: 4),
-              TextButton.icon(
-                icon: Icon(Icons.remove_circle_outline, size: 16, color: Colors.red),
-                label: Text('Remove My Signature',
-                    style: TextStyle(color: Colors.red, fontSize: 12)),
-                onPressed: () => _removeSignature(adminSig, 'admin'),
-              ),
-            ],
-          ],
+          // SUPERINTENDENT STEP
+          _buildSignatureStep(
+            label: 'Superintendent',
+            signature: superSig,
+            canSign:
+                approvalLevel == 2 && signatureStatus == 'supervisor_approved',
+            onSign:
+                approvalLevel == 2 && signatureStatus == 'supervisor_approved'
+                    ? _buildAdminApprovalActions(supSig!)
+                    : SizedBox.shrink(),
+            showRemove: false,
+            onRemove: null,
+          ),
         ],
         SizedBox(height: 25),
       ],
+    );
+  }
+
+  Widget _buildSignatureStep({
+    required String label,
+    required WorkOrderSignature? signature,
+    required bool canSign,
+    required Widget onSign,
+    required bool showRemove,
+    VoidCallback? onRemove,
+  }) {
+    final status = signature?.status;
+    final isApproved = status == 'approved';
+    final isPending = status == 'pending';
+    final isRejected = status == 'rejected';
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isApproved
+            ? AppColors.closedBg
+            : isRejected
+                ? AppColors.dangerBg
+                : AppColors.bgSurface2,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isApproved
+              ? AppColors.closedText.withValues(alpha: 0.3)
+              : isRejected
+                  ? Colors.red.withValues(alpha: 0.3)
+                  : AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isApproved
+                    ? Icons.check_circle
+                    : isRejected
+                        ? Icons.cancel
+                        : Icons.pending,
+                size: 16,
+                color: isApproved
+                    ? AppColors.closedText
+                    : isRejected
+                        ? Colors.red
+                        : AppColors.pendingText,
+              ),
+              SizedBox(width: 6),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary)),
+              Spacer(),
+              if (isApproved)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.closedText,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text('Approved',
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500)),
+                )
+              else if (isRejected)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text('Rejected',
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500)),
+                ),
+            ],
+          ),
+          if (signature != null) ...[
+            SizedBox(height: 8),
+            if (signature.signerName != null)
+              Text(signature.signerName!,
+                  style:
+                      TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            if (signature.signedAt != null)
+              Text(_formatDateTime(signature.signedAt),
+                  style:
+                      TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+          ],
+          if (signature == null && canSign) ...[
+            SizedBox(height: 8),
+            onSign,
+          ],
+          if (signature == null && !canSign) ...[
+            SizedBox(height: 8),
+            Text('Awaiting signature',
+                style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+          ],
+          if (showRemove && onRemove != null) ...[
+            SizedBox(height: 4),
+            TextButton.icon(
+              icon: Icon(Icons.remove_circle_outline,
+                  size: 14, color: Colors.red),
+              label: Text('Remove',
+                  style: TextStyle(color: Colors.red, fontSize: 11)),
+              onPressed: onRemove,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepConnector({required bool isComplete}) {
+    return Container(
+      margin: EdgeInsets.only(left: 18, bottom: 8),
+      width: 2,
+      height: 16,
+      color: isComplete ? AppColors.closedText : AppColors.border,
     );
   }
 
@@ -1472,6 +1582,67 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  String _formatDateTime(DateTime dt) {
+    return '${dt.day}/${dt.month}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  // T014: Admin sees signature data read-only with no action buttons
+  Widget _buildReadOnlySignatureSection(WorkOrderSignature? techSig,
+      WorkOrderSignature? supSig, WorkOrderSignature? superSig) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(height: 25),
+        Row(
+          children: [
+            Text(
+              'Electronic Signatures',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary),
+            ),
+            SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.bgSurface2,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text('Read Only',
+                  style:
+                      TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+            ),
+          ],
+        ),
+        SizedBox(height: 12),
+        if (techSig != null) _signaturePreview(techSig, 'Technician'),
+        if (techSig != null) SizedBox(height: 10),
+        if (supSig != null) _signaturePreview(supSig, 'Supervisor'),
+        if (supSig != null) SizedBox(height: 10),
+        if (superSig != null) _signaturePreview(superSig, 'Superintendent'),
+        if (techSig == null && supSig == null && superSig == null)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.bgSurface2,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline,
+                    size: 16, color: AppColors.textTertiary),
+                SizedBox(width: 8),
+                Text('No signatures yet',
+                    style:
+                        TextStyle(fontSize: 13, color: AppColors.textTertiary)),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -1956,9 +2127,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Remove Signature'),
-        content: Text('Are you sure you want to remove $label signature from this work order?'),
+        content: Text(
+            'Are you sure you want to remove $label signature from this work order?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text('Remove', style: TextStyle(color: Colors.red)),

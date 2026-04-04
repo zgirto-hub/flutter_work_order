@@ -27,8 +27,12 @@ from reportlab.pdfbase.ttfonts import TTFont
 # Register fonts
 _font_dir = os.path.join(os.path.dirname(__file__), "..", "assets")
 try:
-    pdfmetrics.registerFont(TTFont("Inter", os.path.join(_font_dir, "Inter-Regular.ttf")))
-    pdfmetrics.registerFont(TTFont("Inter-Bold", os.path.join(_font_dir, "Inter-Bold.ttf")))
+    pdfmetrics.registerFont(
+        TTFont("Inter", os.path.join(_font_dir, "Inter-Regular.ttf"))
+    )
+    pdfmetrics.registerFont(
+        TTFont("Inter-Bold", os.path.join(_font_dir, "Inter-Bold.ttf"))
+    )
     _FONT = "Inter"
     _FONT_BOLD = "Inter-Bold"
 except Exception:
@@ -37,8 +41,12 @@ except Exception:
 
 # Register Arabic font
 try:
-    pdfmetrics.registerFont(TTFont("NotoArabic", os.path.join(_font_dir, "NotoSansArabic-Regular.ttf")))
-    pdfmetrics.registerFont(TTFont("NotoArabic-Bold", os.path.join(_font_dir, "NotoSansArabic-Bold.ttf")))
+    pdfmetrics.registerFont(
+        TTFont("NotoArabic", os.path.join(_font_dir, "NotoSansArabic-Regular.ttf"))
+    )
+    pdfmetrics.registerFont(
+        TTFont("NotoArabic-Bold", os.path.join(_font_dir, "NotoSansArabic-Bold.ttf"))
+    )
     _FONT_AR = "NotoArabic"
     _FONT_AR_BOLD = "NotoArabic-Bold"
 except Exception:
@@ -46,20 +54,27 @@ except Exception:
     _FONT_AR_BOLD = _FONT_BOLD
 
 import re
-_ARABIC_RE = re.compile(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]')
+
+_ARABIC_RE = re.compile(
+    r"[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]"
+)
+
 
 def _has_arabic(text: str) -> bool:
     return bool(_ARABIC_RE.search(text or ""))
+
 
 def _reshape_arabic(text: str) -> str:
     """Reshape and reorder Arabic text for correct RTL display in reportlab."""
     try:
         import arabic_reshaper
         from bidi.algorithm import get_display
+
         reshaped = arabic_reshaper.reshape(text)
         return get_display(reshaped)
     except Exception:
         return text
+
 
 router = APIRouter()
 
@@ -124,17 +139,17 @@ def _fetch_signatures_for_pdf(work_order_id: str):
         supabase.table("work_order_signatures")
         .select("*")
         .eq("work_order_id", work_order_id)
+        .eq("status", "approved")
         .order("signed_at", desc=False)
         .execute()
     )
     sigs = sigs_result.data or []
 
     technician_sig = None
-    admin_sig = None
+    supervisor_sig = None
+    superindent_sig = None
 
     for sig in sigs:
-        if sig.get("status") == "rejected":
-            continue
         signer_email = sig.get("signer_email")
         if not signer_email:
             continue
@@ -150,14 +165,18 @@ def _fetch_signatures_for_pdf(work_order_id: str):
 
         sig["signer_full_name"] = signer_full_name
 
-        if sig.get("signer_role") == "technician" and technician_sig is None:
+        role = sig.get("signer_role")
+        if role == "technician" and technician_sig is None:
             technician_sig = sig
-        elif sig.get("signer_role") == "admin" and admin_sig is None:
-            admin_sig = sig
+        elif role == "supervisor" and supervisor_sig is None:
+            supervisor_sig = sig
+        elif role == "superintendent" and superindent_sig is None:
+            superindent_sig = sig
 
     return {
         "technician": technician_sig,
-        "admin": admin_sig,
+        "supervisor": supervisor_sig,
+        "superintendent": superindent_sig,
     }
 
 
@@ -218,6 +237,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         if os.path.exists(path):
             try:
                 from reportlab.lib.utils import ImageReader
+
                 reader = ImageReader(path)
                 iw, ih = reader.getSize()
                 scale = min(w / iw, h / ih)
@@ -280,6 +300,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
             return "N/A"
         try:
             from dateutil import parser as dateparser, tz
+
             dt = dateparser.parse(str(val))
             kuwait_tz = tz.tzoffset("AST", 3 * 3600)
             dt = dt.astimezone(kuwait_tz)
@@ -287,6 +308,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         except Exception:
             try:
                 from datetime import timedelta, timezone
+
                 dt = datetime.fromisoformat(str(val).replace("Z", "+00:00"))
                 dt = dt.astimezone(timezone(timedelta(hours=3)))
                 return dt.strftime("%d %b %Y, %I:%M %p").lstrip("0")
@@ -294,19 +316,52 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
                 return str(val)
 
     label_style = ParagraphStyle(
-        "Label", parent=normal_style, fontName=_FONT_BOLD, fontSize=10,
+        "Label",
+        parent=normal_style,
+        fontName=_FONT_BOLD,
+        fontSize=10,
     )
     details_data = [
-        (Paragraph("Job No:", label_style), Paragraph(_ar(wo_data.get("job_no")), normal_style)),
-        (Paragraph("Title:", label_style), Paragraph(_ar(wo_data.get("title")), normal_style)),
-        (Paragraph("Type:", label_style), Paragraph(_ar(wo_data.get("type")), normal_style)),
-        (Paragraph("Status:", label_style), Paragraph(_ar(wo_data.get("status")), normal_style)),
-        (Paragraph("Department:", label_style), Paragraph(_ar(wo_data.get("departments", {}).get("name")), normal_style)),
-        (Paragraph("Location:", label_style), Paragraph(_ar(wo_data.get("location")), normal_style)),
-        (Paragraph("Mobile Number:", label_style), Paragraph(safe_str(wo_data.get("mobile_number")), normal_style)),
-        (Paragraph("Created By:", label_style), Paragraph(_ar(wo_data.get("creator", {}).get("full_name")), normal_style)),
-        (Paragraph("Created At:", label_style), Paragraph(fmt_date(wo_data.get("created_at")), normal_style)),
-        (Paragraph("Closed At:", label_style), Paragraph(fmt_date(wo_data.get("closed_at")), normal_style)),
+        (
+            Paragraph("Job No:", label_style),
+            Paragraph(_ar(wo_data.get("job_no")), normal_style),
+        ),
+        (
+            Paragraph("Title:", label_style),
+            Paragraph(_ar(wo_data.get("title")), normal_style),
+        ),
+        (
+            Paragraph("Type:", label_style),
+            Paragraph(_ar(wo_data.get("type")), normal_style),
+        ),
+        (
+            Paragraph("Status:", label_style),
+            Paragraph(_ar(wo_data.get("status")), normal_style),
+        ),
+        (
+            Paragraph("Department:", label_style),
+            Paragraph(_ar(wo_data.get("departments", {}).get("name")), normal_style),
+        ),
+        (
+            Paragraph("Location:", label_style),
+            Paragraph(_ar(wo_data.get("location")), normal_style),
+        ),
+        (
+            Paragraph("Mobile Number:", label_style),
+            Paragraph(safe_str(wo_data.get("mobile_number")), normal_style),
+        ),
+        (
+            Paragraph("Created By:", label_style),
+            Paragraph(_ar(wo_data.get("creator", {}).get("full_name")), normal_style),
+        ),
+        (
+            Paragraph("Created At:", label_style),
+            Paragraph(fmt_date(wo_data.get("created_at")), normal_style),
+        ),
+        (
+            Paragraph("Closed At:", label_style),
+            Paragraph(fmt_date(wo_data.get("closed_at")), normal_style),
+        ),
     ]
 
     details_table = Table(details_data, colWidths=[3.5 * cm, 14 * cm])
@@ -345,7 +400,10 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     elements.append(Paragraph("Signatures", section_style))
 
     small_style = ParagraphStyle(
-        "SigSmall", parent=normal_style, fontSize=9, leading=12,
+        "SigSmall",
+        parent=normal_style,
+        fontSize=9,
+        leading=12,
     )
 
     def _load_sig_image(sig_path):
@@ -360,6 +418,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
             return None
         try:
             from reportlab.lib.utils import ImageReader
+
             reader = ImageReader(sig_file_path)
             iw, ih = reader.getSize()
             max_w = 6 * cm
@@ -403,12 +462,16 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         rows.append([Paragraph(info_text, small_style)])
 
         cell = Table(rows, colWidths=[7 * cm])
-        cell.setStyle(TableStyle([
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ]))
+        cell.setStyle(
+            TableStyle(
+                [
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                    ("TOPPADDING", (0, 0), (-1, -1), 2),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ]
+            )
+        )
         return cell
 
     tech_col = render_sig_column(signatures.get("technician"), "Technician Signature")
@@ -485,6 +548,12 @@ async def export_work_order_pdf(
     wo_data = _fetch_wo_for_pdf(work_order_id)
     if not wo_data:
         raise HTTPException(status_code=404, detail="Work order not found")
+
+    sig_status = wo_data.get("signature_status", "unsigned")
+    if sig_status != "completed":
+        raise HTTPException(
+            status_code=403, detail="PDF export requires completed signature chain"
+        )
 
     if user_role == "reporter" and email:
         reporter_user_id = _get_user_id_by_email(email)

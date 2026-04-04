@@ -509,6 +509,65 @@ if not prefs.in_app_enabled: skip inbox (still send push if push_enabled)
 
 ---
 
+## Approval Chain
+
+### Overview
+The signature approval chain replaces the old admin-based approval system with a supervisor/superintendant workflow:
+- **Technician** → signs first (tech signs job order)
+- **Supervisor** → approves technician signature (level 1)
+- **Superintendent** → approves supervisor (level 2)
+- **Completed** → chain fully signed
+
+### Database Fields
+
+**`work_orders.signature_status`** (text):
+| Value | Meaning |
+|-------|---------|
+| `unsigned` | No signatures yet |
+| `tech_signed` | Technician signed, awaiting supervisor |
+| `supervisor_approved` | Supervisor approved, awaiting superintendent |
+| `completed` | All signatures approved |
+| `rejected` | Rejected at any stage (chain stops) |
+
+**`users` table columns**:
+- `approval_level`: int (1=supervisor, 2=superintendent, 3+=future manager)
+- `is_supervisor`: boolean
+- `is_superindent`: boolean (note: singular, not "superintendent")
+
+**`technician_departments`** table maps supervisors to the departments they can approve.
+
+### Backend Endpoints
+
+- `POST /work-orders/{id}/signatures` — Add technician signature
+- `PATCH /work-orders/{id}/signatures/{sig_id}` — Approve/reject (supervisor/superintendant)
+- `GET /signatures/bulk` — Returns `signature_status` for closed WOs
+- `GET /work-orders/pending-approvals` — List WOs awaiting user's approval
+
+### Frontend
+
+- `WorkOrderCard` shows signature badges: "Pending" (amber) for approvers, "Completed" (green) for all
+- `_buildSignatureSection()` in `add_work_order.dart` shows stepper UI
+- Admin sees read-only signature section (no action buttons)
+- `GET /user-role` returns `approval_level` and `department_ids` for nav visibility
+
+### Admin Exclusion
+Admin is excluded from the approval chain:
+- Backend: PATCH endpoint returns 403 if caller is admin
+- Frontend: `_buildSignatureSection()` returns `_buildReadOnlySignatureSection()` for admin
+
+### Adding a Future Manager Level (Level 3+)
+1. Add column `is_manager` to `users` table
+2. Add migration: `ALTER TABLE users ADD COLUMN approval_level int DEFAULT 0`
+3. Update `_get_required_approval_level()` in `backend/routers/signatures.py`
+4. Add role to frontend stepper array in `add_work_order.dart`
+5. Update `_advance_chain()` with new status mapping
+
+### PDF Export Guard
+- Backend: `POST /reports/work-order-pdf/{id}` returns 403 if `signature_status != 'completed'`
+- Frontend: PDF button only shows if `signatureStatus == 'completed'`
+
+---
+
 ## Adding a New Feature — Checklist
 
 - [ ] Backend: add router in `backend/routers/<feature>.py`, register in `backend/main.py`

@@ -75,6 +75,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   Set<String> _removingWoIds = {};
   bool _refreshing = false;
   String _userRole = 'admin';
+  int _approvalLevel = 0;
+  List<String> _userDepartmentIds = [];
   final SignatureService _signatureService = SignatureService();
   Map<String, String> _signatureStates = {};
 
@@ -95,6 +97,11 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       if (profile != null && mounted) {
         setState(() {
           _userRole = (profile['user_type'] ?? widget.userRole).toString();
+          _approvalLevel = profile['approval_level'] as int? ?? 0;
+          _userDepartmentIds = (profile['department_ids'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              [];
           _profileLoaded = true;
         });
         await _load();
@@ -164,11 +171,22 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
         if (status == null) {
           newStates[wo.id] = 'unsigned';
         } else {
+          final sigStatus = status['signature_status'] as String? ?? 'unsigned';
           final techStatus = status['technician_status'] as String?;
-          final adminStatus = status['admin_status'] as String?;
-          if (techStatus == null) {
+          final supStatus = status['supervisor_status'] as String?;
+          final superStatus = status['superintendent_status'] as String?;
+
+          if (sigStatus == 'unsigned' || sigStatus == 'rejected') {
             newStates[wo.id] = 'unsigned';
-          } else if (techStatus == 'approved' && adminStatus == 'approved') {
+          } else if (sigStatus == 'completed') {
+            newStates[wo.id] = 'fully_signed';
+          } else if (sigStatus == 'tech_signed') {
+            newStates[wo.id] = 'pending_supervisor';
+          } else if (sigStatus == 'supervisor_approved') {
+            newStates[wo.id] = 'pending_superintendent';
+          } else if (techStatus == 'approved' &&
+              supStatus == 'approved' &&
+              superStatus == 'approved') {
             newStates[wo.id] = 'fully_signed';
           } else {
             newStates[wo.id] = 'pending';
@@ -574,8 +592,10 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       setState(() => _filter.selectedEmployeeId = null);
       return;
     }
-    final employees =
-        _workOrders.expand((wo) => wo.assignedTechnicians).toList();
+    final employees = _workOrders
+        .where((wo) => wo.assignedTechnician != null)
+        .map((wo) => wo.assignedTechnician!)
+        .toList();
     final unique = {for (var e in employees) e.id: e}.values.toList();
     final selected = await showModalBottomSheet<String>(
       context: context,
@@ -783,7 +803,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                           if (_filter.selectedEmployeeId != null)
                             _ActiveFilterChip(
                               label: _workOrders
-                                  .expand((w) => w.assignedTechnicians)
+                                  .where((w) => w.assignedTechnician != null)
+                                  .map((w) => w.assignedTechnician!)
                                   .firstWhere(
                                     (e) => e.id == _filter.selectedEmployeeId,
                                     orElse: () => TechnicianAssignment(
@@ -934,6 +955,8 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                     : null,
                 isSelected: _selectedIds.contains(wo.id),
                 signatureState: _signatureStates[wo.id],
+                approvalLevel: _approvalLevel,
+                userDepartmentIds: _userDepartmentIds,
                 onLongPress: () => _enterSelectionMode(wo.id),
                 onTap: () {
                   if (_selectionMode) {

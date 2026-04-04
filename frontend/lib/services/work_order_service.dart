@@ -8,11 +8,9 @@ import '../models/work_order_attachment.dart';
 import '../config.dart';
 
 class WorkOrderService {
-  String get _email =>
-      Supabase.instance.client.auth.currentUser?.email ?? '';
+  String get _email => Supabase.instance.client.auth.currentUser?.email ?? '';
 
-  String get _userId =>
-      Supabase.instance.client.auth.currentUser?.id ?? '';
+  String get _userId => Supabase.instance.client.auth.currentUser?.id ?? '';
 
   String _errorDetail(http.Response res, String fallback) {
     try {
@@ -23,7 +21,9 @@ class WorkOrderService {
       if (detail is List) {
         // FastAPI 422 validation error format
         return detail
-            .map((e) => e is Map ? '${e['loc']?.last ?? ''}: ${e['msg'] ?? ''}' : e.toString())
+            .map((e) => e is Map
+                ? '${e['loc']?.last ?? ''}: ${e['msg'] ?? ''}'
+                : e.toString())
             .join(', ');
       }
       return fallback;
@@ -80,8 +80,7 @@ class WorkOrderService {
         'status': workOrder.status,
         'created_by': _userId,
         'created_by_email': _email,
-        'assigned_technician_ids':
-            workOrder.assignedTechnicians.map((e) => e.id).toList(),
+        'assigned_technician_id': workOrder.assignedTechnician?.id,
       }),
     );
 
@@ -108,8 +107,7 @@ class WorkOrderService {
         'department_id': workOrder.departmentId,
         'type': workOrder.type,
         'status': workOrder.status,
-        'assigned_technician_ids':
-            workOrder.assignedTechnicians.map((e) => e.id).toList(),
+        'assigned_technician_id': workOrder.assignedTechnician?.id,
       }),
     );
 
@@ -124,7 +122,8 @@ class WorkOrderService {
     String? techNotes,
   }) async {
     final res = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/work-orders/$id/close?user_email=${Uri.encodeComponent(_email)}'),
+      Uri.parse(
+          '${AppConfig.baseUrl}/work-orders/$id/close?user_email=${Uri.encodeComponent(_email)}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'closed_by': closedBy,
@@ -211,7 +210,8 @@ class WorkOrderService {
 
   Future<Map<String, dynamic>?> getEmployeeProfile() async {
     final res = await http.get(
-      Uri.parse('${AppConfig.baseUrl}/users/me?email=${Uri.encodeComponent(_email)}'),
+      Uri.parse(
+          '${AppConfig.baseUrl}/users/me?email=${Uri.encodeComponent(_email)}'),
     );
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
@@ -266,7 +266,8 @@ class WorkOrderService {
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode != 200) {
-        throw Exception('Failed to upload attachment: ${response.statusCode} ${response.body}');
+        throw Exception(
+            'Failed to upload attachment: ${response.statusCode} ${response.body}');
       }
       final attachments = await fetchAttachments(workOrderId);
       return attachments.isNotEmpty ? attachments.last : null;
@@ -277,7 +278,8 @@ class WorkOrderService {
 
   Future<bool> deleteAttachment(String workOrderId, String attachmentId) async {
     final res = await http.delete(
-      Uri.parse('${AppConfig.baseUrl}/work-orders/$workOrderId/attachments/$attachmentId?email=${Uri.encodeComponent(_email)}'),
+      Uri.parse(
+          '${AppConfig.baseUrl}/work-orders/$workOrderId/attachments/$attachmentId?email=${Uri.encodeComponent(_email)}'),
     );
     return res.statusCode == 200;
   }

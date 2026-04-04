@@ -19,7 +19,8 @@ class WorkOrder {
   final String departmentId;
   final String? departmentName;
   final String? mobileNumber;
-  final List<TechnicianAssignment> assignedTechnicians;
+  final TechnicianAssignment? assignedTechnician;
+  final String signatureStatus;
 
   const WorkOrder({
     required this.id,
@@ -40,7 +41,8 @@ class WorkOrder {
     this.departmentId = '',
     this.departmentName,
     this.mobileNumber,
-    this.assignedTechnicians = const [],
+    this.assignedTechnician,
+    this.signatureStatus = 'unsigned',
   });
 
   factory WorkOrder.fromJson(Map<String, dynamic> json) {
@@ -63,16 +65,23 @@ class WorkOrder {
       closedBy: json['closed_by'],
       techNotes: json['tech_notes'],
       createdBy: json['created_by'],
-      createdByEmail: (json['creator'] is Map ? json['creator']['email'] : json['created_by_email']) as String?,
-      createdByName: (json['creator'] is Map ? json['creator']['full_name'] : null) as String?,
+      createdByEmail: (json['creator'] is Map
+          ? json['creator']['email']
+          : json['created_by_email']) as String?,
+      createdByName: (json['creator'] is Map
+          ? json['creator']['full_name']
+          : null) as String?,
       departmentId: json['department_id'] ?? '',
       departmentName: deptName,
       mobileNumber: json['mobile_number'],
-      assignedTechnicians: (json['work_order_assignments'] as List<dynamic>?)
-              ?.map((assignment) => TechnicianAssignment.fromJson(assignment as Map<String, dynamic>))
-              .where((tech) => tech.id.isNotEmpty)
-              .toList() ??
-          [],
+      assignedTechnician:
+          (json['work_order_assignments'] as List<dynamic>?) != null &&
+                  (json['work_order_assignments'] as List).isNotEmpty
+              ? TechnicianAssignment.fromJson(
+                  (json['work_order_assignments'] as List).first
+                      as Map<String, dynamic>)
+              : null,
+      signatureStatus: json['signature_status'] ?? 'unsigned',
     );
   }
 
@@ -88,7 +97,7 @@ class WorkOrder {
       'department_id': departmentId,
       'mobile_number': mobileNumber,
       'created_by': createdBy,
-      'assigned_technician_ids': assignedTechnicians.map((e) => e.id).toList(),
+      'assigned_technician_id': assignedTechnician?.id,
     };
   }
 
@@ -111,7 +120,8 @@ class WorkOrder {
     String? departmentId,
     String? departmentName,
     String? mobileNumber,
-    List<TechnicianAssignment>? assignedTechnicians,
+    TechnicianAssignment? assignedTechnician,
+    String? signatureStatus,
   }) {
     return WorkOrder(
       id: id ?? this.id,
@@ -132,7 +142,8 @@ class WorkOrder {
       departmentId: departmentId ?? this.departmentId,
       departmentName: departmentName ?? this.departmentName,
       mobileNumber: mobileNumber ?? this.mobileNumber,
-      assignedTechnicians: assignedTechnicians ?? this.assignedTechnicians,
+      assignedTechnician: assignedTechnician ?? this.assignedTechnician,
+      signatureStatus: signatureStatus ?? this.signatureStatus,
     );
   }
 

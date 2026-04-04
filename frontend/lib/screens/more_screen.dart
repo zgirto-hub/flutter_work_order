@@ -12,18 +12,21 @@ import '../screens/calendar/calendar_screen.dart';
 import '../screens/document_registry/document_registry_screen.dart';
 import '../screens/payment_certificate/payment_certificate_list_screen.dart';
 import '../screens/system_status_screen.dart';
+import '../screens/approvals/pending_approvals_screen.dart';
 import '../models/nav_screen.dart';
 
 class MoreScreen extends StatefulWidget {
   final ThemeController themeController;
   final String userRole;
   final List<String>? allowedScreens;
+  final int approvalLevel;
 
   const MoreScreen({
     super.key,
     required this.themeController,
     required this.userRole,
     this.allowedScreens,
+    this.approvalLevel = 0,
   });
 
   @override
@@ -104,7 +107,8 @@ class _MoreScreenState extends State<MoreScreen> {
                           decoration: BoxDecoration(
                             color: AppColors.bgSurface2,
                             borderRadius: BorderRadius.circular(9),
-                            border: Border.all(color: AppColors.border2, width: 0.5),
+                            border: Border.all(
+                                color: AppColors.border2, width: 0.5),
                           ),
                           child: Icon(
                             Icons.notifications_outlined,
@@ -117,7 +121,8 @@ class _MoreScreenState extends State<MoreScreen> {
                             top: -5,
                             right: -5,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 1),
                               decoration: BoxDecoration(
                                 color: AppColors.accent,
                                 borderRadius: BorderRadius.circular(10),
@@ -139,8 +144,7 @@ class _MoreScreenState extends State<MoreScreen> {
               ),
             ),
 
-            Divider(
-                height: 0, thickness: 0.5, color: AppColors.border),
+            Divider(height: 0, thickness: 0.5, color: AppColors.border),
 
             // ── Grid ──────────────────────────────────────
             Expanded(
@@ -185,6 +189,7 @@ class _MoreScreenState extends State<MoreScreen> {
   }
 
   bool _canShow(String key) {
+    if (key == 'approvals' && widget.approvalLevel == 0) return false;
     if (widget.userRole == 'admin') return true;
     if (widget.allowedScreens == null) return true;
     return widget.allowedScreens!.contains(key);
@@ -207,29 +212,52 @@ class _MoreScreenState extends State<MoreScreen> {
 
     final items = <_MoreItem>[
       if (_canShow('files'))
-        buildItem(NavScreenRegistry.get('files')!, () => Navigator.push(
-          context, MaterialPageRoute(builder: (_) => const FilesScreen()),
-        )),
+        buildItem(
+            NavScreenRegistry.get('files')!,
+            () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FilesScreen()),
+                )),
       if (_canShow('reports'))
-        buildItem(NavScreenRegistry.get('reports')!, () => Navigator.push(
-          context, MaterialPageRoute(builder: (_) => const WorkOrderReportScreen()),
-        )),
+        buildItem(
+            NavScreenRegistry.get('reports')!,
+            () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const WorkOrderReportScreen()),
+                )),
       if (_canShow('calendar'))
-        buildItem(NavScreenRegistry.get('calendar')!, () => Navigator.push(
-          context, MaterialPageRoute(builder: (_) => CalendarScreen(userRole: widget.userRole)),
-        )),
+        buildItem(
+            NavScreenRegistry.get('calendar')!,
+            () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          CalendarScreen(userRole: widget.userRole)),
+                )),
       if (_canShow('doc_registry'))
-        buildItem(NavScreenRegistry.get('doc_registry')!, () => Navigator.push(
-          context, MaterialPageRoute(builder: (_) => const DocumentRegistryScreen()),
-        )),
+        buildItem(
+            NavScreenRegistry.get('doc_registry')!,
+            () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const DocumentRegistryScreen()),
+                )),
       if (_canShow('payment_cert'))
-        buildItem(NavScreenRegistry.get('payment_cert')!, () => Navigator.push(
-          context, MaterialPageRoute(builder: (_) => const PaymentCertificateListScreen()),
-        )),
+        buildItem(
+            NavScreenRegistry.get('payment_cert')!,
+            () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const PaymentCertificateListScreen()),
+                )),
       if (_canShow('system_status'))
-        buildItem(NavScreenRegistry.get('system_status')!, () => Navigator.push(
-          context, MaterialPageRoute(builder: (_) => const SystemStatusScreen()),
-        )),
+        buildItem(
+            NavScreenRegistry.get('system_status')!,
+            () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SystemStatusScreen()),
+                )),
       if (_canShow('notifications'))
         buildItem(
           NavScreenRegistry.get('notifications')!,
@@ -237,14 +265,24 @@ class _MoreScreenState extends State<MoreScreen> {
           subtitle: _unreadCount > 0 ? '$_unreadCount unread' : null,
         ),
       if (_canShow('activity_log'))
-        buildItem(NavScreenRegistry.get('activity_log')!, () => Navigator.push(
-          context, MaterialPageRoute(builder: (_) => const ActivityLogScreen()),
-        )),
+        buildItem(
+            NavScreenRegistry.get('activity_log')!,
+            () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ActivityLogScreen()),
+                )),
+      if (_canShow('approvals'))
+        buildItem(
+            NavScreenRegistry.get('approvals')!,
+            () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const PendingApprovalsScreen()),
+                )),
     ];
 
     return items;
   }
-
 }
 
 // ── More Item model ───────────────────────────────────────────────────────────
@@ -313,7 +351,8 @@ class _MoreCard extends StatelessWidget {
                         color: AppColors.accent,
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Icon(Icons.push_pin_rounded, size: 8, color: Colors.white),
+                      child: const Icon(Icons.push_pin_rounded,
+                          size: 8, color: Colors.white),
                     ),
                   ),
               ],

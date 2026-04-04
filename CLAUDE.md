@@ -21,6 +21,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-04
 - Supabase (PostgreSQL) — `work_order_signatures`, `users.signature_path` columns; `backend/uploaded_files/` for signature PNG files served at `/files/<filename>` (014-signature-workflow)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, reportlab (backend — NEW dependency); http, Flutter Material (frontend) (015-export-wo-pdf)
 - Supabase (PostgreSQL) — existing `work_orders`, `work_order_signatures`, `users`, `departments` tables; server filesystem for signature/logo PNGs (015-export-wo-pdf)
+- Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend) (016-signature-approval-chain)
+- Supabase (PostgreSQL) — `users`, `work_orders`, `work_order_signatures`, `work_order_assignments`, `technician_departments` tables (016-signature-approval-chain)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 
@@ -41,9 +43,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 016-signature-approval-chain: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
 - 015-export-wo-pdf: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, reportlab (backend — NEW dependency); http, Flutter Material (frontend)
 - 014-signature-workflow: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, signature, supabase_flutter, file_picker (frontend)
-- 012-quick-status-update: Added Dart 3.x / Flutter 3.x + Flutter Material (BottomSheet, AlertDialog), existing WorkOrderService, StatusBadge widget
 
 
 <!-- MANUAL ADDITIONS START -->

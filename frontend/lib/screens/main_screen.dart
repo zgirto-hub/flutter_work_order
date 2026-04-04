@@ -13,7 +13,6 @@ import '../config.dart';
 import '../services/onesignal_service.dart';
 import '../services/activity_log_service.dart';
 
-
 class MainScreen extends StatefulWidget {
   final ThemeController themeController;
   const MainScreen({super.key, required this.themeController});
@@ -25,6 +24,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _index = 0;
   String _userRole = 'admin';
+  int _approvalLevel = 0;
   List<String>? _allowedScreens;
   bool _roleLoaded = false;
   int _openWOCount = 0;
@@ -50,6 +50,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   bool _canShow(String key) {
+    if (key == 'approvals' && _approvalLevel == 0) return false;
     if (_userRole == 'admin') return true;
     if (_allowedScreens == null) return true;
     return _allowedScreens!.contains(key);
@@ -63,11 +64,13 @@ class _MainScreenState extends State<MainScreen> {
     }
     try {
       final res = await http.get(
-        Uri.parse('${AppConfig.baseUrl}/user-role?email=${Uri.encodeComponent(email)}'),
+        Uri.parse(
+            '${AppConfig.baseUrl}/user-role?email=${Uri.encodeComponent(email)}'),
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         _userRole = data['user_type'] ?? 'admin';
+        _approvalLevel = data['approval_level'] as int? ?? 0;
         final raw = data['allowed_screens'];
         _allowedScreens = raw != null ? List<String>.from(raw) : null;
       }
@@ -85,13 +88,13 @@ class _MainScreenState extends State<MainScreen> {
     OneSignalService.subscribe(email, _userRole);
   }
 
-  String get _email =>
-      Supabase.instance.client.auth.currentUser?.email ?? '';
+  String get _email => Supabase.instance.client.auth.currentUser?.email ?? '';
 
   Future<void> _refreshWOCount() async {
     try {
       final res = await http.get(
-        Uri.parse('${AppConfig.baseUrl}/work-orders/count?email=${Uri.encodeComponent(_email)}&user_role=${Uri.encodeComponent(_userRole)}'),
+        Uri.parse(
+            '${AppConfig.baseUrl}/work-orders/count?email=${Uri.encodeComponent(_email)}&user_role=${Uri.encodeComponent(_userRole)}'),
       );
       if (!mounted) return;
       if (res.statusCode == 200) {
@@ -109,7 +112,8 @@ class _MainScreenState extends State<MainScreen> {
       _pollTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
         try {
           final res = await http.get(
-            Uri.parse('${AppConfig.baseUrl}/work-orders/count?email=${Uri.encodeComponent(_email)}&user_role=${Uri.encodeComponent(_userRole)}'),
+            Uri.parse(
+                '${AppConfig.baseUrl}/work-orders/count?email=${Uri.encodeComponent(_email)}&user_role=${Uri.encodeComponent(_userRole)}'),
           );
           if (!mounted) return;
           if (res.statusCode == 200) {
@@ -122,18 +126,23 @@ class _MainScreenState extends State<MainScreen> {
                 SnackBar(
                   content: Row(
                     children: [
-                      Icon(Icons.work_outline_rounded, color: Colors.white, size: 18),
+                      Icon(Icons.work_outline_rounded,
+                          color: Colors.white, size: 18),
                       SizedBox(width: 10),
                       Text(
                         '$diff new work order${diff > 1 ? 's' : ''}',
-                        style: TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
                   duration: const Duration(seconds: 6),
                   behavior: SnackBarBehavior.floating,
                   backgroundColor: AppColors.textPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               );
             } else {
@@ -151,7 +160,8 @@ class _MainScreenState extends State<MainScreen> {
       return Scaffold(
         backgroundColor: AppColors.bgPrimary,
         body: Center(
-          child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 1.5),
+          child: CircularProgressIndicator(
+              color: AppColors.accent, strokeWidth: 1.5),
         ),
       );
     }
@@ -170,8 +180,13 @@ class _MainScreenState extends State<MainScreen> {
         onNavigate: (index) => setState(() => _index = index),
       ),
       WorkOrderHome(onWorkOrderCreated: _refreshWOCount),
-      ...pinned.map((key) => NavScreenRegistry.widgetForKey(key, userRole: _userRole)),
-      MoreScreen(themeController: widget.themeController, userRole: _userRole, allowedScreens: _allowedScreens),
+      ...pinned.map(
+          (key) => NavScreenRegistry.widgetForKey(key, userRole: _userRole)),
+      MoreScreen(
+          themeController: widget.themeController,
+          userRole: _userRole,
+          allowedScreens: _allowedScreens,
+          approvalLevel: _approvalLevel),
     ];
 
     if (_index >= pages.length) _index = 0;
@@ -265,7 +280,8 @@ class _AnimatedTabBodyState extends State<_AnimatedTabBody>
     vsync: this,
     duration: const Duration(milliseconds: 260),
   );
-  late final Animation<double> _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+  late final Animation<double> _fade =
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
   late final Animation<Offset> _slide = Tween<Offset>(
     begin: const Offset(0, 0.025),
     end: Offset.zero,

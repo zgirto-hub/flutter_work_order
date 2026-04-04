@@ -42,7 +42,8 @@ class UserService {
 
   Future<AppUser?> fetchCurrentUser() async {
     final res = await http.get(
-      Uri.parse('${AppConfig.baseUrl}/users/me?email=${Uri.encodeComponent(_email)}'),
+      Uri.parse(
+          '${AppConfig.baseUrl}/users/me?email=${Uri.encodeComponent(_email)}'),
     );
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
@@ -63,7 +64,8 @@ class UserService {
     String? departmentId,
   }) async {
     final res = await http.post(
-      Uri.parse('${AppConfig.baseUrl}/users?admin_email=${Uri.encodeComponent(_email)}'),
+      Uri.parse(
+          '${AppConfig.baseUrl}/users?admin_email=${Uri.encodeComponent(_email)}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'email': email,
@@ -97,7 +99,8 @@ class UserService {
     if (departmentId != null) body['department_id'] = departmentId;
 
     final res = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/users/$userId?admin_email=${Uri.encodeComponent(_email)}'),
+      Uri.parse(
+          '${AppConfig.baseUrl}/users/$userId?admin_email=${Uri.encodeComponent(_email)}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(body),
     );
@@ -112,7 +115,8 @@ class UserService {
     required String userType,
   }) async {
     final res = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/users/$userId/role?admin_email=${Uri.encodeComponent(_email)}'),
+      Uri.parse(
+          '${AppConfig.baseUrl}/users/$userId/role?admin_email=${Uri.encodeComponent(_email)}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'user_type': userType}),
     );
@@ -124,7 +128,8 @@ class UserService {
 
   Future<void> deactivateUser(String userId) async {
     final res = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/users/$userId/deactivate?admin_email=${Uri.encodeComponent(_email)}'),
+      Uri.parse(
+          '${AppConfig.baseUrl}/users/$userId/deactivate?admin_email=${Uri.encodeComponent(_email)}'),
     );
     if (res.statusCode != 200) {
       throw Exception(_errorDetail(res, 'Failed to deactivate user'));
@@ -147,7 +152,8 @@ class UserService {
     required String newPassword,
   }) async {
     final res = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/users/$userId/reset-password?admin_email=${Uri.encodeComponent(_email)}'),
+      Uri.parse(
+          '${AppConfig.baseUrl}/users/$userId/reset-password?admin_email=${Uri.encodeComponent(_email)}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'new_password': newPassword}),
     );
@@ -156,9 +162,11 @@ class UserService {
     }
   }
 
-  Future<void> updateScreenPermissions(String userId, List<String>? screens) async {
+  Future<void> updateScreenPermissions(
+      String userId, List<String>? screens) async {
     final res = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/users/$userId/screen-permissions?admin_email=${Uri.encodeComponent(_email)}'),
+      Uri.parse(
+          '${AppConfig.baseUrl}/users/$userId/screen-permissions?admin_email=${Uri.encodeComponent(_email)}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'allowed_screens': screens}),
     );
@@ -169,7 +177,8 @@ class UserService {
 
   Future<void> activateUser(String userId) async {
     final res = await http.patch(
-      Uri.parse('${AppConfig.baseUrl}/users/$userId/activate?admin_email=${Uri.encodeComponent(_email)}'),
+      Uri.parse(
+          '${AppConfig.baseUrl}/users/$userId/activate?admin_email=${Uri.encodeComponent(_email)}'),
     );
     if (res.statusCode != 200) {
       throw Exception(_errorDetail(res, 'Failed to activate user'));
@@ -178,7 +187,8 @@ class UserService {
 
   Future<String> getUserRole() async {
     final res = await http.get(
-      Uri.parse('${AppConfig.baseUrl}/user-role?email=${Uri.encodeComponent(_email)}'),
+      Uri.parse(
+          '${AppConfig.baseUrl}/user-role?email=${Uri.encodeComponent(_email)}'),
     );
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
@@ -198,14 +208,16 @@ class UserService {
     return [];
   }
 
-  Future<void> setTechnicianDepartments(String userId, List<String> departments) async {
+  Future<void> setTechnicianDepartments(
+      String userId, List<String> departments) async {
     final res = await http.post(
       Uri.parse('${AppConfig.baseUrl}/technician-departments/bulk/$userId'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'departments': departments}),
     );
     if (res.statusCode != 200) {
-      throw Exception(_errorDetail(res, 'Failed to update technician departments'));
+      throw Exception(
+          _errorDetail(res, 'Failed to update technician departments'));
     }
   }
 
@@ -220,7 +232,10 @@ class UserService {
     final data = jsonDecode(res.body);
     return (data['users'] as List)
         .map((j) => AppUser.fromJson(j as Map<String, dynamic>))
-        .where((u) => (u.userType == UserType.technician || u.userType == UserType.admin) && u.isActive)
+        .where((u) =>
+            (u.userType == UserType.technician ||
+                u.userType == UserType.admin) &&
+            u.isActive)
         .toList();
   }
 
@@ -254,9 +269,61 @@ class UserService {
       final list = data['departments'] as List? ?? [];
       return {
         for (final d in list)
-          if (d['name'] != null && d['id'] != null) d['name'] as String: d['id'] as String,
+          if (d['name'] != null && d['id'] != null)
+            d['name'] as String: d['id'] as String,
       };
     }
     return {};
+  }
+
+  /// T012: Update a user's approval role
+  Future<Map<String, dynamic>> updateApprovalRole({
+    required String userId,
+    int? approvalLevel,
+    List<String> departmentIds = const [],
+  }) async {
+    final res = await http.patch(
+      Uri.parse(
+          '${AppConfig.baseUrl}/users/$userId/approval-role?admin_email=${Uri.encodeComponent(_email)}'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'approval_level': approvalLevel,
+        'department_ids': departmentIds,
+      }),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to update approval role'));
+    }
+    return jsonDecode(res.body);
+  }
+
+  /// T012: Get supervisors filtered by department
+  Future<List<AppUser>> getSupervisors({String? departmentId}) async {
+    var url = '${AppConfig.baseUrl}/users?is_supervisor=true';
+    if (departmentId != null) {
+      url += '&department_id=${Uri.encodeComponent(departmentId)}';
+    }
+    final res = await http.get(Uri.parse(url));
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to fetch supervisors'));
+    }
+    final data = jsonDecode(res.body);
+    return (data['users'] as List)
+        .map((j) => AppUser.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// T012: Get superintendents
+  Future<List<AppUser>> getSuperintendents() async {
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/users?is_superintendent=true'),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to fetch superintendents'));
+    }
+    final data = jsonDecode(res.body);
+    return (data['users'] as List)
+        .map((j) => AppUser.fromJson(j as Map<String, dynamic>))
+        .toList();
   }
 }

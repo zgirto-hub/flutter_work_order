@@ -12,8 +12,13 @@ class AppUser {
   final bool isActive;
   final String createdAt;
   final List<String> departments;
-  final List<Map<String, String>> technicianDepartments; // [{id, name}] from /users/me
-  final List<String>? allowedScreens; // null = no restrictions, list = only these screens
+  final List<Map<String, String>>
+      technicianDepartments; // [{id, name}] from /users/me
+  final List<String>?
+      allowedScreens; // null = no restrictions, list = only these screens
+  final bool isSupervisor;
+  final bool isSuperintendent;
+  final int? approvalLevel;
 
   const AppUser({
     required this.id,
@@ -29,6 +34,9 @@ class AppUser {
     this.departments = const [],
     this.technicianDepartments = const [],
     this.allowedScreens,
+    this.isSupervisor = false,
+    this.isSuperintendent = false,
+    this.approvalLevel,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -44,12 +52,16 @@ class AppUser {
       isActive: json['is_active'] ?? true,
       createdAt: json['created_at'] ?? '',
       departments: List<String>.from(json['departments'] ?? []),
-      technicianDepartments: (json['technician_departments'] as List<dynamic>? ?? [])
-          .map((e) => Map<String, String>.from(e as Map))
-          .toList(),
+      technicianDepartments:
+          (json['technician_departments'] as List<dynamic>? ?? [])
+              .map((e) => Map<String, String>.from(e as Map))
+              .toList(),
       allowedScreens: json['allowed_screens'] != null
           ? List<String>.from(json['allowed_screens'])
           : null,
+      isSupervisor: json['is_supervisor'] ?? false,
+      isSuperintendent: json['is_superintendent'] ?? false,
+      approvalLevel: json['approval_level'],
     );
   }
 
@@ -91,7 +103,8 @@ class AppUser {
     }
   }
 
-  String get displayName => fullName?.isNotEmpty == true ? fullName! : email.split('@').first;
+  String get displayName =>
+      fullName?.isNotEmpty == true ? fullName! : email.split('@').first;
 
   Map<String, dynamic> toJson() {
     return {
@@ -104,6 +117,9 @@ class AppUser {
       'department_id': departmentId,
       'user_type': userTypeString,
       'is_active': isActive,
+      'is_supervisor': isSupervisor,
+      'is_superintendent': isSuperintendent,
+      'approval_level': approvalLevel,
     };
   }
 
@@ -120,6 +136,9 @@ class AppUser {
     String? createdAt,
     List<String>? departments,
     List<String>? allowedScreens,
+    bool? isSupervisor,
+    bool? isSuperintendent,
+    int? approvalLevel,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -134,6 +153,9 @@ class AppUser {
       createdAt: createdAt ?? this.createdAt,
       departments: departments ?? this.departments,
       allowedScreens: allowedScreens ?? this.allowedScreens,
+      isSupervisor: isSupervisor ?? this.isSupervisor,
+      isSuperintendent: isSuperintendent ?? this.isSuperintendent,
+      approvalLevel: approvalLevel ?? this.approvalLevel,
     );
   }
 }

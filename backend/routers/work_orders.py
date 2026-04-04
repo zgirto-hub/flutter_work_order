@@ -29,6 +29,7 @@ ALLOWED_STATUSES = {"Pending", "In Progress", "Resolved", "Closed"}
 # Pydantic Models
 # --------------------
 
+
 class CreateWorkOrderBody(BaseModel):
     job_no: str
     title: str
@@ -40,7 +41,7 @@ class CreateWorkOrderBody(BaseModel):
     status: Optional[str] = "Pending"
     created_by: str
     created_by_email: Optional[str] = ""
-    assigned_technician_ids: Optional[List[str]] = []
+    assigned_technician_id: Optional[str] = None
 
 
 class UpdateWorkOrderBody(BaseModel):
@@ -52,7 +53,7 @@ class UpdateWorkOrderBody(BaseModel):
     department_id: str
     type: str
     status: str
-    assigned_technician_ids: Optional[List[str]] = []
+    assigned_technician_id: Optional[str] = None
 
 
 class CloseWorkOrderBody(BaseModel):
@@ -71,6 +72,7 @@ class AddCommentBody(BaseModel):
 # --------------------
 # Helpers
 # --------------------
+
 
 def _get_user_by_email(email: str) -> Optional[dict]:
     normalized = email.strip().lower()
@@ -108,7 +110,14 @@ def _get_user_by_auth_id(auth_id: str) -> Optional[dict]:
 
 def _get_technicians_by_department(department_id: str) -> List[str]:
     """Get list of technician user IDs that belong to a specific department"""
-    result = supabase.table("users").select("id").eq("department_id", department_id).eq("user_type", "technician").eq("is_active", True).execute()
+    result = (
+        supabase.table("users")
+        .select("id")
+        .eq("department_id", department_id)
+        .eq("user_type", "technician")
+        .eq("is_active", True)
+        .execute()
+    )
     return [str(r.get("id")) for r in (result.data or []) if r.get("id")]
 
 
@@ -132,7 +141,7 @@ def _validate_type(type: Optional[str]):
     if type is not None and type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid type. Must be one of: {', '.join(ALLOWED_TYPES)}"
+            detail=f"Invalid type. Must be one of: {', '.join(ALLOWED_TYPES)}",
         )
 
 
@@ -140,13 +149,15 @@ def _validate_status(status: Optional[str]):
     if status is not None and status not in ALLOWED_STATUSES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid status. Must be one of: {', '.join(ALLOWED_STATUSES)}"
+            detail=f"Invalid status. Must be one of: {', '.join(ALLOWED_STATUSES)}",
         )
 
 
 def _fetch_full_work_order(work_order_id: str):
     # Updated query to include department details via JOIN
-    result = supabase.table("work_orders").select("""
+    result = (
+        supabase.table("work_orders")
+        .select("""
         *,
         creator:users!work_orders_created_by_fkey (
             full_name,
@@ -167,7 +178,10 @@ def _fetch_full_work_order(work_order_id: str):
                 full_name
             )
         )
-    """).eq("id", work_order_id).execute()
+    """)
+        .eq("id", work_order_id)
+        .execute()
+    )
     if not result.data:
         return None
     data = result.data[0]
@@ -183,24 +197,24 @@ def _fetch_full_work_order(work_order_id: str):
     return data
 
 
-def _sync_assignments(work_order_id: str, technician_ids: List[str], assigned_by: str):
+def _sync_single_technician(
+    work_order_id: str, technician_id: Optional[str], assigned_by: str
+):
+    """Sync single technician assignment for a work order"""
     try:
-        supabase.table("work_order_assignments") \
-            .delete() \
-            .eq("work_order_id", work_order_id) \
-            .execute()
-        if technician_ids:
-            assignments = [
+        supabase.table("work_order_assignments").delete().eq(
+            "work_order_id", work_order_id
+        ).execute()
+        if technician_id:
+            supabase.table("work_order_assignments").insert(
                 {
                     "work_order_id": work_order_id,
                     "technician_id": technician_id,
-                    "assigned_by": assigned_by
+                    "assigned_by": assigned_by,
                 }
-                for technician_id in technician_ids
-            ]
-            supabase.table("work_order_assignments").insert(assignments).execute()
+            ).execute()
     except Exception as e:
-        print(f"[_sync_assignments] Failed for WO {work_order_id}: {e}")
+        print(f"[_sync_single_technician] Failed for WO {work_order_id}: {e}")
         raise
 
 
@@ -222,30 +236,40 @@ def _log_assignment_changes(
 
     # Fetch names for affected IDs in one query
     affected_ids = list(added | removed)
-    users_result = supabase.table("users").select("id, full_name, email") \
-        .in_("id", affected_ids).execute()
-    user_map = {u["id"]: (u.get("full_name") or u.get("email") or "Unknown")
-                for u in (users_result.data or [])}
+    users_result = (
+        supabase.table("users")
+        .select("id, full_name, email")
+        .in_("id", affected_ids)
+        .execute()
+    )
+    user_map = {
+        u["id"]: (u.get("full_name") or u.get("email") or "Unknown")
+        for u in (users_result.data or [])
+    }
 
     comments = []
     for uid in added:
         name = user_map.get(uid, "Unknown")
-        comments.append({
-            "work_order_id": work_order_id,
-            "author_email": changed_by_email,
-            "author_name": changed_by_name,
-            "body": f"Assigned technician: {name}",
-            "type": "system",
-        })
+        comments.append(
+            {
+                "work_order_id": work_order_id,
+                "author_email": changed_by_email,
+                "author_name": changed_by_name,
+                "body": f"Assigned technician: {name}",
+                "type": "system",
+            }
+        )
     for uid in removed:
         name = user_map.get(uid, "Unknown")
-        comments.append({
-            "work_order_id": work_order_id,
-            "author_email": changed_by_email,
-            "author_name": changed_by_name,
-            "body": f"Removed technician: {name}",
-            "type": "system",
-        })
+        comments.append(
+            {
+                "work_order_id": work_order_id,
+                "author_email": changed_by_email,
+                "author_name": changed_by_name,
+                "body": f"Removed technician: {name}",
+                "type": "system",
+            }
+        )
 
     if comments:
         try:
@@ -254,25 +278,37 @@ def _log_assignment_changes(
             print(f"[_log_assignment_changes] Failed to insert comments: {e}")
 
 
-def _log_status_change(work_order_id: str, old_status: str, new_status: str, changed_by: str, changed_by_email: str = "", changed_by_name: str = "", note: Optional[str] = None):
+def _log_status_change(
+    work_order_id: str,
+    old_status: str,
+    new_status: str,
+    changed_by: str,
+    changed_by_email: str = "",
+    changed_by_name: str = "",
+    note: Optional[str] = None,
+):
     """Log status change to audit trail and insert a status_change comment"""
-    supabase.table("work_order_status_logs").insert({
-        "work_order_id": work_order_id,
-        "changed_by": changed_by,
-        "old_status": old_status,
-        "new_status": new_status,
-        "note": note,
-    }).execute()
+    supabase.table("work_order_status_logs").insert(
+        {
+            "work_order_id": work_order_id,
+            "changed_by": changed_by,
+            "old_status": old_status,
+            "new_status": new_status,
+            "note": note,
+        }
+    ).execute()
 
     try:
-        supabase.table("work_order_comments").insert({
-            "work_order_id": work_order_id,
-            "author_email": changed_by_email,
-            "author_name": changed_by_name,
-            "body": f"Status changed from {old_status} to {new_status}",
-            "type": "status_change",
-            "meta": {"from": old_status, "to": new_status},
-        }).execute()
+        supabase.table("work_order_comments").insert(
+            {
+                "work_order_id": work_order_id,
+                "author_email": changed_by_email,
+                "author_name": changed_by_name,
+                "body": f"Status changed from {old_status} to {new_status}",
+                "type": "status_change",
+                "meta": {"from": old_status, "to": new_status},
+            }
+        ).execute()
     except Exception as e:
         print(f"[_log_status_change] Failed to insert comment: {e}")
 
@@ -281,20 +317,25 @@ def _log_status_change(work_order_id: str, old_status: str, new_status: str, cha
 # Endpoints
 # --------------------
 
+
 @router.get("/work-orders/count")
 async def count_work_orders(
     email: Optional[str] = Query(None),
     user_role: Optional[str] = Query(None),
 ):
     """Lightweight endpoint that returns only the count of non-closed work orders."""
-    query = supabase.table("work_orders").select("id, status, created_by, department_id")
+    query = supabase.table("work_orders").select(
+        "id, status, created_by, department_id"
+    )
     result = query.execute()
     work_orders = [wo for wo in (result.data or []) if wo.get("status") != "Closed"]
 
     if user_role == "reporter" and email:
         reporter_user_id = _get_user_id_by_email(email)
         if reporter_user_id:
-            work_orders = [wo for wo in work_orders if wo.get("created_by") == reporter_user_id]
+            work_orders = [
+                wo for wo in work_orders if wo.get("created_by") == reporter_user_id
+            ]
         else:
             work_orders = []
     elif user_role == "technician" and email:
@@ -302,7 +343,9 @@ async def count_work_orders(
         if tech_user:
             tech_dept_id = tech_user.get("department_id")
             if tech_dept_id:
-                work_orders = [wo for wo in work_orders if wo.get("department_id") == tech_dept_id]
+                work_orders = [
+                    wo for wo in work_orders if wo.get("department_id") == tech_dept_id
+                ]
             else:
                 work_orders = []
         else:
@@ -323,7 +366,9 @@ async def list_work_orders(
 ):
     # Updated query to include department details
     # Use left joins (via !left) so WOs still appear when FK doesn't match
-    query = supabase.table("work_orders").select("""
+    query = (
+        supabase.table("work_orders")
+        .select("""
         *,
         creator:users!work_orders_created_by_fkey!left (
             full_name,
@@ -344,7 +389,9 @@ async def list_work_orders(
                 full_name
             )
         )
-    """).order("created_at", desc=True)
+    """)
+        .order("created_at", desc=True)
+    )
 
     if status:
         query = query.eq("status", status)
@@ -357,15 +404,18 @@ async def list_work_orders(
         result = query.execute()
     except Exception as e:
         import traceback
+
         error_detail = f"{e}\n{traceback.format_exc()}"
         print(f"ERROR in list_work_orders: {error_detail}")
         return JSONResponse(status_code=500, content={"error": error_detail})
     work_orders = result.data or []
-    
+
     if user_role == "reporter" and email:
         reporter_user_id = _get_user_id_by_email(email)
         if reporter_user_id:
-            work_orders = [wo for wo in work_orders if wo.get("created_by") == reporter_user_id]
+            work_orders = [
+                wo for wo in work_orders if wo.get("created_by") == reporter_user_id
+            ]
         else:
             work_orders = []
     elif user_role == "technician" and email:
@@ -373,7 +423,9 @@ async def list_work_orders(
         if tech_user:
             tech_dept_id = tech_user.get("department_id")
             if tech_dept_id:
-                work_orders = [wo for wo in work_orders if wo.get("department_id") == tech_dept_id]
+                work_orders = [
+                    wo for wo in work_orders if wo.get("department_id") == tech_dept_id
+                ]
             else:
                 work_orders = []
         else:
@@ -430,13 +482,22 @@ async def get_work_order(
 async def create_work_order(body: CreateWorkOrderBody):
     _validate_type(body.type)
     _validate_status(body.status)
-    
+
     # Verify department exists and is active
-    dept_result = supabase.table("departments").select("id, name, is_active").eq("id", body.department_id).execute()
+    dept_result = (
+        supabase.table("departments")
+        .select("id, name, is_active")
+        .eq("id", body.department_id)
+        .execute()
+    )
     if not dept_result.data:
-        raise HTTPException(status_code=400, detail="Invalid department_id: department not found")
+        raise HTTPException(
+            status_code=400, detail="Invalid department_id: department not found"
+        )
     if not dept_result.data[0].get("is_active", True):
-        raise HTTPException(status_code=400, detail="Cannot create work order for inactive department")
+        raise HTTPException(
+            status_code=400, detail="Cannot create work order for inactive department"
+        )
 
     # Validate department routing for non-admin users
     if body.created_by_email:
@@ -444,15 +505,17 @@ async def create_work_order(body: CreateWorkOrderBody):
         if creator and creator.get("user_type") != "admin":
             creator_dept_id = creator.get("department_id")
             if creator_dept_id and creator_dept_id != body.department_id:
-                route_check = supabase.table("department_routes") \
-                    .select("id") \
-                    .eq("source_department_id", creator_dept_id) \
-                    .eq("target_department_id", body.department_id) \
+                route_check = (
+                    supabase.table("department_routes")
+                    .select("id")
+                    .eq("source_department_id", creator_dept_id)
+                    .eq("target_department_id", body.department_id)
                     .execute()
+                )
                 if not route_check.data:
                     raise HTTPException(
                         status_code=403,
-                        detail="Your department is not allowed to create work orders for this target department"
+                        detail="Your department is not allowed to create work orders for this target department",
                     )
 
     # Resolve the public.users.id from email (frontend sends auth UUID which differs)
@@ -490,37 +553,37 @@ async def create_work_order(body: CreateWorkOrderBody):
         raise HTTPException(status_code=500, detail="Failed to create work order")
 
     work_order_id = result.data[0].get("id")
-    
-    # Sync assignments
-    technician_ids = body.assigned_technician_ids or []
-    if not technician_ids and body.created_by_email:
-        # Auto-assign creator if technician preference is enabled
-        pref_res = supabase.table("notification_preferences") \
-            .select("technician_auto_assign_self") \
-            .eq("user_email", body.created_by_email.strip().lower()) \
-            .limit(1).execute()
-        auto_assign = (pref_res.data or [{}])[0].get("technician_auto_assign_self", False)
-        if auto_assign:
-            creator_user = _get_user_by_email(body.created_by_email)
-            if creator_user:
-                technician_ids = [str(creator_user.get("id"))]
-    if technician_ids:
-        _sync_assignments(work_order_id, technician_ids, resolved_created_by)
+
+    # Sync single technician assignment
+    technician_id = body.assigned_technician_id
+    if not technician_id and body.created_by_email:
+        creator = _get_user_by_email(body.created_by_email)
+        if creator and creator.get("user_type") == "technician":
+            technician_id = creator.get("id")
+    if technician_id:
+        _sync_single_technician(work_order_id, technician_id, resolved_created_by)
 
     created_user_email = body.created_by_email or "unknown"
-    log_activity(created_user_email, "work_order", "created",
-        target_label=body.title, target_id=work_order_id)
+    log_activity(
+        created_user_email,
+        "work_order",
+        "created",
+        target_label=body.title,
+        target_id=work_order_id,
+    )
 
     # Insert system comment so Activity tab shows "Work order created"
     user_name = created_user_email.split("@")[0]
     try:
-        supabase.table("work_order_comments").insert({
-            "work_order_id": work_order_id,
-            "author_email": created_user_email,
-            "author_name": user_name,
-            "body": "Work order created",
-            "type": "system",
-        }).execute()
+        supabase.table("work_order_comments").insert(
+            {
+                "work_order_id": work_order_id,
+                "author_email": created_user_email,
+                "author_name": user_name,
+                "body": "Work order created",
+                "type": "system",
+            }
+        ).execute()
     except Exception as e:
         print(f"[create_work_order] Failed to insert system comment: {e}")
 
@@ -536,19 +599,27 @@ async def update_work_order(
     editor_user = _get_user_by_email(user_email)
     user_role = editor_user.get("user_type", "reporter") if editor_user else "reporter"
     user_id = editor_user.get("id", "unknown") if editor_user else "unknown"
-    editor_name = (editor_user.get("full_name") or user_email.split("@")[0]) if editor_user else user_email.split("@")[0]
+    editor_name = (
+        (editor_user.get("full_name") or user_email.split("@")[0])
+        if editor_user
+        else user_email.split("@")[0]
+    )
 
-    existing = supabase.table("work_orders") \
-        .select("id, status, type, created_by") \
-        .eq("id", work_order_id) \
+    existing = (
+        supabase.table("work_orders")
+        .select("id, status, type, created_by")
+        .eq("id", work_order_id)
         .execute()
+    )
 
     if not existing.data:
         raise HTTPException(status_code=404, detail="Work order not found")
 
     if user_role == "reporter":
         if existing.data[0].get("created_by") != user_id:
-            raise HTTPException(status_code=403, detail="Reporters can only edit their own work orders")
+            raise HTTPException(
+                status_code=403, detail="Reporters can only edit their own work orders"
+            )
     else:
         _validate_type(body.type)
         _validate_status(body.status)
@@ -556,11 +627,20 @@ async def update_work_order(
     old_status = existing.data[0]["status"]
 
     # Verify department exists and is active
-    dept_result = supabase.table("departments").select("id, name, is_active").eq("id", body.department_id).execute()
+    dept_result = (
+        supabase.table("departments")
+        .select("id, name, is_active")
+        .eq("id", body.department_id)
+        .execute()
+    )
     if not dept_result.data:
-        raise HTTPException(status_code=400, detail="Invalid department_id: department not found")
+        raise HTTPException(
+            status_code=400, detail="Invalid department_id: department not found"
+        )
     if not dept_result.data[0].get("is_active", True):
-        raise HTTPException(status_code=400, detail="Cannot update work order to inactive department")
+        raise HTTPException(
+            status_code=400, detail="Cannot update work order to inactive department"
+        )
 
     now = datetime.utcnow().isoformat()
 
@@ -594,26 +674,72 @@ async def update_work_order(
     supabase.table("work_orders").update(payload).eq("id", work_order_id).execute()
 
     if user_role != "reporter":
-        new_ids = body.assigned_technician_ids or []
-        # Fetch current assignments before syncing so we can diff them
-        old_assignments = supabase.table("work_order_assignments") \
-            .select("technician_id") \
-            .eq("work_order_id", work_order_id) \
+        new_tech_id = body.assigned_technician_id
+        old_assignments = (
+            supabase.table("work_order_assignments")
+            .select("technician_id")
+            .eq("work_order_id", work_order_id)
             .execute()
-        old_ids = [r["technician_id"] for r in (old_assignments.data or [])]
-
-        _sync_assignments(work_order_id, new_ids, user_id)
-        _log_assignment_changes(
-            work_order_id, old_ids, new_ids,
-            changed_by_email=user_email,
-            changed_by_name=editor_name,
         )
-        if old_status != body.status:
-            _log_status_change(work_order_id, old_status, body.status, user_id,
-                               changed_by_email=user_email, changed_by_name=editor_name)
+        old_id = (
+            (old_assignments.data or [{}])[0].get("technician_id")
+            if old_assignments.data
+            else None
+        )
 
-    log_activity(user_email, "work_order", "updated",
-        target_label=body.title, target_id=work_order_id)
+        _sync_single_technician(work_order_id, new_tech_id, user_id)
+
+        if old_id != new_tech_id:
+            wo_check = (
+                supabase.table("work_orders")
+                .select("signature_status")
+                .eq("id", work_order_id)
+                .execute()
+            )
+            if wo_check.data and wo_check.data[0].get("signature_status") not in (
+                None,
+                "unsigned",
+                "rejected",
+            ):
+                supabase.table("work_orders").update(
+                    {"signature_status": "unsigned"}
+                ).eq("id", work_order_id).execute()
+                supabase.table("work_order_signatures").update(
+                    {"status": "rejected"}
+                ).eq("work_order_id", work_order_id).neq("status", "rejected").execute()
+                log_activity(
+                    user_email,
+                    "work_order",
+                    "signature_chain_reset",
+                    target_id=work_order_id,
+                    detail="Technician assignment changed, chain reset",
+                )
+
+        if old_id:
+            _log_assignment_changes(
+                work_order_id,
+                [old_id] if old_id else [],
+                [new_tech_id] if new_tech_id else [],
+                changed_by_email=user_email,
+                changed_by_name=editor_name,
+            )
+        if old_status != body.status:
+            _log_status_change(
+                work_order_id,
+                old_status,
+                body.status,
+                user_id,
+                changed_by_email=user_email,
+                changed_by_name=editor_name,
+            )
+
+    log_activity(
+        user_email,
+        "work_order",
+        "updated",
+        target_label=body.title,
+        target_id=work_order_id,
+    )
 
     return {"work_order": {"id": work_order_id, "status": body.status or old_status}}
 
@@ -625,10 +751,12 @@ async def close_work_order(
     user_email: str = Query(...),
 ):
     _ensure_not_reporter(user_email)
-    existing = supabase.table("work_orders") \
-        .select("id, status") \
-        .eq("id", work_order_id) \
+    existing = (
+        supabase.table("work_orders")
+        .select("id, status")
+        .eq("id", work_order_id)
         .execute()
+    )
 
     if not existing.data:
         raise HTTPException(status_code=404, detail="Work order not found")
@@ -639,21 +767,39 @@ async def close_work_order(
     old_status = existing.data[0]["status"]
     now = datetime.utcnow().isoformat()
 
-    supabase.table("work_orders").update({
-        "status": "Closed",
-        "closed_by": body.closed_by,
-        "closed_at": now,
-        "tech_notes": body.tech_notes,
-        "updated_at": now,
-    }).eq("id", work_order_id).execute()
+    supabase.table("work_orders").update(
+        {
+            "status": "Closed",
+            "closed_by": body.closed_by,
+            "closed_at": now,
+            "tech_notes": body.tech_notes,
+            "updated_at": now,
+        }
+    ).eq("id", work_order_id).execute()
 
     closer_user = _get_user_by_email(user_email) if user_email else None
-    closer_name = (closer_user.get("full_name") or user_email.split("@")[0]) if closer_user else user_email.split("@")[0]
-    _log_status_change(work_order_id, old_status, "Closed", body.closed_by,
-                       changed_by_email=user_email, changed_by_name=closer_name, note=body.tech_notes)
+    closer_name = (
+        (closer_user.get("full_name") or user_email.split("@")[0])
+        if closer_user
+        else user_email.split("@")[0]
+    )
+    _log_status_change(
+        work_order_id,
+        old_status,
+        "Closed",
+        body.closed_by,
+        changed_by_email=user_email,
+        changed_by_name=closer_name,
+        note=body.tech_notes,
+    )
 
-    log_activity(user_email, "work_order", "closed",
-        target_label=work_order_id, target_id=work_order_id)
+    log_activity(
+        user_email,
+        "work_order",
+        "closed",
+        target_label=work_order_id,
+        target_id=work_order_id,
+    )
 
     return {"status": "closed"}
 
@@ -664,10 +810,12 @@ async def delete_work_order(
     user_email: str = Query(...),
 ):
     user_role = _get_user_role(user_email)
-    existing = supabase.table("work_orders") \
-        .select("id, title, created_by") \
-        .eq("id", work_order_id) \
+    existing = (
+        supabase.table("work_orders")
+        .select("id, title, created_by")
+        .eq("id", work_order_id)
         .execute()
+    )
     if not existing.data:
         raise HTTPException(status_code=404, detail="Work order not found")
 
@@ -676,11 +824,19 @@ async def delete_work_order(
     if user_role == "reporter":
         reporter_id = _get_user_id_by_email(user_email)
         if existing.data[0].get("created_by") != reporter_id:
-            raise HTTPException(status_code=403, detail="Reporters can only delete their own work orders")
+            raise HTTPException(
+                status_code=403,
+                detail="Reporters can only delete their own work orders",
+            )
 
     supabase.table("work_orders").delete().eq("id", work_order_id).execute()
-    log_activity(user_email, "work_order", "deleted",
-        target_label=wo_title, target_id=work_order_id)
+    log_activity(
+        user_email,
+        "work_order",
+        "deleted",
+        target_label=wo_title,
+        target_id=work_order_id,
+    )
     return {"status": "deleted"}
 
 
@@ -694,20 +850,33 @@ async def delete_work_orders_bulk(
         raise HTTPException(status_code=400, detail="No IDs provided")
 
     user_role = _get_user_role(user_email)
-    wo_check = supabase.table("work_orders").select("id, title, created_by").in_("id", id_list).execute()
+    wo_check = (
+        supabase.table("work_orders")
+        .select("id, title, created_by")
+        .in_("id", id_list)
+        .execute()
+    )
     wo_data = wo_check.data or []
 
     if user_role == "reporter":
         reporter_id = _get_user_id_by_email(user_email)
         not_owned = [w["id"] for w in wo_data if w.get("created_by") != reporter_id]
         if not_owned:
-            raise HTTPException(status_code=403, detail="Reporters can only delete their own work orders")
+            raise HTTPException(
+                status_code=403,
+                detail="Reporters can only delete their own work orders",
+            )
 
     supabase.table("work_orders").delete().in_("id", id_list).execute()
 
     for wo in wo_data:
-        log_activity(user_email, "work_order", "deleted",
-            target_label=wo.get("title", wo["id"]), target_id=wo["id"])
+        log_activity(
+            user_email,
+            "work_order",
+            "deleted",
+            target_label=wo.get("title", wo["id"]),
+            target_id=wo["id"],
+        )
 
     return {"status": "deleted", "count": len(id_list)}
 
@@ -716,14 +885,17 @@ async def delete_work_orders_bulk(
 # Status History
 # --------------------
 
+
 @router.get("/work-orders/{work_order_id}/status-history")
 async def get_status_history(work_order_id: str):
     """Get status change history for a work order"""
-    result = supabase.table("work_order_status_logs") \
-        .select("*, users(full_name, email)") \
-        .eq("work_order_id", work_order_id) \
-        .order("changed_at", desc=True) \
+    result = (
+        supabase.table("work_order_status_logs")
+        .select("*, users(full_name, email)")
+        .eq("work_order_id", work_order_id)
+        .order("changed_at", desc=True)
         .execute()
+    )
     return {"status_history": result.data or []}
 
 
@@ -731,22 +903,24 @@ async def get_status_history(work_order_id: str):
 # Comments
 # --------------------
 
+
 @router.get("/work-orders/{work_order_id}/comments")
 async def get_comments(work_order_id: str):
-    result = supabase.table("work_order_comments") \
-        .select("*") \
-        .eq("work_order_id", work_order_id) \
-        .order("created_at", desc=False) \
+    result = (
+        supabase.table("work_order_comments")
+        .select("*")
+        .eq("work_order_id", work_order_id)
+        .order("created_at", desc=False)
         .execute()
+    )
     return {"comments": result.data or []}
 
 
 @router.post("/work-orders/{work_order_id}/comments")
 async def add_comment(work_order_id: str, body: AddCommentBody):
-    existing = supabase.table("work_orders") \
-        .select("id") \
-        .eq("id", work_order_id) \
-        .execute()
+    existing = (
+        supabase.table("work_orders").select("id").eq("id", work_order_id).execute()
+    )
     if not existing.data:
         raise HTTPException(status_code=404, detail="Work order not found")
 
@@ -784,11 +958,12 @@ async def add_comment(work_order_id: str, body: AddCommentBody):
 # Attachment Endpoints
 # --------------------
 
+
 async def _validate_file(file: UploadFile) -> bytes:
     content = b""
     chunk_size = 1024 * 1024  # 1MB chunks
     total_size = 0
-    
+
     while True:
         chunk = await file.read(chunk_size)
         if not chunk:
@@ -797,19 +972,19 @@ async def _validate_file(file: UploadFile) -> bytes:
         if total_size > MAX_FILE_SIZE:
             raise HTTPException(
                 status_code=400,
-                detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
+                detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB",
             )
         content += chunk
-    
+
     await file.seek(0)
-    
+
     extension = file.filename.split(".")[-1].lower() if "." in file.filename else ""
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"File type not allowed. Allowed types: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+            detail=f"File type not allowed. Allowed types: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
         )
-    
+
     return content
 
 
@@ -820,12 +995,12 @@ def _compress_image(content: bytes, extension: str) -> bytes:
         img = ImageOps.exif_transpose(img)
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
-        
+
         if max(img.width, img.height) > MAX_IMAGE_DIMENSION:
             ratio = MAX_IMAGE_DIMENSION / max(img.width, img.height)
             new_size = (int(img.width * ratio), int(img.height * ratio))
             img = img.resize(new_size, Image.Resampling.LANCZOS)
-        
+
         output = io.BytesIO()
         save_format = "JPEG" if extension in ("jpg", "jpeg") else "PNG"
         img.save(output, format=save_format, optimize=True)
@@ -840,24 +1015,23 @@ async def upload_attachment(
     file: UploadFile = File(...),
     uploaded_by: str = Form(...),
 ):
-    existing = supabase.table("work_orders") \
-        .select("id") \
-        .eq("id", work_order_id) \
-        .execute()
+    existing = (
+        supabase.table("work_orders").select("id").eq("id", work_order_id).execute()
+    )
     if not existing.data:
         raise HTTPException(status_code=404, detail="Work order not found")
 
     content = await _validate_file(file)
-    
+
     file_id = str(uuid.uuid4())
     extension = file.filename.split(".")[-1].lower() if "." in file.filename else "bin"
     filename = f"wo_{file_id}.{extension}"
-    
+
     if extension in IMAGE_EXTENSIONS:
         content = _compress_image(content, extension)
         if extension in ("jpg", "jpeg"):
             filename = f"wo_{file_id}.jpg"
-    
+
     file_path = os.path.join(UPLOAD_DIR, filename)
 
     with open(file_path, "wb") as f:
@@ -866,15 +1040,21 @@ async def upload_attachment(
     public_url = f"/files/{filename}"
 
     try:
-        supabase.table("work_order_attachments").insert({
-            "work_order_id": work_order_id,
-            "file_name": file.filename,
-            "file_url": public_url,
-            "file_type": file.content_type or f"image/{extension}" if extension in IMAGE_EXTENSIONS else "application/octet-stream",
-            "uploaded_by": uploaded_by,
-        }).execute()
+        supabase.table("work_order_attachments").insert(
+            {
+                "work_order_id": work_order_id,
+                "file_name": file.filename,
+                "file_url": public_url,
+                "file_type": file.content_type or f"image/{extension}"
+                if extension in IMAGE_EXTENSIONS
+                else "application/octet-stream",
+                "uploaded_by": uploaded_by,
+            }
+        ).execute()
     except Exception as e:
-        print(f"[upload_attachment] Failed to insert attachment for WO {work_order_id}: {e}")
+        print(
+            f"[upload_attachment] Failed to insert attachment for WO {work_order_id}: {e}"
+        )
         raise HTTPException(status_code=500, detail=f"Failed to save attachment: {e}")
 
     return {"status": "uploaded", "file_url": public_url, "file_name": file.filename}
@@ -882,11 +1062,13 @@ async def upload_attachment(
 
 @router.get("/work-orders/{work_order_id}/attachments")
 async def get_attachments(work_order_id: str):
-    result = supabase.table("work_order_attachments") \
-        .select("*") \
-        .eq("work_order_id", work_order_id) \
-        .order("created_at") \
+    result = (
+        supabase.table("work_order_attachments")
+        .select("*")
+        .eq("work_order_id", work_order_id)
+        .order("created_at")
         .execute()
+    )
     return {"attachments": result.data or []}
 
 
@@ -896,10 +1078,12 @@ async def delete_attachment(
     attachment_id: str,
     email: str = Query(...),
 ):
-    result = supabase.table("work_order_attachments") \
-        .select("file_url") \
-        .eq("id", attachment_id) \
+    result = (
+        supabase.table("work_order_attachments")
+        .select("file_url")
+        .eq("id", attachment_id)
         .execute()
+    )
     if not result.data:
         raise HTTPException(status_code=404, detail="Attachment not found")
 
@@ -912,3 +1096,133 @@ async def delete_attachment(
 
     supabase.table("work_order_attachments").delete().eq("id", attachment_id).execute()
     return {"status": "deleted"}
+
+
+@router.get("/work-orders/pending-approvals")
+async def list_pending_approvals(email: str = Query(...)):
+    from .signatures import _get_user_approval_info
+
+    caller_info = _get_user_approval_info(email)
+    if not caller_info:
+        return JSONResponse(status_code=403, content={"error": "User not found"})
+
+    approval_level = caller_info.get("approval_level")
+    if not approval_level or approval_level == 0:
+        return JSONResponse(status_code=403, content={"error": "No approval role"})
+
+    user_dept_ids = caller_info.get("department_ids", [])
+
+    if approval_level == 1:
+        query = (
+            supabase.table("work_orders")
+            .select("""
+                id,
+                job_no,
+                title,
+                status,
+                department_id,
+                created_at,
+                signature_status,
+                departments!left (
+                    id,
+                    name
+                ),
+                work_order_assignments!left (
+                    technician_id,
+                    users!left (
+                        id,
+                        email,
+                        full_name
+                    )
+                ),
+                work_order_signatures!left (
+                    id,
+                    signer_role,
+                    status,
+                    signed_at,
+                    signer_name
+                )
+            """)
+            .eq("signature_status", "tech_signed")
+            .eq("status", "Closed")
+            .in_("department_id", user_dept_ids)
+            .order("created_at", desc=True)
+        )
+    elif approval_level == 2:
+        query = (
+            supabase.table("work_orders")
+            .select("""
+                id,
+                job_no,
+                title,
+                status,
+                department_id,
+                created_at,
+                signature_status,
+                departments!left (
+                    id,
+                    name
+                ),
+                work_order_assignments!left (
+                    technician_id,
+                    users!left (
+                        id,
+                        email,
+                        full_name
+                    )
+                ),
+                work_order_signatures!left (
+                    id,
+                    signer_role,
+                    status,
+                    signed_at,
+                    signer_name
+                )
+            """)
+            .eq("signature_status", "supervisor_approved")
+            .eq("status", "Closed")
+            .order("created_at", desc=True)
+        )
+    else:
+        return JSONResponse(
+            status_code=403, content={"error": "Invalid approval level"}
+        )
+
+    result = query.execute()
+    work_orders = result.data or []
+
+    formatted = []
+    for wo in work_orders:
+        dept = wo.get("departments") or {}
+        assignment = wo.get("work_order_assignments") or [{}]
+        tech = (assignment[0] or {}).get("users") or {}
+
+        sigs = wo.get("work_order_signatures") or []
+        pending_sig = None
+        for sig in sigs:
+            if sig.get("status") in (None, "pending"):
+                pending_sig = sig
+                break
+
+        formatted.append(
+            {
+                "id": wo.get("id"),
+                "job_no": wo.get("job_no"),
+                "title": wo.get("title"),
+                "status": wo.get("status"),
+                "department_id": wo.get("department_id"),
+                "department_name": dept.get("name"),
+                "created_at": wo.get("created_at"),
+                "signature_status": wo.get("signature_status"),
+                "assigned_technician": {
+                    "id": tech.get("id"),
+                    "full_name": tech.get("full_name"),
+                    "email": tech.get("email"),
+                }
+                if tech.get("id")
+                else None,
+                "pending_signature_id": pending_sig.get("id") if pending_sig else None,
+            }
+        )
+
+    return {"work_orders": formatted}

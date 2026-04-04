@@ -16,6 +16,8 @@ class WorkOrderCard extends StatefulWidget {
   final bool isSelected;
   final VoidCallback? onLongPress;
   final String? signatureState;
+  final int approvalLevel;
+  final List<String> userDepartmentIds;
 
   const WorkOrderCard({
     super.key,
@@ -31,6 +33,8 @@ class WorkOrderCard extends StatefulWidget {
     this.isSelected = false,
     this.onLongPress,
     this.signatureState,
+    this.approvalLevel = 0,
+    this.userDepartmentIds = const [],
   });
 
   @override
@@ -159,7 +163,12 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                             ],
                             if (widget.signatureState != null) ...[
                               SizedBox(width: 6),
-                              _SignatureBadge(state: widget.signatureState!),
+                              _SignatureBadge(
+                                state: widget.signatureState!,
+                                approvalLevel: widget.approvalLevel,
+                                userDepartmentIds: widget.userDepartmentIds,
+                                woDepartmentId: widget.workOrder.departmentId,
+                              ),
                             ],
                             const Spacer(),
                             canTapStatus
@@ -240,29 +249,14 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                         ),
 
                         // Employees
-                        if (widget
-                            .workOrder.assignedTechnicians.isNotEmpty) ...[
+                        if (widget.workOrder.assignedTechnician != null) ...[
                           SizedBox(height: 8),
                           Row(
                             children: [
-                              ...widget.workOrder.assignedTechnicians
-                                  .take(3)
-                                  .map((emp) => Padding(
-                                        padding:
-                                            const EdgeInsets.only(right: 4),
-                                        child: InitialsAvatar(
-                                            name: emp.fullName, size: 22),
-                                      )),
-                              if (widget.workOrder.assignedTechnicians.length >
-                                  3) ...[
-                                SizedBox(width: 8),
-                                Text(
-                                  '+${widget.workOrder.assignedTechnicians.length - 3}',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textTertiary),
-                                ),
-                              ],
+                              InitialsAvatar(
+                                  name: widget
+                                      .workOrder.assignedTechnician!.fullName,
+                                  size: 22),
                             ],
                           ),
                         ],
@@ -319,13 +313,12 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                           ),
                           SizedBox(height: 10),
                         ],
-                        if (widget
-                            .workOrder.assignedTechnicians.isNotEmpty) ...[
+                        if (widget.workOrder.assignedTechnician != null) ...[
                           Wrap(
                             spacing: 6,
                             runSpacing: 6,
-                            children:
-                                widget.workOrder.assignedTechnicians.map((emp) {
+                            children: [widget.workOrder.assignedTechnician]
+                                .map((emp) {
                               return Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 10, vertical: 4),
@@ -339,7 +332,7 @@ class _WorkOrderCardState extends State<WorkOrderCard>
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     InitialsAvatar(
-                                        name: emp.fullName, size: 18),
+                                        name: emp!.fullName, size: 18),
                                     SizedBox(width: 6),
                                     Text(emp.fullName,
                                         style: TextStyle(
@@ -508,36 +501,90 @@ class _UnreadBadge extends StatelessWidget {
 
 class _SignatureBadge extends StatelessWidget {
   final String state;
+  final int approvalLevel;
+  final List<String> userDepartmentIds;
+  final String woDepartmentId;
 
-  const _SignatureBadge({required this.state});
+  const _SignatureBadge({
+    required this.state,
+    required this.approvalLevel,
+    required this.userDepartmentIds,
+    required this.woDepartmentId,
+  });
 
   @override
   Widget build(BuildContext context) {
-    Color color;
-    IconData icon;
+    if (approvalLevel == 0) return SizedBox.shrink();
 
-    switch (state) {
-      case 'fully_signed':
-        color = AppColors.closedText;
-        icon = Icons.check_circle;
-        break;
-      case 'pending':
-        color = AppColors.pendingText;
-        icon = Icons.pending;
-        break;
-      default:
-        color = AppColors.textTertiary;
-        icon = Icons.draw;
+    final bool isInUserDept = userDepartmentIds.contains(woDepartmentId);
+
+    if (state == 'fully_signed') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.closedText.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle, size: 12, color: AppColors.closedText),
+            SizedBox(width: 3),
+            Text('Completed',
+                style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.closedText,
+                    fontWeight: FontWeight.w500)),
+          ],
+        ),
+      );
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Icon(icon, size: 14, color: color),
-    );
+    if (approvalLevel == 1 && state == 'pending_supervisor' && isInUserDept) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.pendingText.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.pending, size: 12, color: AppColors.pendingText),
+            SizedBox(width: 3),
+            Text('Pending',
+                style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.pendingText,
+                    fontWeight: FontWeight.w500)),
+          ],
+        ),
+      );
+    }
+
+    if (approvalLevel == 2 && state == 'pending_superintendent') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.pendingText.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.pending, size: 12, color: AppColors.pendingText),
+            SizedBox(width: 3),
+            Text('Pending',
+                style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.pendingText,
+                    fontWeight: FontWeight.w500)),
+          ],
+        ),
+      );
+    }
+
+    return SizedBox.shrink();
   }
 }
 

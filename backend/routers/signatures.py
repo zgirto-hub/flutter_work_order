@@ -76,76 +76,67 @@ def _is_technician_assigned(work_order_id: str, email: str) -> bool:
 
 @router.post("/work-orders/{work_order_id}/signatures")
 async def add_signature(work_order_id: str, body: AddSignatureBody):
-    # Validate work order exists and is Closed
+    # Validate work order exists
     wo = (
         supabase.table("work_orders")
-        .select("id, status, job_no, title")
+        .select("id, status, job_no, title, signature_status, department_id")
         .eq("id", work_order_id)
         .execute()
     )
     if not wo.data:
         raise HTTPException(status_code=404, detail="Work order not found")
-    # Signatures allowed on any status (not just Closed)
+
+    wo_data = wo.data[0]
+    current_sig_status = wo_data.get("signature_status", "unsigned")
 
     signer_email = body.signer_email.strip().lower()
     signer_role = body.signer_role.strip().lower()
 
-    if signer_role not in ("technician", "admin"):
+    # T008(1): Only 'technician' is valid for signing
+    if signer_role != "technician":
         raise HTTPException(
-            status_code=400, detail="signer_role must be 'technician' or 'admin'"
+            status_code=400, detail="signer_role must be 'technician' only"
         )
 
     # Validate role matches actual user role
     actual_role = _get_user_role(signer_email)
+    if actual_role not in ("technician", "admin"):
+        raise HTTPException(status_code=403, detail="User is not a technician or admin")
 
-    if signer_role == "technician":
-        if actual_role not in ("technician", "admin"):
-            raise HTTPException(
-                status_code=403, detail="User is not a technician or admin"
-            )
-        # Validate technician is assigned to this WO
-        if actual_role == "technician" and not _is_technician_assigned(
-            work_order_id, signer_email
-        ):
-            raise HTTPException(
-                status_code=403, detail="Technician is not assigned to this work order"
-            )
-
-    if signer_role == "admin":
-        if actual_role != "admin":
-            raise HTTPException(status_code=403, detail="Only admins can sign as admin")
-        # Validate technician has signed (pending or already approved)
-        tech_sig = (
-            supabase.table("work_order_signatures")
-            .select("id, status")
-            .eq("work_order_id", work_order_id)
-            .eq("signer_role", "technician")
-            .order("signed_at", desc=True)
-            .execute()
+    # Validate technician is assigned to this WO
+    if actual_role == "technician" and not _is_technician_assigned(
+        work_order_id, signer_email
+    ):
+        raise HTTPException(
+            status_code=403, detail="Technician is not assigned to this work order"
         )
-        if not tech_sig.data:
-            raise HTTPException(status_code=400, detail="Technician must sign first")
-        # Find the latest non-rejected technician signature
-        latest_tech = next(
-            (s for s in tech_sig.data if s.get("status") != "rejected"), None
-        )
-        if not latest_tech:
-            raise HTTPException(status_code=400, detail="Technician must sign first")
 
-    # Upsert: only block if there's already a pending or approved signature
-    # (rejected records are preserved for audit)
+    # T008(2): Check signature_status before allowing tech sign
+    if current_sig_status not in ("unsigned", "rejected"):
+        raise HTTPException(status_code=409, detail="Cannot sign at current status")
+
+    # T008(3): On re-sign after rejection - clear existing non-rejected signatures
+    if current_sig_status == "rejected":
+        supabase.table("work_order_signatures").update({"status": "rejected"}).eq(
+            "work_order_id", work_order_id
+        ).neq("status", "rejected").execute()
+        supabase.table("work_orders").update({"signature_status": "unsigned"}).eq(
+            "id", work_order_id
+        ).execute()
+
+    # Check for existing pending/approved technician signature
     existing = (
         supabase.table("work_order_signatures")
         .select("id, status")
         .eq("work_order_id", work_order_id)
-        .eq("signer_role", signer_role)
+        .eq("signer_role", "technician")
         .execute()
     )
     if existing.data:
         for row in existing.data:
             if row.get("status") in ("pending", "approved"):
                 raise HTTPException(
-                    status_code=400, detail=f"A {signer_role} signature already exists"
+                    status_code=400, detail="A technician signature already exists"
                 )
 
     if body.use_saved:
@@ -159,33 +150,46 @@ async def add_signature(work_order_id: str, body: AddSignatureBody):
     record = {
         "work_order_id": work_order_id,
         "signer_email": signer_email,
-        "signer_role": signer_role,
+        "signer_role": "technician",
         "signature_path": signature_path,
-        "status": "approved" if signer_role == "admin" else "pending",
+        "status": "pending",
     }
     result = supabase.table("work_order_signatures").insert(record).execute()
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to save signature")
 
-    # Notify: technician signed → notify admins
-    if signer_role == "technician":
-        try:
-            dispatch_signature_notification(
-                work_order_id=work_order_id,
-                signature_id=str(result.data[0].get("id")),
-                signer_email=signer_email,
-                kind="signature_pending",
-                job_no=wo.data[0].get("job_no", ""),
-            )
-        except Exception as e:
-            print(f"Signature notification dispatch failed: {e}")
+    # T008(4): Update WO signature_status to 'tech_signed'
+    supabase.table("work_orders").update({"signature_status": "tech_signed"}).eq(
+        "id", work_order_id
+    ).execute()
 
+    # T008(5): Call _advance_chain - may skip to next level
+    new_status = _advance_chain(work_order_id, "tech_signed")
+    if new_status != "tech_signed":
+        supabase.table("work_orders").update({"signature_status": new_status}).eq(
+            "id", work_order_id
+        ).execute()
+
+    # T008(6): Send notification via dispatch_signature_notification
+    try:
+        dispatch_signature_notification(
+            work_order_id=work_order_id,
+            signature_id=str(result.data[0].get("id")),
+            signer_email=signer_email,
+            kind="signature_pending_supervisor",
+            job_no=wo_data.get("job_no", ""),
+            wo_department_id=wo_data.get("department_id", ""),
+        )
+    except Exception as e:
+        print(f"Signature notification dispatch failed: {e}")
+
+    # T008(7): Log to activity log
     try:
         log_activity(
             signer_email,
             "work_order",
             "signature_submitted",
-            target_label=wo.data[0].get("title", ""),
+            target_label=wo_data.get("title", ""),
             target_id=work_order_id,
         )
     except Exception as e:
@@ -224,18 +228,21 @@ async def update_signature(
     body: UpdateSignatureBody,
     user_email: str = Query(...),
 ):
-    # Admin only
-    role = _get_user_role(user_email)
-    if role != "admin":
-        raise HTTPException(
-            status_code=403, detail="Only admins can approve or reject signatures"
-        )
+    # T009(1): Get caller info via _get_user_approval_info
+    caller_info = _get_user_approval_info(user_email)
+    if not caller_info:
+        raise HTTPException(status_code=403, detail="User not found")
+
+    # T009(2): If caller is admin, return 403
+    if caller_info.get("user_type") == "admin":
+        raise HTTPException(status_code=403, detail="Admin cannot approve signatures")
 
     if body.status not in ("approved", "rejected"):
         raise HTTPException(
             status_code=400, detail="status must be 'approved' or 'rejected'"
         )
 
+    # Verify signature exists
     existing = (
         supabase.table("work_order_signatures")
         .select("id, signer_role, signer_email, status")
@@ -247,55 +254,148 @@ async def update_signature(
         raise HTTPException(status_code=404, detail="Signature not found")
 
     sig = existing.data[0]
-    if sig.get("signer_role") != "technician":
-        raise HTTPException(
-            status_code=400, detail="Can only approve/reject technician signatures"
-        )
 
-    update_payload = {"status": body.status}
-    if body.status == "rejected":
-        update_payload["rejection_reason"] = body.rejection_reason or ""
-
-    supabase.table("work_order_signatures").update(update_payload).eq(
-        "id", signature_id
-    ).execute()
-
-    # Get WO info for notification + logging
+    # T009(3): Get WO's current signature_status
     wo = (
         supabase.table("work_orders")
-        .select("job_no, title")
+        .select("id, job_no, title, signature_status, department_id")
         .eq("id", work_order_id)
         .execute()
     )
-    wo_info = wo.data[0] if wo.data else {}
-    job_no = wo_info.get("job_no", "")
+    if not wo.data:
+        raise HTTPException(status_code=404, detail="Work order not found")
 
-    # Notify technician
-    kind = "signature_approved" if body.status == "approved" else "signature_rejected"
+    wo_data = wo.data[0]
+    current_sig_status = wo_data.get("signature_status", "unsigned")
+
+    # T009(4): Get required approval level
+    try:
+        required_level = _get_required_approval_level(current_sig_status)
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail="Invalid signature status for approval"
+        )
+
+    # T009(5): Check caller's approval_level matches required level
+    caller_level = caller_info.get("approval_level")
+    if caller_level != required_level:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your approval level does not match required level {required_level}",
+        )
+
+    # T009(6): For level 1 (supervisor), verify department
+    if required_level == 1:
+        wo_dept_id = wo_data.get("department_id")
+        caller_dept_ids = caller_info.get("department_ids", [])
+        if wo_dept_id not in caller_dept_ids:
+            raise HTTPException(
+                status_code=403, detail="You are not authorized for this department"
+            )
+
+    # T009(7): Self-approval check - cannot approve own signature
+    tech_sigs = (
+        supabase.table("work_order_signatures")
+        .select("signer_email")
+        .eq("work_order_id", work_order_id)
+        .eq("signer_role", "technician")
+        .execute()
+    )
+    for ts in tech_sigs.data or []:
+        if ts.get("signer_email", "").lower() == user_email.lower():
+            raise HTTPException(
+                status_code=403, detail="Cannot approve your own signature"
+            )
+
+    approver_role = "supervisor" if required_level == 1 else "superintendent"
+
+    # T009(9): Handle rejection separately — do NOT advance chain
+    if body.status == "rejected":
+        # Optimistic concurrency: ensure status hasn't changed
+        update_result = (
+            supabase.table("work_orders")
+            .update({"signature_status": "rejected"})
+            .eq("id", work_order_id)
+            .eq("signature_status", current_sig_status)
+            .execute()
+        )
+        if not update_result.data:
+            raise HTTPException(status_code=409, detail="Already approved at this level")
+
+        supabase.table("work_order_signatures").insert({
+            "work_order_id": work_order_id,
+            "signer_email": user_email,
+            "signer_role": approver_role,
+            "status": "rejected",
+            "rejection_reason": body.rejection_reason or "",
+        }).execute()
+
+        final_status = "rejected"
+    else:
+        # T009(8): Optimistic concurrency - advance chain
+        new_status_map = {
+            "tech_signed": "supervisor_approved",
+            "supervisor_approved": "superintendent_approved",
+        }
+        expected_new_status = new_status_map.get(current_sig_status, current_sig_status)
+
+        update_result = (
+            supabase.table("work_orders")
+            .update({"signature_status": expected_new_status})
+            .eq("id", work_order_id)
+            .eq("signature_status", current_sig_status)
+            .execute()
+        )
+        if not update_result.data:
+            raise HTTPException(status_code=409, detail="Already approved at this level")
+
+        supabase.table("work_order_signatures").insert({
+            "work_order_id": work_order_id,
+            "signer_email": user_email,
+            "signer_role": approver_role,
+            "status": "approved",
+        }).execute()
+
+        # Call _advance_chain to check if next level should be skipped
+        final_status = _advance_chain(work_order_id, expected_new_status)
+        if final_status != expected_new_status:
+            supabase.table("work_orders").update({"signature_status": final_status}).eq(
+                "id", work_order_id
+            ).execute()
+
+    # T009(10) & (11): Notifications
+    notification_kind = (
+        f"signature_approved_{approver_role}"
+        if body.status == "approved"
+        else "signature_rejected"
+    )
     try:
         dispatch_signature_notification(
             work_order_id=work_order_id,
             signature_id=signature_id,
-            signer_email=sig["signer_email"],
-            kind=kind,
-            job_no=job_no,
+            signer_email=sig.get("signer_email", ""),
+            kind=notification_kind,
+            job_no=wo_data.get("job_no", ""),
             actor_email=user_email,
+            wo_department_id=wo_data.get("department_id", ""),
         )
     except Exception as e:
         print(f"Signature notification dispatch failed: {e}")
 
+    # T009(12): Log activity
     try:
         log_activity(
             user_email,
             "work_order",
-            "signature_approved" if body.status == "approved" else "signature_rejected",
-            target_label=wo_info.get("title", job_no),
+            f"signature_{body.status}_by_{approver_role}",
+            target_label=wo_data.get("title", ""),
             target_id=work_order_id,
+            detail=f"Approved by {approver_role} {user_email}",
         )
     except Exception as e:
         print(f"Activity log failed: {e}")
 
-    return {"status": body.status}
+    return {"status": body.status, "signature_status": final_status}
 
 
 @router.delete("/work-orders/{work_order_id}/signatures/{signature_id}")
@@ -306,9 +406,7 @@ async def delete_signature(
 ):
     role = _get_user_role(user_email)
     if role != "admin":
-        raise HTTPException(
-            status_code=403, detail="Only admins can remove signatures"
-        )
+        raise HTTPException(status_code=403, detail="Only admins can remove signatures")
 
     existing = (
         supabase.table("work_order_signatures")
@@ -346,7 +444,7 @@ async def delete_signature(
             .order("signed_at", desc=True)
             .execute()
         )
-        for ts in (tech_sigs.data or []):
+        for ts in tech_sigs.data or []:
             if ts.get("status") == "approved":
                 supabase.table("work_order_signatures").update(
                     {"status": "pending"}
@@ -551,6 +649,19 @@ async def get_bulk_signature_status(work_order_ids: str = Query(...)):
     if not ids_list:
         return {"statuses": {}}
 
+    # T011: Get signature_status from work_orders table
+    wo_result = (
+        supabase.table("work_orders")
+        .select("id, signature_status")
+        .in_("id", ids_list)
+        .execute()
+    )
+    wo_status_map = {
+        w.get("id"): w.get("signature_status", "unsigned")
+        for w in (wo_result.data or [])
+    }
+
+    # Get all signatures for these work orders
     result = (
         supabase.table("work_order_signatures")
         .select("work_order_id, signer_role, status")
@@ -564,20 +675,31 @@ async def get_bulk_signature_status(work_order_ids: str = Query(...)):
         role = sig.get("signer_role")
         status = sig.get("status")
         if wo_id not in signatures_by_wo:
-            signatures_by_wo[wo_id] = {"technician": None, "admin": None}
-        if role in ("technician", "admin"):
+            signatures_by_wo[wo_id] = {
+                "technician": None,
+                "supervisor": None,
+                "superintendent": None,
+            }
+        if role in ("technician", "supervisor", "superintendent"):
             signatures_by_wo[wo_id][role] = status
 
     statuses = {}
     for wo_id in ids_list:
-        sigs = signatures_by_wo.get(wo_id, {"technician": None, "admin": None})
+        sigs = signatures_by_wo.get(
+            wo_id, {"technician": None, "supervisor": None, "superintendent": None}
+        )
         tech = sigs.get("technician")
-        admin = sigs.get("admin")
+        sup = sigs.get("supervisor")
+        superintendent = sigs.get("superintendent")
+
         statuses[wo_id] = {
+            "signature_status": wo_status_map.get(wo_id, "unsigned"),
             "technician_signed": tech is not None,
             "technician_status": tech,
-            "admin_signed": admin is not None,
-            "admin_status": admin,
+            "supervisor_signed": sup is not None,
+            "supervisor_status": sup,
+            "superintendent_signed": superintendent is not None,
+            "superintendent_status": superintendent,
         }
 
     return {"statuses": statuses}
@@ -630,3 +752,179 @@ def _get_saved_signature_path(email: str) -> Optional[str]:
     if not result.data:
         return None
     return result.data[0].get("signature_path")
+
+
+# ================================================
+# Approval Chain Helpers (T002, T003)
+# ================================================
+
+
+def _get_required_approval_level(signature_status: str) -> int:
+    """Maps signature_status to required approval level"""
+    mapping = {
+        "tech_signed": 1,
+        "supervisor_approved": 2,
+        "superintendent_approved": 3,
+    }
+    if signature_status not in mapping:
+        raise ValueError(f"Invalid signature_status: {signature_status}")
+    return mapping[signature_status]
+
+
+def _get_approvers_for_level(level: int, department_id: str) -> list:
+    """Get list of approvers for a given level and department"""
+    if level == 1:
+        result = (
+            supabase.table("users")
+            .select("id, email, full_name")
+            .eq("is_supervisor", True)
+            .execute()
+        )
+        approvers = result.data or []
+        filtered = []
+        for a in approvers:
+            a_id = a.get("id")
+            td_result = (
+                supabase.table("technician_departments")
+                .select("department_id")
+                .eq("technician_id", a_id)
+                .eq("department_id", department_id)
+                .execute()
+            )
+            if td_result.data:
+                filtered.append(a)
+        return filtered
+    elif level == 2:
+        result = (
+            supabase.table("users")
+            .select("id, email, full_name")
+            .eq("is_superintendent", True)
+            .execute()
+        )
+        return result.data or []
+    else:
+        return []
+
+
+def _advance_chain(work_order_id: str, current_status: str) -> str:
+    """Check if the next required approval level has approvers.
+
+    If the next level has no approvers, skip it and try the level after.
+    If ALL remaining levels have no approvers, do NOT auto-complete (blocked).
+    If we skip past all levels (found at least one earlier), mark completed.
+    Returns the new signature_status the WO should be set to.
+    """
+    status_to_level = {
+        "tech_signed": 1,
+        "supervisor_approved": 2,
+        "superintendent_approved": 3,
+    }
+    level_to_status = {
+        1: "tech_signed",        # waiting for supervisor
+        2: "supervisor_approved", # waiting for superintendent
+    }
+
+    required_level = status_to_level.get(current_status)
+    if required_level is None:
+        return current_status
+
+    wo = (
+        supabase.table("work_orders")
+        .select("id, department_id")
+        .eq("id", work_order_id)
+        .execute()
+    )
+    if not wo.data:
+        return current_status
+
+    department_id = wo.data[0].get("department_id")
+    skipped_levels = []
+
+    for level in range(required_level, 3):  # levels 1 and 2 only (3 is reserved)
+        approvers = _get_approvers_for_level(level, department_id)
+        if approvers:
+            # Found approvers at this level — chain waits here
+            break
+        else:
+            skipped_levels.append(level)
+    else:
+        # Loop completed without break — no approvers found at any level
+        if not skipped_levels:
+            return current_status
+        # All remaining levels have no approvers
+        # Per spec: if BOTH supervisor AND superintendent are missing, block
+        if required_level == 1 and len(skipped_levels) >= 2:
+            # Both levels missing — blocked
+            _log_skipped_levels(work_order_id, skipped_levels)
+            return current_status
+        # Only one level missing — skip and complete
+        _log_skipped_levels(work_order_id, skipped_levels)
+        return "completed"
+
+    # Log any skipped levels
+    _log_skipped_levels(work_order_id, skipped_levels)
+
+    if skipped_levels:
+        # We skipped some levels and found approvers at a later one
+        # Advance the status to match where we're waiting
+        return level_to_status.get(level, current_status)
+
+    # No levels skipped — chain waits at current status
+    return current_status
+
+
+def _log_skipped_levels(work_order_id: str, skipped_levels: list):
+    """Log skipped approval levels to activity log."""
+    level_names = {1: "supervisor", 2: "superintendent", 3: "manager"}
+    for lvl in skipped_levels:
+        try:
+            log_activity(
+                "system",
+                "work_order",
+                "chain_level_skipped",
+                target_id=work_order_id,
+                target_label=f"WO {work_order_id}",
+                detail=f"Level {lvl} ({level_names.get(lvl, 'unknown')}) skipped - no approvers found",
+            )
+        except Exception:
+            pass
+
+
+def _get_user_approval_info(email: str) -> Optional[dict]:
+    """Get user approval info for authorization checks"""
+    normalized = email.strip().lower()
+    if not normalized:
+        return None
+
+    result = (
+        supabase.table("users")
+        .select(
+            "id, email, user_type, approval_level, is_supervisor, is_superintendent"
+        )
+        .eq("email", normalized)
+        .execute()
+    )
+
+    if not result.data:
+        return None
+
+    user = result.data[0]
+
+    user_id = user.get("id")
+    td_result = (
+        supabase.table("technician_departments")
+        .select("department_id")
+        .eq("technician_id", user_id)
+        .execute()
+    )
+    department_ids = [row.get("department_id") for row in (td_result.data or [])]
+
+    return {
+        "user_type": user.get("user_type"),
+        "approval_level": user.get("approval_level"),
+        "is_supervisor": user.get("is_supervisor", False),
+        "is_superintendent": user.get("is_superintendent", False),
+        "id": user_id,
+        "email": email,
+        "department_ids": department_ids,
+    }

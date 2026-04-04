@@ -7,6 +7,7 @@ import '../screens/payment_certificate/payment_certificate_list_screen.dart';
 import '../screens/system_status_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/settings/activity_log_screen.dart';
+import '../screens/approvals/pending_approvals_screen.dart';
 
 class NavScreen {
   final String key;
@@ -104,6 +105,15 @@ class NavScreenRegistry {
       color: Color(0xFF6B6860),
       bgColor: Color(0xFFF5F4F0),
     ),
+    NavScreen(
+      key: 'approvals',
+      title: 'Approvals',
+      subtitle: 'Pending approvals',
+      icon: Icons.approval_outlined,
+      selectedIcon: Icons.approval_rounded,
+      color: Color(0xFFD97706),
+      bgColor: Color(0xFFFEF3C7),
+    ),
   ];
 
   static NavScreen? get(String key) {
@@ -123,6 +133,7 @@ class NavScreenRegistry {
       'system_status' => const SystemStatusScreen(),
       'notifications' => const NotificationsScreen(),
       'activity_log' => const ActivityLogScreen(),
+      'approvals' => const PendingApprovalsScreen(),
       _ => const SizedBox.shrink(),
     };
   }
