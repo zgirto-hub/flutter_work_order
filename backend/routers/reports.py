@@ -137,28 +137,38 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     title_style = ParagraphStyle(
         "Title",
         parent=styles["Heading1"],
+        fontName="Helvetica",
         fontSize=16,
-        textColor=HexColor("#1a2744"),
+        textColor=HexColor("#3D3929"),
         alignment=TA_CENTER,
         spaceAfter=6,
     )
     subtitle_style = ParagraphStyle(
         "Subtitle",
         parent=styles["Normal"],
+        fontName="Helvetica",
         fontSize=10,
-        textColor=HexColor("#666666"),
+        textColor=HexColor("#8C8575"),
         alignment=TA_CENTER,
         spaceAfter=12,
     )
     section_style = ParagraphStyle(
         "Section",
         parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
         fontSize=12,
-        textColor=HexColor("#1a2744"),
+        textColor=HexColor("#3D3929"),
         spaceBefore=16,
         spaceAfter=8,
     )
-    normal_style = styles["Normal"]
+    normal_style = ParagraphStyle(
+        "Body",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=10,
+        textColor=HexColor("#4A4538"),
+        leading=14,
+    )
 
     elements = []
 
@@ -272,14 +282,12 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
 
     description = wo_data.get("description")
     if description:
-        elements.append(Spacer(1, 8))
-        elements.append(Paragraph("<b>Description</b>", normal_style))
+        elements.append(Paragraph("Description", section_style))
         elements.append(Paragraph(xml_escape(safe_str(description)), normal_style))
 
     tech_notes = wo_data.get("tech_notes")
     if tech_notes:
-        elements.append(Spacer(1, 8))
-        elements.append(Paragraph("<b>Tech Notes</b>", normal_style))
+        elements.append(Paragraph("Tech Notes", section_style))
         elements.append(Paragraph(xml_escape(safe_str(tech_notes)), normal_style))
 
     assignments = wo_data.get("work_order_assignments", [])
