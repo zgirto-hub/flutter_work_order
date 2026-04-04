@@ -12,7 +12,8 @@ class SystemStatusScreen extends StatefulWidget {
   State<SystemStatusScreen> createState() => _SystemStatusScreenState();
 }
 
-class _SystemStatusScreenState extends State<SystemStatusScreen> {
+class _SystemStatusScreenState extends State<SystemStatusScreen>
+    with WidgetsBindingObserver {
   final _service = SystemStatusService();
   bool _loading = true;
   List<SystemStatus> _systems = [];
@@ -33,7 +34,21 @@ class _SystemStatusScreenState extends State<SystemStatusScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_loading) {
+      _load();
+    }
   }
 
   Future<void> _load() async {

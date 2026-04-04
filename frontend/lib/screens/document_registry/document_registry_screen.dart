@@ -14,7 +14,8 @@ class DocumentRegistryScreen extends StatefulWidget {
   State<DocumentRegistryScreen> createState() => _DocumentRegistryScreenState();
 }
 
-class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
+class _DocumentRegistryScreenState extends State<DocumentRegistryScreen>
+    with WidgetsBindingObserver {
   final _service = DocumentRegistryService();
   final _formKey = GlobalKey<FormState>();
 
@@ -36,16 +37,25 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadEntries();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _nameCtrl.dispose();
     _numberCtrl.dispose();
     _dateCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_isLoading) {
+      _loadEntries();
+    }
   }
 
   Future<void> _loadEntries() async {
