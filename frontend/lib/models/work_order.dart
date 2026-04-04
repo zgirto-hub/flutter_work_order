@@ -74,15 +74,19 @@ class WorkOrder {
       departmentId: json['department_id'] ?? '',
       departmentName: deptName,
       mobileNumber: json['mobile_number'],
-      assignedTechnician:
-          (json['work_order_assignments'] as List<dynamic>?) != null &&
-                  (json['work_order_assignments'] as List).isNotEmpty
-              ? TechnicianAssignment.fromJson(
-                  (json['work_order_assignments'] as List).first
-                      as Map<String, dynamic>)
-              : null,
+      assignedTechnician: _parseAssignment(json['work_order_assignments']),
       signatureStatus: json['signature_status'] ?? 'unsigned',
     );
+  }
+
+  static TechnicianAssignment? _parseAssignment(dynamic raw) {
+    if (raw is Map<String, dynamic>) {
+      return TechnicianAssignment.fromJson(raw);
+    }
+    if (raw is List && raw.isNotEmpty) {
+      return TechnicianAssignment.fromJson(raw.first as Map<String, dynamic>);
+    }
+    return null;
   }
 
   Map<String, dynamic> toJson() {
