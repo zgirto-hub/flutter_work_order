@@ -195,7 +195,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     if any([logo_newkuwait, logo_emblem, logo_civilaviation]):
         logo_table = Table(
             [[logo_newkuwait, logo_emblem, logo_civilaviation]],
-            colWidths=[5 * cm, 6 * cm, 7 * cm],
+            colWidths=[6 * cm, 6 * cm, 6 * cm],
         )
         logo_table.setStyle(
             TableStyle(
@@ -209,14 +209,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         )
         elements.append(logo_table)
 
-    # Red line below logos
-    red_line = Table([[""]], colWidths=[18 * cm])
-    red_line.setStyle(TableStyle([
-        ("LINEBELOW", (0, 0), (-1, 0), 2, HexColor("#D42027")),
-    ]))
-    elements.append(red_line)
     elements.append(Spacer(1, 8))
-
     elements.append(Paragraph("Work Order Completion Report", title_style))
 
     dept_name = wo_data.get("departments", {}).get("name", "N/A")
