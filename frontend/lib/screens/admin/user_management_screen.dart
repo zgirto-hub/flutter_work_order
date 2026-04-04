@@ -909,7 +909,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
-                              value: _approvalLevelToString(user.approvalLevel),
+                              value: _approvalLevelToString(selectedApprovalLevel),
                               isExpanded: true,
                               items: [
                                 DropdownMenuItem(
