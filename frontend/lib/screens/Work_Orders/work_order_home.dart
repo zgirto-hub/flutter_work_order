@@ -25,7 +25,7 @@ class WorkOrderHome extends StatefulWidget {
 
   const WorkOrderHome({
     super.key,
-    this.userRole = 'reporter',
+    this.userRole = 'admin',
     this.onWorkOrderCreated,
   });
 
@@ -74,7 +74,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   Set<String> _newWoIds = {};
   Set<String> _removingWoIds = {};
   bool _refreshing = false;
-  String _userRole = 'reporter';
+  String _userRole = 'admin';
   int _approvalLevel = 0;
   List<String> _userDepartmentIds = [];
   final SignatureService _signatureService = SignatureService();

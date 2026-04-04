@@ -102,7 +102,7 @@ class _FilesScreenState extends State<FilesScreen>
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        if (mounted) setState(() => _userRole = (data['user_type'] ?? 'reporter').toString());
+        if (mounted) setState(() => _userRole = (data['user_type'] ?? 'admin').toString());
       }
     } catch (_) {}
   }

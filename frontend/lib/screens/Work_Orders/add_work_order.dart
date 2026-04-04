@@ -45,7 +45,7 @@ class AddWorkOrderScreen extends StatefulWidget {
     this.prefillLocation,
     this.sourceRequestId,
     this.initialTab = 0,
-    this.userRole = 'reporter',
+    this.userRole = 'admin',
   });
 
   @override
@@ -87,7 +87,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   bool _refreshing = false;
   bool _sending = false;
   bool _roleLoaded = false;
-  String _userRole = 'reporter';
+  String _userRole = 'admin';
   int? _approvalLevel;
   bool _isTechnician = false;
   bool _fieldHasFocus = false;
@@ -266,7 +266,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         if (mounted) {
           setState(() {
             _roleLoaded = true;
-            _userRole = 'reporter';
+            _userRole = 'admin';
           });
         }
         return;
@@ -277,7 +277,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        final role = (data['user_type'] ?? 'reporter').toString();
+        final role = (data['user_type'] ?? 'admin').toString();
         final approvalLevel = (data['approval_level'] is int)
             ? data['approval_level'] as int
             : int.tryParse(data['approval_level']?.toString() ?? '') ?? 0;

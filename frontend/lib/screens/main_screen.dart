@@ -23,7 +23,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _index = 0;
-  String _userRole = 'reporter';
+  String _userRole = 'admin';
   int _approvalLevel = 0;
   List<String>? _allowedScreens;
   bool _roleLoaded = false;
@@ -69,7 +69,7 @@ class _MainScreenState extends State<MainScreen> {
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        _userRole = (data['user_type'] ?? 'reporter').toString();
+        _userRole = (data['user_type'] ?? 'admin').toString();
         _approvalLevel = (data['approval_level'] is int)
             ? data['approval_level'] as int
             : int.tryParse(data['approval_level']?.toString() ?? '') ?? 0;
@@ -79,7 +79,7 @@ class _MainScreenState extends State<MainScreen> {
             : null;
       }
     } catch (_) {
-      _userRole = 'reporter';
+      _userRole = 'admin';
     }
     if (!mounted) return;
     setState(() {
