@@ -230,10 +230,15 @@ async def update_signature(
     body: UpdateSignatureBody,
     user_email: str = Query(...),
 ):
+    print(f"[PATCH sig] user_email={user_email}, wo={work_order_id}, sig={signature_id}, status={body.status}, use_saved={body.use_saved}")
+
     # T009(1): Get caller info via _get_user_approval_info
     caller_info = _get_user_approval_info(user_email)
     if not caller_info:
+        print(f"[PATCH sig] FAIL: user not found for {user_email}")
         raise HTTPException(status_code=403, detail="User not found")
+
+    print(f"[PATCH sig] caller: type={caller_info.get('user_type')}, level={caller_info.get('approval_level')}, depts={caller_info.get('department_ids')}")
 
     # T009(2): If caller is admin, return 403
     if caller_info.get("user_type") == "admin":
@@ -269,17 +274,20 @@ async def update_signature(
 
     wo_data = wo.data[0]
     current_sig_status = wo_data.get("signature_status", "unsigned")
+    print(f"[PATCH sig] WO sig_status={current_sig_status}, dept={wo_data.get('department_id')}")
 
     # T009(4): Get required approval level
     try:
         required_level = _get_required_approval_level(current_sig_status)
     except ValueError:
+        print(f"[PATCH sig] FAIL: invalid sig status '{current_sig_status}'")
         raise HTTPException(
             status_code=400, detail="Invalid signature status for approval"
         )
 
     # T009(5): Check caller's approval_level matches required level
     caller_level = caller_info.get("approval_level")
+    print(f"[PATCH sig] required_level={required_level}, caller_level={caller_level}")
     if caller_level != required_level:
         raise HTTPException(
             status_code=403,
