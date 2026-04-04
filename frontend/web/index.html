@@ -520,9 +520,7 @@
       }
 
       if ('serviceWorker' in navigator) {
-        // After Flutter registers the SW, detect when a new version is available
         navigator.serviceWorker.ready.then(function(reg) {
-          // A waiting worker means an update installed before we got here
           if (reg.waiting) {
             window._swUpdateReady = true;
             return;
@@ -531,9 +529,14 @@
             var nw = reg.installing;
             if (!nw) return;
             nw.addEventListener('statechange', function() {
-              // installed + controller exists = update ready (not first install)
-              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                window._swUpdateReady = true;
+              if (nw.state === 'installed') {
+                if (navigator.serviceWorker.controller) {
+                  // Update ready — user must confirm
+                  window._swUpdateReady = true;
+                } else {
+                  // First install — activate immediately
+                  nw.postMessage({ type: 'SKIP_WAITING' });
+                }
               }
             });
           });
@@ -642,23 +645,32 @@
         if ('serviceWorker' in navigator) {
           var registration = await navigator.serviceWorker.getRegistration();
           if (registration && registration.waiting) {
-            // Reload when the new SW takes control
-            var reloadPromise = new Promise(function(resolve) {
-              navigator.serviceWorker.addEventListener('controllerchange', resolve);
-            });
-
-            // Tell the waiting SW to activate
+            // Try to activate the waiting SW via message
             registration.waiting.postMessage({ type: 'SKIP_WAITING' });
 
-            await Promise.all([
-              reloadPromise,
-              updateProgress(75, 1200)
+            // Wait for controllerchange OR timeout after 3s
+            await Promise.race([
+              new Promise(function(resolve) {
+                navigator.serviceWorker.addEventListener('controllerchange', resolve);
+              }),
+              new Promise(function(resolve) { setTimeout(resolve, 3000); })
             ]);
-          } else {
-            await updateProgress(75, 1200);
           }
+
+          // Fallback: unregister all SWs + clear caches to force clean state
+          var regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(function(r) { return r.unregister(); }));
+        }
+
+        if ('caches' in window) {
+          var names = await caches.keys();
+          await Promise.all(names.map(function(n) { return caches.delete(n); }));
         }
       } catch (_) {}
+
+      await Promise.all([
+        updateProgress(75, 1200)
+      ]);
 
       await updateProgress(100, 1000);
       await new Promise(function(resolve) { setTimeout(resolve, 200); });
