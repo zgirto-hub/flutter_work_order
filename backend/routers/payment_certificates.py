@@ -289,7 +289,6 @@ def _build_payment_certificate_pdf(cert: dict) -> bytes:
         elements.append(logo_table)
 
     # Red line below logos
-    from reportlab.lib.colors import HexColor
     red_line = Table([[""]], colWidths=[16.5 * cm])
     red_line.setStyle(TableStyle([
         ("LINEBELOW", (0, 0), (-1, 0), 2, HexColor("#D42027")),
