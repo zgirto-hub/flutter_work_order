@@ -27,7 +27,8 @@ class FilesScreen extends StatefulWidget {
   State<FilesScreen> createState() => _FilesScreenState();
 }
 
-class _FilesScreenState extends State<FilesScreen> {
+class _FilesScreenState extends State<FilesScreen>
+    with WidgetsBindingObserver {
   // Static cache — survives route pop/push so the screen doesn't spinner on re-entry
   static List<FileModel>? _fileCache;
   static List<FolderModel>? _folderCache;
@@ -80,6 +81,7 @@ class _FilesScreenState extends State<FilesScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUserRole();
     if (_fileCache != null && _folderCache != null) {
       _allFiles = _fileCache!;
@@ -107,9 +109,17 @@ class _FilesScreenState extends State<FilesScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _debounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_loading) {
+      _refresh(silent: true);
+    }
   }
 
   Future<void> _refresh({bool silent = false}) async {

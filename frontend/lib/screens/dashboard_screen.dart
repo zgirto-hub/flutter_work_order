@@ -29,7 +29,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => DashboardScreenState();
 }
 
-class DashboardScreenState extends State<DashboardScreen> {
+class DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   static const String _currentReleaseId =
       String.fromEnvironment('RELEASE_ID', defaultValue: '');
 
@@ -55,8 +56,22 @@ class DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
     _loadVersion();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_loading) {
+      _load();
+    }
   }
 
   void refresh() {

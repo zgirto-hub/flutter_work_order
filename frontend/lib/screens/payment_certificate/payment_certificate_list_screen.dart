@@ -14,7 +14,8 @@ class PaymentCertificateListScreen extends StatefulWidget {
 }
 
 class _PaymentCertificateListScreenState
-    extends State<PaymentCertificateListScreen> {
+    extends State<PaymentCertificateListScreen>
+    with WidgetsBindingObserver {
   final _service = PaymentCertificateService();
   final _searchCtrl = TextEditingController();
 
@@ -27,13 +28,22 @@ class _PaymentCertificateListScreenState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_loading) {
+      _refresh();
+    }
   }
 
   Future<void> _load() async {

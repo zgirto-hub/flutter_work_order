@@ -659,20 +659,21 @@
       await updateProgress(45, 1800);
 
       try {
+        // Clear ALL Cache Storage entries so stale API responses are gone
+        if ('caches' in window) {
+          var cacheNames = await caches.keys();
+          await Promise.all(cacheNames.map(function(name) {
+            return caches.delete(name);
+          }));
+        }
+
         if ('serviceWorker' in navigator) {
           const registrations = await navigator.serviceWorker.getRegistrations();
-          const flutterRegistrations = registrations.filter(function(reg) {
-            const workers = [reg.active, reg.waiting, reg.installing];
-            return workers.some(function(worker) {
-              return worker && worker.scriptURL &&
-                  worker.scriptURL.indexOf('flutter_service_worker.js') !== -1;
-            });
-          });
-          
-          var unregisterPromise = Promise.all(flutterRegistrations.map(function(reg) {
+
+          var unregisterPromise = Promise.all(registrations.map(function(reg) {
             return reg.unregister();
           }));
-          
+
           await Promise.all([
             unregisterPromise,
             updateProgress(75, 1200)

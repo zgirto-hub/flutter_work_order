@@ -88,11 +88,18 @@ self.addEventListener('fetch', function(event) {
   if (event.request.method !== 'GET') return;
   if (!event.request.url.startsWith(self.location.origin)) return;
 
+  // NEVER cache API responses – always go to network
+  if (event.request.url.indexOf('/api/') !== -1) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Cache-first only for static assets (js, css, fonts, images)
   event.respondWith(
     caches.match(event.request).then(function(cached) {
       if (cached) return cached;
       return fetch(event.request).then(function(response) {
-        if (response.ok) {
+        if (response.ok && /\.(js|css|woff2?|ttf|png|svg|webp|ico|wasm)(\?|$)/.test(event.request.url)) {
           var clone = response.clone();
           caches.open(CACHE_NAME).then(function(cache) {
             cache.put(event.request, clone);
