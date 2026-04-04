@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/claude_widgets.dart';
@@ -72,6 +73,20 @@ class _SettingsPageState extends State<SettingsPage> {
     });
   }
 
+  Future<String> _getMyReleaseId() async {
+    // 1. Try SharedPreferences (saved after last successful page load)
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString('current_release_id');
+    if (stored != null && stored.isNotEmpty) return stored;
+    // 2. Fallback to compile-time baked value
+    return _currentReleaseId;
+  }
+
+  Future<void> _saveMyReleaseId(String releaseId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('current_release_id', releaseId);
+  }
+
   Future<void> _checkUpdates() async {
     setState(() {
       checkingUpdate = true;
@@ -83,6 +98,8 @@ class _SettingsPageState extends State<SettingsPage> {
       ActivityLogService().logUpdateCheck(email);
     }
     try {
+      final myReleaseId = await _getMyReleaseId();
+
       if (kIsWeb) {
         final releaseRes = await http.get(
           Uri.parse(
@@ -93,9 +110,15 @@ class _SettingsPageState extends State<SettingsPage> {
           final data = jsonDecode(releaseRes.body) as Map<String, dynamic>;
           final latest = (data['version'] as String?)?.trim() ?? '';
           final latestReleaseId = (data['release_id'] as String?)?.trim() ?? '';
+
+          // Save as "my" release — after update+reload this becomes the baseline
+          if (latestReleaseId.isNotEmpty) {
+            await _saveMyReleaseId(latestReleaseId);
+          }
+
           final hasUpdate =
-              latestReleaseId.isNotEmpty && _currentReleaseId.isNotEmpty
-                  ? latestReleaseId != _currentReleaseId
+              latestReleaseId.isNotEmpty && myReleaseId.isNotEmpty
+                  ? latestReleaseId != myReleaseId
                   : latest.isNotEmpty && latest != version.split('+')[0];
           setState(() {
             updateAvailable = hasUpdate;
@@ -114,8 +137,8 @@ class _SettingsPageState extends State<SettingsPage> {
         final latest = (data['version'] as String?)?.trim() ?? '';
         final latestReleaseId = (data['release_id'] as String?)?.trim() ?? '';
         final hasUpdate =
-            latestReleaseId.isNotEmpty && _currentReleaseId.isNotEmpty
-                ? latestReleaseId != _currentReleaseId
+            latestReleaseId.isNotEmpty && myReleaseId.isNotEmpty
+                ? latestReleaseId != myReleaseId
                 : latest != version.split('+')[0];
         setState(() {
           updateAvailable = hasUpdate;
