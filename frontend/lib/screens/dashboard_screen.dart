@@ -59,6 +59,7 @@ class DashboardScreenState extends State<DashboardScreen>
     WidgetsBinding.instance.addObserver(this);
     _load();
     _loadVersion();
+    _persistCurrentRelease();
   }
 
   @override
@@ -169,9 +170,10 @@ class DashboardScreenState extends State<DashboardScreen>
     return _currentReleaseId;
   }
 
-  Future<void> _saveMyReleaseId(String releaseId) async {
+  Future<void> _persistCurrentRelease() async {
+    if (_currentReleaseId.isEmpty) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('current_release_id', releaseId);
+    await prefs.setString('current_release_id', _currentReleaseId);
   }
 
   Future<void> _checkUpdates() async {
@@ -194,10 +196,6 @@ class DashboardScreenState extends State<DashboardScreen>
           final data = jsonDecode(releaseRes.body) as Map<String, dynamic>;
           final latest = (data['version'] as String?)?.trim() ?? '';
           final latestReleaseId = (data['release_id'] as String?)?.trim() ?? '';
-
-          if (latestReleaseId.isNotEmpty) {
-            await _saveMyReleaseId(latestReleaseId);
-          }
 
           final hasUpdate = latestReleaseId.isNotEmpty && myReleaseId.isNotEmpty
               ? latestReleaseId != myReleaseId

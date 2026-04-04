@@ -63,6 +63,7 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _loadVersion();
     _loadUserSignature();
+    _persistCurrentRelease();
   }
 
   Future<void> _loadVersion() async {
@@ -73,18 +74,22 @@ class _SettingsPageState extends State<SettingsPage> {
     });
   }
 
-  Future<String> _getMyReleaseId() async {
-    // 1. Try SharedPreferences (saved after last successful page load)
+  /// Get the release_id that represents the currently running app.
+  /// Saved to SharedPreferences on every page load so it survives
+  /// iOS Safari's aggressive JS caching.
+  static Future<String> _getMyReleaseId() async {
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getString('current_release_id');
     if (stored != null && stored.isNotEmpty) return stored;
-    // 2. Fallback to compile-time baked value
     return _currentReleaseId;
   }
 
-  Future<void> _saveMyReleaseId(String releaseId) async {
+  /// Called once at startup: persists the baked-in RELEASE_ID so that
+  /// after an update+reload, the new binary's ID becomes the baseline.
+  static Future<void> _persistCurrentRelease() async {
+    if (_currentReleaseId.isEmpty) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('current_release_id', releaseId);
+    await prefs.setString('current_release_id', _currentReleaseId);
   }
 
   Future<void> _checkUpdates() async {
@@ -110,11 +115,6 @@ class _SettingsPageState extends State<SettingsPage> {
           final data = jsonDecode(releaseRes.body) as Map<String, dynamic>;
           final latest = (data['version'] as String?)?.trim() ?? '';
           final latestReleaseId = (data['release_id'] as String?)?.trim() ?? '';
-
-          // Save as "my" release — after update+reload this becomes the baseline
-          if (latestReleaseId.isNotEmpty) {
-            await _saveMyReleaseId(latestReleaseId);
-          }
 
           final hasUpdate =
               latestReleaseId.isNotEmpty && myReleaseId.isNotEmpty
