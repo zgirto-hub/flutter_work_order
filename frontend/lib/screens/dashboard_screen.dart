@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -44,6 +45,7 @@ class DashboardScreenState extends State<DashboardScreen>
   bool _checkingUpdate = false;
   String _updateMessage = '';
   bool _updateAvailable = false;
+  Timer? _swPollTimer;
   bool _recentJustLoaded = false;
   String _displayName = '';
 
@@ -56,10 +58,25 @@ class DashboardScreenState extends State<DashboardScreen>
     WidgetsBinding.instance.addObserver(this);
     _load();
     _loadVersion();
+    _startSwUpdatePoll();
+  }
+
+  void _startSwUpdatePoll() {
+    if (!kIsWeb) return;
+    _swPollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (checkSwUpdate() && mounted) {
+        setState(() {
+          _updateAvailable = true;
+          _updateMessage = 'A new version is ready to install';
+        });
+        _swPollTimer?.cancel();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _swPollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

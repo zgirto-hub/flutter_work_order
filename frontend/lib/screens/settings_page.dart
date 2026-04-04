@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:async';
 import 'dart:typed_data';
 import '../services/pwa_update_stub.dart'
     if (dart.library.js_interop) '../services/pwa_update_web.dart';
@@ -45,6 +46,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String updateMessage = '';
   bool checkingUpdate = false;
   bool updateAvailable = false;
+  Timer? _swPollTimer;
   static const _fontScales = [0.85, 1.0, 1.15, 1.3];
   static const _fontLabels = ['Small', 'Default', 'Large', 'X-Large'];
 
@@ -60,6 +62,26 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _loadVersion();
     _loadUserSignature();
+    _startSwUpdatePoll();
+  }
+
+  @override
+  void dispose() {
+    _swPollTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startSwUpdatePoll() {
+    if (!kIsWeb) return;
+    _swPollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (checkSwUpdate() && mounted) {
+        setState(() {
+          updateAvailable = true;
+          updateMessage = 'A new version is ready to install';
+        });
+        _swPollTimer?.cancel();
+      }
+    });
   }
 
   Future<void> _loadVersion() async {
