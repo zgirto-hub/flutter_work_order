@@ -129,7 +129,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         pagesize=A4,
         leftMargin=1.2 * cm,
         rightMargin=1.2 * cm,
-        topMargin=1.5 * cm,
+        topMargin=0.8 * cm,
         bottomMargin=1.5 * cm,
     )
 
@@ -180,7 +180,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     # Order: NewKuwait (left), Emblem (center, largest), Civil Aviation (right)
     logo_newkuwait = _load_logo("logo_newkuwait.png", 3.5 * cm, 3.5 * cm)
     logo_emblem = _load_logo("logo_emblem.png", 4 * cm, 4 * cm)
-    logo_civilaviation = _load_logo("logo_civilaviation.png", 7 * cm, 3.5 * cm)
+    logo_civilaviation = _load_logo("logo_civilaviation.png", 5.5 * cm, 2.8 * cm)
 
     if any([logo_newkuwait, logo_emblem, logo_civilaviation]):
         logo_table = Table(
