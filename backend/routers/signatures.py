@@ -32,6 +32,8 @@ class AddSignatureBody(BaseModel):
 class UpdateSignatureBody(BaseModel):
     status: str  # 'approved' or 'rejected'
     rejection_reason: Optional[str] = None
+    signature_data: Optional[str] = None  # base64 PNG from approver
+    use_saved: bool = False
 
 
 # --------------------
@@ -349,12 +351,25 @@ async def update_signature(
         if not update_result.data:
             raise HTTPException(status_code=409, detail="Already approved at this level")
 
-        supabase.table("work_order_signatures").insert({
+        # Resolve approver's signature image
+        approver_sig_path = None
+        if body.use_saved:
+            saved_path = _get_saved_signature_path(user_email)
+            if saved_path:
+                approver_sig_path = _copy_saved_signature(saved_path)
+        elif body.signature_data:
+            approver_sig_path = _decode_signature_to_file(body.signature_data)
+
+        approver_record = {
             "work_order_id": work_order_id,
             "signer_email": user_email,
             "signer_role": approver_role,
             "status": "approved",
-        }).execute()
+        }
+        if approver_sig_path:
+            approver_record["signature_path"] = approver_sig_path
+
+        supabase.table("work_order_signatures").insert(approver_record).execute()
 
         # Call _advance_chain to check if next level should be skipped
         final_status = _advance_chain(work_order_id, expected_new_status)

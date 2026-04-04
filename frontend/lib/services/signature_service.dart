@@ -61,6 +61,8 @@ class SignatureService {
     required String signatureId,
     required String status,
     String? rejectionReason,
+    String? signatureData,
+    bool useSaved = false,
   }) async {
     final uri = Uri.parse(
       '${AppConfig.baseUrl}/work-orders/$workOrderId/signatures/$signatureId',
@@ -68,6 +70,8 @@ class SignatureService {
 
     final body = <String, dynamic>{'status': status};
     if (rejectionReason != null) body['rejection_reason'] = rejectionReason;
+    if (useSaved) body['use_saved'] = true;
+    if (signatureData != null) body['signature_data'] = signatureData;
 
     final res = await http.patch(
       uri,

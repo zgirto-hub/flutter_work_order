@@ -1738,6 +1738,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         workOrderId: widget.workOrder!.id,
         signatureId: techSig.id,
         status: 'approved',
+        signatureData: useSaved ? null : base64Png,
+        useSaved: useSaved,
       );
     } catch (e) {
       if (mounted) {
@@ -1748,23 +1750,6 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       return;
     }
 
-    final email = Supabase.instance.client.auth.currentUser?.email ?? '';
-    try {
-      await _signatureService.saveSignature(
-        workOrderId: widget.workOrder!.id,
-        signerEmail: email,
-        signerRole: 'admin',
-        signatureData: useSaved ? null : base64Png,
-        useSaved: useSaved,
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-    // Always refresh signatures (tech sig was already approved in step 1)
     await _loadSignatures();
   }
 
