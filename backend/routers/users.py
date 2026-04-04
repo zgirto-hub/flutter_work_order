@@ -269,6 +269,19 @@ async def update_approval_role(
     }
 
 
+@router.get("/technician-departments/user/{user_id}")
+async def get_technician_departments(user_id: str):
+    """Return department IDs assigned to a supervisor/technician."""
+    result = (
+        supabase.table("technician_departments")
+        .select("department_id")
+        .eq("technician_id", user_id)
+        .execute()
+    )
+    dept_ids = [row["department_id"] for row in (result.data or [])]
+    return {"departments": dept_ids}
+
+
 @router.post("/users")
 async def create_user(body: CreateUserBody, admin_email: str = Query(...)):
     """Create new user (admin only)"""
