@@ -62,7 +62,8 @@ class DashboardScreenState extends State<DashboardScreen>
   }
 
   void _startSwUpdatePoll() {
-    if (!kIsWeb) return;
+    if (!kIsWeb || _updateAvailable) return;
+    _swPollTimer?.cancel();
     _swPollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (checkSwUpdate() && mounted) {
         setState(() {
@@ -85,6 +86,7 @@ class DashboardScreenState extends State<DashboardScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && !_loading) {
       _load();
+      if (!_updateAvailable) _startSwUpdatePoll();
     }
   }
 

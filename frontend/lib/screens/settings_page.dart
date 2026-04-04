@@ -72,7 +72,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _startSwUpdatePoll() {
-    if (!kIsWeb) return;
+    if (!kIsWeb || updateAvailable) return;
+    _swPollTimer?.cancel();
     _swPollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (checkSwUpdate() && mounted) {
         setState(() {

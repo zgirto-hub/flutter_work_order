@@ -543,6 +543,15 @@
         });
       }
 
+      // Force SW update check when page becomes visible (app foregrounded)
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible' && 'serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(function(reg) {
+            reg.update();
+          });
+        }
+      });
+
       loadFlutter();
     })();
   </script>
