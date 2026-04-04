@@ -163,34 +163,37 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     elements = []
 
     logo_dir = os.path.join(os.path.dirname(__file__), "..", "assets")
-    logos = []
-    for logo_name in [
-        "logo_emblem.png",
-        "logo_civilaviation.png",
-        "logo_newkuwait.png",
-    ]:
-        logo_path = os.path.join(logo_dir, logo_name)
-        if os.path.exists(logo_path):
+
+    def _load_logo(name, w, h):
+        path = os.path.join(logo_dir, name)
+        if os.path.exists(path):
             try:
-                img = RLImage(logo_path, width=2 * cm, height=2 * cm)
-                logos.append(img)
+                from reportlab.lib.utils import ImageReader
+                reader = ImageReader(path)
+                iw, ih = reader.getSize()
+                scale = min(w / iw, h / ih)
+                return RLImage(path, width=iw * scale, height=ih * scale)
             except Exception:
                 pass
+        return ""
 
-    if logos:
-        logo_table_data = [
-            [
-                logos[0] if len(logos) > 0 else "",
-                logos[1] if len(logos) > 1 else "",
-                logos[2] if len(logos) > 2 else "",
-            ]
-        ]
-        logo_table = Table(logo_table_data, colWidths=[5.5 * cm, 5.5 * cm, 5.5 * cm])
+    # Order: NewKuwait (left), Emblem (center, largest), Civil Aviation (right)
+    logo_newkuwait = _load_logo("logo_newkuwait.png", 3.5 * cm, 3.5 * cm)
+    logo_emblem = _load_logo("logo_emblem.png", 4 * cm, 4 * cm)
+    logo_civilaviation = _load_logo("logo_civilaviation.png", 5 * cm, 3.5 * cm)
+
+    if any([logo_newkuwait, logo_emblem, logo_civilaviation]):
+        logo_table = Table(
+            [[logo_newkuwait, logo_emblem, logo_civilaviation]],
+            colWidths=[5.5 * cm, 5.5 * cm, 5.5 * cm],
+        )
         logo_table.setStyle(
             TableStyle(
                 [
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("ALIGN", (0, 0), (0, 0), "LEFT"),
+                    ("ALIGN", (1, 0), (1, 0), "CENTER"),
+                    ("ALIGN", (2, 0), (2, 0), "RIGHT"),
                 ]
             )
         )
