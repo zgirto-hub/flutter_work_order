@@ -348,6 +348,7 @@ async def update_signature(
             "supervisor_approved": "superintendent_approved",
         }
         expected_new_status = new_status_map.get(current_sig_status, current_sig_status)
+        print(f"[PATCH sig] optimistic update: {current_sig_status} -> {expected_new_status}")
 
         update_result = (
             supabase.table("work_orders")
@@ -358,15 +359,22 @@ async def update_signature(
         )
         if not update_result.data:
             raise HTTPException(status_code=409, detail="Already approved at this level")
+        print(f"[PATCH sig] optimistic update OK")
 
         # Resolve approver's signature image
         approver_sig_path = None
-        if body.use_saved:
-            saved_path = _get_saved_signature_path(user_email)
-            if saved_path:
-                approver_sig_path = _copy_saved_signature(saved_path)
-        elif body.signature_data:
-            approver_sig_path = _decode_signature_to_file(body.signature_data)
+        try:
+            if body.use_saved:
+                saved_path = _get_saved_signature_path(user_email)
+                print(f"[PATCH sig] saved_path={saved_path}")
+                if saved_path:
+                    approver_sig_path = _copy_saved_signature(saved_path)
+            elif body.signature_data:
+                approver_sig_path = _decode_signature_to_file(body.signature_data)
+            print(f"[PATCH sig] approver_sig_path={approver_sig_path}")
+        except Exception as e:
+            print(f"[PATCH sig] FAIL copying signature: {type(e).__name__}: {e}")
+            raise
 
         approver_record = {
             "work_order_id": work_order_id,
@@ -376,6 +384,7 @@ async def update_signature(
         }
         if approver_sig_path:
             approver_record["signature_path"] = approver_sig_path
+        print(f"[PATCH sig] inserting approver record: {approver_record}")
 
         supabase.table("work_order_signatures").insert(approver_record).execute()
 
