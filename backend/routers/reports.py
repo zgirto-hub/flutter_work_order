@@ -272,87 +272,84 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
 
     elements.append(Paragraph("Signatures", section_style))
 
-    def render_signature_box(sig, role_label):
-        """Build a list of flowables for one signature column."""
-        items = [Paragraph(f"<b>{xml_escape(role_label)}</b>", normal_style)]
+    small_style = ParagraphStyle(
+        "SigSmall", parent=normal_style, fontSize=9, leading=12,
+    )
 
+    def _load_sig_image(sig_path):
+        """Load signature image, return RLImage or None."""
+        if not sig_path:
+            return None
+        sig_filename = os.path.basename(sig_path)
+        sig_file_path = os.path.join(
+            os.path.dirname(__file__), "..", "uploaded_files", sig_filename
+        )
+        if not os.path.exists(sig_file_path):
+            return None
+        try:
+            from reportlab.lib.utils import ImageReader
+            reader = ImageReader(sig_file_path)
+            iw, ih = reader.getSize()
+            max_w = 6 * cm
+            max_h = 3 * cm
+            scale = min(max_w / iw, max_h / ih)
+            return RLImage(sig_file_path, width=iw * scale, height=ih * scale)
+        except Exception:
+            return None
+
+    def render_sig_column(sig, role_label):
+        """Build a compact 2-row table: [image] then [label + info]."""
         if sig is None:
-            items.append(Spacer(1, 6))
-            items.append(Paragraph("Awaiting Signature", normal_style))
-            return items
+            return Paragraph(
+                f"<b>{xml_escape(role_label)}</b><br/><br/>Awaiting Signature",
+                small_style,
+            )
 
         sig_status = sig.get("status", "")
-        status_color = "green" if sig_status == "approved" else "black"
+        status_color = "#228B22" if sig_status == "approved" else "black"
         status_text = "Approved" if sig_status == "approved" else sig_status
-
         signer_name = xml_escape(
             sig.get("signer_full_name") or sig.get("signer_email") or "Unknown"
         )
         signer_email = xml_escape(sig.get("signer_email") or "")
-        signed_at = xml_escape(str(sig.get("signed_at") or ""))
 
-        items.append(Spacer(1, 4))
-        items.append(Paragraph(signer_name, normal_style))
-        items.append(Paragraph(signer_email, normal_style))
-        items.append(
-            Paragraph(f'<font color="{status_color}">{xml_escape(status_text)}</font>', normal_style)
+        sig_img = _load_sig_image(sig.get("signature_path"))
+
+        rows = []
+        # Signature image first (visually prominent)
+        if sig_img:
+            rows.append([sig_img])
+        else:
+            rows.append([Paragraph("[Signature file not found]", small_style)])
+
+        # Label + signer info below
+        info_text = (
+            f"<b>{xml_escape(role_label)}</b><br/>"
+            f"{signer_name}<br/>"
+            f"<font color='#666666'>{signer_email}</font><br/>"
+            f"<font color='{status_color}'><b>{xml_escape(status_text)}</b></font>"
         )
+        rows.append([Paragraph(info_text, small_style)])
 
-        # Embed signature image as a proper RLImage flowable
-        sig_path = sig.get("signature_path")
-        if sig_path:
-            # signature_path is stored as "/files/sig_xxx.png" — extract filename
-            sig_filename = os.path.basename(sig_path)
-            sig_file_path = os.path.join(
-                os.path.dirname(__file__), "..", "uploaded_files", sig_filename
-            )
-            if os.path.exists(sig_file_path):
-                try:
-                    from reportlab.lib.utils import ImageReader
-                    img_reader = ImageReader(sig_file_path)
-                    iw, ih = img_reader.getSize()
-                    max_w = 6.5 * cm
-                    max_h = 4 * cm
-                    scale = min(max_w / iw, max_h / ih)
-                    items.append(Spacer(1, 6))
-                    items.append(RLImage(sig_file_path, width=iw * scale, height=ih * scale))
-                except Exception:
-                    items.append(Paragraph("[Signature image error]", normal_style))
-            else:
-                items.append(Paragraph("[Signature file not found]", normal_style))
+        cell = Table(rows, colWidths=[7 * cm])
+        cell.setStyle(TableStyle([
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ]))
+        return cell
 
-        return items
+    tech_col = render_sig_column(signatures.get("technician"), "Technician Signature")
+    admin_col = render_sig_column(signatures.get("admin"), "Authorized By")
 
-    tech_items = render_signature_box(
-        signatures.get("technician"), "Technician Signature"
-    )
-    admin_items = render_signature_box(
-        signatures.get("admin"), "Authorized By"
-    )
-
-    # Wrap each column's flowables in a nested Table cell so they stack vertically
-    tech_cell = Table([[item] for item in tech_items], colWidths=[7 * cm])
-    tech_cell.setStyle(TableStyle([
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 1),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-    ]))
-    admin_cell = Table([[item] for item in admin_items], colWidths=[7 * cm])
-    admin_cell.setStyle(TableStyle([
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 1),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-    ]))
-
-    sig_table = Table([[tech_cell, admin_cell]], colWidths=[7.5 * cm, 7.5 * cm])
+    sig_table = Table([[tech_col, admin_col]], colWidths=[8 * cm, 8 * cm])
     sig_table.setStyle(
         TableStyle(
             [
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                 ("TOPPADDING", (0, 0), (-1, -1), 0),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
             ]
