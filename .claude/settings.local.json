@@ -13,7 +13,9 @@
       "mcp__bc5ce5e0-6ddc-4cd1-9849-184ae39feeb2__execute_sql",
       "Bash(powershell -ExecutionPolicy Bypass -File .specify/scripts/powershell/update-agent-context.ps1 -AgentType claude)",
       "Bash(powershell -ExecutionPolicy Bypass -File .specify/scripts/powershell/check-prerequisites.ps1 -Json)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(powershell:*)",
+      "Bash(ssh:*)"
     ]
   }
 }
