@@ -243,40 +243,25 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
             except Exception:
                 return str(val)
 
-    # Left column (5 rows)
-    left_fields = [
+    details_data = [
         ("Job No:", safe_str(wo_data.get("job_no"))),
         ("Title:", safe_str(wo_data.get("title"))),
         ("Type:", safe_str(wo_data.get("type"))),
         ("Status:", safe_str(wo_data.get("status"))),
         ("Department:", safe_str(wo_data.get("departments", {}).get("name"))),
-    ]
-    # Right column (5 rows)
-    right_fields = [
         ("Location:", safe_str(wo_data.get("location"))),
-        ("Mobile No:", safe_str(wo_data.get("mobile_number"))),
+        ("Mobile Number:", safe_str(wo_data.get("mobile_number"))),
         ("Created By:", safe_str(wo_data.get("creator", {}).get("full_name"))),
         ("Created At:", fmt_date(wo_data.get("created_at"))),
         ("Closed At:", fmt_date(wo_data.get("closed_at"))),
     ]
 
-    details_data = []
-    for i in range(5):
-        lbl_l, val_l = left_fields[i]
-        lbl_r, val_r = right_fields[i]
-        details_data.append([lbl_l, val_l, lbl_r, val_r])
-
-    details_table = Table(
-        details_data,
-        colWidths=[2.8 * cm, 5.7 * cm, 2.8 * cm, 5.7 * cm],
-    )
+    details_table = Table(details_data, colWidths=[3.5 * cm, 14 * cm])
     details_table.setStyle(
         TableStyle(
             [
                 ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-                ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
                 ("FONTNAME", (1, 0), (1, -1), "Helvetica"),
-                ("FONTNAME", (3, 0), (3, -1), "Helvetica"),
                 ("FONTSIZE", (0, 0), (-1, -1), 10),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
