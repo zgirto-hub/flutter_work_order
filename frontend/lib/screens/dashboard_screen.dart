@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import '../config.dart';
 import '../widgets/claude_widgets.dart';
 import '../services/activity_log_service.dart';
+import '../services/user_service.dart';
 import '../models/activity_log_entry.dart';
 import 'system_status_screen.dart';
 
@@ -46,12 +47,10 @@ class DashboardScreenState extends State<DashboardScreen>
   String _updateMessage = '';
   bool _updateAvailable = false;
   bool _recentJustLoaded = false;
+  String _displayName = '';
 
   String get _email =>
       Supabase.instance.client.auth.currentUser?.email ?? '';
-
-  String get _firstName =>
-      _email.split('@').first.split('.').first.capitalize();
 
   @override
   void initState() {
@@ -99,6 +98,7 @@ class DashboardScreenState extends State<DashboardScreen>
       await Future.wait([
         _loadWorkOrderStats(),
         _loadRecentActivity(),
+        _loadUserName(),
       ]);
     } catch (_) {}
     if (mounted) {
@@ -136,6 +136,14 @@ class DashboardScreenState extends State<DashboardScreen>
               .length;
         });
       }
+    } catch (_) {}
+  }
+
+  Future<void> _loadUserName() async {
+    try {
+      final user = await UserService().fetchCurrentUser();
+      if (!mounted || user == null) return;
+      setState(() => _displayName = user.displayName);
     } catch (_) {}
   }
 
@@ -294,7 +302,9 @@ class DashboardScreenState extends State<DashboardScreen>
                           ),
                         ),
                         Text(
-                          _firstName,
+                          _displayName.isNotEmpty
+                            ? _displayName
+                            : _email.split('@').first.split('.').first.capitalize(),
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w600,
