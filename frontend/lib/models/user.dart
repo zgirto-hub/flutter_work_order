@@ -51,13 +51,18 @@ class AppUser {
       userType: _parseUserType(json['user_type']),
       isActive: json['is_active'] ?? true,
       createdAt: json['created_at'] ?? '',
-      departments: List<String>.from(json['departments'] ?? []),
+      departments: (json['departments'] as List<dynamic>? ?? [])
+              .map((e) => e.toString())
+              .toList(),
       technicianDepartments:
           (json['technician_departments'] as List<dynamic>? ?? [])
-              .map((e) => Map<String, String>.from(e as Map))
+              .whereType<Map>()
+              .map((e) => e.map((k, v) => MapEntry(k.toString(), v.toString())))
               .toList(),
-      allowedScreens: json['allowed_screens'] != null
-          ? List<String>.from(json['allowed_screens'])
+      allowedScreens: json['allowed_screens'] is List
+          ? (json['allowed_screens'] as List)
+              .map((e) => e.toString())
+              .toList()
           : null,
       isSupervisor: json['is_supervisor'] ?? false,
       isSuperintendent: json['is_superintendent'] ?? false,

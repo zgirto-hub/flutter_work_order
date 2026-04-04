@@ -23,15 +23,16 @@ class WorkOrderSignature {
 
   factory WorkOrderSignature.fromJson(Map<String, dynamic> json) {
     return WorkOrderSignature(
-      id: json['id'] as String,
-      workOrderId: json['work_order_id'] as String,
-      signerEmail: json['signer_email'] as String,
-      signerName: json['signer_name'] as String? ?? '',
-      signerRole: json['signer_role'] as String,
-      signaturePath: json['signature_path'] as String?,
-      signedAt: DateTime.parse(json['signed_at'] as String),
-      status: json['status'] as String,
-      rejectionReason: json['rejection_reason'] as String?,
+      id: (json['id'] ?? '').toString(),
+      workOrderId: (json['work_order_id'] ?? '').toString(),
+      signerEmail: (json['signer_email'] ?? '').toString(),
+      signerName: (json['signer_name'] ?? '').toString(),
+      signerRole: (json['signer_role'] ?? '').toString(),
+      signaturePath: json['signature_path']?.toString(),
+      signedAt: DateTime.tryParse(json['signed_at']?.toString() ?? '') ??
+          DateTime.now(),
+      status: (json['status'] ?? '').toString(),
+      rejectionReason: json['rejection_reason']?.toString(),
     );
   }
 }

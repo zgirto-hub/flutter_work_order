@@ -21,14 +21,15 @@ class WorkOrderComment {
 
   factory WorkOrderComment.fromJson(Map<String, dynamic> json) {
     return WorkOrderComment(
-      id: json['id'] as String,
-      workOrderId: json['work_order_id'] as String,
-      authorEmail: json['author_email'] as String,
-      authorName: json['author_name'] as String,
-      body: json['body'] as String,
-      type: json['type'] as String? ?? 'comment',
-      meta: json['meta'] as Map<String, dynamic>?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      id: (json['id'] ?? '').toString(),
+      workOrderId: (json['work_order_id'] ?? '').toString(),
+      authorEmail: (json['author_email'] ?? '').toString(),
+      authorName: (json['author_name'] ?? '').toString(),
+      body: (json['body'] ?? '').toString(),
+      type: (json['type'] ?? 'comment').toString(),
+      meta: json['meta'] is Map<String, dynamic> ? json['meta'] : null,
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
     );
   }
 

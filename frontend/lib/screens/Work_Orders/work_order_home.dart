@@ -25,7 +25,7 @@ class WorkOrderHome extends StatefulWidget {
 
   const WorkOrderHome({
     super.key,
-    this.userRole = 'admin',
+    this.userRole = 'reporter',
     this.onWorkOrderCreated,
   });
 
@@ -74,7 +74,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
   Set<String> _newWoIds = {};
   Set<String> _removingWoIds = {};
   bool _refreshing = false;
-  String _userRole = 'admin';
+  String _userRole = 'reporter';
   int _approvalLevel = 0;
   List<String> _userDepartmentIds = [];
   final SignatureService _signatureService = SignatureService();
@@ -97,11 +97,13 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       if (profile != null && mounted) {
         setState(() {
           _userRole = (profile['user_type'] ?? widget.userRole).toString();
-          _approvalLevel = profile['approval_level'] as int? ?? 0;
-          _userDepartmentIds = (profile['department_ids'] as List<dynamic>?)
-                  ?.map((e) => e.toString())
-                  .toList() ??
-              [];
+          _approvalLevel = (profile['approval_level'] is int)
+              ? profile['approval_level'] as int
+              : int.tryParse(profile['approval_level']?.toString() ?? '') ?? 0;
+          final rawDepts = profile['department_ids'];
+          _userDepartmentIds = (rawDepts is List)
+              ? rawDepts.map((e) => e.toString()).toList()
+              : [];
           _profileLoaded = true;
         });
         await _load();

@@ -45,7 +45,7 @@ class AddWorkOrderScreen extends StatefulWidget {
     this.prefillLocation,
     this.sourceRequestId,
     this.initialTab = 0,
-    this.userRole = 'admin',
+    this.userRole = 'reporter',
   });
 
   @override
@@ -87,7 +87,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   bool _refreshing = false;
   bool _sending = false;
   bool _roleLoaded = false;
-  String _userRole = 'admin';
+  String _userRole = 'reporter';
   int? _approvalLevel;
   bool _isTechnician = false;
   bool _fieldHasFocus = false;
@@ -266,7 +266,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         if (mounted) {
           setState(() {
             _roleLoaded = true;
-            _userRole = 'admin';
+            _userRole = 'reporter';
           });
         }
         return;
@@ -277,8 +277,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        final role = data['user_type'] ?? 'admin';
-        final approvalLevel = data['approval_level'] as int?;
+        final role = (data['user_type'] ?? 'reporter').toString();
+        final approvalLevel = (data['approval_level'] is int)
+            ? data['approval_level'] as int
+            : int.tryParse(data['approval_level']?.toString() ?? '') ?? 0;
         if (!mounted) return;
         setState(() {
           _roleLoaded = true;
@@ -337,14 +339,14 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         if (!mounted) return;
         setState(() {
           _roleLoaded = true;
-          _userRole = 'admin';
+          _userRole = 'reporter';
         });
       }
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _roleLoaded = true;
-        _userRole = 'admin';
+        _userRole = 'reporter';
       });
     }
     // Load departments after role is known (routing rules depend on role)
@@ -1215,10 +1217,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
             // ── Signature Section (any existing WO) ──────────────
             if (widget.workOrder != null) _buildSignatureSection(),
 
-            // ── Export PDF Report (Closed WOs only) ──────────────
-            if (widget.workOrder != null &&
-                widget.workOrder!.status == 'Closed' &&
-                widget.workOrder!.signatureStatus == 'completed') ...[
+            // ── Export PDF Report ──────────────
+            if (widget.workOrder != null) ...[
               SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,

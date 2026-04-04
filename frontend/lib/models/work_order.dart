@@ -47,8 +47,9 @@ class WorkOrder {
 
   factory WorkOrder.fromJson(Map<String, dynamic> json) {
     String? deptName;
-    if (json['departments'] is Map<String, dynamic>) {
-      deptName = json['departments']['name'];
+    final dept = json['departments'];
+    if (dept is Map<String, dynamic>) {
+      deptName = dept['name']?.toString();
     }
 
     return WorkOrder(
