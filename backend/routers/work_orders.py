@@ -54,6 +54,9 @@ class UpdateWorkOrderBody(BaseModel):
     type: str
     status: str
     assigned_technician_id: Optional[str] = None
+    created_by: Optional[str] = None
+    created_at: Optional[str] = None
+    closed_at: Optional[str] = None
 
 
 class CloseWorkOrderBody(BaseModel):
@@ -756,7 +759,74 @@ async def update_work_order(
         _validate_type(body.type)
         _validate_status(body.status)
 
+    # Admin-only authorization for metadata fields
+    if (
+        body.created_by is not None
+        or body.created_at is not None
+        or body.closed_at is not None
+    ):
+        caller_info = _get_user_by_email(user_email)
+        caller_role = (
+            caller_info.get("user_type", "reporter") if caller_info else "reporter"
+        )
+        if caller_role != "admin":
+            raise HTTPException(
+                status_code=403,
+                detail="Admin access required to modify metadata fields",
+            )
+
     old_status = existing.data[0]["status"]
+
+    # Validate metadata fields
+    user_record = None
+    if body.created_by is not None:
+        user_result = (
+            supabase.table("users")
+            .select("id, email, full_name, is_active")
+            .eq("id", body.created_by)
+            .execute()
+        )
+        if not user_result.data or not user_result.data[0].get("is_active", False):
+            raise HTTPException(
+                status_code=400, detail="Selected user not found or inactive"
+            )
+        user_record = user_result.data[0]
+
+    if body.created_at is not None:
+        try:
+            created_dt = datetime.fromisoformat(body.created_at.replace("Z", "+00:00"))
+            if created_dt > datetime.utcnow():
+                raise HTTPException(
+                    status_code=400, detail="Created date cannot be in the future"
+                )
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid created_at format")
+
+    if body.closed_at is not None:
+        effective_status = body.status if body.status else old_status
+        if effective_status != "Closed":
+            raise HTTPException(
+                status_code=400,
+                detail="Closed date can only be set on closed work orders",
+            )
+        try:
+            closed_dt = datetime.fromisoformat(body.closed_at.replace("Z", "+00:00"))
+            effective_created = (
+                body.created_at
+                if body.created_at
+                else existing.data[0].get("created_at")
+            )
+            if effective_created:
+                created_dt = datetime.fromisoformat(
+                    effective_created.replace("Z", "+00:00")
+                )
+                if closed_dt < created_dt:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Closed date cannot be before created date",
+                    )
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid closed_at format")
 
     # Verify department exists and is active
     dept_result = (
@@ -799,6 +869,17 @@ async def update_work_order(
             "status": body.status,
             "updated_at": now,
         }
+
+        # Add metadata fields to payload
+        if body.created_by is not None and user_record:
+            payload["created_by"] = body.created_by
+            payload["created_by_email"] = user_record["email"]
+            payload["created_by_name"] = user_record["full_name"]
+        if body.created_at is not None:
+            payload["created_at"] = body.created_at
+        if body.closed_at is not None:
+            payload["closed_at"] = body.closed_at
+
         if body.status == "Closed" and old_status != "Closed":
             payload["closed_at"] = now
             payload["closed_by"] = user_id
@@ -865,12 +946,26 @@ async def update_work_order(
                 changed_by_name=editor_name,
             )
 
+    # Log activity with metadata change detail
+    changed_metadata = []
+    if body.created_by is not None:
+        changed_metadata.append("created_by")
+    if body.created_at is not None:
+        changed_metadata.append("created_at")
+    if body.closed_at is not None:
+        changed_metadata.append("closed_at")
+
+    detail = (
+        f"Admin modified: {', '.join(changed_metadata)}" if changed_metadata else None
+    )
+
     log_activity(
         user_email,
         "work_order",
         "updated",
         target_label=body.title,
         target_id=work_order_id,
+        detail=detail,
     )
 
     return {"work_order": _fetch_full_work_order(work_order_id)}
@@ -1228,5 +1323,3 @@ async def delete_attachment(
 
     supabase.table("work_order_attachments").delete().eq("id", attachment_id).execute()
     return {"status": "deleted"}
-
-

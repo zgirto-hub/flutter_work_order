@@ -93,22 +93,29 @@ class WorkOrderService {
     return WorkOrder.fromJson(data['work_order']);
   }
 
-  Future<void> updateWorkOrder(WorkOrder workOrder) async {
+  Future<void> updateWorkOrder(WorkOrder workOrder,
+      {String? createdBy, String? createdAt, String? closedAt}) async {
+    final body = <String, dynamic>{
+      'job_no': workOrder.jobNo,
+      'title': workOrder.title,
+      'description': workOrder.description,
+      'location': workOrder.location,
+      'mobile_number': workOrder.mobileNumber,
+      'department_id': workOrder.departmentId,
+      'type': workOrder.type,
+      'status': workOrder.status,
+      'assigned_technician_id': workOrder.assignedTechnician?.id,
+    };
+
+    if (createdBy != null) body['created_by'] = createdBy;
+    if (createdAt != null) body['created_at'] = createdAt;
+    if (closedAt != null) body['closed_at'] = closedAt;
+
     final res = await http.put(
       Uri.parse(
           '${AppConfig.baseUrl}/work-orders/${workOrder.id}?user_email=${Uri.encodeComponent(_email)}'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'job_no': workOrder.jobNo,
-        'title': workOrder.title,
-        'description': workOrder.description,
-        'location': workOrder.location,
-        'mobile_number': workOrder.mobileNumber,
-        'department_id': workOrder.departmentId,
-        'type': workOrder.type,
-        'status': workOrder.status,
-        'assigned_technician_id': workOrder.assignedTechnician?.id,
-      }),
+      body: jsonEncode(body),
     );
 
     if (res.statusCode != 200) {
