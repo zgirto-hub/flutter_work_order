@@ -1188,14 +1188,19 @@ async def list_pending_approvals(email: str = Query(...)):
             status_code=403, content={"error": "Invalid approval level"}
         )
 
-    result = query.execute()
+    try:
+        result = query.execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Query error: {e}")
+
     work_orders = result.data or []
 
     formatted = []
     for wo in work_orders:
         dept = wo.get("departments") or {}
-        assignment = wo.get("work_order_assignments") or [{}]
-        tech = (assignment[0] or {}).get("users") or {}
+        assignments = wo.get("work_order_assignments") or []
+        first_assignment = assignments[0] if assignments else {}
+        tech = (first_assignment or {}).get("users") or {}
 
         sigs = wo.get("work_order_signatures") or []
         pending_sig = None
