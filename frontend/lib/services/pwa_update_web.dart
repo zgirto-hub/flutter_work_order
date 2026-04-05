@@ -3,34 +3,40 @@ import 'dart:js_interop';
 @JS('applyPWAUpdate')
 external void _jsApplyPWAUpdate();
 
-@JS('_swUpdateReady')
-external bool get _jsSwUpdateReady;
+@JS('checkForAppUpdate')
+external JSPromise<JSString> _jsCheckForAppUpdate();
 
-@JS('_checkForSwUpdate')
-external void _jsCheckForSwUpdate();
+@JS('registerUpdateCallback')
+external void _jsRegisterUpdateCallback(JSFunction callback);
 
-@JS('_registerSwUpdateCallback')
-external void _jsRegisterSwUpdateCallback(JSFunction callback);
+/// Possible results of a version update check.
+enum UpdateStatus { available, upToDate, error }
 
-void applyPWAUpdate() => _jsApplyPWAUpdate();
+/// Triggers the reload overlay and reloads the page.
+void applyUpdate() => _jsApplyPWAUpdate();
 
-bool checkSwUpdate() {
+/// Checks version.json for a new release.
+/// Returns [UpdateStatus.available], [UpdateStatus.upToDate], or [UpdateStatus.error].
+Future<UpdateStatus> checkForUpdate() async {
   try {
-    return _jsSwUpdateReady;
+    final result = await _jsCheckForAppUpdate().toDart;
+    final value = result.toDart;
+    switch (value) {
+      case 'available':
+        return UpdateStatus.available;
+      case 'upToDate':
+        return UpdateStatus.upToDate;
+      default:
+        return UpdateStatus.error;
+    }
   } catch (_) {
-    return false;
+    return UpdateStatus.error;
   }
 }
 
-void triggerSwUpdateCheck() {
+/// Registers a callback invoked when [checkForAppUpdate] detects a version mismatch.
+void registerUpdateCallback(void Function() callback) {
   try {
-    _jsCheckForSwUpdate();
-  } catch (_) {}
-}
-
-// New: Register callback for immediate update detection
-void registerSwUpdateCallback(void Function() callback) {
-  try {
-    _jsRegisterSwUpdateCallback(callback.toJS);
+    _jsRegisterUpdateCallback(callback.toJS);
   } catch (_) {}
 }

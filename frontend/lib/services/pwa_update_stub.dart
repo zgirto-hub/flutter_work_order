@@ -1,7 +1,8 @@
-void applyPWAUpdate() {}
+/// Possible results of a version update check.
+enum UpdateStatus { available, upToDate, error }
 
-bool checkSwUpdate() => false;
+void applyUpdate() {}
 
-void triggerSwUpdateCheck() {}
+Future<UpdateStatus> checkForUpdate() async => UpdateStatus.error;
 
-void registerSwUpdateCallback(void Function() callback) {}
+void registerUpdateCallback(void Function() callback) {}

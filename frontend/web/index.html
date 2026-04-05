@@ -13,6 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Work Order">
+  <meta name="app-version" content="__APP_VERSION__">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 
   <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
@@ -509,67 +510,52 @@
 
   <script>
     (function() {
-      // Event-driven update detection — guarded against loops
-      window._swUpdateReady = false;
-      window._swUpdateCallback = null;  // single callback, not array
-      window._swUpdateApplied = false;  // guard against re-triggering
+      // Version-file based update detection (replaces SW event listeners)
+      window._pwaSeededReleaseId = null;   // seeded on page load
+      window._pwaUpdateCallback = null;    // single callback, not array
+      window._pwaUpdateApplied = false;    // guard against re-triggering applyUpdate
 
-      function notifyDartUpdateReady() {
-        if (window._swUpdateApplied) return;  // already applying, don't re-trigger
-        window._swUpdateReady = true;
-        if (window._swUpdateCallback) window._swUpdateCallback();
-      }
-
-      // Expose function for Dart to register update callback (replaces previous)
-      window._registerSwUpdateCallback = function(callback) {
-        window._swUpdateCallback = callback;  // replace, don't accumulate
-        if (window._swUpdateReady && !window._swUpdateApplied) callback();
-      };
-
-      // Track the active SW script URL at page load to detect real changes
-      var initialSwUrl = null;
-      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-        initialSwUrl = navigator.serviceWorker.controller.scriptURL;
-      }
-
-      if ('serviceWorker' in navigator) {
-        // Only detect updates if a SW already controls this page (not first install)
-        var hasController = !!navigator.serviceWorker.controller;
-
-        navigator.serviceWorker.ready.then(function(reg) {
-          if (reg.waiting && hasController) {
-            notifyDartUpdateReady();
-            return;
+      // Seed the current releaseId on page load
+      fetch('/version.json?_t=' + Date.now(), { cache: 'no-store' })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data && data.releaseId) {
+            window._pwaSeededReleaseId = data.releaseId;
           }
-          reg.addEventListener('updatefound', function() {
-            var nw = reg.installing;
-            if (!nw) return;
-            nw.addEventListener('statechange', function() {
-              if (nw.state === 'installed' && hasController) {
-                // Only notify if the new SW is actually waiting (not already activated via skipWaiting)
-                if (reg.waiting) {
-                  notifyDartUpdateReady();
-                }
-              } else if (nw.state === 'activated' && hasController) {
-                // SW activated via skipWaiting — only notify if it's a genuinely new controller
-                if (nw.scriptURL !== initialSwUrl) {
-                  notifyDartUpdateReady();
-                }
-              }
-            });
-          });
+        })
+        .catch(function() {
+          // Seeding failed — update detection disabled until a successful check
+          window._pwaSeededReleaseId = null;
         });
-      }
 
-      // Manual check: Dart calls this via JS interop
-      window._checkForSwUpdate = function() {
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.ready.then(function(reg) {
-            reg.update();
-          });
-        }
+      // Check for app update: fetch version.json, compare releaseId
+      // Returns a Promise resolving to 'available', 'upToDate', or 'error'
+      window.checkForAppUpdate = function() {
+        return fetch('/version.json?_t=' + Date.now(), { cache: 'no-store' })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (!data || !data.releaseId) return 'error';
+            // If seed was null (failed initial load), seed it now
+            if (window._pwaSeededReleaseId === null) {
+              window._pwaSeededReleaseId = data.releaseId;
+              return 'upToDate';
+            }
+            if (String(data.releaseId) !== String(window._pwaSeededReleaseId)) {
+              // Fire registered callback if present
+              if (window._pwaUpdateCallback && !window._pwaUpdateApplied) {
+                window._pwaUpdateCallback();
+              }
+              return 'available';
+            }
+            return 'upToDate';
+          })
+          .catch(function() { return 'error'; });
       };
 
+      // Register a callback to be invoked when an update is detected
+      window.registerUpdateCallback = function(callback) {
+        window._pwaUpdateCallback = callback;
+      };
     })();
   </script>
 
@@ -577,6 +563,7 @@
 
   <script>
     window.applyPWAUpdate = async function() {
+      if (window._pwaUpdateApplied) return;  // already applying, prevent double reload
       var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       var bgColor = isDark ? '#1a1614' : '#f4ede4';
       var textColor = isDark ? '#c9bbb0' : '#6b5d52';
@@ -643,7 +630,7 @@
       });
 
       // Guard against re-triggering
-      window._swUpdateApplied = true;
+      window._pwaUpdateApplied = true;
 
       // With skipWaiting the new SW activates immediately, just wait briefly for caches
       await new Promise(function(resolve) { setTimeout(resolve, 1500); });

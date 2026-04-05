@@ -33,7 +33,6 @@ class DashboardScreen extends StatefulWidget {
 
 class DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
-
   bool _loading = true;
   bool _refreshing = false;
   int _openWorkOrders = 0;
@@ -45,12 +44,10 @@ class DashboardScreenState extends State<DashboardScreen>
   bool _checkingUpdate = false;
   String _updateMessage = '';
   bool _updateAvailable = false;
-  Timer? _swPollTimer;
   bool _recentJustLoaded = false;
   String _displayName = '';
 
-  String get _email =>
-      Supabase.instance.client.auth.currentUser?.email ?? '';
+  String get _email => Supabase.instance.client.auth.currentUser?.email ?? '';
 
   @override
   void initState() {
@@ -62,7 +59,6 @@ class DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
-    _swPollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -121,19 +117,15 @@ class DashboardScreenState extends State<DashboardScreen>
       final res = await http.get(uri);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        final orders =
-            (data['work_orders'] as List<dynamic>? ?? []);
+        final orders = (data['work_orders'] as List<dynamic>? ?? []);
         if (!mounted) return;
         setState(() {
-          _openWorkOrders =
-              orders.where((o) => o['status'] != 'Closed').length;
-          _inProgressWorkOrders = orders
-              .where((o) => o['status'] == 'In Progress')
-              .length;
+          _openWorkOrders = orders.where((o) => o['status'] != 'Closed').length;
+          _inProgressWorkOrders =
+              orders.where((o) => o['status'] == 'In Progress').length;
           _inspectionsToday = orders
-              .where((o) =>
-                  o['type'] == 'Inspection' &&
-                  o['status'] != 'Closed')
+              .where(
+                  (o) => o['type'] == 'Inspection' && o['status'] != 'Closed')
               .length;
         });
       }
@@ -171,42 +163,33 @@ class DashboardScreenState extends State<DashboardScreen>
     });
 
     if (kIsWeb) {
-      // Already flagged by the browser?
-      if (checkSwUpdate()) {
-        if (mounted) setState(() {
-          _updateAvailable = true;
-          _updateMessage = 'A new version is ready to install';
-          _checkingUpdate = false;
-        });
-        return;
-      }
-
-      // Ask the browser to re-fetch the SW file
-      triggerSwUpdateCheck();
-
-      // Register callback for notification (user applies manually)
-      void onUpdateReady() {
-        if (mounted) {
+      // Register callback for background detection
+      registerUpdateCallback(() {
+        if (mounted && !_updateAvailable) {
           setState(() {
             _updateAvailable = true;
             _updateMessage = 'A new version is ready to install';
             _checkingUpdate = false;
           });
         }
-      }
-
-      registerSwUpdateCallback(onUpdateReady);
-      
-      // Fallback timeout after 10 seconds
-      _swPollTimer?.cancel();
-      _swPollTimer = Timer(const Duration(seconds: 10), () {
-        if (mounted && !_updateAvailable) {
-          setState(() {
-            _updateMessage = 'You are on the latest version';
-            _checkingUpdate = false;
-          });
-        }
       });
+
+      // Perform an immediate check
+      final status = await checkForUpdate();
+      if (mounted) {
+        setState(() {
+          switch (status) {
+            case UpdateStatus.available:
+              _updateAvailable = true;
+              _updateMessage = 'A new version is available';
+            case UpdateStatus.upToDate:
+              _updateMessage = 'You are on the latest version';
+            case UpdateStatus.error:
+              _updateMessage = 'You are on the latest version';
+          }
+          _checkingUpdate = false;
+        });
+      }
       return;
     }
 
@@ -217,7 +200,6 @@ class DashboardScreenState extends State<DashboardScreen>
       });
     }
   }
-
 
   Future<void> _signOut() async {
     final confirm = await showDialog<bool>(
@@ -246,8 +228,8 @@ class DashboardScreenState extends State<DashboardScreen>
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text('Sign out',
-                style: TextStyle(
-                    color: Colors.red, fontWeight: FontWeight.w600)),
+                style:
+                    TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -281,7 +263,6 @@ class DashboardScreenState extends State<DashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 // ── Greeting ──────────────────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -298,8 +279,13 @@ class DashboardScreenState extends State<DashboardScreen>
                         ),
                         Text(
                           _displayName.isNotEmpty
-                            ? _displayName
-                            : _email.split('@').first.split('.').first.capitalize(),
+                              ? _displayName
+                              : _email
+                                  .split('@')
+                                  .first
+                                  .split('.')
+                                  .first
+                                  .capitalize(),
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w600,
@@ -318,8 +304,8 @@ class DashboardScreenState extends State<DashboardScreen>
                           decoration: BoxDecoration(
                             color: AppColors.bgSurface,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                                color: AppColors.border, width: 0.5),
+                            border:
+                                Border.all(color: AppColors.border, width: 0.5),
                           ),
                           child: Text(
                             _formatDate(DateTime.now()),
@@ -332,10 +318,12 @@ class DashboardScreenState extends State<DashboardScreen>
                         ),
                         SizedBox(width: 8),
                         GestureDetector(
-                          onTap: _refreshing ? null : () {
-                            setState(() => _refreshing = true);
-                            _load();
-                          },
+                          onTap: _refreshing
+                              ? null
+                              : () {
+                                  setState(() => _refreshing = true);
+                                  _load();
+                                },
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
@@ -346,9 +334,11 @@ class DashboardScreenState extends State<DashboardScreen>
                             ),
                             child: _refreshing
                                 ? SizedBox(
-                                    width: 16, height: 16,
+                                    width: 16,
+                                    height: 16,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 1.5, color: AppColors.textTertiary))
+                                        strokeWidth: 1.5,
+                                        color: AppColors.textTertiary))
                                 : Icon(
                                     Icons.refresh_rounded,
                                     size: 16,
@@ -463,15 +453,18 @@ class DashboardScreenState extends State<DashboardScreen>
                     label: 'System Status',
                     icon: Icons.monitor_heart_outlined,
                     color: AppColors.accent,
-                    onTap: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const SystemStatusScreen())),
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const SystemStatusScreen())),
                     trailing: Icon(Icons.chevron_right_rounded,
                         size: 16, color: AppColors.textTertiary),
                   ),
                   SizedBox(height: 10),
                   _QuickAction(
                     label: 'Check for update',
-                    subtitle: 'v${_appVersion.isEmpty ? '...' : _appVersion} (Build ${_appBuild.isEmpty ? '...' : _appBuild})',
+                    subtitle:
+                        'v${_appVersion.isEmpty ? '...' : _appVersion} (Build ${_appBuild.isEmpty ? '...' : _appBuild})',
                     icon: Icons.system_update_outlined,
                     color: AppColors.accent,
                     onTap: _checkingUpdate ? null : _checkUpdates,
@@ -483,10 +476,12 @@ class DashboardScreenState extends State<DashboardScreen>
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 1.5, color: AppColors.textTertiary))
+                                  strokeWidth: 1.5,
+                                  color: AppColors.textTertiary))
                           : Icon(Icons.chevron_right_rounded,
                               key: ValueKey('chevron'),
-                              size: 16, color: AppColors.textTertiary),
+                              size: 16,
+                              color: AppColors.textTertiary),
                     ),
                   ),
                   AnimatedOpacity(
@@ -507,7 +502,9 @@ class DashboardScreenState extends State<DashboardScreen>
                                 if (_updateAvailable) ...[
                                   SizedBox(width: 8),
                                   GestureDetector(
-                                    onTap: () { if (kIsWeb) applyPWAUpdate(); },
+                                    onTap: () {
+                                      if (kIsWeb) applyUpdate();
+                                    },
                                     child: Text(
                                       'Tap to update',
                                       style: TextStyle(
@@ -544,8 +541,7 @@ class DashboardScreenState extends State<DashboardScreen>
                       decoration: BoxDecoration(
                         color: AppColors.bgSurface,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color: AppColors.border, width: 0.5),
+                        border: Border.all(color: AppColors.border, width: 0.5),
                       ),
                       child: Center(
                         child: Text(
@@ -557,7 +553,7 @@ class DashboardScreenState extends State<DashboardScreen>
                         ),
                       ),
                     )
-                    else
+                  else
                     AnimatedOpacity(
                       opacity: _recentJustLoaded ? 0.6 : 1.0,
                       duration: const Duration(milliseconds: 300),
@@ -565,18 +561,15 @@ class DashboardScreenState extends State<DashboardScreen>
                         decoration: BoxDecoration(
                           color: AppColors.bgSurface,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                              color: AppColors.border, width: 0.5),
+                          border:
+                              Border.all(color: AppColors.border, width: 0.5),
                         ),
                         child: Column(
-                          children: _recentActivity
-                              .asMap()
-                              .entries
-                              .map((entry) {
+                          children:
+                              _recentActivity.asMap().entries.map((entry) {
                             final i = entry.key;
                             final item = entry.value;
-                            final isLast = i ==
-                                _recentActivity.length - 1;
+                            final isLast = i == _recentActivity.length - 1;
                             return Column(
                               children: [
                                 _RecentActivityRow(entry: item),
@@ -605,8 +598,18 @@ class DashboardScreenState extends State<DashboardScreen>
 
   String _formatDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }

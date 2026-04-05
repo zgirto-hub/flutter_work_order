@@ -46,7 +46,6 @@ class _SettingsPageState extends State<SettingsPage> {
   String updateMessage = '';
   bool checkingUpdate = false;
   bool updateAvailable = false;
-  Timer? _swPollTimer;
   static const _fontScales = [1.0, 1.15, 1.3, 1.45];
   static const _fontLabels = ['Small', 'Default', 'Large', 'X-Large'];
 
@@ -66,7 +65,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
-    _swPollTimer?.cancel();
     super.dispose();
   }
 
@@ -90,40 +88,33 @@ class _SettingsPageState extends State<SettingsPage> {
     }
 
     if (kIsWeb) {
-      if (checkSwUpdate()) {
-        setState(() {
-          updateAvailable = true;
-          updateMessage = 'A new version is ready to install';
-          checkingUpdate = false;
-        });
-        return;
-      }
-
-      triggerSwUpdateCheck();
-
-      // Register callback for notification (user applies manually)
-      void onUpdateReady() {
-        if (mounted) {
+      // Register callback for background detection
+      registerUpdateCallback(() {
+        if (mounted && !updateAvailable) {
           setState(() {
             updateAvailable = true;
             updateMessage = 'A new version is ready to install';
             checkingUpdate = false;
           });
         }
-      }
-
-      registerSwUpdateCallback(onUpdateReady);
-      
-      // Fallback timeout after 10 seconds
-      _swPollTimer?.cancel();
-      _swPollTimer = Timer(const Duration(seconds: 10), () {
-        if (mounted && !updateAvailable) {
-          setState(() {
-            updateMessage = 'You are on the latest version';
-            checkingUpdate = false;
-          });
-        }
       });
+
+      // Perform an immediate check
+      final status = await checkForUpdate();
+      if (mounted) {
+        setState(() {
+          switch (status) {
+            case UpdateStatus.available:
+              updateAvailable = true;
+              updateMessage = 'A new version is available';
+            case UpdateStatus.upToDate:
+              updateMessage = 'You are on the latest version';
+            case UpdateStatus.error:
+              updateMessage = 'You are on the latest version';
+          }
+          checkingUpdate = false;
+        });
+      }
       return;
     }
 
@@ -132,7 +123,6 @@ class _SettingsPageState extends State<SettingsPage> {
       checkingUpdate = false;
     });
   }
-
 
   Future<void> _loadUserSignature() async {
     final user = Supabase.instance.client.auth.currentUser;
@@ -454,9 +444,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.red,
                                 ),
-                                onPressed: _signatureLoading
-                                    ? null
-                                    : _removeSignature,
+                                onPressed:
+                                    _signatureLoading ? null : _removeSignature,
                               ),
                             ),
                           ],
@@ -655,7 +644,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             if (updateAvailable) ...[
                               SizedBox(width: 10),
                               GestureDetector(
-                                onTap: () { if (kIsWeb) applyPWAUpdate(); },
+                                onTap: () {
+                                  if (kIsWeb) applyUpdate();
+                                },
                                 child: Text('Tap to update',
                                     style: TextStyle(
                                         fontSize: 12,

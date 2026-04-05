@@ -100,8 +100,8 @@ self.addEventListener('fetch', function(event) {
   if (event.request.method !== 'GET') return;
   if (!event.request.url.startsWith(self.location.origin)) return;
 
-  // NEVER cache API responses – always go to network
-  if (event.request.url.indexOf('/api/') !== -1) {
+  // NEVER cache API responses or version.json – always go to network
+  if (event.request.url.indexOf('/api/') !== -1 || event.request.url.indexOf('version.json') !== -1) {
     event.respondWith(fetch(event.request));
     return;
   }
@@ -143,6 +143,14 @@ self.addEventListener('fetch', function(event) {
   );
 });
 SWEOF
+
+# Write version.json so the app can detect updates even when SW check fails (iOS)
+cat > build/web/version.json <<VJEOF
+{"version":"$NEW_VERSION","build":"$BUILD_NUMBER","releaseId":"$RELEASE_ID"}
+VJEOF
+
+# Stamp the app-version meta tag in index.html
+sed -i "s/__APP_VERSION__/$NEW_VERSION/" build/web/index.html
 
 # ── Deploy ────────────────────────────────────────────────────────────────────
 TIMESTAMP=$(date +%F_%H-%M)
