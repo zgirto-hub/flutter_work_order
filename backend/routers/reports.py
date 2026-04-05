@@ -156,7 +156,7 @@ def _fetch_signatures_for_pdf(work_order_id: str):
         supabase.table("work_order_signatures")
         .select("*")
         .eq("work_order_id", work_order_id)
-        .eq("status", "approved")
+        .in_("status", ["approved", "pending"])
         .order("signed_at", desc=False)
         .execute()
     )
@@ -473,8 +473,15 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
             )
 
         sig_status = sig.get("status", "")
-        status_color = "#228B22" if sig_status == "approved" else "black"
-        status_text = "Approved" if sig_status == "approved" else sig_status
+        if sig_status == "approved":
+            status_color = "#228B22"
+            status_text = "Approved"
+        elif sig_status == "pending":
+            status_color = "#228B22"
+            status_text = "Signed"
+        else:
+            status_color = "black"
+            status_text = sig_status
         raw_name = sig.get("signer_full_name") or sig.get("signer_email") or "Unknown"
         signer_name = _ar(raw_name)
         signer_email = xml_escape(sig.get("signer_email") or "")
