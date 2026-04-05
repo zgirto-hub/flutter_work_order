@@ -58,21 +58,6 @@ class DashboardScreenState extends State<DashboardScreen>
     WidgetsBinding.instance.addObserver(this);
     _load();
     _loadVersion();
-    _startSwUpdatePoll();
-  }
-
-  void _startSwUpdatePoll() {
-    if (!kIsWeb || _updateAvailable) return;
-    _swPollTimer?.cancel();
-    _swPollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (checkSwUpdate() && mounted) {
-        setState(() {
-          _updateAvailable = true;
-          _updateMessage = 'A new version is ready to install';
-        });
-        _swPollTimer?.cancel();
-      }
-    });
   }
 
   @override
@@ -86,7 +71,6 @@ class DashboardScreenState extends State<DashboardScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && !_loading) {
       _load();
-      if (!_updateAvailable) _startSwUpdatePoll();
     }
   }
 
@@ -186,14 +170,44 @@ class DashboardScreenState extends State<DashboardScreen>
       _updateAvailable = false;
     });
 
-    final hasUpdate = kIsWeb && checkSwUpdate();
+    if (kIsWeb) {
+      // Already flagged by the browser?
+      if (checkSwUpdate()) {
+        if (mounted) setState(() {
+          _updateAvailable = true;
+          _updateMessage = 'A new version is ready to install';
+          _checkingUpdate = false;
+        });
+        return;
+      }
+
+      // Ask the browser to re-fetch the SW file, then poll for up to 5s
+      triggerSwUpdateCheck();
+      _swPollTimer?.cancel();
+      var attempts = 0;
+      _swPollTimer = Timer.periodic(const Duration(milliseconds: 500), (t) {
+        attempts++;
+        if (checkSwUpdate()) {
+          t.cancel();
+          if (mounted) setState(() {
+            _updateAvailable = true;
+            _updateMessage = 'A new version is ready to install';
+            _checkingUpdate = false;
+          });
+        } else if (attempts >= 10) {
+          t.cancel();
+          if (mounted) setState(() {
+            _updateMessage = 'You are on the latest version';
+            _checkingUpdate = false;
+          });
+        }
+      });
+      return;
+    }
 
     if (mounted) {
       setState(() {
-        _updateAvailable = hasUpdate;
-        _updateMessage = hasUpdate
-            ? 'A new version is ready to install'
-            : 'You are on the latest version';
+        _updateMessage = 'You are on the latest version';
         _checkingUpdate = false;
       });
     }

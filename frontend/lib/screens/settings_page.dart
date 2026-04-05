@@ -62,27 +62,12 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _loadVersion();
     _loadUserSignature();
-    _startSwUpdatePoll();
   }
 
   @override
   void dispose() {
     _swPollTimer?.cancel();
     super.dispose();
-  }
-
-  void _startSwUpdatePoll() {
-    if (!kIsWeb || updateAvailable) return;
-    _swPollTimer?.cancel();
-    _swPollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (checkSwUpdate() && mounted) {
-        setState(() {
-          updateAvailable = true;
-          updateMessage = 'A new version is ready to install';
-        });
-        _swPollTimer?.cancel();
-      }
-    });
   }
 
   Future<void> _loadVersion() async {
@@ -104,13 +89,45 @@ class _SettingsPageState extends State<SettingsPage> {
       ActivityLogService().logUpdateCheck(email);
     }
 
-    final hasUpdate = kIsWeb && checkSwUpdate();
+    if (kIsWeb) {
+      if (checkSwUpdate()) {
+        setState(() {
+          updateAvailable = true;
+          updateMessage = 'A new version is ready to install';
+          checkingUpdate = false;
+        });
+        return;
+      }
+
+      triggerSwUpdateCheck();
+      _swPollTimer?.cancel();
+      var attempts = 0;
+      _swPollTimer = Timer.periodic(const Duration(milliseconds: 500), (t) {
+        attempts++;
+        if (checkSwUpdate()) {
+          t.cancel();
+          if (mounted) {
+            setState(() {
+              updateAvailable = true;
+              updateMessage = 'A new version is ready to install';
+              checkingUpdate = false;
+            });
+          }
+        } else if (attempts >= 10) {
+          t.cancel();
+          if (mounted) {
+            setState(() {
+              updateMessage = 'You are on the latest version';
+              checkingUpdate = false;
+            });
+          }
+        }
+      });
+      return;
+    }
 
     setState(() {
-      updateAvailable = hasUpdate;
-      updateMessage = hasUpdate
-          ? 'A new version is ready to install'
-          : 'You are on the latest version';
+      updateMessage = 'You are on the latest version';
       checkingUpdate = false;
     });
   }

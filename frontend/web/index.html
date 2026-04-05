@@ -543,14 +543,14 @@
         });
       }
 
-      // Periodically check for new SW while app is open
-      if ('serviceWorker' in navigator) {
-        setInterval(function() {
+      // Manual check: Dart calls this via JS interop
+      window._checkForSwUpdate = function() {
+        if ('serviceWorker' in navigator) {
           navigator.serviceWorker.ready.then(function(reg) {
             reg.update();
           });
-        }, 30000);
-      }
+        }
+      };
 
       loadFlutter();
     })();

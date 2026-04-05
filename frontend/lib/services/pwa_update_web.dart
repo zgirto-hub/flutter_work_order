@@ -6,6 +6,9 @@ external void _jsApplyPWAUpdate();
 @JS('_swUpdateReady')
 external bool get _jsSwUpdateReady;
 
+@JS('_checkForSwUpdate')
+external void _jsCheckForSwUpdate();
+
 void applyPWAUpdate() => _jsApplyPWAUpdate();
 
 bool checkSwUpdate() {
@@ -14,4 +17,10 @@ bool checkSwUpdate() {
   } catch (_) {
     return false;
   }
+}
+
+void triggerSwUpdateCheck() {
+  try {
+    _jsCheckForSwUpdate();
+  } catch (_) {}
 }
