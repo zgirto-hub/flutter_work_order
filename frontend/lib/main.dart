@@ -153,10 +153,8 @@ class _TicketCard extends StatelessWidget {
   const _TicketCard();
 
   static const _terracotta = Color(0xFFCC785C);
-  static const _cream = Color(0xFFFAF9F7);
   static const _white = Color(0xFFFFFFFF);
   static const _textDark = Color(0xFF1A1915);
-  static const _textLight = Color(0xFF9B9A96);
   static const _divider = Color(0xFFE8E6E0);
 
   @override
@@ -181,49 +179,12 @@ class _TicketCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildStub(left: true),
-              _buildDash(),
-              Expanded(child: _buildContent()),
-              _buildDash(),
-              _buildStub(left: false),
-            ],
-          ),
-        ),
+        child: _buildContent(),
       ),
     );
   }
 
-  Widget _buildStub({required bool left}) {
-    return Container(
-      width: 28,
-      color: _cream,
-      child: RotatedBox(
-        quarterTurns: left ? 1 : 3,
-        child: Center(
-          child: Text(
-            left ? '0000001 · CLICK HERE' : 'CLICK HERE · 0000001',
-            style: const TextStyle(
-              fontSize: 6.5,
-              fontWeight: FontWeight.w800,
-              color: _textLight,
-              letterSpacing: 1.6,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDash() => SizedBox(
-        width: 1,
-        child: CustomPaint(painter: _DashPainter(_divider)),
-      );
-
-  Widget _buildContent() {
+Widget _buildContent() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -306,25 +267,6 @@ class _TicketCard extends StatelessWidget {
 }
 
 // ── Painters ─────────────────────────────────────────────────────────────────
-
-class _DashPainter extends CustomPainter {
-  final Color color;
-  const _DashPainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = color
-      ..strokeWidth = 1;
-    const d = 5.0, g = 4.0;
-    for (double y = 0; y < size.height; y += d + g) {
-      canvas.drawLine(Offset(0.5, y), Offset(0.5, y + d), p);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashPainter o) => o.color != color;
-}
 
 class _AsteriskPainter extends CustomPainter {
   final Color color;
