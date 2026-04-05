@@ -8,9 +8,25 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, FileResponse
 
-from routers import files, folders, notifications, users, work_orders, departments, recurring_inspections, reports, department_routes, document_registry, payment_certificates, system_status, signatures
+from routers import (
+    files,
+    folders,
+    notifications,
+    users,
+    work_orders,
+    departments,
+    recurring_inspections,
+    reports,
+    department_routes,
+    document_registry,
+    payment_certificates,
+    system_status,
+    signatures,
+    ai_assist,
+)
 
 app = FastAPI()
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -20,6 +36,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     print(f"Body: {body.decode()}")
     print(f"Errors: {exc.errors()}")
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
 
 UPLOAD_DIR = "uploaded_files"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -34,6 +51,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Chrome's Private Network Access (PNA) policy requires this header in
 # OPTIONS preflight responses when the client is on localhost and the server
 # is on a private/CGNAT IP (e.g. 100.x.x.x Tailscale range). Without it,
@@ -45,6 +63,7 @@ async def private_network_access_header(request: Request, call_next):
     if request.method == "OPTIONS":
         response.headers["Access-Control-Allow-Private-Network"] = "true"
     return response
+
 
 app.include_router(files.router, prefix="/api")
 app.include_router(folders.router, prefix="/api")
@@ -59,6 +78,7 @@ app.include_router(document_registry.router, prefix="/api")
 app.include_router(payment_certificates.router, prefix="/api")
 app.include_router(system_status.router, prefix="/api")
 app.include_router(signatures.router, prefix="/api")
+app.include_router(ai_assist.router, prefix="/api")
 
 
 @app.get("/api/reset-password")

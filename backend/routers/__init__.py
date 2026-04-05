@@ -5,3 +5,10 @@ from . import users
 from . import work_orders
 from . import department_routes
 from . import departments
+from . import recurring_inspections
+from . import reports
+from . import document_registry
+from . import payment_certificates
+from . import system_status
+from . import signatures
+from . import ai_assist

@@ -22,6 +22,7 @@ import '../../widgets/signature_canvas.dart';
 import '../../models/work_order_signature.dart';
 import '../../services/signature_service.dart';
 import '../../services/report_service.dart';
+import '../../services/ai_assist_service.dart';
 import '../../widgets/pdf_preview_screen.dart';
 import '../../theme/app_theme.dart';
 import '../../config.dart';
@@ -104,6 +105,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   bool _hasAutoSaved = false;
   Map<String, dynamic>? _lastSavedSnapshot;
   Map<String, dynamic>? _originalSnapshot;
+
+  // AI assist state
+  bool _aiLoading = false;
+  final AiAssistService _aiAssistService = AiAssistService();
 
   // Signature state
   final SignatureService _signatureService = SignatureService();
@@ -789,6 +794,82 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     }
   }
 
+  Future<void> _suggestDescription() async {
+    setState(() => _aiLoading = true);
+    try {
+      final result = await _aiAssistService.suggestDescription(
+        title: clientController.text.trim(),
+        location: locationController.text.trim(),
+        type: selectedType,
+      );
+      if (!mounted) return;
+      if (descriptionController.text.trim().isEmpty) {
+        descriptionController.text = result;
+      } else {
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: AppColors.bgSurface,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          builder: (ctx) => Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('AI Suggestion',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary)),
+                const SizedBox(height: 12),
+                Text(result, style: TextStyle(color: AppColors.textSecondary)),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.textSecondary),
+                        child: const Text('Dismiss'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          descriptionController.text = result;
+                          Navigator.pop(ctx);
+                        },
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accent),
+                        child: const Text('Replace'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppColors.dangerText,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _aiLoading = false);
+      }
+    }
+  }
+
   Future<void> submit() async {
     _autoSaveTimer?.cancel();
     // Reporters can CREATE new work orders but cannot EDIT existing ones
@@ -1172,6 +1253,42 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               SizedBox(height: 10),
             ],
 
+            if (!canEdit || !_roleLoaded)
+              SizedBox.shrink()
+            else
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed:
+                        clientController.text.trim().isEmpty || _aiLoading
+                            ? null
+                            : _suggestDescription,
+                    icon: _aiLoading
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.accent,
+                            ),
+                          )
+                        : Icon(Icons.auto_awesome,
+                            size: 18, color: AppColors.accent),
+                    label: Text(
+                      _aiLoading ? 'Suggesting...' : 'Suggest',
+                      style: TextStyle(color: AppColors.accent),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ),
+              ),
+
             TextFormField(
               controller: descriptionController,
               focusNode: _descriptionFocusNode,
@@ -1395,7 +1512,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     final isApproved = status == 'approved';
     final isPending = status == 'pending';
     final isRejected = status == 'rejected';
-    final isSigned = isApproved || isPending; // pending = submitted, awaiting approval
+    final isSigned =
+        isApproved || isPending; // pending = submitted, awaiting approval
 
     // Badge text and color
     String? badgeText;
