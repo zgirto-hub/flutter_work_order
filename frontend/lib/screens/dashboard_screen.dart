@@ -181,23 +181,38 @@ class DashboardScreenState extends State<DashboardScreen>
         return;
       }
 
-      // Ask the browser to re-fetch the SW file, then poll for up to 5s
+      // Ask the browser to re-fetch the SW file
       triggerSwUpdateCheck();
-      _swPollTimer?.cancel();
-      var attempts = 0;
-      _swPollTimer = Timer.periodic(const Duration(milliseconds: 500), (t) {
-        attempts++;
-        if (checkSwUpdate()) {
-          t.cancel();
-          if (mounted) setState(() {
+      
+      // Register callback for immediate notification
+      void onUpdateReady() {
+        if (mounted) {
+          setState(() {
             _updateAvailable = true;
-            _updateMessage = 'A new version is ready to install';
+            _updateMessage = 'Update applied automatically - reloading...';
             _checkingUpdate = false;
           });
-        } else if (attempts >= 10) {
-          t.cancel();
-          if (mounted) setState(() {
+          // Auto-reload after 2 seconds
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) _applyUpdate();
+          });
+        }
+      }
+      
+      registerSwUpdateCallback(onUpdateReady);
+      
+      // Fallback timeout after 10 seconds
+      _swPollTimer?.cancel();
+      _swPollTimer = Timer(const Duration(seconds: 10), () {
+        if (mounted && !_updateAvailable) {
+          setState(() {
             _updateMessage = 'You are on the latest version';
+            _checkingUpdate = false;
+          });
+        }
+      });
+      return;
+    }
             _checkingUpdate = false;
           });
         }
@@ -506,15 +521,12 @@ class DashboardScreenState extends State<DashboardScreen>
                                 ),
                                 if (_updateAvailable) ...[
                                   SizedBox(width: 8),
-                                  GestureDetector(
-                                    onTap: _applyUpdate,
-                                    child: Text(
-                                      'Update now',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.accent,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                  Text(
+                                    'Reloading...',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.accent,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ],

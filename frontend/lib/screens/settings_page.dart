@@ -100,27 +100,32 @@ class _SettingsPageState extends State<SettingsPage> {
       }
 
       triggerSwUpdateCheck();
+      
+      // Register callback for immediate notification
+      void onUpdateReady() {
+        if (mounted) {
+          setState(() {
+            updateAvailable = true;
+            updateMessage = 'Update applied automatically - reloading...';
+            checkingUpdate = false;
+          });
+          // Auto-reload after 2 seconds
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) applyPWAUpdate();
+          });
+        }
+      }
+      
+      registerSwUpdateCallback(onUpdateReady);
+      
+      // Fallback timeout after 10 seconds
       _swPollTimer?.cancel();
-      var attempts = 0;
-      _swPollTimer = Timer.periodic(const Duration(milliseconds: 500), (t) {
-        attempts++;
-        if (checkSwUpdate()) {
-          t.cancel();
-          if (mounted) {
-            setState(() {
-              updateAvailable = true;
-              updateMessage = 'A new version is ready to install';
-              checkingUpdate = false;
-            });
-          }
-        } else if (attempts >= 10) {
-          t.cancel();
-          if (mounted) {
-            setState(() {
-              updateMessage = 'You are on the latest version';
-              checkingUpdate = false;
-            });
-          }
+      _swPollTimer = Timer(const Duration(seconds: 10), () {
+        if (mounted && !updateAvailable) {
+          setState(() {
+            updateMessage = 'You are on the latest version';
+            checkingUpdate = false;
+          });
         }
       });
       return;
@@ -656,14 +661,11 @@ class _SettingsPageState extends State<SettingsPage> {
                                     color: AppColors.textTertiary)),
                             if (updateAvailable) ...[
                               SizedBox(width: 10),
-                              GestureDetector(
-                                onTap: _applyUpdate,
-                                child: Text('Update now',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.accent,
-                                        fontWeight: FontWeight.w600)),
-                              ),
+                              Text('Reloading...',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.accent,
+                                      fontWeight: FontWeight.w600)),
                             ],
                           ],
                         ),

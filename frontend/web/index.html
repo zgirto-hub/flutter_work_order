@@ -509,34 +509,35 @@
 
   <script>
     (function() {
-      // Flag that Dart reads via JS interop
+      // Event-driven update detection with immediate activation
       window._swUpdateReady = false;
+      window._swUpdateCallbacks = [];
 
-      function loadFlutter() {
-        var script = document.createElement('script');
-        script.src = 'flutter_bootstrap.js';
-        script.async = true;
-        document.body.appendChild(script);
+      function notifyDartUpdateReady() {
+        window._swUpdateReady = true;
+        window._swUpdateCallbacks.forEach(function(cb) { cb(); });
       }
+
+      // Expose function for Dart to register update callback
+      window._registerSwUpdateCallback = function(callback) {
+        window._swUpdateCallbacks.push(callback);
+        if (window._swUpdateReady) callback(); // If already ready, call immediately
+      };
 
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(function(reg) {
           if (reg.waiting) {
-            window._swUpdateReady = true;
+            // New SW is waiting - update is ready
+            notifyDartUpdateReady();
             return;
           }
           reg.addEventListener('updatefound', function() {
             var nw = reg.installing;
             if (!nw) return;
             nw.addEventListener('statechange', function() {
-              if (nw.state === 'installed') {
-                if (navigator.serviceWorker.controller) {
-                  // Update ready — user must confirm
-                  window._swUpdateReady = true;
-                } else {
-                  // First install — activate immediately
-                  nw.postMessage({ type: 'SKIP_WAITING' });
-                }
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                // New SW installed and will activate immediately
+                notifyDartUpdateReady();
               }
             });
           });
@@ -610,7 +611,7 @@
         'font-weight: 500;',
         'color: ' + textColor + ';',
       ].join(' ');
-      text.textContent = 'Applying update… 0%';
+      text.textContent = 'Applying update…';
 
       container.appendChild(dotsContainer);
       container.appendChild(text);
@@ -623,55 +624,8 @@
         });
       });
 
-      function updateProgress(targetPercent, durationMs) {
-        return new Promise(function(resolve) {
-          var currentPercent = parseInt(text.textContent.match(/\d+/)[0]) || 0;
-          var steps = targetPercent - currentPercent;
-          if (steps <= 0) {
-            resolve();
-            return;
-          }
-          
-          var stepDuration = durationMs / steps;
-          var currentStep = 0;
-          
-          var interval = setInterval(function() {
-            currentStep++;
-            var newPercent = currentPercent + currentStep;
-            text.textContent = 'Applying update… ' + newPercent + '%';
-            
-            if (currentStep >= steps) {
-              clearInterval(interval);
-              resolve();
-            }
-          }, stepDuration);
-        });
-      }
-
-      await updateProgress(45, 1800);
-
-      try {
-        if ('serviceWorker' in navigator) {
-          var registration = await navigator.serviceWorker.getRegistration();
-          if (registration && registration.waiting) {
-            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-
-            await Promise.race([
-              new Promise(function(resolve) {
-                navigator.serviceWorker.addEventListener('controllerchange', resolve);
-              }),
-              new Promise(function(resolve) { setTimeout(resolve, 3000); })
-            ]);
-          }
-        }
-      } catch (_) {}
-
-      await Promise.all([
-        updateProgress(75, 1200)
-      ]);
-
-      await updateProgress(100, 1000);
-      await new Promise(function(resolve) { setTimeout(resolve, 200); });
+      // With immediate activation, just wait a moment then reload
+      await new Promise(function(resolve) { setTimeout(resolve, 1500); });
 
       window.location.reload();
     };

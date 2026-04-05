@@ -74,7 +74,8 @@ self.addEventListener('install', function(event) {
       );
     })
   );
-  // Do NOT skipWaiting here — wait for the page to confirm via message
+  // Force immediate activation - skip waiting for user confirmation
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', function(event) {
@@ -87,13 +88,12 @@ self.addEventListener('activate', function(event) {
       );
     })
   );
+  // Immediately take control of all clients
   self.clients.claim();
 });
 
 self.addEventListener('message', function(event) {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+  // No longer needed with immediate activation
 });
 
 self.addEventListener('fetch', function(event) {
