@@ -290,6 +290,11 @@ class AppTheme {
             letterSpacing: 0.06,
             fontFamilyFallback: const ['Calibri']),
       ),
+      textSelectionTheme: TextSelectionThemeData(
+        selectionColor: accent.withValues(alpha: 0.25),
+        cursorColor: accent,
+        selectionHandleColor: accent,
+      ),
       cardTheme: CardThemeData(
         elevation: 0,
         color: bgSurface,
