@@ -938,9 +938,19 @@ def _get_user_approval_info(email: str) -> Optional[dict]:
     )
     department_ids = [row.get("department_id") for row in (td_result.data or [])]
 
+    # Derive approval_level from role flags when not explicitly set
+    approval_level = user.get("approval_level")
+    if not approval_level:
+        if user.get("is_superintendent", False):
+            approval_level = 2
+        elif user.get("is_supervisor", False):
+            approval_level = 1
+        else:
+            approval_level = 0
+
     return {
         "user_type": user.get("user_type"),
-        "approval_level": user.get("approval_level"),
+        "approval_level": approval_level,
         "is_supervisor": user.get("is_supervisor", False),
         "is_superintendent": user.get("is_superintendent", False),
         "id": user_id,
