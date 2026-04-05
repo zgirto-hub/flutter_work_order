@@ -494,8 +494,7 @@ async def list_pending_approvals(email: str = Query(...)):
                     id,
                     signer_role,
                     status,
-                    signed_at,
-                    signer_name
+                    signed_at
                 )
             """)
             .eq("signature_status", "tech_signed")
@@ -530,8 +529,7 @@ async def list_pending_approvals(email: str = Query(...)):
                     id,
                     signer_role,
                     status,
-                    signed_at,
-                    signer_name
+                    signed_at
                 )
             """)
             .eq("signature_status", "supervisor_approved")
