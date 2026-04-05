@@ -291,7 +291,7 @@ class AppTheme {
             fontFamilyFallback: const ['Calibri']),
       ),
       textSelectionTheme: TextSelectionThemeData(
-        selectionColor: accent.withValues(alpha: 0.25),
+        selectionColor: const Color(0xFF3B82F6).withValues(alpha: 0.35),
         cursorColor: accent,
         selectionHandleColor: accent,
       ),

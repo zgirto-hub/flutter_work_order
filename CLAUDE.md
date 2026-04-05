@@ -25,6 +25,10 @@ Auto-generated from all feature plans. Last updated: 2026-04-05
 - Supabase (PostgreSQL) — `users`, `work_orders`, `work_order_signatures`, `work_order_assignments`, `technician_departments` tables (016-signature-approval-chain)
 - Dart 3.x / Flutter 3.x (frontend), Bash (deploy script), JavaScript (index.html inline) + `dart:js_interop` (web interop), Flutter Material (017-pwa-version-update)
 - N/A (in-memory releaseId comparison only) (017-pwa-version-update)
+- Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend) (019-admin-edit-wo-fields)
+- Supabase (PostgreSQL) — existing `work_orders`, `users` tables (019-admin-edit-wo-fields)
+- Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx (backend — already in requirements.txt at v0.28.1); http package (frontend — already used) (020-ai-wo-description)
+- N/A — no persistent data; request/response only (020-ai-wo-description)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 
@@ -45,9 +49,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 020-ai-wo-description: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx (backend — already in requirements.txt at v0.28.1); http package (frontend — already used)
+- 019-admin-edit-wo-fields: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
 - 017-pwa-version-update: Added Dart 3.x / Flutter 3.x (frontend), Bash (deploy script), JavaScript (index.html inline) + `dart:js_interop` (web interop), Flutter Material
-- 016-signature-approval-chain: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
-- 015-export-wo-pdf: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, reportlab (backend — NEW dependency); http, Flutter Material (frontend)
 
 
 <!-- MANUAL ADDITIONS START -->

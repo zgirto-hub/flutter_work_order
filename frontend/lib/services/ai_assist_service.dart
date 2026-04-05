@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config.dart';
@@ -39,11 +40,8 @@ class AiAssistService {
       } else {
         throw Exception('Failed to get AI suggestion.');
       }
-    } catch (e) {
-      if (e.toString().contains('TimeoutException')) {
-        throw Exception('Request timed out. Please try again.');
-      }
-      throw Exception('Failed to get AI suggestion.');
+    } on TimeoutException {
+      throw Exception('Request timed out. Please try again.');
     }
   }
 }

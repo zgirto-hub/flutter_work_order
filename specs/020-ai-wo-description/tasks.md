@@ -251,7 +251,7 @@
   3. No duplicate auto-save timers are created
   4. Manually test: fill title, tap Suggest, wait for auto-save → verify the work order saves with the AI description
 
-- [ ] T008 Run the quickstart.md verification steps in `specs/020-ai-wo-description/quickstart.md`:
+- [x] T008 Run the quickstart.md verification steps in `specs/020-ai-wo-description/quickstart.md`:
   1. Backend curl test (200 response with description)
   2. Backend error test (503 when Ollama stopped)
   3. Frontend new work order flow (empty description → direct fill)
