@@ -498,7 +498,6 @@ async def list_pending_approvals(email: str = Query(...)):
                 )
             """)
             .eq("signature_status", "tech_signed")
-            .eq("status", "Closed")
             .in_("department_id", user_dept_ids)
             .order("created_at", desc=True)
         )
@@ -533,7 +532,6 @@ async def list_pending_approvals(email: str = Query(...)):
                 )
             """)
             .eq("signature_status", "supervisor_approved")
-            .eq("status", "Closed")
             .order("created_at", desc=True)
         )
     else:
