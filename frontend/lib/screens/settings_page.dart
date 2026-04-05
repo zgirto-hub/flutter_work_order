@@ -101,21 +101,17 @@ class _SettingsPageState extends State<SettingsPage> {
 
       triggerSwUpdateCheck();
       
-      // Register callback for immediate notification
+      // Register callback for notification (user applies manually)
       void onUpdateReady() {
         if (mounted) {
           setState(() {
             updateAvailable = true;
-            updateMessage = 'Update applied automatically - reloading...';
+            updateMessage = 'A new version is ready to install';
             checkingUpdate = false;
-          });
-          // Auto-reload after 2 seconds
-          Future.delayed(const Duration(seconds: 2), () {
-            if (mounted) applyPWAUpdate();
           });
         }
       }
-      
+
       registerSwUpdateCallback(onUpdateReady);
       
       // Fallback timeout after 10 seconds
