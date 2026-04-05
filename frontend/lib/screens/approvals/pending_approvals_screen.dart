@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config.dart';
 import '../../theme/app_theme.dart';
 
@@ -25,8 +25,7 @@ class _PendingApprovalsScreenState extends State<PendingApprovalsScreen> {
   }
 
   Future<void> _loadEmailAndData() async {
-    final prefs = await SharedPreferences.getInstance();
-    _email = prefs.getString('userEmail') ?? '';
+    _email = Supabase.instance.client.auth.currentUser?.email ?? '';
     await _loadData();
   }
 
