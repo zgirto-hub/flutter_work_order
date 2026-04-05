@@ -110,6 +110,15 @@ def _fetch_wo_for_pdf(work_order_id: str):
     if not result.data:
         return None
     data = result.data[0]
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected dict from Supabase, got {type(data).__name__}")
+
+    # Normalize nested relationships that may come back as strings instead of dicts
+    for key in ("creator", "departments"):
+        val = data.get(key)
+        if val is not None and not isinstance(val, dict):
+            data[key] = None  # clear bad join data
+
     if not data.get("creator") and data.get("created_by"):
         fallback_user = (
             supabase.table("users")
@@ -117,8 +126,16 @@ def _fetch_wo_for_pdf(work_order_id: str):
             .eq("auth_id", data["created_by"])
             .execute()
         )
-        if fallback_user.data:
+        if fallback_user.data and isinstance(fallback_user.data[0], dict):
             data["creator"] = fallback_user.data[0]
+
+    # Normalize work_order_assignments
+    assignments = data.get("work_order_assignments")
+    if assignments is not None and not isinstance(assignments, list):
+        data["work_order_assignments"] = []
+    elif isinstance(assignments, list):
+        data["work_order_assignments"] = [a for a in assignments if isinstance(a, dict)]
+
     return data
 
 
@@ -150,6 +167,8 @@ def _fetch_signatures_for_pdf(work_order_id: str):
     superindent_sig = None
 
     for sig in sigs:
+        if not isinstance(sig, dict):
+            continue
         signer_email = sig.get("signer_email")
         if not signer_email:
             continue
@@ -159,9 +178,9 @@ def _fetch_signatures_for_pdf(work_order_id: str):
             .eq("email", signer_email)
             .execute()
         )
-        signer_full_name = (
-            user_result.data[0].get("full_name") if user_result.data else None
-        )
+        signer_full_name = None
+        if user_result.data and isinstance(user_result.data[0], dict):
+            signer_full_name = user_result.data[0].get("full_name")
 
         sig["signer_full_name"] = signer_full_name
 
@@ -447,7 +466,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
 
     def render_sig_column(sig, role_label):
         """Build a compact 2-row table: [image] then [label + info]."""
-        if sig is None:
+        if sig is None or not isinstance(sig, dict):
             return Paragraph(
                 f"<b>{xml_escape(role_label)}</b><br/><br/>Awaiting Signature",
                 small_style,
@@ -584,8 +603,13 @@ async def export_work_order_pdf(
     try:
         pdf_bytes = _build_work_order_pdf(wo_data, signatures)
     except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"[PDF ERROR] work_order_id={work_order_id}\n{tb}")
+        # Include traceback line info for debugging
         return JSONResponse(
-            status_code=500, content={"detail": f"Failed to generate PDF: {str(e)}"}
+            status_code=500,
+            content={"detail": f"Failed to generate PDF: {str(e)}", "trace": tb},
         )
 
     job_no = wo_data.get("job_no", "unknown")
