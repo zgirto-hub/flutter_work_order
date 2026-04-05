@@ -1100,6 +1100,14 @@ async def delete_attachment(
 
 @router.get("/work-orders/pending-approvals")
 async def list_pending_approvals(email: str = Query(...)):
+    import traceback
+    try:
+        return await _list_pending_approvals_impl(email)
+    except Exception as e:
+        tb = traceback.format_exc()
+        return JSONResponse(status_code=500, content={"error": str(e), "traceback": tb})
+
+async def _list_pending_approvals_impl(email: str):
     from .signatures import _get_user_approval_info
 
     caller_info = _get_user_approval_info(email)
