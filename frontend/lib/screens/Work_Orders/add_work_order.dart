@@ -17,6 +17,7 @@ import '../../services/department_route_service.dart';
 import '../../models/department.dart';
 import '../../models/technician_assignment.dart';
 import '../../widgets/technician_selector.dart';
+import '../../widgets/user_selector.dart';
 import '../../widgets/attachment_widget.dart';
 import '../../widgets/signature_canvas.dart';
 import '../../models/work_order_signature.dart';
@@ -96,6 +97,11 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   final FocusNode _commentFocusNode = FocusNode();
   final ScrollController _activityScrollCtrl = ScrollController();
   PlatformFile? _pendingAttachment;
+  List<AppUser> _allUsers = [];
+  AppUser? _selectedCreatedByUser;
+  String? _overriddenCreatedBy;
+  DateTime? _overriddenCreatedAt;
+  DateTime? _overriddenClosedAt;
 
   // Auto-save state
   Timer? _autoSaveTimer;
@@ -165,6 +171,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       }
     });
     _loadUserRole();
+    _loadAllUsers();
     if (widget.workOrder != null) {
       jobNoController.text = widget.workOrder!.jobNo;
       clientController.text = widget.workOrder!.title;
@@ -353,6 +360,26 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     _loadDepartments();
   }
 
+  Future<void> _loadAllUsers() async {
+    try {
+      final res = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/users'),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final users = (data['users'] as List? ?? [])
+            .map((j) => AppUser.fromJson(j))
+            .where((u) => u.isActive)
+            .toList();
+        if (mounted) {
+          setState(() {
+            _allUsers = users;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
   Future<void> _loadUserProfile(String email) async {
     if (email.isEmpty) return;
     try {
@@ -475,7 +502,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
             : null,
       );
 
-      await _service.updateWorkOrder(workOrder);
+      await _service.updateWorkOrder(
+        workOrder,
+        createdBy: _overriddenCreatedBy,
+        createdAt: _overriddenCreatedAt?.toUtc().toIso8601String(),
+        closedAt: _overriddenClosedAt?.toUtc().toIso8601String(),
+      );
 
       if (!mounted) return;
       _lastSavedSnapshot = _formSnapshot();
@@ -849,7 +881,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         }
       } else {
         try {
-          await _service.updateWorkOrder(newWorkOrder);
+          await _service.updateWorkOrder(
+            newWorkOrder,
+            createdBy: _overriddenCreatedBy,
+            createdAt: _overriddenCreatedAt?.toUtc().toIso8601String(),
+            closedAt: _overriddenClosedAt?.toUtc().toIso8601String(),
+          );
           if (!mounted) return;
           Navigator.pop(context, "updated");
         } catch (e) {
@@ -963,6 +1000,96 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                                     color: AppColors.textTertiary),
                               ),
                             ],
+                            if (widget.workOrder != null &&
+                                _userRole == 'admin' &&
+                                selectedStatus == 'Closed') ...[
+                              SizedBox(height: 10),
+                              InkWell(
+                                onTap: () async {
+                                  final existingDate =
+                                      widget.workOrder!.closedAt != null &&
+                                              widget.workOrder!.closedAt!
+                                                  .isNotEmpty
+                                          ? DateTime.tryParse(
+                                              widget.workOrder!.closedAt!)
+                                          : null;
+                                  final initialDate = _overriddenClosedAt ??
+                                      existingDate ??
+                                      DateTime.now();
+                                  final date = await showDatePicker(
+                                    context: context,
+                                    initialDate: initialDate,
+                                    firstDate: DateTime(2000),
+                                    lastDate: DateTime.now(),
+                                  );
+                                  if (date == null || !mounted) return;
+                                  final time = await showTimePicker(
+                                    context: context,
+                                    initialTime:
+                                        TimeOfDay.fromDateTime(initialDate),
+                                  );
+                                  if (time == null || !mounted) return;
+                                  final selectedDateTime = DateTime(
+                                    date.year,
+                                    date.month,
+                                    date.day,
+                                    time.hour,
+                                    time.minute,
+                                  );
+                                  final effectiveCreatedAt =
+                                      _overriddenCreatedAt ??
+                                          (widget.workOrder!.dateCreated
+                                                  .isNotEmpty
+                                              ? DateTime.tryParse(
+                                                  widget.workOrder!.dateCreated)
+                                              : null) ??
+                                          DateTime.now();
+                                  if (selectedDateTime
+                                      .isBefore(effectiveCreatedAt)) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(SnackBar(
+                                      content: Text(
+                                          'Closed date cannot be before created date'),
+                                      backgroundColor: Colors.orange,
+                                      behavior: SnackBarBehavior.floating,
+                                    ));
+                                    return;
+                                  }
+                                  setState(() {
+                                    _overriddenClosedAt = selectedDateTime;
+                                  });
+                                },
+                                child: InputDecorator(
+                                  decoration: InputDecoration(
+                                    labelText: "Closed At",
+                                    filled: true,
+                                    suffixIcon: Icon(Icons.edit, size: 18),
+                                  ),
+                                  child: Text(
+                                    _overriddenClosedAt != null
+                                        ? _formatDateTime(_overriddenClosedAt!)
+                                        : widget.workOrder!.closedAt != null &&
+                                                widget.workOrder!.closedAt!
+                                                    .isNotEmpty
+                                            ? _formatDateTimeString(widget.workOrder!.closedAt!)
+                                            : '',
+                                  ),
+                                ),
+                              ),
+                            ] else if (widget.workOrder != null &&
+                                widget.workOrder!.closedAt != null &&
+                                widget.workOrder!.closedAt!.isNotEmpty &&
+                                selectedStatus == 'Closed') ...[
+                              SizedBox(height: 10),
+                              TextFormField(
+                                initialValue: _formatDateTimeString(widget.workOrder!.closedAt!),
+                                readOnly: true,
+                                decoration: InputDecoration(
+                                  labelText: "Closed At",
+                                  filled: true,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -1050,7 +1177,41 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                 filled: true,
               ),
             ),
-            if (widget.workOrder != null &&
+            // Created By field
+            if (widget.workOrder != null && _userRole == 'admin') ...[
+              SizedBox(height: 10),
+              InkWell(
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (context) => UserSelector(
+                      users: _allUsers,
+                      selectedUserId: _overriddenCreatedBy ?? widget.workOrder!.createdBy,
+                      onSelected: (user) {
+                        setState(() {
+                          _selectedCreatedByUser = user;
+                          _overriddenCreatedBy = user.id;
+                        });
+                      },
+                    ),
+                  );
+                },
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: "Created By",
+                    filled: true,
+                    suffixIcon: Icon(Icons.edit, size: 18),
+                  ),
+                  child: Text(
+                    _selectedCreatedByUser?.displayName ??
+                        widget.workOrder!.createdByName ??
+                        widget.workOrder!.createdByEmail ??
+                        '',
+                  ),
+                ),
+              ),
+            ] else if (widget.workOrder != null &&
                 (widget.workOrder!.createdByName != null ||
                     widget.workOrder!.createdByEmail != null)) ...[
               SizedBox(height: 10),
@@ -1060,6 +1221,74 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                 readOnly: true,
                 decoration: InputDecoration(
                   labelText: "Created By",
+                  filled: true,
+                ),
+              ),
+            ],
+            // Created At field
+            if (widget.workOrder != null && _userRole == 'admin') ...[
+              SizedBox(height: 10),
+              InkWell(
+                onTap: () async {
+                  final existingDate = widget.workOrder!.dateCreated.isNotEmpty
+                      ? DateTime.tryParse(widget.workOrder!.dateCreated)
+                      : null;
+                  final initialDate =
+                      _overriddenCreatedAt ?? existingDate ?? DateTime.now();
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: initialDate,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime.now(),
+                  );
+                  if (date == null || !mounted) return;
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.fromDateTime(initialDate),
+                  );
+                  if (time == null || !mounted) return;
+                  final selectedDateTime = DateTime(
+                    date.year,
+                    date.month,
+                    date.day,
+                    time.hour,
+                    time.minute,
+                  );
+                  if (selectedDateTime.isAfter(DateTime.now())) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('Created date cannot be in the future'),
+                      backgroundColor: Colors.orange,
+                      behavior: SnackBarBehavior.floating,
+                    ));
+                    return;
+                  }
+                  setState(() {
+                    _overriddenCreatedAt = selectedDateTime;
+                  });
+                },
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: "Created At",
+                    filled: true,
+                    suffixIcon: Icon(Icons.edit, size: 18),
+                  ),
+                  child: Text(
+                    _overriddenCreatedAt != null
+                        ? _formatDateTime(_overriddenCreatedAt!)
+                        : widget.workOrder!.dateCreated.isNotEmpty
+                            ? _formatDateTimeString(widget.workOrder!.dateCreated)
+                            : '',
+                  ),
+                ),
+              ),
+            ] else if (widget.workOrder != null &&
+                widget.workOrder!.dateCreated.isNotEmpty) ...[
+              SizedBox(height: 10),
+              TextFormField(
+                initialValue: _formatDateTimeString(widget.workOrder!.dateCreated),
+                readOnly: true,
+                decoration: InputDecoration(
+                  labelText: "Created At",
                   filled: true,
                 ),
               ),
@@ -1395,7 +1624,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     final isApproved = status == 'approved';
     final isPending = status == 'pending';
     final isRejected = status == 'rejected';
-    final isSigned = isApproved || isPending; // pending = submitted, awaiting approval
+    final isSigned =
+        isApproved || isPending; // pending = submitted, awaiting approval
 
     // Badge text and color
     String? badgeText;
@@ -1607,6 +1837,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
   String _formatDateTime(DateTime dt) {
     return '${dt.day}/${dt.month}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDateTimeString(String isoString) {
+    final dt = DateTime.tryParse(isoString);
+    if (dt == null) return isoString;
+    return _formatDateTime(dt);
   }
 
   // T014: Admin sees signature data read-only with no action buttons
