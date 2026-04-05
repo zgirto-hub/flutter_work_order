@@ -282,7 +282,8 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     elements.append(Spacer(1, 8))
     elements.append(Paragraph("Work Order Completion Report", title_style))
 
-    dept_name = _ar(wo_data.get("departments", {}).get("name") or "N/A")
+    dept_raw = wo_data.get("departments")
+    dept_name = _ar((dept_raw.get("name") if isinstance(dept_raw, dict) else dept_raw) or "N/A")
     export_date = datetime.now().strftime("%Y-%m-%d %H:%M")
     elements.append(Paragraph(f"{dept_name} • {export_date}", subtitle_style))
 
@@ -340,7 +341,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         ),
         (
             Paragraph("Department:", label_style),
-            Paragraph(_ar(wo_data.get("departments", {}).get("name")), normal_style),
+            Paragraph(_ar(dept_raw.get("name") if isinstance(dept_raw, dict) else (dept_raw or "N/A")), normal_style),
         ),
         (
             Paragraph("Location:", label_style),
@@ -352,7 +353,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         ),
         (
             Paragraph("Created By:", label_style),
-            Paragraph(_ar(wo_data.get("creator", {}).get("full_name")), normal_style),
+            Paragraph(_ar(wo_data.get("creator", {}).get("full_name") if isinstance(wo_data.get("creator"), dict) else (wo_data.get("creator") or "N/A")), normal_style),
         ),
         (
             Paragraph("Created At:", label_style),
