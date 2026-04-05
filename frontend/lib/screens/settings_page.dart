@@ -96,12 +96,11 @@ class _SettingsPageState extends State<SettingsPage> {
           updateMessage = 'A new version is ready to install';
           checkingUpdate = false;
         });
-        Future.delayed(const Duration(milliseconds: 500), _applyUpdate);
         return;
       }
 
       triggerSwUpdateCheck();
-      
+
       // Register callback for notification (user applies manually)
       void onUpdateReady() {
         if (mounted) {
@@ -110,7 +109,6 @@ class _SettingsPageState extends State<SettingsPage> {
             updateMessage = 'A new version is ready to install';
             checkingUpdate = false;
           });
-          Future.delayed(const Duration(milliseconds: 500), _applyUpdate);
         }
       }
 
@@ -135,9 +133,6 @@ class _SettingsPageState extends State<SettingsPage> {
     });
   }
 
-  void _applyUpdate() {
-    if (kIsWeb) applyPWAUpdate();
-  }
 
   Future<void> _loadUserSignature() async {
     final user = Supabase.instance.client.auth.currentUser;
@@ -659,11 +654,14 @@ class _SettingsPageState extends State<SettingsPage> {
                                     color: AppColors.textTertiary)),
                             if (updateAvailable) ...[
                               SizedBox(width: 10),
-                              Text('Reloading...',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.accent,
-                                      fontWeight: FontWeight.w600)),
+                              GestureDetector(
+                                onTap: () { if (kIsWeb) applyPWAUpdate(); },
+                                child: Text('Tap to update',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.accent,
+                                        fontWeight: FontWeight.w600)),
+                              ),
                             ],
                           ],
                         ),

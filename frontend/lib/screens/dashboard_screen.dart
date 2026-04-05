@@ -178,13 +178,12 @@ class DashboardScreenState extends State<DashboardScreen>
           _updateMessage = 'A new version is ready to install';
           _checkingUpdate = false;
         });
-        Future.delayed(const Duration(milliseconds: 500), _applyUpdate);
         return;
       }
 
       // Ask the browser to re-fetch the SW file
       triggerSwUpdateCheck();
-      
+
       // Register callback for notification (user applies manually)
       void onUpdateReady() {
         if (mounted) {
@@ -193,7 +192,6 @@ class DashboardScreenState extends State<DashboardScreen>
             _updateMessage = 'A new version is ready to install';
             _checkingUpdate = false;
           });
-          Future.delayed(const Duration(milliseconds: 500), _applyUpdate);
         }
       }
 
@@ -220,11 +218,6 @@ class DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-  void _applyUpdate() {
-    if (kIsWeb) {
-      applyPWAUpdate();
-    }
-  }
 
   Future<void> _signOut() async {
     final confirm = await showDialog<bool>(
@@ -513,12 +506,15 @@ class DashboardScreenState extends State<DashboardScreen>
                                 ),
                                 if (_updateAvailable) ...[
                                   SizedBox(width: 8),
-                                  Text(
-                                    'Reloading...',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.accent,
-                                      fontWeight: FontWeight.w600,
+                                  GestureDetector(
+                                    onTap: () { if (kIsWeb) applyPWAUpdate(); },
+                                    child: Text(
+                                      'Tap to update',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.accent,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
