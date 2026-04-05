@@ -654,10 +654,8 @@
         if ('serviceWorker' in navigator) {
           var registration = await navigator.serviceWorker.getRegistration();
           if (registration && registration.waiting) {
-            // Try to activate the waiting SW via message
             registration.waiting.postMessage({ type: 'SKIP_WAITING' });
 
-            // Wait for controllerchange OR timeout after 3s
             await Promise.race([
               new Promise(function(resolve) {
                 navigator.serviceWorker.addEventListener('controllerchange', resolve);
@@ -665,15 +663,6 @@
               new Promise(function(resolve) { setTimeout(resolve, 3000); })
             ]);
           }
-
-          // Fallback: unregister all SWs + clear caches to force clean state
-          var regs = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(regs.map(function(r) { return r.unregister(); }));
-        }
-
-        if ('caches' in window) {
-          var names = await caches.keys();
-          await Promise.all(names.map(function(n) { return caches.delete(n); }));
         }
       } catch (_) {}
 
