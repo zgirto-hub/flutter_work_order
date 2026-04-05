@@ -453,6 +453,137 @@ async def list_work_orders(
     return {"work_orders": work_orders, "total": total}
 
 
+@router.get("/work-orders/pending-approvals")
+async def list_pending_approvals(email: str = Query(...)):
+    from .signatures import _get_user_approval_info
+
+    caller_info = _get_user_approval_info(email)
+    if not caller_info:
+        return JSONResponse(status_code=403, content={"error": "User not found"})
+
+    approval_level = caller_info.get("approval_level")
+    if not approval_level or approval_level == 0:
+        return JSONResponse(status_code=403, content={"error": "No approval role"})
+
+    user_dept_ids = caller_info.get("department_ids", [])
+
+    if approval_level == 1:
+        query = (
+            supabase.table("work_orders")
+            .select("""
+                id,
+                job_no,
+                title,
+                status,
+                department_id,
+                created_at,
+                signature_status,
+                departments!left (
+                    id,
+                    name
+                ),
+                work_order_assignments!left (
+                    technician_id,
+                    users!left (
+                        id,
+                        email,
+                        full_name
+                    )
+                ),
+                work_order_signatures!left (
+                    id,
+                    signer_role,
+                    status,
+                    signed_at,
+                    signer_name
+                )
+            """)
+            .eq("signature_status", "tech_signed")
+            .eq("status", "Closed")
+            .in_("department_id", user_dept_ids)
+            .order("created_at", desc=True)
+        )
+    elif approval_level == 2:
+        query = (
+            supabase.table("work_orders")
+            .select("""
+                id,
+                job_no,
+                title,
+                status,
+                department_id,
+                created_at,
+                signature_status,
+                departments!left (
+                    id,
+                    name
+                ),
+                work_order_assignments!left (
+                    technician_id,
+                    users!left (
+                        id,
+                        email,
+                        full_name
+                    )
+                ),
+                work_order_signatures!left (
+                    id,
+                    signer_role,
+                    status,
+                    signed_at,
+                    signer_name
+                )
+            """)
+            .eq("signature_status", "supervisor_approved")
+            .eq("status", "Closed")
+            .order("created_at", desc=True)
+        )
+    else:
+        return JSONResponse(
+            status_code=403, content={"error": "Invalid approval level"}
+        )
+
+    result = query.execute()
+    work_orders_data = result.data or []
+
+    formatted = []
+    for wo in work_orders_data:
+        dept = wo.get("departments") or {}
+        assignments = wo.get("work_order_assignments") or []
+        first_assignment = assignments[0] if assignments else {}
+        tech = (first_assignment or {}).get("users") or {}
+
+        sigs = wo.get("work_order_signatures") or []
+        pending_sig = None
+        for sig in sigs:
+            if sig.get("status") in (None, "pending"):
+                pending_sig = sig
+                break
+
+        formatted.append(
+            {
+                "id": wo.get("id"),
+                "job_no": wo.get("job_no"),
+                "title": wo.get("title"),
+                "status": wo.get("status"),
+                "department_id": wo.get("department_id"),
+                "department_name": dept.get("name"),
+                "created_at": wo.get("created_at"),
+                "signature_status": wo.get("signature_status"),
+                "assigned_technician": {
+                    "id": tech.get("id"),
+                    "full_name": tech.get("full_name"),
+                    "email": tech.get("email"),
+                }
+                if tech.get("id")
+                else None,
+                "pending_signature_id": pending_sig.get("id") if pending_sig else None,
+            }
+        )
+
+    return {"work_orders": formatted}
+
+
 @router.get("/work-orders/{work_order_id}")
 async def get_work_order(
     work_order_id: str,
@@ -1098,144 +1229,3 @@ async def delete_attachment(
     return {"status": "deleted"}
 
 
-@router.get("/work-orders/pending-approvals")
-async def list_pending_approvals(email: str = Query(...)):
-    import traceback
-    try:
-        return await _list_pending_approvals_impl(email)
-    except Exception as e:
-        tb = traceback.format_exc()
-        return JSONResponse(status_code=500, content={"error": str(e), "traceback": tb})
-
-async def _list_pending_approvals_impl(email: str):
-    from .signatures import _get_user_approval_info
-
-    caller_info = _get_user_approval_info(email)
-    if not caller_info:
-        return JSONResponse(status_code=403, content={"error": "User not found"})
-
-    approval_level = caller_info.get("approval_level")
-    if not approval_level or approval_level == 0:
-        return JSONResponse(status_code=403, content={"error": "No approval role"})
-
-    user_dept_ids = caller_info.get("department_ids", [])
-
-    if approval_level == 1:
-        query = (
-            supabase.table("work_orders")
-            .select("""
-                id,
-                job_no,
-                title,
-                status,
-                department_id,
-                created_at,
-                signature_status,
-                departments!left (
-                    id,
-                    name
-                ),
-                work_order_assignments!left (
-                    technician_id,
-                    users!left (
-                        id,
-                        email,
-                        full_name
-                    )
-                ),
-                work_order_signatures!left (
-                    id,
-                    signer_role,
-                    status,
-                    signed_at,
-                    signer_name
-                )
-            """)
-            .eq("signature_status", "tech_signed")
-            .eq("status", "Closed")
-            .in_("department_id", user_dept_ids)
-            .order("created_at", desc=True)
-        )
-    elif approval_level == 2:
-        query = (
-            supabase.table("work_orders")
-            .select("""
-                id,
-                job_no,
-                title,
-                status,
-                department_id,
-                created_at,
-                signature_status,
-                departments!left (
-                    id,
-                    name
-                ),
-                work_order_assignments!left (
-                    technician_id,
-                    users!left (
-                        id,
-                        email,
-                        full_name
-                    )
-                ),
-                work_order_signatures!left (
-                    id,
-                    signer_role,
-                    status,
-                    signed_at,
-                    signer_name
-                )
-            """)
-            .eq("signature_status", "supervisor_approved")
-            .eq("status", "Closed")
-            .order("created_at", desc=True)
-        )
-    else:
-        return JSONResponse(
-            status_code=403, content={"error": "Invalid approval level"}
-        )
-
-    try:
-        result = query.execute()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Query error: {e}")
-
-    work_orders = result.data or []
-
-    formatted = []
-    for wo in work_orders:
-        dept = wo.get("departments") or {}
-        assignments = wo.get("work_order_assignments") or []
-        first_assignment = assignments[0] if assignments else {}
-        tech = (first_assignment or {}).get("users") or {}
-
-        sigs = wo.get("work_order_signatures") or []
-        pending_sig = None
-        for sig in sigs:
-            if sig.get("status") in (None, "pending"):
-                pending_sig = sig
-                break
-
-        formatted.append(
-            {
-                "id": wo.get("id"),
-                "job_no": wo.get("job_no"),
-                "title": wo.get("title"),
-                "status": wo.get("status"),
-                "department_id": wo.get("department_id"),
-                "department_name": dept.get("name"),
-                "created_at": wo.get("created_at"),
-                "signature_status": wo.get("signature_status"),
-                "assigned_technician": {
-                    "id": tech.get("id"),
-                    "full_name": tech.get("full_name"),
-                    "email": tech.get("email"),
-                }
-                if tech.get("id")
-                else None,
-                "pending_signature_id": pending_sig.get("id") if pending_sig else None,
-            }
-        )
-
-    return {"work_orders": formatted}
