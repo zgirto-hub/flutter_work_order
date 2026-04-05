@@ -209,12 +209,6 @@ class DashboardScreenState extends State<DashboardScreen>
       });
       return;
     }
-            _checkingUpdate = false;
-          });
-        }
-      });
-      return;
-    }
 
     if (mounted) {
       setState(() {
