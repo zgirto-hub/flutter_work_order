@@ -484,7 +484,7 @@ async def list_pending_approvals(email: str = Query(...)):
                 ),
                 work_order_assignments!left (
                     technician_id,
-                    users!left (
+                    users!work_order_assignments_technician_id_fkey (
                         id,
                         email,
                         full_name
@@ -520,7 +520,7 @@ async def list_pending_approvals(email: str = Query(...)):
                 ),
                 work_order_assignments!left (
                     technician_id,
-                    users!left (
+                    users!work_order_assignments_technician_id_fkey (
                         id,
                         email,
                         full_name
