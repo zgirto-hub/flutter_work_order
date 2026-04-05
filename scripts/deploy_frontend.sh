@@ -144,10 +144,8 @@ self.addEventListener('fetch', function(event) {
 });
 SWEOF
 
-# Write version.json so the app can detect updates even when SW check fails (iOS)
-cat > build/web/version.json <<VJEOF
-{"version":"$NEW_VERSION","build":"$BUILD_NUMBER","releaseId":"$RELEASE_ID"}
-VJEOF
+# Add releaseId to Flutter's auto-generated version.json (preserves build_number for package_info_plus)
+sed -i 's/}$/,"releaseId":"'"$RELEASE_ID"'"}/' build/web/version.json
 
 # Stamp the app-version meta tag in index.html
 sed -i "s/__APP_VERSION__/$NEW_VERSION/" build/web/index.html
