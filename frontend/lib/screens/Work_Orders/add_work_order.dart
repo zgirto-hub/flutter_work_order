@@ -1395,6 +1395,21 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     final isApproved = status == 'approved';
     final isPending = status == 'pending';
     final isRejected = status == 'rejected';
+    final isSigned = isApproved || isPending; // pending = submitted, awaiting approval
+
+    // Badge text and color
+    String? badgeText;
+    Color? badgeColor;
+    if (isApproved) {
+      badgeText = 'Approved';
+      badgeColor = AppColors.closedText;
+    } else if (isPending) {
+      badgeText = 'Signed';
+      badgeColor = AppColors.pendingText;
+    } else if (isRejected) {
+      badgeText = 'Rejected';
+      badgeColor = Colors.red;
+    }
 
     return Container(
       margin: EdgeInsets.only(bottom: 8),
@@ -1404,14 +1419,18 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
             ? AppColors.closedBg
             : isRejected
                 ? AppColors.dangerBg
-                : AppColors.bgSurface2,
+                : isPending
+                    ? AppColors.pendingBg
+                    : AppColors.bgSurface2,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isApproved
               ? AppColors.closedText.withValues(alpha: 0.3)
               : isRejected
                   ? Colors.red.withValues(alpha: 0.3)
-                  : AppColors.border,
+                  : isPending
+                      ? AppColors.pendingText.withValues(alpha: 0.3)
+                      : AppColors.border,
         ),
       ),
       child: Column(
@@ -1420,17 +1439,19 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
           Row(
             children: [
               Icon(
-                isApproved
+                isSigned
                     ? Icons.check_circle
                     : isRejected
                         ? Icons.cancel
-                        : Icons.pending,
+                        : Icons.radio_button_unchecked,
                 size: 16,
                 color: isApproved
                     ? AppColors.closedText
-                    : isRejected
-                        ? Colors.red
-                        : AppColors.pendingText,
+                    : isPending
+                        ? AppColors.pendingText
+                        : isRejected
+                            ? Colors.red
+                            : AppColors.textTertiary,
               ),
               SizedBox(width: 6),
               Text(label,
@@ -1439,29 +1460,15 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary)),
               Spacer(),
-              if (isApproved)
+              if (badgeText != null)
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: AppColors.closedText,
+                    color: badgeColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text('Approved',
-                      style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500)),
-                )
-              else if (isRejected)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text('Rejected',
+                  child: Text(badgeText,
                       style: TextStyle(
                           fontSize: 10,
                           color: Colors.white,
@@ -1471,8 +1478,21 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
           ),
           if (signature != null) ...[
             SizedBox(height: 8),
-            if (signature.signerName != null)
-              Text(signature.signerName!,
+            if (signature.signaturePath != null &&
+                signature.signaturePath!.isNotEmpty)
+              Container(
+                height: 60,
+                width: double.infinity,
+                margin: EdgeInsets.only(bottom: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Center(
+                    child: _buildSignatureImage(signature.signaturePath)),
+              ),
+            if (signature.signerName.isNotEmpty)
+              Text(signature.signerName,
                   style:
                       TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             if (signature.signedAt != null)
