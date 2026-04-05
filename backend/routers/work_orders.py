@@ -547,9 +547,14 @@ async def list_pending_approvals(email: str = Query(...)):
     formatted = []
     for wo in work_orders_data:
         dept = wo.get("departments") or {}
-        assignments = wo.get("work_order_assignments") or []
-        first_assignment = assignments[0] if assignments else {}
-        tech = (first_assignment or {}).get("users") or {}
+        raw_assignments = wo.get("work_order_assignments")
+        if isinstance(raw_assignments, dict):
+            first_assignment = raw_assignments
+        elif isinstance(raw_assignments, list) and raw_assignments:
+            first_assignment = raw_assignments[0] or {}
+        else:
+            first_assignment = {}
+        tech = first_assignment.get("users") or {}
 
         sigs = wo.get("work_order_signatures") or []
         pending_sig = None
