@@ -72,7 +72,7 @@ class _PendingApprovalsScreenState extends State<PendingApprovalsScreen> {
       await http.patch(
         Uri.parse('${AppConfig.baseUrl}/work-orders/$woId/signatures/$sigId?user_email=${Uri.encodeComponent(_email)}'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'status': 'approved'}),
+        body: jsonEncode({'status': 'approved', 'use_saved': true}),
       );
       setState(() {
         _workOrders.removeWhere((wo) => wo['id'] == woId);
