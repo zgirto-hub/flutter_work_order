@@ -6,7 +6,7 @@ const List<String> kAvailableFonts = ['Inter', 'DM Sans', 'Roboto', 'Poppins', '
 
 class ThemeController extends ChangeNotifier with WidgetsBindingObserver {
   Color _color = Colors.blue;
-  double _fontScale = 1.0;
+  double _fontScale = 1.15;
   String _fontFamily = 'Inter';
   ThemeMode _mode = ThemeMode.light;
   var _pinnedNavScreens = <String>[];
