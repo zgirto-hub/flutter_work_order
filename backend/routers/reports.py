@@ -283,7 +283,21 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
     elements.append(Paragraph("Work Order Completion Report", title_style))
 
     dept_raw = wo_data.get("departments")
-    dept_name = _ar((dept_raw.get("name") if isinstance(dept_raw, dict) else dept_raw) or "N/A")
+    if isinstance(dept_raw, dict):
+        dept_name_val = dept_raw.get("name") or "N/A"
+    elif isinstance(dept_raw, str):
+        dept_name_val = dept_raw or "N/A"
+    else:
+        dept_name_val = "N/A"
+    dept_name = _ar(dept_name_val)
+
+    creator_raw = wo_data.get("creator")
+    if isinstance(creator_raw, dict):
+        creator_name = creator_raw.get("full_name") or "N/A"
+    elif isinstance(creator_raw, str):
+        creator_name = creator_raw or "N/A"
+    else:
+        creator_name = "N/A"
     export_date = datetime.now().strftime("%Y-%m-%d %H:%M")
     elements.append(Paragraph(f"{dept_name} • {export_date}", subtitle_style))
 
@@ -341,7 +355,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         ),
         (
             Paragraph("Department:", label_style),
-            Paragraph(_ar(dept_raw.get("name") if isinstance(dept_raw, dict) else (dept_raw or "N/A")), normal_style),
+            Paragraph(_ar(dept_name_val), normal_style),
         ),
         (
             Paragraph("Location:", label_style),
@@ -353,7 +367,7 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         ),
         (
             Paragraph("Created By:", label_style),
-            Paragraph(_ar(wo_data.get("creator", {}).get("full_name") if isinstance(wo_data.get("creator"), dict) else (wo_data.get("creator") or "N/A")), normal_style),
+            Paragraph(_ar(creator_name), normal_style),
         ),
         (
             Paragraph("Created At:", label_style),
@@ -386,13 +400,15 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         elements.append(Paragraph("Tech Notes", section_style))
         elements.append(Paragraph(_ar(tech_notes), normal_style))
 
-    assignments = wo_data.get("work_order_assignments", [])
-    if assignments:
+    assignments = wo_data.get("work_order_assignments") or []
+    if isinstance(assignments, list) and assignments:
         elements.append(Paragraph("Assigned Technicians", section_style))
         tech_names = []
         for a in assignments:
+            if not isinstance(a, dict):
+                continue
             user = a.get("users")
-            if user and user.get("full_name"):
+            if isinstance(user, dict) and user.get("full_name"):
                 tech_names.append(user["full_name"])
         if tech_names:
             for name in tech_names:
@@ -476,7 +492,10 @@ def _build_work_order_pdf(wo_data: dict, signatures: dict) -> bytes:
         return cell
 
     tech_col = render_sig_column(signatures.get("technician"), "Technician Signature")
-    admin_col = render_sig_column(signatures.get("admin"), "Authorized By")
+    admin_col = render_sig_column(
+        signatures.get("supervisor") or signatures.get("superintendent"),
+        "Authorized By",
+    )
 
     sig_table = Table([[tech_col, admin_col]], colWidths=[8 * cm, 8 * cm])
     sig_table.setStyle(
