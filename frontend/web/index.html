@@ -509,25 +509,29 @@
 
   <script>
     (function() {
-      // Event-driven update detection with immediate activation
+      // Event-driven update detection — guarded against loops
       window._swUpdateReady = false;
-      window._swUpdateCallbacks = [];
+      window._swUpdateCallback = null;  // single callback, not array
+      window._swUpdateApplied = false;  // guard against re-triggering
 
       function notifyDartUpdateReady() {
+        if (window._swUpdateApplied) return;  // already applying, don't re-trigger
         window._swUpdateReady = true;
-        window._swUpdateCallbacks.forEach(function(cb) { cb(); });
+        if (window._swUpdateCallback) window._swUpdateCallback();
       }
 
-      // Expose function for Dart to register update callback
+      // Expose function for Dart to register update callback (replaces previous)
       window._registerSwUpdateCallback = function(callback) {
-        window._swUpdateCallbacks.push(callback);
-        if (window._swUpdateReady) callback(); // If already ready, call immediately
+        window._swUpdateCallback = callback;  // replace, don't accumulate
+        if (window._swUpdateReady && !window._swUpdateApplied) callback();
       };
 
       if ('serviceWorker' in navigator) {
+        // Only detect updates if a SW already controls this page (not first install)
+        var hasController = !!navigator.serviceWorker.controller;
+
         navigator.serviceWorker.ready.then(function(reg) {
-          if (reg.waiting) {
-            // New SW is waiting - update is ready
+          if (reg.waiting && hasController) {
             notifyDartUpdateReady();
             return;
           }
@@ -535,8 +539,7 @@
             var nw = reg.installing;
             if (!nw) return;
             nw.addEventListener('statechange', function() {
-              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                // New SW installed and will activate immediately
+              if (nw.state === 'installed' && hasController) {
                 notifyDartUpdateReady();
               }
             });
@@ -623,6 +626,9 @@
           requestAnimationFrame(resolve);
         });
       });
+
+      // Guard against re-triggering
+      window._swUpdateApplied = true;
 
       // With immediate activation, just wait a moment then reload
       await new Promise(function(resolve) { setTimeout(resolve, 1500); });

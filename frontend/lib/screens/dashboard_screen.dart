@@ -184,21 +184,17 @@ class DashboardScreenState extends State<DashboardScreen>
       // Ask the browser to re-fetch the SW file
       triggerSwUpdateCheck();
       
-      // Register callback for immediate notification
+      // Register callback for notification (user applies manually)
       void onUpdateReady() {
         if (mounted) {
           setState(() {
             _updateAvailable = true;
-            _updateMessage = 'Update applied automatically - reloading...';
+            _updateMessage = 'A new version is ready to install';
             _checkingUpdate = false;
-          });
-          // Auto-reload after 2 seconds
-          Future.delayed(const Duration(seconds: 2), () {
-            if (mounted) _applyUpdate();
           });
         }
       }
-      
+
       registerSwUpdateCallback(onUpdateReady);
       
       // Fallback timeout after 10 seconds
