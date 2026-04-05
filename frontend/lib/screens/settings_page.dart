@@ -1,25 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
-import 'dart:typed_data';
 import '../services/pwa_update_stub.dart'
     if (dart.library.js_interop) '../services/pwa_update_web.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
-import 'package:file_picker/file_picker.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/claude_widgets.dart';
 import '../widgets/change_password_dialog.dart';
-import '../config.dart';
 import '../services/activity_log_service.dart';
-import '../services/signature_service.dart';
-import '../widgets/signature_canvas.dart';
 import 'settings/notification_settings_section.dart';
 import 'settings/activity_log_screen.dart';
+import 'settings/signature_management_screen.dart';
 import 'admin/user_management_screen.dart';
 import 'admin/department_routes_screen.dart';
 import 'admin/departments_screen.dart';
@@ -49,18 +43,10 @@ class _SettingsPageState extends State<SettingsPage> {
   static const _fontScales = [1.0, 1.15, 1.3, 1.45];
   static const _fontLabels = ['Small', 'Default', 'Large', 'X-Large'];
 
-  // Signature state
-  final SignatureService _signatureService = SignatureService();
-  String? _currentUserId;
-  String? _savedSignaturePath;
-  bool _signatureLoading = false;
-  int _sigCacheBuster = DateTime.now().millisecondsSinceEpoch;
-
   @override
   void initState() {
     super.initState();
     _loadVersion();
-    _loadUserSignature();
   }
 
   @override
@@ -122,139 +108,6 @@ class _SettingsPageState extends State<SettingsPage> {
       updateMessage = 'You are on the latest version';
       checkingUpdate = false;
     });
-  }
-
-  Future<void> _loadUserSignature() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-
-    setState(() => _signatureLoading = true);
-    try {
-      final profileRes = await http.get(
-        Uri.parse(
-            '${AppConfig.baseUrl}/users/me?email=${Uri.encodeComponent(user.email ?? '')}'),
-      );
-      if (profileRes.statusCode == 200) {
-        final body = jsonDecode(profileRes.body) as Map<String, dynamic>;
-        final profileData = (body['user'] as Map<String, dynamic>?) ?? {};
-        final role =
-            (profileData['user_type'] as String? ?? '').trim().toLowerCase();
-
-        if (role == 'technician' || role == 'admin') {
-          final userId = profileData['id'] as String?;
-          if (userId != null && userId.isNotEmpty) {
-            _currentUserId = userId;
-            final path = await _signatureService.fetchUserSignature(userId);
-            if (mounted) setState(() => _savedSignaturePath = path);
-          }
-        }
-      }
-    } catch (_) {}
-    if (mounted) setState(() => _signatureLoading = false);
-  }
-
-  Future<void> _saveSignatureFromCanvas() async {
-    if (_currentUserId == null) return;
-    final base64 = await SignatureCanvas.show(context);
-    if (base64 == null || !mounted) return;
-    await _saveSignature(base64Data: base64);
-  }
-
-  Future<void> _saveSignatureFromFile() async {
-    if (_currentUserId == null || _signatureLoading) return;
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty || !mounted) return;
-    final file = result.files.single;
-    if (file.bytes == null || file.bytes!.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Could not read file data. Please try again.'),
-              backgroundColor: Colors.red),
-        );
-      }
-      return;
-    }
-    await _saveSignature(
-      fileBytes: file.bytes,
-      fileName: file.name,
-    );
-  }
-
-  Future<void> _saveSignature(
-      {String? base64Data, Uint8List? fileBytes, String? fileName}) async {
-    if (_currentUserId == null) return;
-    setState(() => _signatureLoading = true);
-    try {
-      final path = await _signatureService.saveUserSignature(
-        userId: _currentUserId!,
-        base64Data: base64Data,
-        fileBytes: fileBytes,
-        fileName: fileName,
-      );
-      if (mounted) {
-        setState(() {
-          _savedSignaturePath = path;
-          _sigCacheBuster = DateTime.now().millisecondsSinceEpoch;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Failed to save signature: $e'),
-              backgroundColor: Colors.red),
-        );
-      }
-    }
-    if (mounted) setState(() => _signatureLoading = false);
-  }
-
-  Future<void> _removeSignature() async {
-    if (_currentUserId == null) return;
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Remove Signature'),
-        content:
-            const Text('Are you sure you want to remove your saved signature?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-
-    setState(() => _signatureLoading = true);
-    try {
-      await _signatureService.deleteUserSignature(_currentUserId!);
-      if (mounted) setState(() => _savedSignaturePath = null);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Failed to remove signature: $e'),
-              backgroundColor: Colors.red),
-        );
-      }
-    }
-    if (mounted) setState(() => _signatureLoading = false);
-  }
-
-  String _resolveFileUrl(String? path) {
-    if (path == null || path.isEmpty) return '';
-    final base = AppConfig.baseUrl.replaceFirst('/api', '');
-    return '$base$path?v=$_sigCacheBuster';
   }
 
   Future<void> _signOut() async {
@@ -381,121 +234,18 @@ class _SettingsPageState extends State<SettingsPage> {
                 SizedBox(height: 12),
                 SectionLabel(text: 'My Signature'),
                 SurfaceCard(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (_signatureLoading)
-                        Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: CircularProgressIndicator(
-                              color: AppColors.accent,
-                              strokeWidth: 2,
-                            ),
-                          ),
-                        )
-                      else if (_savedSignaturePath != null &&
-                          _savedSignaturePath!.isNotEmpty) ...[
-                        Container(
-                          width: double.infinity,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              _resolveFileUrl(_savedSignaturePath),
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => Center(
-                                child: Text(
-                                  'Preview unavailable',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textTertiary,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                icon:
-                                    const Icon(Icons.upload_outlined, size: 16),
-                                label: const Text('Upload'),
-                                onPressed: _signatureLoading
-                                    ? null
-                                    : _saveSignatureFromFile,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                icon:
-                                    const Icon(Icons.delete_outline, size: 16),
-                                label: const Text('Remove'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.red,
-                                ),
-                                onPressed:
-                                    _signatureLoading ? null : _removeSignature,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 8),
-                        SizedBox(
-                          width: double.infinity,
-                          child: TextButton.icon(
-                            icon: const Icon(Icons.draw_outlined, size: 16),
-                            label: const Text('Draw New Signature'),
-                            onPressed: _signatureLoading
-                                ? null
-                                : _saveSignatureFromCanvas,
-                          ),
-                        ),
-                      ] else ...[
-                        Text(
-                          'No saved signature',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.draw_outlined, size: 16),
-                                label: const Text('Draw Signature'),
-                                onPressed: _signatureLoading
-                                    ? null
-                                    : _saveSignatureFromCanvas,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                icon:
-                                    const Icon(Icons.upload_outlined, size: 16),
-                                label: const Text('Upload Image'),
-                                onPressed: _signatureLoading
-                                    ? null
-                                    : _saveSignatureFromFile,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: SettingsRow(
+                    icon: Icons.draw_outlined,
+                    label: 'Manage signature',
+                    subtitle: 'Draw, upload, or remove your signature',
+                    showDivider: false,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SignatureManagementScreen(),
+                      ),
+                    ),
                   ),
                 ),
               ],
