@@ -150,38 +150,42 @@ class _PendingApprovalsScreenState extends State<PendingApprovalsScreen> {
       appBar: AppBar(
         title: Text('Pending Approvals'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh_rounded),
+            onPressed: _loadData,
+          ),
+        ],
       ),
-      body: _loading
-          ? Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: _loading
+            ? Center(child: CircularProgressIndicator())
+            : _error != null
+                ? ListView(
                     children: [
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.3),
                       Icon(Icons.error_outline, size: 48, color: Colors.red),
                       SizedBox(height: 16),
-                      Text(_error!, style: TextStyle(color: Colors.red)),
+                      Center(child: Text(_error!, style: TextStyle(color: Colors.red))),
                     ],
-                  ),
-                )
-              : _workOrders.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
+                  )
+                : _workOrders.isEmpty
+                    ? ListView(
                         children: [
+                          SizedBox(height: MediaQuery.of(context).size.height * 0.3),
                           Icon(Icons.check_circle_outline,
                               size: 64, color: AppColors.textTertiary),
                           SizedBox(height: 16),
-                          Text('No pending approvals',
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  color: AppColors.textSecondary)),
+                          Center(
+                            child: Text('No pending approvals',
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    color: AppColors.textSecondary)),
+                          ),
                         ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _loadData,
-                      child: ListView.builder(
+                      )
+                    : ListView.builder(
                         padding: EdgeInsets.all(12),
                         itemCount: _workOrders.length,
                         itemBuilder: (ctx, i) {
@@ -196,7 +200,7 @@ class _PendingApprovalsScreenState extends State<PendingApprovalsScreen> {
                           );
                         },
                       ),
-                    ),
+      ),
     );
   }
 }
