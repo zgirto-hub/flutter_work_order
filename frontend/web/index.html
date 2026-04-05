@@ -526,6 +526,12 @@
         if (window._swUpdateReady && !window._swUpdateApplied) callback();
       };
 
+      // Track the active SW script URL at page load to detect real changes
+      var initialSwUrl = null;
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        initialSwUrl = navigator.serviceWorker.controller.scriptURL;
+      }
+
       if ('serviceWorker' in navigator) {
         // Only detect updates if a SW already controls this page (not first install)
         var hasController = !!navigator.serviceWorker.controller;
@@ -540,7 +546,15 @@
             if (!nw) return;
             nw.addEventListener('statechange', function() {
               if (nw.state === 'installed' && hasController) {
-                notifyDartUpdateReady();
+                // Only notify if the new SW is actually waiting (not already activated via skipWaiting)
+                if (reg.waiting) {
+                  notifyDartUpdateReady();
+                }
+              } else if (nw.state === 'activated' && hasController) {
+                // SW activated via skipWaiting — only notify if it's a genuinely new controller
+                if (nw.scriptURL !== initialSwUrl) {
+                  notifyDartUpdateReady();
+                }
               }
             });
           });
@@ -631,7 +645,7 @@
       // Guard against re-triggering
       window._swUpdateApplied = true;
 
-      // With immediate activation, just wait a moment then reload
+      // With skipWaiting the new SW activates immediately, just wait briefly for caches
       await new Promise(function(resolve) { setTimeout(resolve, 1500); });
 
       window.location.reload();
