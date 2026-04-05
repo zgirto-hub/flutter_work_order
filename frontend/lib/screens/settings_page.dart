@@ -96,6 +96,7 @@ class _SettingsPageState extends State<SettingsPage> {
           updateMessage = 'A new version is ready to install';
           checkingUpdate = false;
         });
+        Future.delayed(const Duration(milliseconds: 500), _applyUpdate);
         return;
       }
 
@@ -109,6 +110,7 @@ class _SettingsPageState extends State<SettingsPage> {
             updateMessage = 'A new version is ready to install';
             checkingUpdate = false;
           });
+          Future.delayed(const Duration(milliseconds: 500), _applyUpdate);
         }
       }
 

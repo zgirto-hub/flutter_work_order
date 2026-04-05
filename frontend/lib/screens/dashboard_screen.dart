@@ -178,6 +178,7 @@ class DashboardScreenState extends State<DashboardScreen>
           _updateMessage = 'A new version is ready to install';
           _checkingUpdate = false;
         });
+        Future.delayed(const Duration(milliseconds: 500), _applyUpdate);
         return;
       }
 
@@ -192,6 +193,7 @@ class DashboardScreenState extends State<DashboardScreen>
             _updateMessage = 'A new version is ready to install';
             _checkingUpdate = false;
           });
+          Future.delayed(const Duration(milliseconds: 500), _applyUpdate);
         }
       }
 
