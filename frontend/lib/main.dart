@@ -230,11 +230,6 @@ class _TicketCard extends StatelessWidget {
         // ── Top terracotta stripe
         Container(height: 3.5, color: _terracotta),
 
-        // ── Top label
-        _labelRow(flipped: false),
-
-        Container(height: 0.5, color: _divider),
-
         // ── Main body
         Padding(
           padding: const EdgeInsets.fromLTRB(28, 38, 28, 32),
@@ -302,40 +297,12 @@ class _TicketCard extends StatelessWidget {
           ),
         ),
 
-        Container(height: 0.5, color: _divider),
-
-        // ── Bottom label (upside down — classic ticket style)
-        _labelRow(flipped: true),
-
         // ── Bottom terracotta stripe
         Container(height: 3.5, color: _terracotta),
       ],
     );
   }
 
-  Widget _labelRow({required bool flipped}) {
-    Widget row = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 7),
-      child: Row(
-        children: [
-          Text('ADMIT ONE', style: _labelStyle()),
-          const Spacer(),
-          Text('•', style: _labelStyle()),
-          const Spacer(),
-          Text('VALID FOR: WORK ORDER SYSTEM', style: _labelStyle()),
-        ],
-      ),
-    );
-    if (flipped) row = Transform.scale(scaleY: -1, child: row);
-    return row;
-  }
-
-  static TextStyle _labelStyle() => const TextStyle(
-        fontSize: 7,
-        fontWeight: FontWeight.w800,
-        color: _textLight,
-        letterSpacing: 1.5,
-      );
 }
 
 // ── Painters ─────────────────────────────────────────────────────────────────
