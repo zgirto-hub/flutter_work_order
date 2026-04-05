@@ -174,11 +174,17 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    final pinned = widget.themeController.pinnedNavScreens
+    final pinnedBase = widget.themeController.pinnedNavScreens
         .where(_canShow)
         .where((key) => NavScreenRegistry.get(key) != null)
-        .take(2)
         .toList();
+
+    // Auto-include approvals for users with approval privileges
+    if (_approvalLevel > 0 && !pinnedBase.contains('approvals')) {
+      pinnedBase.insert(0, 'approvals');
+    }
+
+    final pinned = pinnedBase.take(2).toList();
 
     final pages = <Widget>[
       DashboardScreen(
