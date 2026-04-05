@@ -257,12 +257,12 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                                         ],
                                       ),
                                     ),
-                                    ...dayLogs.mapIndexed((i, log) =>
-                                        _ActivityLogItem(
-                                          entry: log,
-                                          isLast: i == dayLogs.length - 1,
+                                    ...dayLogs.map((log) =>
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 8),
+                                          child: _ActivityLogCard(entry: log),
                                         )),
-                                    SizedBox(height: 8),
+                                    SizedBox(height: 4),
                                   ],
                                 );
                               }),
@@ -301,50 +301,51 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
 }
 
 
-// ── Activity log item widget ───────────────────────────────────────────────────
+// ── Activity log card widget ──────────────────────────────────────────────────
 
-class _ActivityLogItem extends StatelessWidget {
+class _ActivityLogCard extends StatelessWidget {
   final ActivityLogEntry entry;
-  final bool isLast;
 
-  const _ActivityLogItem({required this.entry, required this.isLast});
+  const _ActivityLogCard({required this.entry});
 
   IconData get _icon {
     switch (entry.action) {
-      case 'deleted':   return Icons.delete_outline_rounded;
-      case 'uploaded':  return Icons.upload_file_outlined;
-      case 'shared':    return Icons.share_outlined;
-      case 'closed':    return Icons.check_circle_outline_rounded;
+      case 'deleted':    return Icons.delete_outline_rounded;
+      case 'uploaded':   return Icons.upload_file_outlined;
+      case 'shared':     return Icons.share_outlined;
+      case 'closed':     return Icons.check_circle_outline_rounded;
       case 'signed_in':  return Icons.login_rounded;
       case 'signed_out': return Icons.logout_rounded;
-      case 'created':   return Icons.add_circle_outline_rounded;
-      default:          return Icons.edit_outlined;
+      case 'created':    return Icons.add_circle_outline_rounded;
+      case 'pdf_exported': return Icons.picture_as_pdf_outlined;
+      case 'update_checked': return Icons.system_update_outlined;
+      default:           return Icons.edit_outlined;
     }
   }
 
   Color get _iconBg {
     switch (entry.action) {
-      case 'deleted':   return const Color(0xFFFCEBEB);
-      case 'uploaded':  return AppColors.accentBg;
-      case 'shared':    return const Color(0xFFE8F0FB);
-      case 'closed':    return const Color(0xFFDCFCE7);
+      case 'deleted':    return const Color(0xFFFCEBEB);
+      case 'uploaded':   return AppColors.accentBg;
+      case 'shared':     return const Color(0xFFE8F0FB);
+      case 'closed':     return const Color(0xFFDCFCE7);
       case 'signed_in':  return AppColors.bgSurface2;
       case 'signed_out': return AppColors.bgSurface2;
-      case 'created':   return const Color(0xFFEAF3DE);
-      default:          return const Color(0xFFE8F0FB);
+      case 'created':    return const Color(0xFFEAF3DE);
+      default:           return const Color(0xFFE8F0FB);
     }
   }
 
   Color get _iconFg {
     switch (entry.action) {
-      case 'deleted':   return const Color(0xFFA32D2D);
-      case 'uploaded':  return AppColors.accent;
-      case 'shared':    return const Color(0xFF185FA5);
-      case 'closed':    return AppColors.closedText;
+      case 'deleted':    return const Color(0xFFA32D2D);
+      case 'uploaded':   return AppColors.accent;
+      case 'shared':     return const Color(0xFF185FA5);
+      case 'closed':     return AppColors.closedText;
       case 'signed_in':  return AppColors.textSecondary;
       case 'signed_out': return AppColors.textSecondary;
-      case 'created':   return const Color(0xFF3B6D11);
-      default:          return const Color(0xFF185FA5);
+      case 'created':    return const Color(0xFF3B6D11);
+      default:           return const Color(0xFF185FA5);
     }
   }
 
@@ -366,10 +367,8 @@ class _ActivityLogItem extends StatelessWidget {
     }
   }
 
-  String get _categoryLabel =>
-      entry.category.replaceAll('_', ' ');
+  String get _categoryLabel => entry.category.replaceAll('_', ' ');
 
-  // Avatar color based on user name hash
   Color get _avatarBg {
     const colors = [
       Color(0xFFEEEDFE), Color(0xFFE1F5EE),
@@ -388,108 +387,116 @@ class _ActivityLogItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Left: icon + line
-        SizedBox(
-          width: 36,
-          child: Column(
-            children: [
-              Container(
-                width: 32, height: 32,
-                decoration: BoxDecoration(
-                  color: _iconBg,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(_icon, size: 15, color: _iconFg),
-              ),
-              if (!isLast)
-                Container(
-                  width: 1, height: 36,
-                  margin: const EdgeInsets.symmetric(vertical: 3),
-                  color: AppColors.border,
-                ),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.bgSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border2, width: 0.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-        ),
-        SizedBox(width: 10),
-        // Right: content
-        Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(bottom: isLast ? 0 : 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Meta row
-                Row(
-                  children: [
-                    Container(
-                      width: 22, height: 22,
-                      decoration: BoxDecoration(
-                        color: _avatarBg,
-                        shape: BoxShape.circle,
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Action icon
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: _iconBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(_icon, size: 18, color: _iconFg),
+            ),
+            const SizedBox(width: 12),
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top row: user + time
+                  Row(
+                    children: [
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: _avatarBg,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(entry.initials,
+                              style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                  color: _avatarFg)),
+                        ),
                       ),
-                      child: Center(
-                        child: Text(entry.initials,
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(entry.userName,
                             style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w500,
-                                color: _avatarFg)),
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary)),
                       ),
-                    ),
-                    SizedBox(width: 5),
-                    Text(entry.userName,
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textPrimary)),
-                    SizedBox(width: 5),
-                    Text(entry.formattedTime,
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary)),
-                    SizedBox(width: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: _categoryBg,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(_categoryLabel,
+                      Text(entry.formattedTime,
                           style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: _categoryFg)),
+                              fontSize: 11,
+                              color: AppColors.textTertiary)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  // Description
+                  Text(entry.description,
+                      style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textPrimary)),
+                  // Target / detail
+                  if (entry.targetLabel != null &&
+                      entry.targetLabel!.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      [
+                        entry.targetLabel,
+                        if (entry.detail != null && entry.detail!.isNotEmpty)
+                          entry.detail,
+                      ].join(' · '),
+                      style: TextStyle(
+                          fontSize: 11.5, color: AppColors.textSecondary),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
-                SizedBox(height: 3),
-                Text(entry.description,
-                    style: TextStyle(
-                        fontSize: 13, color: AppColors.textPrimary)),
-                if (entry.targetLabel != null &&
-                    entry.targetLabel!.isNotEmpty) ...[
-                  SizedBox(height: 1),
-                  Text(
-                    [
-                      entry.targetLabel,
-                      if (entry.detail != null && entry.detail!.isNotEmpty)
-                        entry.detail,
-                    ].join(' · '),
-                    style: TextStyle(
-                        fontSize: 11, color: AppColors.textSecondary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 8),
+                  // Category badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _categoryBg,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(_categoryLabel,
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w500,
+                            color: _categoryFg)),
                   ),
                 ],
-                SizedBox(height: 12),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
