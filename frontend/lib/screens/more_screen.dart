@@ -190,6 +190,7 @@ class _MoreScreenState extends State<MoreScreen> {
 
   bool _canShow(String key) {
     if (key == 'approvals' && widget.approvalLevel == 0) return false;
+    if (key == 'approvals' && widget.approvalLevel > 0) return true;
     if (widget.userRole == 'admin') return true;
     if (widget.allowedScreens == null) return true;
     return widget.allowedScreens!.contains(key);

@@ -51,6 +51,7 @@ class _MainScreenState extends State<MainScreen> {
 
   bool _canShow(String key) {
     if (key == 'approvals' && _approvalLevel == 0) return false;
+    if (key == 'approvals' && _approvalLevel > 0) return true;
     if (_userRole == 'admin') return true;
     if (_allowedScreens == null) return true;
     return _allowedScreens!.contains(key);
