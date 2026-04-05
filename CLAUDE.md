@@ -31,6 +31,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-05
 - N/A — no persistent data; request/response only (020-ai-wo-description)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
+- Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
+- N/A — no persistent data; request/response only (021-ai-analytics-insights)
 
 ## Project Structure
 
@@ -49,9 +51,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 021-ai-analytics-insights: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend)
 - 020-ai-wo-description: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx (backend — already in requirements.txt at v0.28.1); http package (frontend — already used)
 - 019-admin-edit-wo-fields: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
-- 017-pwa-version-update: Added Dart 3.x / Flutter 3.x (frontend), Bash (deploy script), JavaScript (index.html inline) + `dart:js_interop` (web interop), Flutter Material
 
 
 <!-- MANUAL ADDITIONS START -->
