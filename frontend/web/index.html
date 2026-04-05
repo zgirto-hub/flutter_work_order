@@ -514,6 +514,8 @@
       window._pwaSeededReleaseId = null;   // seeded on page load
       window._pwaUpdateCallback = null;    // single callback, not array
       window._pwaUpdateApplied = false;    // guard against re-triggering applyUpdate
+      window._pwaRemoteVersion = null;     // remote version when update available
+      window._pwaRemoteBuild = null;       // remote build number when update available
 
       // Seed the current releaseId on page load
       fetch('/version.json?_t=' + Date.now(), { cache: 'no-store' })
@@ -541,6 +543,8 @@
               return 'upToDate';
             }
             if (String(data.releaseId) !== String(window._pwaSeededReleaseId)) {
+              window._pwaRemoteVersion = data.version || null;
+              window._pwaRemoteBuild = data.build_number || null;
               // Fire registered callback if present
               if (window._pwaUpdateCallback && !window._pwaUpdateApplied) {
                 window._pwaUpdateCallback();

@@ -131,13 +131,13 @@ class AppColors {
 
   // ── Backgrounds ────────────────────────────────────────────────────────────
   static Color get bgPrimary =>
-      _dark ? const Color(0xFF1A1917) : const Color(0xFFFAF9F7);
+      _dark ? const Color(0xFF1A1917) : const Color(0xFFF5EBE0);
   static Color get bgSurface =>
-      _dark ? const Color(0xFF212120) : const Color(0xFFFFFFFF);
+      _dark ? const Color(0xFF212120) : const Color(0xFFFFF8F1);
   static Color get bgSurface2 =>
-      _dark ? const Color(0xFF2A2A28) : const Color(0xFFF5F4F0);
+      _dark ? const Color(0xFF2A2A28) : const Color(0xFFEDE3D8);
   static Color get bgSurface3 =>
-      _dark ? const Color(0xFF343430) : const Color(0xFFECEBE6);
+      _dark ? const Color(0xFF343430) : const Color(0xFFE3D9CE);
 
   // ── Text ───────────────────────────────────────────────────────────────────
   static Color get textPrimary =>
@@ -150,7 +150,7 @@ class AppColors {
   // ── Accent (terracotta — unchanged across modes) ──────────────────────────
   static const Color accent = Color(0xFFCC785C);
   static Color get accentBg =>
-      _dark ? const Color(0xFF2C1F1A) : const Color(0xFFF5EBE6);
+      _dark ? const Color(0xFF2C1F1A) : const Color(0xFFF0E0D4);
 
   // ── Borders ────────────────────────────────────────────────────────────────
   static Color get border =>
@@ -215,11 +215,11 @@ class AppTheme {
     final base = _buildTextTheme(fontFamily);
 
     final bgPrimary =
-        isDark ? const Color(0xFF1A1917) : const Color(0xFFFAF9F7);
+        isDark ? const Color(0xFF1A1917) : const Color(0xFFF5EBE0);
     final bgSurface =
-        isDark ? const Color(0xFF212120) : const Color(0xFFFFFFFF);
+        isDark ? const Color(0xFF212120) : const Color(0xFFFFF8F1);
     final bgSurface2 =
-        isDark ? const Color(0xFF2A2A28) : const Color(0xFFF5F4F0);
+        isDark ? const Color(0xFF2A2A28) : const Color(0xFFEDE3D8);
     final textPrimary =
         isDark ? const Color(0xFFEDEDEA) : const Color(0xFF1A1915);
     final textSec = isDark ? const Color(0xFF9B9A96) : const Color(0xFF5C5650);

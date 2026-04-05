@@ -62,6 +62,15 @@ class _SettingsPageState extends State<SettingsPage> {
     });
   }
 
+  String _formatUpdateMessage(UpdateInfo info) {
+    if (info.version != null && info.build != null) {
+      return 'v${info.version} (Build ${info.build}) is available';
+    } else if (info.version != null) {
+      return 'v${info.version} is available';
+    }
+    return 'A new version is available';
+  }
+
   Future<void> _checkUpdates() async {
     setState(() {
       checkingUpdate = true;
@@ -77,22 +86,26 @@ class _SettingsPageState extends State<SettingsPage> {
       // Register callback for background detection
       registerUpdateCallback(() {
         if (mounted && !updateAvailable) {
-          setState(() {
-            updateAvailable = true;
-            updateMessage = 'A new version is ready to install';
-            checkingUpdate = false;
+          checkForUpdate().then((info) {
+            if (mounted) {
+              setState(() {
+                updateAvailable = true;
+                updateMessage = _formatUpdateMessage(info);
+                checkingUpdate = false;
+              });
+            }
           });
         }
       });
 
       // Perform an immediate check
-      final status = await checkForUpdate();
+      final info = await checkForUpdate();
       if (mounted) {
         setState(() {
-          switch (status) {
+          switch (info.status) {
             case UpdateStatus.available:
               updateAvailable = true;
-              updateMessage = 'A new version is available';
+              updateMessage = _formatUpdateMessage(info);
             case UpdateStatus.upToDate:
               updateMessage = 'You are on the latest version';
             case UpdateStatus.error:

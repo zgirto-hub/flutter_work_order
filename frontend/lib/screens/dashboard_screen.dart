@@ -154,6 +154,15 @@ class DashboardScreenState extends State<DashboardScreen>
     } catch (_) {}
   }
 
+  String _formatUpdateMessage(UpdateInfo info) {
+    if (info.version != null && info.build != null) {
+      return 'v${info.version} (Build ${info.build}) is available';
+    } else if (info.version != null) {
+      return 'v${info.version} is available';
+    }
+    return 'A new version is available';
+  }
+
   Future<void> _checkUpdates() async {
     if (_checkingUpdate) return;
     setState(() {
@@ -166,22 +175,27 @@ class DashboardScreenState extends State<DashboardScreen>
       // Register callback for background detection
       registerUpdateCallback(() {
         if (mounted && !_updateAvailable) {
-          setState(() {
-            _updateAvailable = true;
-            _updateMessage = 'A new version is ready to install';
-            _checkingUpdate = false;
+          // Re-check to get version details
+          checkForUpdate().then((info) {
+            if (mounted) {
+              setState(() {
+                _updateAvailable = true;
+                _updateMessage = _formatUpdateMessage(info);
+                _checkingUpdate = false;
+              });
+            }
           });
         }
       });
 
       // Perform an immediate check
-      final status = await checkForUpdate();
+      final info = await checkForUpdate();
       if (mounted) {
         setState(() {
-          switch (status) {
+          switch (info.status) {
             case UpdateStatus.available:
               _updateAvailable = true;
-              _updateMessage = 'A new version is available';
+              _updateMessage = _formatUpdateMessage(info);
             case UpdateStatus.upToDate:
               _updateMessage = 'You are on the latest version';
             case UpdateStatus.error:
