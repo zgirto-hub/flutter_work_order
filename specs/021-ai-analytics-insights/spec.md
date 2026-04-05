@@ -92,10 +92,12 @@ As an admin or supervisor, I want to refresh insights on demand and adjust the a
 - **FR-010**: System MUST handle AI service unavailability with clear user-facing error messages.
 - **FR-011**: System MUST display a timestamp showing when the insight was last generated.
 - **FR-012**: System MUST support a configurable date range for analysis (default: 30 days).
+- **FR-013**: System MUST provide a language toggle (English / Arabic) on the insights card, and generate insights in the selected language.
+- **FR-014**: When Arabic is selected, the insight text MUST render with right-to-left (RTL) text direction.
 
 ### Key Entities
 
-- **Insight Request**: Represents a request for AI analysis — includes insight type (overview/system_status/trends) and date range.
+- **Insight Request**: Represents a request for AI analysis — includes insight type (overview/system_status/trends), date range, and preferred language (English or Arabic).
 - **Insight Response**: Contains the generated insight as 3-5 bullet points, generation timestamp, and a summary of the aggregated data used.
 - **Work Order Statistics**: Aggregated counts and metrics derived from work order data over a date range.
 - **System Status Statistics**: Aggregated reliability metrics derived from system status reports over a date range.
@@ -109,6 +111,7 @@ As an admin or supervisor, I want to refresh insights on demand and adjust the a
 - **SC-003**: The insights card loads without blocking the initial dashboard rendering — the dashboard remains interactive while insights are generated.
 - **SC-004**: 100% of unauthorized access attempts (non-admin/non-supervisor users) are rejected before any data aggregation occurs.
 - **SC-005**: Users can successfully switch between all three insight types and receive distinct, relevant analysis for each.
+- **SC-007**: Users can toggle between English and Arabic, and the generated insights are rendered in the selected language with correct text direction.
 - **SC-006**: Error states (AI unavailable, timeout, insufficient data) display clear, actionable messages — no raw error codes or stack traces are shown to the user.
 
 ## Clarifications
@@ -116,6 +119,7 @@ As an admin or supervisor, I want to refresh insights on demand and adjust the a
 ### Session 2026-04-05
 
 - Q: What format should generated insights use? → A: Bullet points (3-5 concise bullets per insight).
+- Q: What language should insights be generated in? → A: User-selectable (English or Arabic toggle on the insights card).
 
 ## Assumptions
 
