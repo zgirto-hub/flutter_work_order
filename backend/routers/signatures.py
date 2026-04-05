@@ -361,6 +361,8 @@ async def update_signature(
                     approver_sig_path = _copy_saved_signature(saved_path)
             elif body.signature_data:
                 approver_sig_path = _decode_signature_to_file(body.signature_data)
+        except Exception:
+            pass  # proceed without approver signature image
 
         approver_record = {
             "work_order_id": work_order_id,
