@@ -47,7 +47,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool checkingUpdate = false;
   bool updateAvailable = false;
   Timer? _swPollTimer;
-  static const _fontScales = [0.85, 1.0, 1.15, 1.3];
+  static const _fontScales = [1.0, 1.15, 1.3, 1.45];
   static const _fontLabels = ['Small', 'Default', 'Large', 'X-Large'];
 
   // Signature state
