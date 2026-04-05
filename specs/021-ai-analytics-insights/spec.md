@@ -82,7 +82,7 @@ As an admin or supervisor, I want to refresh insights on demand and adjust the a
 
 - **FR-001**: System MUST aggregate work order statistics (counts by status, type, and department; average resolution time; weekly volumes; top locations) for a configurable date range.
 - **FR-002**: System MUST aggregate system status data (current unresolved issues, per-system issue counts, average resolution time, most and least problematic systems) for a configurable date range.
-- **FR-003**: System MUST generate natural language insights using the existing local AI model for three insight types: "overview", "system_status", and "trends".
+- **FR-003**: System MUST generate natural language insights as 3-5 concise bullet points using the existing local AI model for three insight types: "overview", "system_status", and "trends".
 - **FR-004**: System MUST restrict insight generation to users with admin or supervisor roles only.
 - **FR-005**: System MUST display the AI insights as a card widget on the dashboard, visible only to admin and supervisor users.
 - **FR-006**: System MUST provide a selector for choosing insight type (Overview, System Status, Trends).
@@ -96,7 +96,7 @@ As an admin or supervisor, I want to refresh insights on demand and adjust the a
 ### Key Entities
 
 - **Insight Request**: Represents a request for AI analysis — includes insight type (overview/system_status/trends) and date range.
-- **Insight Response**: Contains the generated natural language text, generation timestamp, and a summary of the aggregated data used.
+- **Insight Response**: Contains the generated insight as 3-5 bullet points, generation timestamp, and a summary of the aggregated data used.
 - **Work Order Statistics**: Aggregated counts and metrics derived from work order data over a date range.
 - **System Status Statistics**: Aggregated reliability metrics derived from system status reports over a date range.
 
@@ -110,6 +110,12 @@ As an admin or supervisor, I want to refresh insights on demand and adjust the a
 - **SC-004**: 100% of unauthorized access attempts (non-admin/non-supervisor users) are rejected before any data aggregation occurs.
 - **SC-005**: Users can successfully switch between all three insight types and receive distinct, relevant analysis for each.
 - **SC-006**: Error states (AI unavailable, timeout, insufficient data) display clear, actionable messages — no raw error codes or stack traces are shown to the user.
+
+## Clarifications
+
+### Session 2026-04-05
+
+- Q: What format should generated insights use? → A: Bullet points (3-5 concise bullets per insight).
 
 ## Assumptions
 
