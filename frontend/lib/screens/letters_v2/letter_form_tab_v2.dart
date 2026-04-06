@@ -860,15 +860,16 @@ function insertTable() {
   document.execCommand("insertHTML", false, t);
 }
 function changeFontSize() {
-  var s = prompt("حجم الخط (pt):", "16");
+  var s = prompt("Font size (pt):", "16");
   if (!s) return;
   var sel = window.getSelection();
-  if (!sel.rangeCount) return;
+  if (!sel.rangeCount || sel.isCollapsed) return;
   var range = sel.getRangeAt(0);
-  var span = document.createElement("span");
-  span.style.fontSize = s + "pt";
-  range.surroundContents(span);
-  sel.removeAllRanges();
+  var frag = range.cloneContents();
+  var div = document.createElement("div");
+  div.appendChild(frag);
+  var html = '<span style="font-size:' + s + 'pt">' + div.innerHTML + '</span>';
+  document.execCommand("insertHTML", false, html);
 }
 function changeColor() {
   var c = prompt("Color (hex):", "#CC0000");
