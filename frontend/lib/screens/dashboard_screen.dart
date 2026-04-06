@@ -15,6 +15,14 @@ import '../services/user_service.dart';
 import '../models/activity_log_entry.dart';
 import 'system_status_screen.dart';
 import '../features/analytics/ai_insights_card.dart';
+import '../widgets/nl_input_card.dart';
+import '../widgets/ai_draft_bottom_sheet.dart';
+import '../services/ai_assist_service.dart';
+import '../services/department_service.dart';
+import '../services/work_order_service.dart';
+import '../models/department.dart';
+import '../models/work_order.dart';
+import 'Work_Orders/add_work_order.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String userRole;
@@ -48,6 +56,10 @@ class DashboardScreenState extends State<DashboardScreen>
   bool _recentJustLoaded = false;
   String _displayName = '';
 
+  final TextEditingController _nlController = TextEditingController();
+  bool _isGenerating = false;
+  List<Department>? _cachedDepartments;
+
   String get _email => Supabase.instance.client.auth.currentUser?.email ?? '';
 
   @override
@@ -60,6 +72,7 @@ class DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
+    _nlController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -76,6 +89,147 @@ class DashboardScreenState extends State<DashboardScreen>
       setState(() => _refreshing = true);
       _load();
     }
+  }
+
+  static const List<String> _allowedTypes = [
+    'Technical',
+    'Inspection',
+    'Other'
+  ];
+  static const List<String> _allowedStatuses = [
+    'Pending',
+    'In Progress',
+    'Closed'
+  ];
+
+  Future<void> _generateAiWorkOrder(String text, String language) async {
+    if (text.length < 3) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Please describe your work order in more detail.')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isGenerating = true);
+
+    try {
+      _cachedDepartments ??=
+          await DepartmentService().fetchDepartments(isActive: true);
+      final departmentNames = _cachedDepartments!.map((d) => d.name).toList();
+
+      final response = await AiAssistService().parseWorkOrder(
+        text: text,
+        language: language,
+        departments: departmentNames,
+        types: _allowedTypes,
+        statuses: _allowedStatuses,
+      );
+
+      if (!mounted) return;
+      setState(() => _isGenerating = false);
+
+      String? deptId;
+      final deptName = response['department'] as String?;
+      if (deptName != null) {
+        final dept =
+            _cachedDepartments!.where((d) => d.name == deptName).firstOrNull;
+        deptId = dept?.id;
+      }
+
+      final draftData = <String, dynamic>{
+        ...response,
+        'departmentId': deptId ?? ''
+      };
+
+      final action =
+          await showAiDraftBottomSheet(context: context, draftData: draftData);
+      if (!mounted || action == null) return;
+
+      if (action == AiDraftAction.create) {
+        await _createWorkOrderFromDraft(draftData);
+      } else if (action == AiDraftAction.edit) {
+        _navigateToEditWithPrefill(draftData);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _createWorkOrderFromDraft(Map<String, dynamic> data) async {
+    try {
+      final now = DateTime.now();
+      final jobNo =
+          'WO${now.year.toString().substring(2)}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+
+      final wo = WorkOrder(
+        id: '',
+        jobNo: jobNo,
+        title: data['title'] ?? '',
+        description: data['description'] ?? '',
+        location: data['location'] ?? '',
+        type: data['type'] ?? 'Technical',
+        status: data['status'] ?? 'Pending',
+        departmentId: data['departmentId'] ?? '',
+        departmentName: data['department'] ?? '',
+        dateCreated: DateTime.now().toUtc().toIso8601String(),
+        dateModified: DateTime.now().toUtc().toIso8601String(),
+      );
+
+      await WorkOrderService().addWorkOrder(wo);
+
+      if (!mounted) return;
+      _nlController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Work order created successfully!'),
+            backgroundColor: Colors.green),
+      );
+      _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Failed to create work order: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _navigateToEditWithPrefill(Map<String, dynamic> data) {
+    final now = DateTime.now();
+    final jobNo =
+        'WO${now.year.toString().substring(2)}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddWorkOrderScreen(
+          autoGeneratedJobNo: jobNo,
+          prefillTitle: data['title'],
+          prefillDescription: data['description'],
+          prefillLocation: data['location'],
+          prefillType: data['type'],
+          prefillStatus: data['status'],
+          prefillDepartment: data['department'],
+          prefillDepartmentId: data['departmentId'],
+          userRole: widget.userRole,
+        ),
+      ),
+    ).then((result) {
+      if (mounted && result != null) {
+        _nlController.clear();
+        _load();
+      }
+    });
   }
 
   Future<void> _loadVersion() async {
@@ -450,13 +604,21 @@ class DashboardScreenState extends State<DashboardScreen>
                     ],
                   ),
 
-                  if (widget.userRole == 'admin' || widget.userRole == 'supervisor') ...[
+                  if (widget.userRole == 'admin' ||
+                      widget.userRole == 'supervisor') ...[
                     const SizedBox(height: 12),
                     AiInsightsCard(
                       email: _email,
                       userRole: widget.userRole,
                     ),
                   ],
+
+                  const SizedBox(height: 12),
+                  NlInputCard(
+                    controller: _nlController,
+                    isGenerating: _isGenerating,
+                    onGenerate: _generateAiWorkOrder,
+                  ),
 
                   SizedBox(height: 24),
 
