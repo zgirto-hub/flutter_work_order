@@ -14,6 +14,7 @@ import '../services/activity_log_service.dart';
 import '../services/user_service.dart';
 import '../models/activity_log_entry.dart';
 import 'system_status_screen.dart';
+import '../features/analytics/ai_insights_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String userRole;
@@ -448,6 +449,14 @@ class DashboardScreenState extends State<DashboardScreen>
                       ],
                     ],
                   ),
+
+                  if (widget.userRole == 'admin' || widget.userRole == 'supervisor') ...[
+                    const SizedBox(height: 12),
+                    AiInsightsCard(
+                      email: _email,
+                      userRole: widget.userRole,
+                    ),
+                  ],
 
                   SizedBox(height: 24),
 
