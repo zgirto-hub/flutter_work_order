@@ -9,7 +9,7 @@ router = APIRouter()
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "gemma4:e2b"
-OLLAMA_TIMEOUT = 60.0
+OLLAMA_TIMEOUT = 120.0
 
 
 class DocumentExpertAction(str, Enum):

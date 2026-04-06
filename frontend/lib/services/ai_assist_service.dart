@@ -26,7 +26,7 @@ class AiAssistService {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(body),
           )
-          .timeout(const Duration(seconds: 65));
+          .timeout(const Duration(seconds: 125));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -67,7 +67,7 @@ class AiAssistService {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(body),
           )
-          .timeout(const Duration(seconds: 65));
+          .timeout(const Duration(seconds: 125));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -110,7 +110,7 @@ class AiAssistService {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(body),
           )
-          .timeout(const Duration(seconds: 65));
+          .timeout(const Duration(seconds: 125));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
