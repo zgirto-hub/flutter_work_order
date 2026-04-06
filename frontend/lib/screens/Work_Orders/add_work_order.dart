@@ -122,6 +122,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   bool _speechAvailable = DictationService.webSpeechApiLikelyAvailable;
   final AiAssistService _aiAssistService = AiAssistService();
 
+  // NL create state
+  final TextEditingController _nlInputController = TextEditingController();
+  bool _isGenerating = false;
+  Set<String> _highlightedFields = {};
+  bool _nlCardExpanded = true;
+
   // Signature state
   final SignatureService _signatureService = SignatureService();
   List<WorkOrderSignature> _signatures = [];
@@ -432,6 +438,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     _commentCtrl.dispose();
     _commentFocusNode.dispose();
     _activityScrollCtrl.dispose();
+    _nlInputController.dispose();
     super.dispose();
   }
 
@@ -560,6 +567,200 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     );
   }
 
+  Widget _buildNlInputCard() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      child: Card(
+        elevation: 2,
+        child: AnimatedCrossFade(
+          firstChild: _buildNlCardContent(),
+          secondChild: _buildNlCardCollapsed(),
+          crossFadeState: _nlCardExpanded
+              ? CrossFadeState.showFirst
+              : CrossFadeState.showSecond,
+          duration: const Duration(milliseconds: 200),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNlCardCollapsed() {
+    return ListTile(
+      leading: const Icon(Icons.auto_awesome, size: 18),
+      title: const Text("AI Work Order"),
+      trailing: IconButton(
+        icon: const Icon(Icons.expand_more),
+        onPressed: () => setState(() => _nlCardExpanded = true),
+      ),
+    );
+  }
+
+  Widget _buildNlCardContent() {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                "AI Work Order",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.expand_less),
+                onPressed: () => setState(() => _nlCardExpanded = false),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _nlInputController,
+            maxLines: 3,
+            readOnly: _isGenerating,
+            decoration: InputDecoration(
+              hintText: "Describe your work order in a sentence...",
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildDictationLanguageChip('EN', 'en'),
+              const SizedBox(width: 8),
+              _buildDictationLanguageChip('AR', 'ar'),
+              const SizedBox(width: 8),
+              DictationButton(
+                controller: _nlInputController,
+                language: _dictationLanguage,
+                enabled: !_isGenerating,
+              ),
+              const Spacer(),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _nlInputController,
+                builder: (context, value, _) {
+                  final canGenerate =
+                      !_isGenerating && value.text.trim().isNotEmpty;
+                  return ElevatedButton.icon(
+                    icon: Icon(_isGenerating
+                        ? Icons.hourglass_empty
+                        : Icons.auto_awesome),
+                    label:
+                        Text(_isGenerating ? "Generating..." : "Generate"),
+                    onPressed: canGenerate ? _generateFromNl : null,
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _generateFromNl() async {
+    if (_nlInputController.text.trim().length < 3) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text("Please describe your work order in more detail.")),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isGenerating = true);
+
+    try {
+      final departments = _departments.map((d) => d.name).toList();
+      final types = _allowedTypes;
+      final statuses = _allowedStatuses;
+
+      final response = await _aiAssistService.parseWorkOrder(
+        text: _nlInputController.text.trim(),
+        language: _dictationLanguage,
+        departments: departments,
+        types: types,
+        statuses: statuses,
+      );
+
+      if (mounted) {
+        final highlighted = <String>{};
+
+        if (response['title'] != null) {
+          clientController.text = response['title'];
+          highlighted.add('title');
+        }
+        if (response['description'] != null) {
+          descriptionController.text = response['description'];
+          highlighted.add('description');
+        }
+        if (response['location'] != null) {
+          locationController.text = response['location'];
+          highlighted.add('location');
+        }
+        if (response['type'] != null &&
+            _allowedTypes.contains(response['type'])) {
+          setState(() => selectedType = response['type']);
+          highlighted.add('type');
+        }
+        if (response['status'] != null &&
+            _allowedStatuses.contains(response['status'])) {
+          setState(() => selectedStatus = response['status']);
+          highlighted.add('status');
+        }
+        if (response['department'] != null) {
+          final dept = _departments
+              .where((d) => d.name == response['department'])
+              .firstOrNull;
+          if (dept != null) {
+            setState(() {
+              selectedDepartment = dept.name;
+              selectedDepartmentId = dept.id;
+            });
+            await _loadEmployees(departmentId: dept.id);
+            highlighted.add('department');
+          }
+        }
+
+        setState(() {
+          _isGenerating = false;
+          _highlightedFields = highlighted;
+        });
+
+        _titleFocusNode.requestFocus();
+
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) {
+            setState(() => _highlightedFields = {});
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  InputDecoration _highlightDecoration(InputDecoration base, String fieldName) {
+    if (!_highlightedFields.contains(fieldName)) return base;
+    return base.copyWith(
+      enabledBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: AppColors.accent, width: 2),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: AppColors.accent, width: 2),
+      ),
+    );
+  }
+
   Widget _buildAutoSaveIndicator() {
     if (widget.workOrder == null) return const SizedBox.shrink();
 
@@ -596,6 +797,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                     : 'Save failed',
             style: TextStyle(
               fontSize: 11,
+              fontWeight: FontWeight.w500,
               color: _autoSaveStatus == AutoSaveStatus.saving
                   ? AppColors.textTertiary
                   : _autoSaveStatus == AutoSaveStatus.saved
@@ -1279,6 +1481,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (widget.workOrder == null) _buildNlInputCard(),
             TextFormField(
               controller: jobNoController,
               readOnly: true,
@@ -1426,15 +1629,18 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               controller: clientController,
               focusNode: _titleFocusNode,
               readOnly: !canEdit,
-              decoration: InputDecoration(
-                labelText: "Title",
-                suffixIcon: canEdit
-                    ? DictationButton(
-                        controller: clientController,
-                        language: _dictationLanguage,
-                        enabled: canEdit,
-                      )
-                    : null,
+              decoration: _highlightDecoration(
+                InputDecoration(
+                  labelText: "Title",
+                  suffixIcon: canEdit
+                      ? DictationButton(
+                          controller: clientController,
+                          language: _dictationLanguage,
+                          enabled: canEdit,
+                        )
+                      : null,
+                ),
+                "title",
               ),
               textInputAction: TextInputAction.next,
               onFieldSubmitted: (_) {
@@ -1455,7 +1661,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                         _onFormFieldChanged();
                       }
                     : null,
-                decoration: InputDecoration(labelText: "Status"),
+                decoration: _highlightDecoration(
+                  InputDecoration(labelText: "Status"),
+                  "status",
+                ),
               ),
               SizedBox(height: 10),
             ],
@@ -1463,7 +1672,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               controller: locationController,
               focusNode: _locationFocusNode,
               readOnly: !canEdit,
-              decoration: InputDecoration(labelText: "Location"),
+              decoration: _highlightDecoration(
+                InputDecoration(labelText: "Location"),
+                "location",
+              ),
               textInputAction: TextInputAction.next,
               onFieldSubmitted: (_) {
                 FocusScope.of(context).requestFocus(_mobileFocusNode);
@@ -1506,7 +1718,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                       }
                     }
                   : null,
-              decoration: InputDecoration(labelText: "Department"),
+              decoration: _highlightDecoration(
+                InputDecoration(labelText: "Department"),
+                "department",
+              ),
             ),
             SizedBox(height: 10),
 
@@ -1533,7 +1748,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                         _onFormFieldChanged();
                       }
                     : null,
-                decoration: InputDecoration(labelText: "Type"),
+                decoration: _highlightDecoration(
+                  InputDecoration(labelText: "Type"),
+                  "type",
+                ),
               ),
               SizedBox(height: 10),
             ],
@@ -1578,15 +1796,18 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               controller: descriptionController,
               focusNode: _descriptionFocusNode,
               readOnly: !canEdit,
-              decoration: InputDecoration(
-                labelText: "Description",
-                suffixIcon: canEdit
-                    ? DictationButton(
-                        controller: descriptionController,
-                        language: _dictationLanguage,
-                        enabled: canEdit,
-                      )
-                    : null,
+              decoration: _highlightDecoration(
+                InputDecoration(
+                  labelText: "Description",
+                  suffixIcon: canEdit
+                      ? DictationButton(
+                          controller: descriptionController,
+                          language: _dictationLanguage,
+                          enabled: canEdit,
+                        )
+                      : null,
+                ),
+                "description",
               ),
               maxLines: 3,
               textInputAction: TextInputAction.done,

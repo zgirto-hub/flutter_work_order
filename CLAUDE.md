@@ -31,6 +31,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-06
 - N/A — no persistent data; request/response only (020-ai-wo-description)
 - Dart 3.x / Flutter 3.x (frontend only) + `speech_to_text` (NEW — Flutter package wrapping Web Speech API for PWA), Flutter Material (existing) (022-voice-work-order)
 - N/A — no persistent data; voice is transcribed to text in-memory (022-voice-work-order)
+- Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Supabase Python client (backend); http, Flutter Material (frontend) (023-nl-search-work-orders)
+- N/A — no persistent data; request/response only (023-nl-search-work-orders)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -53,9 +55,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 023-nl-search-work-orders: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Supabase Python client (backend); http, Flutter Material (frontend)
 - 022-voice-work-order: Added Dart 3.x / Flutter 3.x (frontend only) + `speech_to_text` (NEW — Flutter package wrapping Web Speech API for PWA), Flutter Material (existing)
 - 021-ai-analytics-insights: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend)
-- 020-ai-wo-description: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx (backend — already in requirements.txt at v0.28.1); http package (frontend — already used)
 
 
 <!-- MANUAL ADDITIONS START -->
