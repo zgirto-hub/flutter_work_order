@@ -271,9 +271,10 @@
 
 <!-- Page content (flows across pages, header/footer repeat automatically) -->
 
-<!-- Reference block -->
+<!-- Reference and date block -->
 <div class="ref-block">
   رقم الإشارة: {{ishara}}
+  {% if tarikh %}<br>التاريخ: {{tarikh}}{% endif %}
 </div>
 
 <!-- Recipient -->

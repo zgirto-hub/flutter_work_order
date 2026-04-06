@@ -73,6 +73,7 @@ class AttachmentItem(BaseModel):
 
 class LetterBodyV2(BaseModel):
     ishara: str
+    tarikh: str = ""  # DD/MM/YYYY date string
     alsayed: str
     almawdoo: str
     body_html: str  # Rich HTML from WYSIWYG editor
@@ -123,6 +124,7 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
 
     html_str = template.render(
         ishara=data.ishara,
+        tarikh=data.tarikh,
         alsayed=data.alsayed,
         almawdoo=data.almawdoo,
         body_html=_sanitize_editor_html(data.body_html),
@@ -160,6 +162,7 @@ async def preview_letter_html(data: LetterBodyV2):
 
     html_str = template.render(
         ishara=data.ishara,
+        tarikh=data.tarikh,
         alsayed=data.alsayed,
         almawdoo=data.almawdoo,
         body_html=_sanitize_editor_html(data.body_html),

@@ -31,6 +31,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   final _alasmCtrl = TextEditingController();
   final _ccListCtrl = TextEditingController();
 
+  DateTime? _selectedDate;
+
   Uint8List? _signatureBytes;
   String? _signatureBase64;
   bool _replyRequired = false;
@@ -192,6 +194,9 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     try {
       final body = {
         'ishara': _isharaCtrl.text,
+        'tarikh': _selectedDate != null
+            ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
+            : '',
         'alsayed': _alsayedCtrl.text,
         'almawdoo': _almawdooCtrl.text,
         'body_html': bodyHtml,
@@ -321,6 +326,9 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     try {
       final body = {
         'ishara': _isharaCtrl.text,
+        'tarikh': _selectedDate != null
+            ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
+            : '',
         'alsayed': _alsayedCtrl.text,
         'almawdoo': _almawdooCtrl.text,
         'body_html': bodyHtml,
@@ -386,7 +394,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // ── Reference Number (رقم الإشارة) ──
-            _buildLabel('رقم الإشارة'),
+            _buildLabel('رقم الإشارة', big: true),
             TextFormField(
               controller: _isharaCtrl,
               decoration: _inputDecor('مثال: 2026-23279'),
@@ -396,8 +404,33 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             ),
             const SizedBox(height: 16),
 
+            // ── Date (التاريخ) ──
+            _buildLabel('التاريخ'),
+            InkWell(
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _selectedDate ?? DateTime.now(),
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2100),
+                );
+                if (date != null) setState(() => _selectedDate = date);
+              },
+              child: InputDecorator(
+                decoration: _inputDecor('اختر التاريخ'),
+                child: Text(
+                  _selectedDate != null
+                      ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
+                      : '',
+                  style: const TextStyle(fontSize: 14),
+                  textDirection: TextDirection.ltr,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // ── Recipient (السيد) ──
-            _buildLabel('السيد /'),
+            _buildLabel('السيد /', big: true),
             TextFormField(
               controller: _alsayedCtrl,
               decoration: _inputDecor('اسم المستلم والمسمى الوظيفي'),
@@ -592,13 +625,15 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     );
   }
 
-  Widget _buildLabel(String text) {
+  Widget _buildLabel(String text, {bool big = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
-        style:
-            const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: big ? 18 : 14,
+        ),
       ),
     );
   }
