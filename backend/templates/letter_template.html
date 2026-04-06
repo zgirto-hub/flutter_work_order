@@ -137,11 +137,20 @@
 
   /* ── Body content styles ── */
   .ref-block {
-    text-align: right;
+    display: flex;
+    justify-content: space-between;
     font-size: 11pt;
     margin-bottom: 12px;
     direction: rtl;
     unicode-bidi: plaintext;
+  }
+
+  .ref-block .ref-left {
+    text-align: left;
+  }
+
+  .ref-block .ref-right {
+    text-align: right;
   }
 
   .recipient {
@@ -271,10 +280,10 @@
 
 <!-- Page content (flows across pages, header/footer repeat automatically) -->
 
-<!-- Reference and date block -->
+<!-- Reference (left) and date (right) -->
 <div class="ref-block">
-  رقم الإشارة: {{ishara}}
-  {% if tarikh %}<br>التاريخ: {{tarikh}}{% endif %}
+  <div class="ref-left">رقم الإشارة: {{ishara}}</div>
+  {% if tarikh %}<div class="ref-right">التاريخ: {{tarikh}}</div>{% endif %}
 </div>
 
 <!-- Recipient -->
