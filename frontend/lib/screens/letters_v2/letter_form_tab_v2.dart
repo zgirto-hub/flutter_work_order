@@ -42,6 +42,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   bool _replyRequired = false;
   bool _isLoading = false;
   bool _hasPreviewedOnce = false;
+  double _editorHeight = 500;
 
   // PDF styling options
   double _refFontSize = 11;
@@ -522,14 +523,43 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
 
             // ── Rich Text Editor (Body) ──
             _buildLabel('Letter Body'),
-            Container(
-              height: 350,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade400),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              clipBehavior: Clip.hardEdge,
-              child: HtmlElementView(viewType: _editorViewType),
+            Column(
+              children: [
+                Container(
+                  height: _editorHeight,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade400),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                  ),
+                  clipBehavior: Clip.hardEdge,
+                  child: HtmlElementView(viewType: _editorViewType),
+                ),
+                GestureDetector(
+                  onVerticalDragUpdate: (details) {
+                    setState(() {
+                      _editorHeight = (_editorHeight + details.delta.dy).clamp(200, 1200);
+                    });
+                  },
+                  child: Container(
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+                      border: Border.all(color: Colors.grey.shade400),
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade500,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             AiDocumentExpertWidget(
