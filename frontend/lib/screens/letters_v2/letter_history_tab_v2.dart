@@ -1,0 +1,230 @@
+import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
+import '../../models/generated_letter.dart';
+import '../../services/letter_service.dart';
+
+class LetterHistoryTabV2 extends StatefulWidget {
+  final void Function(GeneratedLetter letter)? onEditLetter;
+
+  const LetterHistoryTabV2({super.key, this.onEditLetter});
+
+  @override
+  State<LetterHistoryTabV2> createState() => _LetterHistoryTabV2State();
+}
+
+class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
+  List<GeneratedLetter> _letters = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLetters();
+  }
+
+  Future<void> _loadLetters() async {
+    try {
+      final letters = await LetterService().fetchAll();
+      if (mounted) setState(() { _letters = letters; _isLoading = false; });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في تحميل الخطابات: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _regeneratePdf(String letterId) async {
+    try {
+      final bytes = await LetterService().regenerate(letterId);
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'letter_$letterId.pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ: $e')),
+        );
+      }
+    }
+  }
+
+  void _showLetterDetail(GeneratedLetter letter) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        builder: (_, scrollCtrl) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: ListView(
+            controller: scrollCtrl,
+            padding: const EdgeInsets.all(20),
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text('تفاصيل الخطاب',
+                  style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              _row('رقم الإشارة', letter.ishara),
+              _row('التاريخ', letter.tarikh),
+              _row('السيد', letter.alsayed),
+              _row('الموضوع', letter.almawdoo),
+              _row('الاسم', letter.alasm),
+              const Divider(height: 24),
+
+              // Linked payment certificates
+              if (letter.paymentCertificates.isNotEmpty) ...[
+                Text('شهادات الدفع المرتبطة',
+                    style: Theme.of(ctx).textTheme.titleSmall),
+                const SizedBox(height: 8),
+                ...letter.paymentCertificates.map((cert) => Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.receipt_long),
+                        title: Text(
+                            cert['certificate_number']?.toString() ?? ''),
+                        subtitle:
+                            Text(cert['subject']?.toString() ?? ''),
+                      ),
+                    )),
+                const SizedBox(height: 16),
+              ],
+
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        widget.onEditLetter?.call(letter);
+                      },
+                      icon: const Icon(Icons.edit),
+                      label: const Text('تعديل'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: letter.id != null
+                          ? () => _regeneratePdf(letter.id!)
+                          : null,
+                      icon: const Icon(Icons.picture_as_pdf),
+                      label: const Text('توليد PDF'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFCC0000),
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _row(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 13)),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_letters.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.mail_outline, size: 48, color: Colors.grey),
+            SizedBox(height: 12),
+            Text('لا توجد خطابات سابقة',
+                style: TextStyle(color: Colors.grey, fontSize: 15)),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadLetters,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: _letters.length,
+        itemBuilder: (ctx, i) {
+          final letter = _letters[i];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              title: Text(
+                letter.almawdoo,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text('${letter.alsayed} — ${letter.tarikh}'),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (letter.createdAt != null)
+                    Text(
+                      '${letter.createdAt!.day}/${letter.createdAt!.month}/${letter.createdAt!.year}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  if (letter.paymentCertificates.isNotEmpty)
+                    Chip(
+                      label: Text(
+                        '${letter.paymentCertificates.length} شهادات',
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                    ),
+                ],
+              ),
+              onTap: () => _showLetterDetail(letter),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}

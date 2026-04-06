@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<style>
+  @font-face {
+    font-family: 'Calibri';
+    src: url('{{font_regular}}');
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: 'Calibri';
+    src: url('{{font_bold}}');
+    font-weight: 700;
+  }
+
+  @page {
+    size: A4;
+    margin: 5.5cm 2cm 3cm 2cm;
+    @top-center {
+      content: element(pageheader);
+    }
+    @bottom-center {
+      content: element(footer);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: 'Calibri', sans-serif;
+    font-size: 12pt;
+    direction: rtl;
+    color: #222;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* ── Running header (repeats on every page in PDF) ── */
+  .page-header {
+    position: running(pageheader);
+    padding-bottom: 0;
+  }
+
+  /* Browser preview: running elements don't work, so show static versions */
+  @media screen {
+    .page-header {
+      position: static;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
+    .page-footer {
+      position: static;
+      margin-top: 30px;
+    }
+  }
+
+  .page-header table.logos {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 6px;
+  }
+
+  .page-header table.logos td {
+    vertical-align: middle;
+    border: none;
+    padding: 0;
+  }
+
+  .page-header table.logos td.right-logo {
+    text-align: right;
+    width: 33%;
+    padding-right: 0;
+  }
+
+  .page-header table.logos td.center-logo {
+    text-align: center;
+    width: 34%;
+  }
+
+  .page-header table.logos td.left-logo {
+    text-align: left;
+    width: 33%;
+    padding-left: 0;
+  }
+
+  .page-header table.logos img.civil-aviation {
+    height: 70px;
+  }
+
+  .page-header table.logos img.emblem {
+    height: 100px;
+  }
+
+  .page-header table.logos img.newkuwait {
+    height: 75px;
+  }
+
+  .page-header .red-bars {
+    margin-top: 6px;
+  }
+
+  .page-header .red-bars .thick {
+    background: #CC0000;
+    height: 4px;
+    width: 100%;
+  }
+
+  .page-header .red-bars .gap {
+    height: 2px;
+  }
+
+  .page-header .red-bars .thin {
+    background: #CC0000;
+    height: 1.5px;
+    width: 100%;
+  }
+
+  /* ── Running footer (repeats on every page) ── */
+  .page-footer {
+    position: running(footer);
+    border-top: 3px solid #CC0000;
+    padding-top: 6px;
+    font-size: 8pt;
+    text-align: center;
+    line-height: 1.6;
+    color: #444;
+  }
+  .page-footer .ar {
+    direction: rtl;
+    font-family: 'Calibri', sans-serif;
+  }
+  .page-footer .en {
+    direction: ltr;
+    font-family: sans-serif;
+  }
+
+  /* ── Body content styles ── */
+  .ref-block {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11pt;
+    margin-bottom: 12px;
+    direction: rtl;
+    unicode-bidi: plaintext;
+  }
+
+  .ref-block .ref-left {
+    text-align: left;
+  }
+
+  .ref-block .ref-right {
+    text-align: right;
+  }
+
+  .recipient {
+    text-align: right;
+    font-size: 12pt;
+    margin-bottom: 2px;
+    direction: rtl;
+    unicode-bidi: plaintext;
+  }
+
+  .respected {
+    text-align: right;
+    font-size: 12pt;
+    margin-bottom: 14px;
+    padding-right: 40px;
+    direction: rtl;
+    unicode-bidi: plaintext;
+  }
+
+  .subject {
+    text-align: center;
+    font-weight: 700;
+    font-size: 13pt;
+    margin-bottom: 14px;
+    text-decoration: underline;
+    line-height: 2.0;
+    max-width: 60%;
+    margin-left: auto;
+    margin-right: auto;
+    direction: rtl;
+    unicode-bidi: plaintext;
+  }
+
+  .body-text {
+    font-family: 'Calibri', sans-serif;
+    text-align: right;
+    font-size: 12pt;
+    line-height: 1.8;
+    direction: rtl;
+    unicode-bidi: plaintext;
+    margin-bottom: 20px;
+  }
+
+  .body-text * {
+    font-family: 'Calibri', sans-serif !important;
+  }
+
+  .body-text p:first-child {
+    text-indent: 40px;
+  }
+
+  .body-text table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+  }
+  .body-text table td, .body-text table th {
+    border: 1px solid #666;
+    padding: 4px 8px;
+    text-align: right;
+  }
+  .body-text ul, .body-text ol {
+    padding-right: 20px;
+    margin: 6px 0;
+  }
+
+  .reply-required {
+    text-align: right;
+    font-size: 11pt;
+    margin-bottom: 8px;
+  }
+
+  .signoff {
+    text-align: left;
+    margin-top: 30px;
+    font-size: 12pt;
+  }
+
+  .signoff .name {
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .signoff .signature-img {
+    max-height: 100px;
+    max-width: 200px;
+    margin-top: 6px;
+  }
+
+  .attachments {
+    text-align: right;
+    font-size: 11pt;
+    margin-top: 20px;
+    font-weight: 700;
+  }
+
+  .cc-list {
+    text-align: right;
+    font-size: 11pt;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Running header (appears on EVERY page) -->
+<div class="page-header">
+  <table class="logos">
+    <tr>
+      <td class="right-logo">
+        <img class="civil-aviation" src="{{logo_civil_aviation}}" alt="Civil Aviation">
+      </td>
+      <td class="center-logo">
+        <img class="emblem" src="{{logo_emblem}}" alt="Kuwait Emblem">
+      </td>
+      <td class="left-logo">
+        <img class="newkuwait" src="{{logo_newkuwait}}" alt="New Kuwait">
+      </td>
+    </tr>
+  </table>
+  <div class="red-bars">
+    <div class="thick"></div>
+    <div class="gap"></div>
+    <div class="thin"></div>
+  </div>
+</div>
+
+<!-- Page content (flows across pages, header/footer repeat automatically) -->
+
+<!-- Reference (left) and date (right) -->
+<div class="ref-block">
+  <div class="ref-left">رقم الإشارة: {{ishara}}</div>
+  {% if tarikh %}<div class="ref-right">التاريخ: {{tarikh}}</div>{% endif %}
+</div>
+
+<!-- Recipient -->
+<div class="recipient">
+  السيد / {{alsayed}}
+</div>
+<div class="respected">المحترم</div>
+
+<!-- Subject (centered, bold) -->
+<div class="subject">
+  {{almawdoo}}
+</div>
+
+<!-- Body text (rich HTML from editor) -->
+<div class="body-text">
+  {{body_html}}
+</div>
+
+<!-- Reply required -->
+{% if reply_required %}
+<div class="reply-required">
+  ☑ مطلوب الرد
+</div>
+{% endif %}
+
+<!-- Sign-off -->
+<div class="signoff">
+  <div class="name">{{alasm}}</div>
+  {% if signature_img %}
+  <img class="signature-img" src="{{signature_img}}" alt="signature">
+  {% endif %}
+</div>
+
+<!-- Attachments label -->
+<div class="attachments">المرفقات:</div>
+
+<!-- CC List -->
+{% if cc_list %}
+<div class="cc-list">
+  قائمة النسخ: {{cc_list}}
+</div>
+{% endif %}
+
+<!-- Footer (running element for PDF, static at bottom for browser preview) -->
+<div class="page-footer">
+  <div>E-mail: info@dgca.gov.kw &nbsp;&nbsp;&nbsp; www.dgca.gov.kw</div>
+  <div class="ar">ص.ب: 17 &nbsp; الصفاة - الرمز البريدي: 13001 &nbsp; دولة الكويت - البدالة: 24336699 (965+) - الرد الآلي: 161 (965+) - فاكس: 24713504 (965+)</div>
+  <div class="en">P.O.Box: 17 Safat - P.Code: 13001 - State of Kuwait - Operator: (+965) 24336699 - IVR: (+965) 161 - Fax (+965) 24713504</div>
+</div>
+
+</body>
+</html>
