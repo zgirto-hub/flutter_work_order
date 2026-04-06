@@ -119,7 +119,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
   // Dictation state
   String _dictationLanguage = 'en';
-  bool _speechAvailable = false;
+  bool _speechAvailable = DictationService.webSpeechApiLikelyAvailable;
   final AiAssistService _aiAssistService = AiAssistService();
 
   // Signature state

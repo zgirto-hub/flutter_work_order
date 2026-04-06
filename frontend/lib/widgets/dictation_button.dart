@@ -22,6 +22,7 @@ class _DictationButtonState extends State<DictationButton>
     with SingleTickerProviderStateMixin {
   bool _isRecording = false;
   bool _isAvailable = false;
+  bool _showButton = DictationService.webSpeechApiLikelyAvailable;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -47,7 +48,11 @@ class _DictationButtonState extends State<DictationButton>
 
   Future<void> _initSpeech() async {
     _isAvailable = await DictationService().initialize();
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {
+        _showButton = _isAvailable;
+      });
+    }
   }
 
   @override
@@ -64,9 +69,24 @@ class _DictationButtonState extends State<DictationButton>
   }
 
   Future<void> _toggleRecording() async {
-    if (!widget.enabled || !_isAvailable) return;
+    if (!widget.enabled) return;
 
     final service = DictationService();
+
+    // Lazy init on first tap if not yet initialized
+    if (!_isAvailable) {
+      _isAvailable = await service.initialize();
+      if (!_isAvailable) {
+        if (mounted) {
+          setState(() => _showButton = false);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Speech recognition is not supported on this browser.'),
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+        return;
+      }
+    }
 
     if (_isRecording) {
       await service.stopListening();
@@ -118,7 +138,7 @@ class _DictationButtonState extends State<DictationButton>
 
   @override
   Widget build(BuildContext context) {
-    if (!_isAvailable) {
+    if (!_showButton) {
       return const SizedBox.shrink();
     }
 

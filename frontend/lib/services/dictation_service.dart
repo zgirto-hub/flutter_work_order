@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:speech_to_text/speech_recognition_result.dart';
 
@@ -17,14 +19,22 @@ class DictationService {
   bool get isListening => _isListening;
   String? get activeFieldId => _activeFieldId;
 
+  /// Check if the browser likely supports Web Speech API (without initializing).
+  static bool get webSpeechApiLikelyAvailable => kIsWeb;
+
   Future<bool> initialize() async {
     if (_initialized) {
       return _isAvailable;
     }
     try {
       _isAvailable = await _speechToText.initialize(
-        onError: (error) {},
+        onError: (error) {
+          developer.log('SpeechToText error during init: ${error.errorMsg}',
+              name: 'DictationService');
+        },
         onStatus: (status) {
+          developer.log('SpeechToText status: $status',
+              name: 'DictationService');
           if (status == 'done' || status == 'notListening') {
             _isListening = false;
             _activeFieldId = null;
@@ -34,7 +44,11 @@ class DictationService {
         },
       );
       _initialized = true;
+      developer.log('SpeechToText initialized: $_isAvailable',
+          name: 'DictationService');
     } catch (e) {
+      developer.log('SpeechToText init exception: $e',
+          name: 'DictationService');
       _isAvailable = false;
       _initialized = true;
     }
