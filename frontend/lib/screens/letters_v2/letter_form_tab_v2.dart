@@ -150,7 +150,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text('${file.name}: حجم الملف يتجاوز 10 ميغابايت')),
+                content: Text('${file.name}: File exceeds 10MB limit')),
           );
         }
         continue;
@@ -180,7 +180,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     if (file.bytes!.lengthInBytes > 5 * 1024 * 1024) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('حجم الملف يتجاوز 5 ميغابايت')),
+          const SnackBar(content: Text('File exceeds 5MB limit')),
         );
       }
       return;
@@ -197,7 +197,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     if (bodyHtml.trim().isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى كتابة نص الخطاب')),
+        const SnackBar(content: Text('Please enter the letter body')),
       );
       return;
     }
@@ -241,7 +241,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     if (!mounted) return;
     if (previewHtml == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('فشل تحميل المعاينة')),
+        const SnackBar(content: Text('Failed to load preview')),
       );
       return;
     }
@@ -280,7 +280,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 child: Row(
                   children: [
                     const Text(
-                      'معاينة الخطاب',
+                      'Letter Preview',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -307,7 +307,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx),
-                      child: const Text('إغلاق'),
+                      child: const Text('Close'),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton.icon(
@@ -316,7 +316,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                         _generatePdf();
                       },
                       icon: const Icon(Icons.picture_as_pdf),
-                      label: const Text('توليد PDF'),
+                      label: const Text('Generate PDF'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFCC0000),
                         foregroundColor: Colors.white,
@@ -338,7 +338,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     if (bodyHtml.trim().isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى كتابة نص الخطاب')),
+        const SnackBar(content: Text('Please enter the letter body')),
       );
       return;
     }
@@ -381,15 +381,15 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(_editingLetterId != null
-                  ? 'تم تحديث الخطاب بنجاح'
-                  : 'تم توليد الخطاب بنجاح')),
+                  ? 'Letter updated successfully'
+                  : 'Letter generated successfully')),
         );
       }
       widget.onLetterSaved();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     } finally {
@@ -424,7 +424,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               decoration: _inputDecor('e.g. 2026-23279'),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               textDirection: TextDirection.ltr,
-              validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             _buildStyleRow(
               fontSize: _refFontSize,
@@ -465,7 +465,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               controller: _alsayedCtrl,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               decoration: _inputDecor('Recipient name and title'),
-              validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             _buildStyleRow(
               fontSize: _recipientFontSize,
@@ -487,7 +487,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               decoration: _inputDecor('Letter subject'),
               maxLines: 3,
               minLines: 2,
-              validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 16),
 
@@ -514,7 +514,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             TextFormField(
               controller: _alasmCtrl,
               decoration: _inputDecor('Signer name and title'),
-              validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 16),
 
@@ -610,7 +610,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 14),
                   ),
-                  child: const Text('الغاء'),
+                  child: const Text('Cancel'),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
@@ -621,7 +621,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 14),
                   ),
-                  child: const Text('معاينة'),
+                  child: const Text('Preview'),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton.icon(
@@ -637,7 +637,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                           ),
                         )
                       : Icon(_editingLetterId != null ? Icons.save : Icons.picture_as_pdf),
-                  label: Text(_editingLetterId != null ? 'حفظ التعديلات' : 'توليد PDF'),
+                  label: Text(_editingLetterId != null ? 'Save Changes' : 'Generate PDF'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFCC0000),
                     foregroundColor: Colors.white,
@@ -652,7 +652,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               const Padding(
                 padding: EdgeInsets.only(top: 6),
                 child: Text(
-                  'يجب معاينة الخطاب أولاً قبل التوليد',
+                  'Preview required before generating',
                   style: TextStyle(fontSize: 11, color: Colors.orange),
                 ),
               ),
@@ -694,7 +694,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       padding: const EdgeInsets.only(top: 6),
       child: Row(
         children: [
-          const Text('حجم الخط في PDF:',
+          const Text('PDF font size:',
               style: TextStyle(fontSize: 12, color: Colors.grey)),
           const SizedBox(width: 8),
           SizedBox(
