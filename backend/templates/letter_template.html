@@ -30,26 +30,53 @@
   /* ── Running header (repeats on every page) ── */
   .page-header {
     position: running(pageheader);
-    padding-bottom: 10px;
+    padding-bottom: 0;
   }
 
-  .page-header .logos {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
+  .page-header table.logos {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 6px;
   }
 
-  .page-header .logos img {
+  .page-header table.logos td {
+    vertical-align: middle;
+    border: none;
+    padding: 0;
+  }
+
+  .page-header table.logos td.right-logo {
+    text-align: right;
+    width: 40%;
+  }
+
+  .page-header table.logos td.center-logo {
+    text-align: center;
+    width: 20%;
+  }
+
+  .page-header table.logos td.left-logo {
+    text-align: left;
+    width: 40%;
+  }
+
+  .page-header table.logos img.civil-aviation {
+    height: 65px;
+  }
+
+  .page-header table.logos img.emblem {
     height: 60px;
-    max-width: 150px;
-    object-fit: contain;
+  }
+
+  .page-header table.logos img.newkuwait {
+    height: 55px;
   }
 
   .page-header .red-bar {
     background: #CC0000;
     height: 4px;
     width: 100%;
+    margin-top: 4px;
   }
 
   /* ── Running footer (repeats on every page) ── */
@@ -166,11 +193,19 @@
 
 <!-- Running header (appears on EVERY page) -->
 <div class="page-header">
-  <div class="logos">
-    <div><img src="{{logo_civil_aviation}}" alt="Civil Aviation"></div>
-    <div><img src="{{logo_emblem}}" alt="Kuwait Emblem"></div>
-    <div><img src="{{logo_newkuwait}}" alt="New Kuwait"></div>
-  </div>
+  <table class="logos">
+    <tr>
+      <td class="right-logo">
+        <img class="civil-aviation" src="{{logo_civil_aviation}}" alt="Civil Aviation">
+      </td>
+      <td class="center-logo">
+        <img class="emblem" src="{{logo_emblem}}" alt="Kuwait Emblem">
+      </td>
+      <td class="left-logo">
+        <img class="newkuwait" src="{{logo_newkuwait}}" alt="New Kuwait">
+      </td>
+    </tr>
+  </table>
   <div class="red-bar"></div>
 </div>
 
