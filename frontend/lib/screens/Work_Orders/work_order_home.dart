@@ -6,17 +6,20 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/app_notification.dart';
 import '../../models/work_order.dart';
+import '../../models/nl_search_result.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/claude_widgets.dart';
 import '../../widgets/work_order_card.dart';
 import '../../services/work_order_service.dart';
 import '../../services/signature_service.dart';
 import '../../services/report_service.dart';
+import '../../services/ai_search_service.dart';
 import '../../widgets/pdf_preview_screen.dart';
 import '../../controllers/filter_controller.dart';
 import '../../filters/work_order_filter_engine.dart';
 import '../../models/technician_assignment.dart';
 import '../../theme/app_theme.dart';
+import '../../config.dart';
 import 'add_work_order.dart';
 
 class WorkOrderHome extends StatefulWidget {
@@ -148,6 +151,223 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
       });
     }
     _refreshSignatureStatus(result.items);
+  }
+
+  Future<void> _performNLSearch(String query) async {
+    if (query.trim().isEmpty) return;
+
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    final email = currentUser?.email ?? '';
+    if (email.isEmpty) return;
+
+    setState(() => _filter.setNLSearchLoading(true));
+
+    try {
+      final searchService = AiSearchService(
+        baseUrl: AppConfig.baseUrl,
+        email: email,
+      );
+      final result = await searchService.searchWorkOrders(
+        query,
+        _userRole,
+        limit: _pageSize,
+        offset: 0,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _filter.setNLSearchResult(result);
+        _filter.setNLSearchActive(true);
+        _filter.setNLSearchOffset(_pageSize);
+        _filter.setNLSearchLoading(false);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _filter.setNLSearchLoading(false);
+        _filter.setNLSearchActive(false);
+        _filter.setNLSearchResult(null);
+        _filter.setSearchQuery(query.toLowerCase());
+      });
+    }
+  }
+
+  Widget _buildFilterChips(ExtractedFilters filters) {
+    final chips = <Widget>[];
+
+    if (filters.status != null) {
+      chips.add(Chip(
+        label:
+            Text('Status: ${filters.status}', style: TextStyle(fontSize: 11)),
+        onDeleted: () => _removeFilter('status'),
+        deleteIconColor: AppColors.textSecondary,
+        backgroundColor: AppColors.bgSurface2,
+        side: BorderSide(color: AppColors.border2, width: 0.5),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ));
+    }
+    if (filters.type != null) {
+      chips.add(Chip(
+        label: Text('Type: ${filters.type}', style: TextStyle(fontSize: 11)),
+        onDeleted: () => _removeFilter('type'),
+        deleteIconColor: AppColors.textSecondary,
+        backgroundColor: AppColors.bgSurface2,
+        side: BorderSide(color: AppColors.border2, width: 0.5),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ));
+    }
+    if (filters.department != null) {
+      chips.add(Chip(
+        label:
+            Text('Dept: ${filters.department}', style: TextStyle(fontSize: 11)),
+        onDeleted: () => _removeFilter('department'),
+        deleteIconColor: AppColors.textSecondary,
+        backgroundColor: AppColors.bgSurface2,
+        side: BorderSide(color: AppColors.border2, width: 0.5),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ));
+    }
+    if (filters.location != null) {
+      chips.add(Chip(
+        label: Text('Loc: ${filters.location}', style: TextStyle(fontSize: 11)),
+        onDeleted: () => _removeFilter('location'),
+        deleteIconColor: AppColors.textSecondary,
+        backgroundColor: AppColors.bgSurface2,
+        side: BorderSide(color: AppColors.border2, width: 0.5),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ));
+    }
+    if (filters.dateFrom != null) {
+      chips.add(Chip(
+        label:
+            Text('From: ${filters.dateFrom}', style: TextStyle(fontSize: 11)),
+        onDeleted: () => _removeFilter('dateFrom'),
+        deleteIconColor: AppColors.textSecondary,
+        backgroundColor: AppColors.bgSurface2,
+        side: BorderSide(color: AppColors.border2, width: 0.5),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ));
+    }
+    if (filters.dateTo != null) {
+      chips.add(Chip(
+        label: Text('To: ${filters.dateTo}', style: TextStyle(fontSize: 11)),
+        onDeleted: () => _removeFilter('dateTo'),
+        deleteIconColor: AppColors.textSecondary,
+        backgroundColor: AppColors.bgSurface2,
+        side: BorderSide(color: AppColors.border2, width: 0.5),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ));
+    }
+    if (filters.minResolutionDays != null) {
+      chips.add(Chip(
+        label: Text('Min ${filters.minResolutionDays!.toInt()} days',
+            style: TextStyle(fontSize: 11)),
+        onDeleted: () => _removeFilter('minResolutionDays'),
+        deleteIconColor: AppColors.textSecondary,
+        backgroundColor: AppColors.bgSurface2,
+        side: BorderSide(color: AppColors.border2, width: 0.5),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ));
+    }
+
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          ...chips,
+          ActionChip(
+            label: Text('Clear all', style: TextStyle(fontSize: 11)),
+            onPressed: _clearNLSearch,
+            backgroundColor: AppColors.accent.withValues(alpha: 0.1),
+            side: BorderSide(color: AppColors.accent, width: 0.5),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _removeFilter(String field) async {
+    final currentFilters = _filter.nlSearchResult?.filters;
+    if (currentFilters == null) return;
+
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    final email = currentUser?.email ?? '';
+    if (email.isEmpty) return;
+
+    Map<String, dynamic> newFilters;
+    switch (field) {
+      case 'status':
+        newFilters = currentFilters.toJson()..remove('status');
+        break;
+      case 'type':
+        newFilters = currentFilters.toJson()..remove('type');
+        break;
+      case 'department':
+        newFilters = currentFilters.toJson()..remove('department');
+        break;
+      case 'location':
+        newFilters = currentFilters.toJson()..remove('location');
+        break;
+      case 'dateFrom':
+        newFilters = currentFilters.toJson()..remove('date_from');
+        break;
+      case 'dateTo':
+        newFilters = currentFilters.toJson()..remove('date_to');
+        break;
+      case 'minResolutionDays':
+        newFilters = currentFilters.toJson()..remove('min_resolution_days');
+        break;
+      default:
+        return;
+    }
+
+    final hasRemainingFilters = newFilters.values.any((v) => v != null);
+    if (!hasRemainingFilters) {
+      _clearNLSearch();
+      return;
+    }
+
+    setState(() => _filter.setNLSearchLoading(true));
+
+    try {
+      final searchService = AiSearchService(
+        baseUrl: AppConfig.baseUrl,
+        email: email,
+      );
+      final result = await searchService.searchWithFilters(
+        newFilters,
+        _userRole,
+        limit: _pageSize,
+        offset: 0,
+      );
+      if (!mounted) return;
+      setState(() {
+        _filter.setNLSearchResult(result);
+        _filter.setNLSearchLoading(false);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _filter.setNLSearchLoading(false));
+    }
+  }
+
+  void _clearNLSearch() {
+    _filter.clearAll();
+    _searchCtrl.clear();
+    _load();
   }
 
   Future<void> _refreshSignatureStatus(List<WorkOrder> workOrders) async {
@@ -614,7 +834,16 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
 
   @override
   Widget build(BuildContext context) {
-    final filtered = WorkOrderFilterEngine.applyFilters(_workOrders, _filter);
+    List<WorkOrder> filtered = <WorkOrder>[];
+    int totalCount = 0;
+
+    if (_filter.isNLSearchActive && _filter.nlSearchResult != null) {
+      filtered = _filter.nlSearchResult!.workOrders;
+      totalCount = _filter.nlSearchResult!.total;
+    } else {
+      filtered = WorkOrderFilterEngine.applyFilters(_workOrders, _filter);
+      totalCount = _total;
+    }
 
     return Shortcuts(
       shortcuts: <LogicalKeySet, Intent>{
@@ -684,6 +913,7 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                                           onChanged: (v) => setState(() =>
                                               _filter.setSearchQuery(
                                                   v.toLowerCase())),
+                                          onSubmitted: _performNLSearch,
                                         ),
                                       ),
                                     SizedBox(width: 8),
@@ -699,20 +929,32 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                                           ? 'Close search'
                                           : 'Search work orders',
                                     ),
-                                    SizedBox(width: 6),
-                                    ClaudeIconButton(
-                                      icon: Icons.calendar_today_outlined,
-                                      onTap: _toggleDateFilter,
-                                      tooltip: 'Filter by date',
-                                      semanticsLabel: 'Filter by date',
-                                    ),
-                                    SizedBox(width: 6),
-                                    ClaudeIconButton(
-                                      icon: Icons.person_outline_rounded,
-                                      onTap: _showEmployeeFilter,
-                                      tooltip: 'Filter by employee',
-                                      semanticsLabel: 'Filter by employee',
-                                    ),
+                                    if (!_filter.isNLSearchActive ||
+                                        _filter.nlSearchResult?.fallback ==
+                                            true)
+                                      SizedBox(width: 6),
+                                    if (!_filter.isNLSearchActive ||
+                                        _filter.nlSearchResult?.fallback ==
+                                            true)
+                                      ClaudeIconButton(
+                                        icon: Icons.calendar_today_outlined,
+                                        onTap: _toggleDateFilter,
+                                        tooltip: 'Filter by date',
+                                        semanticsLabel: 'Filter by date',
+                                      ),
+                                    if (!_filter.isNLSearchActive ||
+                                        _filter.nlSearchResult?.fallback ==
+                                            true)
+                                      SizedBox(width: 6),
+                                    if (!_filter.isNLSearchActive ||
+                                        _filter.nlSearchResult?.fallback ==
+                                            true)
+                                      ClaudeIconButton(
+                                        icon: Icons.person_outline_rounded,
+                                        onTap: _showEmployeeFilter,
+                                        tooltip: 'Filter by employee',
+                                        semanticsLabel: 'Filter by employee',
+                                      ),
                                     SizedBox(width: 6),
                                     if (_refreshing)
                                       Container(
@@ -754,37 +996,82 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
 
                                 SizedBox(height: 12),
 
+                                // NL search loading indicator
+                                if (_filter.isNLSearchLoading)
+                                  LinearProgressIndicator(
+                                    backgroundColor: AppColors.bgSurface2,
+                                    color: AppColors.accent,
+                                  ),
+
+                                // NL search fallback notice
+                                if (_filter.isNLSearchActive &&
+                                    _filter.nlSearchResult?.fallback == true)
+                                  Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.bgSurface2,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: AppColors.border2, width: 0.5),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.info_outline,
+                                            size: 14,
+                                            color: AppColors.textTertiary),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                            'AI search unavailable — showing keyword results',
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                color:
+                                                    AppColors.textSecondary)),
+                                      ],
+                                    ),
+                                  ),
+
                                 // ── Status + Type filter chips ─────────────────
-                                FilterChipRow(
-                                  filters: [
-                                    'All',
-                                    'Pending',
-                                    'In Progress',
-                                    'Closed',
-                                    if (_userRole != 'reporter') 'Inspection',
-                                  ],
-                                  selected: _filter.statusFilter == 'All' &&
-                                          _filter.selectedFileType ==
-                                              'Inspection'
-                                      ? 'Inspection'
-                                      : _filter.statusFilter,
-                                  onSelected: (s) {
-                                    setState(() {
-                                      _expandedIndex = null;
-                                      if (s == 'Inspection') {
-                                        _filter.setStatus('All');
-                                        _filter.setFileType('Inspection');
-                                      } else {
-                                        _filter.setStatus(s);
-                                        _filter.setFileType(null);
-                                      }
-                                    });
-                                  },
-                                ),
+                                if (!_filter.isNLSearchActive ||
+                                    _filter.nlSearchResult?.fallback == true)
+                                  FilterChipRow(
+                                    filters: [
+                                      'All',
+                                      'Pending',
+                                      'In Progress',
+                                      'Closed',
+                                      if (_userRole != 'reporter') 'Inspection',
+                                    ],
+                                    selected: _filter.statusFilter == 'All' &&
+                                            _filter.selectedFileType ==
+                                                'Inspection'
+                                        ? 'Inspection'
+                                        : _filter.statusFilter,
+                                    onSelected: (s) {
+                                      setState(() {
+                                        _expandedIndex = null;
+                                        if (s == 'Inspection') {
+                                          _filter.setStatus('All');
+                                          _filter.setFileType('Inspection');
+                                        } else {
+                                          _filter.setStatus(s);
+                                          _filter.setFileType(null);
+                                        }
+                                      });
+                                    },
+                                  ),
                               ],
                             ),
                           ),
                   ),
+
+                  // AI extracted filter chips
+                  if (_filter.isNLSearchActive &&
+                      _filter.nlSearchResult?.fallback == false &&
+                      _filter.nlSearchResult?.filters != null)
+                    _buildFilterChips(_filter.nlSearchResult!.filters!),
 
                   // Active filters row
                   if (!_selectionMode &&
@@ -1064,11 +1351,15 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
         ),
       ));
     }
-    if (!_hasMore && _workOrders.length > _pageSize) {
+    if (!_hasMore && filtered.length > _pageSize) {
+      final int displayTotal =
+          (_filter.isNLSearchActive && _filter.nlSearchResult != null)
+              ? _filter.nlSearchResult!.total
+              : _total;
       widgets.add(Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Center(
-          child: Text('All $_total work orders loaded',
+          child: Text('All ${displayTotal.toString()} work orders loaded',
               style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
         ),
       ));

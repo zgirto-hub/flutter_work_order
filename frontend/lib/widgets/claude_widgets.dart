@@ -54,7 +54,8 @@ class StatusBadge extends StatelessWidget {
           horizontal: isSmall ? 8 : 10,
           vertical: isSmall ? 4 : 6,
         ),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+        decoration:
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
         child: Text(
           status,
           style: theme.textTheme.labelSmall?.copyWith(
@@ -204,14 +205,18 @@ class _SurfaceCardState extends State<SurfaceCard> {
     final borderRadius = widget.borderRadius ?? BorderRadius.circular(14);
 
     return GestureDetector(
-      onTapDown: widget.onTap != null ? (_) => setState(() => _isPressed = true) : null,
+      onTapDown: widget.onTap != null
+          ? (_) => setState(() => _isPressed = true)
+          : null,
       onTapUp: widget.onTap != null
           ? (_) {
               setState(() => _isPressed = false);
               widget.onTap?.call();
             }
           : null,
-      onTapCancel: widget.onTap != null ? () => setState(() => _isPressed = false) : null,
+      onTapCancel: widget.onTap != null
+          ? () => setState(() => _isPressed = false)
+          : null,
       child: AnimatedScale(
         scale: _isPressed ? 0.98 : 1.0,
         duration: const Duration(milliseconds: 100),
@@ -291,12 +296,14 @@ class ClaudeSearchBar extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final ValueChanged<String> onChanged;
+  final ValueChanged<String>? onSubmitted;
 
   const ClaudeSearchBar({
     super.key,
     required this.controller,
     required this.hintText,
     required this.onChanged,
+    this.onSubmitted,
   });
 
   @override
@@ -314,13 +321,15 @@ class ClaudeSearchBar extends StatelessWidget {
         child: TextField(
           controller: controller,
           onChanged: onChanged,
+          onSubmitted: onSubmitted,
           style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: TextStyle(fontSize: 13, color: AppColors.textTertiary),
             prefixIcon: Semantics(
               excludeSemantics: true,
-              child: Icon(Icons.search_rounded, size: 16, color: AppColors.textTertiary),
+              child: Icon(Icons.search_rounded,
+                  size: 16, color: AppColors.textTertiary),
             ),
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
@@ -537,15 +546,23 @@ class SettingsRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                      Text(label,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary)),
                       if (subtitle != null) ...[
                         SizedBox(height: 1),
-                        Text(subtitle!, style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                        Text(subtitle!,
+                            style: TextStyle(
+                                fontSize: 11, color: AppColors.textTertiary)),
                       ],
                     ],
                   ),
                 ),
-                trailing ?? Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.textTertiary),
+                trailing ??
+                    Icon(Icons.chevron_right_rounded,
+                        size: 16, color: AppColors.textTertiary),
               ],
             ),
           ),
