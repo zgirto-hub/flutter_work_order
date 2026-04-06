@@ -11,13 +11,15 @@ import 'package:http/http.dart' as http;
 import '../../config.dart';
 import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
+import '../../widgets/ai_document_expert_widget.dart';
 
 /// Letter form with WYSIWYG rich text editor (v2 — WeasyPrint backend).
 class LetterFormTabV2 extends StatefulWidget {
   final VoidCallback onLetterSaved;
   final GeneratedLetter? editLetter;
 
-  const LetterFormTabV2({super.key, required this.onLetterSaved, this.editLetter});
+  const LetterFormTabV2(
+      {super.key, required this.onLetterSaved, this.editLetter});
 
   @override
   State<LetterFormTabV2> createState() => _LetterFormTabV2State();
@@ -68,7 +70,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       _almawdooCtrl.text = letter.almawdoo;
       _alasmCtrl.text = letter.alasm;
       _initialBodyHtml = letter.bodyText;
-      if (letter.signatureBase64 != null && letter.signatureBase64!.isNotEmpty) {
+      if (letter.signatureBase64 != null &&
+          letter.signatureBase64!.isNotEmpty) {
         _signatureBase64 = letter.signatureBase64;
         try {
           String b64 = letter.signatureBase64!;
@@ -127,6 +130,13 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     );
   }
 
+  /// Inject HTML content into the editor iframe via postMessage.
+  void _setEditorHtml(String html) {
+    final cw = _editorIframe?.contentWindow;
+    if (cw == null) return;
+    cw.postMessage('SET_HTML:$html'.toJS, '*'.toJS);
+  }
+
   Future<void> _pickAttachments() async {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
@@ -139,7 +149,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       if (file.bytes!.lengthInBytes > 10 * 1024 * 1024) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${file.name}: حجم الملف يتجاوز 10 ميغابايت')),
+            SnackBar(
+                content: Text('${file.name}: حجم الملف يتجاوز 10 ميغابايت')),
           );
         }
         continue;
@@ -346,11 +357,13 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'signature_base64': _signatureBase64,
         'reply_required': _replyRequired,
         'cc_list': _ccListCtrl.text.isEmpty ? null : _ccListCtrl.text,
-        'attachments': _attachments.map((_Attachment a) => <String, dynamic>{
-          'name': a.name,
-          'data': a.base64,
-          'is_image': a.isImage,
-        }).toList(),
+        'attachments': _attachments
+            .map((_Attachment a) => <String, dynamic>{
+                  'name': a.name,
+                  'data': a.base64,
+                  'is_image': a.isImage,
+                })
+            .toList(),
       };
 
       final Uint8List pdfBytes;
@@ -366,9 +379,10 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_editingLetterId != null
-              ? 'تم تحديث الخطاب بنجاح'
-              : 'تم توليد الخطاب بنجاح')),
+          SnackBar(
+              content: Text(_editingLetterId != null
+                  ? 'تم تحديث الخطاب بنجاح'
+                  : 'تم توليد الخطاب بنجاح')),
         );
       }
       widget.onLetterSaved();
@@ -410,8 +424,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               decoration: _inputDecor('مثال: 2026-23279'),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               textDirection: TextDirection.ltr,
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'مطلوب' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
             ),
             _buildStyleRow(
               fontSize: _refFontSize,
@@ -452,8 +465,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               controller: _alsayedCtrl,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               decoration: _inputDecor('اسم المستلم والمسمى الوظيفي'),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'مطلوب' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
             ),
             _buildStyleRow(
               fontSize: _recipientFontSize,
@@ -475,8 +487,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               decoration: _inputDecor('موضوع الخطاب'),
               maxLines: 3,
               minLines: 2,
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'مطلوب' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
             ),
             const SizedBox(height: 16),
 
@@ -491,6 +502,11 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               clipBehavior: Clip.hardEdge,
               child: HtmlElementView(viewType: _editorViewType),
             ),
+            const SizedBox(height: 8),
+            AiDocumentExpertWidget(
+              onGetHtml: _getEditorHtml,
+              onApplyHtml: _setEditorHtml,
+            ),
             const SizedBox(height: 16),
 
             // ── Signer (الاسم) ──
@@ -498,8 +514,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             TextFormField(
               controller: _alasmCtrl,
               decoration: _inputDecor('اسم الموقع والمسمى الوظيفي'),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'مطلوب' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
             ),
             const SizedBox(height: 16),
 
@@ -508,11 +523,9 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               children: [
                 Checkbox(
                   value: _replyRequired,
-                  onChanged: (v) =>
-                      setState(() => _replyRequired = v ?? false),
+                  onChanged: (v) => setState(() => _replyRequired = v ?? false),
                 ),
-                const Text('مطلوب الرد',
-                    style: TextStyle(fontSize: 14)),
+                const Text('مطلوب الرد', style: TextStyle(fontSize: 14)),
               ],
             ),
             const SizedBox(height: 12),
@@ -537,14 +550,17 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                     leading: att.isImage
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(4),
-                            child: Image.memory(att.bytes, width: 40, height: 40, fit: BoxFit.cover),
+                            child: Image.memory(att.bytes,
+                                width: 40, height: 40, fit: BoxFit.cover),
                           )
                         : const Icon(Icons.attach_file),
                     title: Text(att.name, style: const TextStyle(fontSize: 13)),
-                    subtitle: Text('${(att.bytes.lengthInBytes / 1024).toStringAsFixed(0)} KB',
+                    subtitle: Text(
+                        '${(att.bytes.lengthInBytes / 1024).toStringAsFixed(0)} KB',
                         style: const TextStyle(fontSize: 11)),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                      icon: const Icon(Icons.delete_outline,
+                          color: Colors.red, size: 20),
                       onPressed: () => setState(() => _attachments.removeAt(i)),
                     ),
                     dense: true,
@@ -569,8 +585,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.delete_outline,
-                        color: Colors.red),
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
                     onPressed: () => setState(() {
                       _signatureBytes = null;
                       _signatureBase64 = null;
@@ -610,9 +625,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton.icon(
-                  onPressed: (_hasPreviewedOnce && !_isLoading)
-                      ? _generatePdf
-                      : null,
+                  onPressed:
+                      (_hasPreviewedOnce && !_isLoading) ? _generatePdf : null,
                   icon: _isLoading
                       ? const SizedBox(
                           width: 18,
@@ -622,8 +636,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                             color: Colors.white,
                           ),
                         )
-                      : const Icon(Icons.picture_as_pdf),
-                  label: const Text('توليد PDF'),
+                      : Icon(_editingLetterId != null ? Icons.save : Icons.picture_as_pdf),
+                  label: Text(_editingLetterId != null ? 'حفظ التعديلات' : 'توليد PDF'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFCC0000),
                     foregroundColor: Colors.white,
@@ -666,8 +680,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     return InputDecoration(
       hintText: hint,
       border: const OutlineInputBorder(),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     );
   }
 
@@ -681,7 +694,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       padding: const EdgeInsets.only(top: 6),
       child: Row(
         children: [
-          const Text('حجم الخط في PDF:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          const Text('حجم الخط في PDF:',
+              style: TextStyle(fontSize: 12, color: Colors.grey)),
           const SizedBox(width: 8),
           SizedBox(
             width: 70,
@@ -689,10 +703,17 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               value: fontSize,
               isExpanded: true,
               isDense: true,
-              items: [9, 10, 11, 12, 13, 14, 16, 18, 20].map((s) =>
-                DropdownMenuItem(value: s.toDouble(), child: Text('${s}pt', style: const TextStyle(fontSize: 12))),
-              ).toList(),
-              onChanged: (v) { if (v != null) onFontSizeChanged(v); },
+              items: [9, 10, 11, 12, 13, 14, 16, 18, 20]
+                  .map(
+                    (s) => DropdownMenuItem(
+                        value: s.toDouble(),
+                        child: Text('${s}pt',
+                            style: const TextStyle(fontSize: 12))),
+                  )
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) onFontSizeChanged(v);
+              },
             ),
           ),
           const SizedBox(width: 16),
