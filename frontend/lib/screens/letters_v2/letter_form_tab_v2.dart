@@ -32,6 +32,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   final _almawdooCtrl = TextEditingController();
   final _alasmCtrl = TextEditingController();
   final _ccListCtrl = TextEditingController();
+  final _ccNameCtrl = TextEditingController();
+  final List<String> _ccNames = [];
 
   DateTime? _selectedDate;
 
@@ -73,6 +75,10 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       _almawdooCtrl.text = letter.almawdoo;
       _alasmCtrl.text = letter.alasm;
       _initialBodyHtml = letter.bodyText;
+      // Restore CC names
+      if (letter.ccList != null && letter.ccList!.isNotEmpty) {
+        _ccNames.addAll(letter.ccList!.split('\n').where((n) => n.trim().isNotEmpty));
+      }
       // Restore date — tarikh could be YYYY-MM-DD or DD/MM/YYYY
       if (letter.tarikh.isNotEmpty) {
         try {
@@ -234,7 +240,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'alasm': _alasmCtrl.text,
         'signature_base64': _signatureBase64,
         'reply_required': _replyRequired,
-        'cc_list': _ccListCtrl.text.isEmpty ? null : _ccListCtrl.text,
+        'cc_list': _ccNames.isEmpty ? null : _ccNames.join('\n'),
         'ref_font_size': _refFontSize,
         'ref_bold': _refBold,
         'recipient_font_size': _recipientFontSize,
@@ -373,7 +379,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'alasm': _alasmCtrl.text,
         'signature_base64': _signatureBase64,
         'reply_required': _replyRequired,
-        'cc_list': _ccListCtrl.text.isEmpty ? null : _ccListCtrl.text,
+        'cc_list': _ccNames.isEmpty ? null : _ccNames.join('\n'),
         'attachments': _attachments
             .map((_Attachment a) => <String, dynamic>{
                   'name': a.name,
@@ -422,6 +428,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     _almawdooCtrl.dispose();
     _alasmCtrl.dispose();
     _ccListCtrl.dispose();
+    _ccNameCtrl.dispose();
     super.dispose();
   }
 
@@ -552,12 +559,90 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             ),
             const SizedBox(height: 12),
 
-            // ── CC List (قائمة النسخ) ──
+            // ── CC List (نسخة الى) ──
             _buildLabel('CC List'),
-            TextFormField(
-              controller: _ccListCtrl,
-              decoration: _inputDecor('CC recipients (optional)'),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _ccNameCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'Add CC name',
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.add_circle, color: Color(0xFFCC0000)),
+                        onPressed: () {
+                          final name = _ccNameCtrl.text.trim();
+                          if (name.isNotEmpty) {
+                            setState(() {
+                              _ccNames.add(name);
+                              _ccNameCtrl.clear();
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                    onFieldSubmitted: (value) {
+                      final name = value.trim();
+                      if (name.isNotEmpty) {
+                        setState(() {
+                          _ccNames.add(name);
+                          _ccNameCtrl.clear();
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
+            if (_ccNames.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade700,
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Expanded(child: Text('CC', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
+                          Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    ..._ccNames.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final name = entry.value;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text(name, style: const TextStyle(fontSize: 13))),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                              onPressed: () => setState(() => _ccNames.removeAt(i)),
+                              constraints: const BoxConstraints(),
+                              padding: EdgeInsets.zero,
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
 
             // ── Attachments (المرفقات) ──

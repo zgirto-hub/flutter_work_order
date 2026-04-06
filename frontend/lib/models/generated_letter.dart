@@ -9,6 +9,7 @@ class GeneratedLetter {
   final String alasm;
   final String? signatureBase64;
   final String? createdByEmail;
+  final String? ccList;
   final List<Map<String, dynamic>> paymentCertificates;
 
   const GeneratedLetter({
@@ -22,6 +23,7 @@ class GeneratedLetter {
     required this.alasm,
     this.signatureBase64,
     this.createdByEmail,
+    this.ccList,
     this.paymentCertificates = const [],
   });
 
@@ -47,6 +49,7 @@ class GeneratedLetter {
       alasm: json['alasm'] ?? '',
       signatureBase64: json['signature_base64'],
       createdByEmail: json['created_by_email'],
+      ccList: json['cc_list'],
       paymentCertificates: certs,
     );
   }

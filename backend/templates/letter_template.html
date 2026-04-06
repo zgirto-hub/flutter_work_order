@@ -304,23 +304,28 @@
 </div>
 {% endif %}
 
-<!-- Sign-off -->
-<div class="signoff">
-  <div class="name">{{alasm}}</div>
-  {% if signature_img %}
-  <img class="signature-img" src="{{signature_img}}" alt="signature">
-  {% endif %}
-</div>
+<!-- Sign-off and CC side by side -->
+<table style="width:100%; border:none; margin-top:30px;">
+  <tr>
+    <td style="vertical-align:top; text-align:left; width:50%; border:none; padding:0;">
+      <div style="font-size:12pt; font-weight:700;">{{alasm}}</div>
+      {% if signature_img %}
+      <img style="max-height:100px; max-width:200px; margin-top:6px;" src="{{signature_img}}" alt="signature">
+      {% endif %}
+    </td>
+    <td style="vertical-align:top; text-align:right; width:50%; border:none; padding:0;">
+      {% if cc_list %}
+      <div style="font-size:11pt; font-weight:700; margin-bottom:6px;">نسخة الى:</div>
+      {% for name in cc_names %}
+      <div style="font-size:11pt;">- {{name}}</div>
+      {% endfor %}
+      {% endif %}
+    </td>
+  </tr>
+</table>
 
 <!-- Attachments label -->
 <div class="attachments">المرفقات:</div>
-
-<!-- CC List -->
-{% if cc_list %}
-<div class="cc-list">
-  قائمة النسخ: {{cc_list}}
-</div>
-{% endif %}
 
 <!-- Footer (running element for PDF, static at bottom for browser preview) -->
 <div class="page-footer">
