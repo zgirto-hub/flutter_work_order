@@ -124,11 +124,45 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 
+@router.post("/letters-v2/preview-html")
+async def preview_letter_html(data: LetterBodyV2):
+    """Debug: return the rendered HTML (before PDF conversion) for inspection."""
+    from weasyprint.text.fonts import FontConfiguration
+
+    template = _jinja.get_template("letter_template.html")
+    sig_img = None
+    if data.signature_base64:
+        sig = data.signature_base64
+        if not sig.startswith("data:"):
+            sig = f"data:image/png;base64,{sig}"
+        sig_img = sig
+
+    html_str = template.render(
+        ishara=data.ishara,
+        alsayed=data.alsayed,
+        almawdoo=data.almawdoo,
+        body_html=data.body_html,
+        alasm=data.alasm,
+        signature_img=sig_img,
+        reply_required=data.reply_required,
+        cc_list=data.cc_list or "",
+        logo_civil_aviation=_logo_data_uri("logo_civilaviation.png"),
+        logo_emblem=_logo_data_uri("logo_emblem.png"),
+        logo_newkuwait=_logo_data_uri("logo_newkuwait.png"),
+        font_regular=_font_data_uri("calibri.ttf"),
+        font_bold=_font_data_uri("calibrib.ttf"),
+    )
+    return Response(content=html_str, media_type="text/html")
+
+
 @router.post("/letters-v2/generate")
 async def generate_letter_v2(data: LetterBodyV2):
     """Generate a PDF letter and save the record to Supabase."""
     if not all([data.ishara, data.alsayed, data.almawdoo, data.body_html, data.alasm]):
         raise HTTPException(400, "Missing required fields")
+
+    # Debug: log the body HTML to see what the editor sends
+    print(f"[LETTER-V2] body_html snippet: {data.body_html[:500]}")
 
     pdf_bytes = _build_letter_pdf_v2(data)
 
