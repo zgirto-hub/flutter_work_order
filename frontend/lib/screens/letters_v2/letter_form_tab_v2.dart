@@ -398,7 +398,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             TextFormField(
               controller: _isharaCtrl,
               decoration: _inputDecor('مثال: 2026-23279'),
-              style: const TextStyle(fontSize: 18),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               textDirection: TextDirection.ltr,
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'مطلوب' : null,
@@ -434,7 +434,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             _buildLabel('السيد /', big: true),
             TextFormField(
               controller: _alsayedCtrl,
-              style: const TextStyle(fontSize: 18),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               decoration: _inputDecor('اسم المستلم والمسمى الوظيفي'),
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'مطلوب' : null,
