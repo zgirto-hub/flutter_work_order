@@ -943,6 +943,146 @@ function changeColor() {
   var c = prompt("Color (hex):", "#CC0000");
   if (c) fmt("foreColor", c);
 }
+// ── Table context menu (right-click on cells) ──
+var ctxMenu = null;
+var ctxCell = null;
+
+document.getElementById("editor").addEventListener("contextmenu", function(e) {
+  var td = e.target.closest("td, th");
+  if (!td) return;
+  e.preventDefault();
+  ctxCell = td;
+  if (ctxMenu) ctxMenu.remove();
+
+  ctxMenu = document.createElement("div");
+  ctxMenu.style.cssText = "position:fixed;z-index:200;background:#fff;border:1px solid #ccc;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.15);padding:4px 0;font-size:13px;min-width:180px;";
+  var items = [
+    {label:"Merge Right", action:"mergeRight"},
+    {label:"Merge Down", action:"mergeDown"},
+    {label:"Split Cell", action:"split"},
+    {label:"---"},
+    {label:"Insert Row Above", action:"rowAbove"},
+    {label:"Insert Row Below", action:"rowBelow"},
+    {label:"Insert Column Left", action:"colLeft"},
+    {label:"Insert Column Right", action:"colRight"},
+    {label:"---"},
+    {label:"Delete Row", action:"delRow"},
+    {label:"Delete Column", action:"delCol"},
+  ];
+  items.forEach(function(item) {
+    if (item.label === "---") {
+      var hr = document.createElement("div");
+      hr.style.cssText = "border-top:1px solid #eee;margin:4px 0;";
+      ctxMenu.appendChild(hr);
+    } else {
+      var btn = document.createElement("div");
+      btn.textContent = item.label;
+      btn.style.cssText = "padding:6px 16px;cursor:pointer;";
+      btn.onmouseover = function() { this.style.background="#f0f0f0"; };
+      btn.onmouseout = function() { this.style.background=""; };
+      btn.onclick = function() { tableAction(item.action); ctxMenu.remove(); ctxMenu=null; };
+      ctxMenu.appendChild(btn);
+    }
+  });
+  ctxMenu.style.left = e.clientX + "px";
+  ctxMenu.style.top = e.clientY + "px";
+  document.body.appendChild(ctxMenu);
+});
+
+document.addEventListener("click", function() {
+  if (ctxMenu) { ctxMenu.remove(); ctxMenu = null; }
+});
+
+function tableAction(action) {
+  if (!ctxCell) return;
+  var tr = ctxCell.parentElement;
+  var table = tr.parentElement;
+  if (table.tagName === "TBODY") table = table.parentElement;
+  var cellIndex = ctxCell.cellIndex;
+  var rowIndex = tr.rowIndex;
+
+  if (action === "mergeRight") {
+    var next = ctxCell.nextElementSibling;
+    if (!next) return;
+    var cs = parseInt(ctxCell.getAttribute("colspan") || 1);
+    var ns = parseInt(next.getAttribute("colspan") || 1);
+    ctxCell.innerHTML += " " + next.innerHTML;
+    ctxCell.setAttribute("colspan", cs + ns);
+    next.remove();
+  }
+  else if (action === "mergeDown") {
+    var nextRow = table.rows[rowIndex + 1];
+    if (!nextRow) return;
+    var below = nextRow.cells[cellIndex];
+    if (!below) return;
+    var rs = parseInt(ctxCell.getAttribute("rowspan") || 1);
+    var bs = parseInt(below.getAttribute("rowspan") || 1);
+    ctxCell.innerHTML += "<br>" + below.innerHTML;
+    ctxCell.setAttribute("rowspan", rs + bs);
+    below.remove();
+  }
+  else if (action === "split") {
+    var cs = parseInt(ctxCell.getAttribute("colspan") || 1);
+    var rs = parseInt(ctxCell.getAttribute("rowspan") || 1);
+    if (cs > 1) {
+      ctxCell.setAttribute("colspan", 1);
+      for (var i = 1; i < cs; i++) {
+        var nc = document.createElement("td");
+        nc.innerHTML = "&nbsp;";
+        nc.style.cssText = ctxCell.style.cssText;
+        ctxCell.after(nc);
+      }
+    } else if (rs > 1) {
+      ctxCell.setAttribute("rowspan", 1);
+      for (var i = 1; i < rs; i++) {
+        var nr = table.rows[rowIndex + i];
+        if (nr) {
+          var nc = document.createElement("td");
+          nc.innerHTML = "&nbsp;";
+          nc.style.cssText = ctxCell.style.cssText;
+          if (nr.cells[cellIndex]) nr.cells[cellIndex].before(nc);
+          else nr.appendChild(nc);
+        }
+      }
+    }
+  }
+  else if (action === "rowAbove") {
+    var newRow = tr.cloneNode(true);
+    Array.from(newRow.cells).forEach(function(c) { c.innerHTML = "&nbsp;"; });
+    tr.before(newRow);
+  }
+  else if (action === "rowBelow") {
+    var newRow = tr.cloneNode(true);
+    Array.from(newRow.cells).forEach(function(c) { c.innerHTML = "&nbsp;"; });
+    tr.after(newRow);
+  }
+  else if (action === "colLeft") {
+    Array.from(table.rows).forEach(function(r) {
+      var nc = document.createElement("td");
+      nc.innerHTML = "&nbsp;";
+      if (r.cells[cellIndex]) { nc.style.cssText = r.cells[cellIndex].style.cssText; r.cells[cellIndex].before(nc); }
+      else r.appendChild(nc);
+    });
+  }
+  else if (action === "colRight") {
+    Array.from(table.rows).forEach(function(r) {
+      var nc = document.createElement("td");
+      nc.innerHTML = "&nbsp;";
+      var ref = r.cells[cellIndex];
+      if (ref) { nc.style.cssText = ref.style.cssText; ref.after(nc); }
+      else r.appendChild(nc);
+    });
+  }
+  else if (action === "delRow") {
+    if (table.rows.length > 1) tr.remove();
+  }
+  else if (action === "delCol") {
+    Array.from(table.rows).forEach(function(r) {
+      if (r.cells[cellIndex]) r.cells[cellIndex].remove();
+    });
+  }
+}
+
 // Listen for parent requests
 window.addEventListener("message", function(e) {
   if (e.data === "GET_HTML") {
