@@ -13,6 +13,8 @@ import '../screens/document_registry/document_registry_screen.dart';
 import '../screens/payment_certificate/payment_certificate_list_screen.dart';
 import '../screens/system_status_screen.dart';
 import '../screens/approvals/pending_approvals_screen.dart';
+import '../screens/letters/letter_generator_screen.dart';
+import '../screens/letters_v2/letter_generator_screen_v2.dart';
 import '../models/nav_screen.dart';
 
 class MoreScreen extends StatefulWidget {
@@ -251,6 +253,22 @@ class _MoreScreenState extends State<MoreScreen> {
                   context,
                   MaterialPageRoute(
                       builder: (_) => const PaymentCertificateListScreen()),
+                )),
+      if (_canShow('letters'))
+        buildItem(
+            NavScreenRegistry.get('letters')!,
+            () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const LetterGeneratorScreen()),
+                )),
+      if (_canShow('letters_v2'))
+        buildItem(
+            NavScreenRegistry.get('letters_v2')!,
+            () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const LetterGeneratorScreenV2()),
                 )),
       if (_canShow('system_status'))
         buildItem(

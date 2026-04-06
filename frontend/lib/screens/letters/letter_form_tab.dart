@@ -9,8 +9,9 @@ import '../../theme/app_theme.dart';
 
 class LetterFormTab extends StatefulWidget {
   final VoidCallback onLetterSaved;
+  final GeneratedLetter? editLetter;
 
-  const LetterFormTab({super.key, required this.onLetterSaved});
+  const LetterFormTab({super.key, required this.onLetterSaved, this.editLetter});
 
   @override
   State<LetterFormTab> createState() => _LetterFormTabState();
@@ -28,6 +29,34 @@ class _LetterFormTabState extends State<LetterFormTab> {
   String? _signatureBase64;
   bool _isLoading = false;
   bool _hasPreviewedOnce = false;
+  String? _editingLetterId;
+
+  @override
+  void initState() {
+    super.initState();
+    final letter = widget.editLetter;
+    if (letter != null) {
+      _editingLetterId = letter.id;
+      _isharaCtrl.text = letter.ishara;
+      _alsayedCtrl.text = letter.alsayed;
+      _almawdooCtrl.text = letter.almawdoo;
+      _bodyCtrl.text = letter.bodyText;
+      _alasmCtrl.text = letter.alasm;
+      // Parse tarikh (YYYY-MM-DD) to DateTime
+      try {
+        _selectedDate = DateTime.parse(letter.tarikh);
+      } catch (_) {}
+      // Restore signature if present
+      if (letter.signatureBase64 != null && letter.signatureBase64!.isNotEmpty) {
+        _signatureBase64 = letter.signatureBase64;
+        try {
+          String b64 = letter.signatureBase64!;
+          if (b64.contains(',')) b64 = b64.split(',').last;
+          _signatureBytes = base64Decode(b64);
+        } catch (_) {}
+      }
+    }
+  }
 
   String _formatDate(DateTime d) {
     return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
@@ -47,8 +76,9 @@ class _LetterFormTabState extends State<LetterFormTab> {
 
   Future<void> _pickSignature() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
+      type: FileType.custom,
       allowedExtensions: ['png', 'jpg', 'jpeg'],
+      withData: true,
     );
     if (result != null && result.files.isNotEmpty) {
       final file = result.files.first;
@@ -96,13 +126,11 @@ class _LetterFormTabState extends State<LetterFormTab> {
               const Divider(),
               Expanded(
                 child: SingleChildScrollView(
-                  child: AspectRatio(
-                    aspectRatio: 1 / 1.414,
-                    child: Container(
-                      color: Colors.white,
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -152,7 +180,7 @@ class _LetterFormTabState extends State<LetterFormTab> {
                           const Text('المرفقات:',
                               textAlign: TextAlign.right,
                               style: TextStyle(fontSize: 12)),
-                          const Spacer(),
+                          const SizedBox(height: 24),
                           const Center(
                             child: Text(
                               'E-mail: info@dgca.gov.kw | www.dgca.gov.kw | P.O.Box: 17 Safat, 13001 Kuwait | Tel: (+965) 2434-7171 | Fax: (+965) 2431-5504',
@@ -165,7 +193,6 @@ class _LetterFormTabState extends State<LetterFormTab> {
                     ),
                   ),
                 ),
-              ),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _generatePdf,
@@ -201,14 +228,21 @@ class _LetterFormTabState extends State<LetterFormTab> {
         signatureBase64: _signatureBase64,
       );
 
-      final pdfBytes = await LetterService().generate(letter);
+      final Uint8List pdfBytes;
+      if (_editingLetterId != null) {
+        pdfBytes = await LetterService().update(_editingLetterId!, letter);
+      } else {
+        pdfBytes = await LetterService().generate(letter);
+      }
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       await Printing.sharePdf(
           bytes: pdfBytes, filename: 'letter_$timestamp.pdf');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم توليد الخطاب بنجاح')),
+          SnackBar(content: Text(_editingLetterId != null
+              ? 'تم تحديث الخطاب بنجاح'
+              : 'تم توليد الخطاب بنجاح')),
         );
         widget.onLetterSaved();
       }
@@ -345,9 +379,7 @@ class _LetterFormTabState extends State<LetterFormTab> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _formKey.currentState?.validate() == true
-                        ? _showPreview
-                        : null,
+                    onPressed: _isLoading ? null : _showPreview,
                     child: const Text('معاينة'),
                   ),
                 ),

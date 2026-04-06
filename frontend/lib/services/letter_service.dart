@@ -62,6 +62,22 @@ class LetterService {
     return res.bodyBytes;
   }
 
+  /// Update an existing letter record and regenerate PDF.
+  Future<Uint8List> update(String letterId, GeneratedLetter letter) async {
+    final body = letter.toJson();
+    body['created_by_email'] = _email;
+    final uri = Uri.parse('${AppConfig.baseUrl}/letters/$letterId');
+    final res = await http.put(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to update letter');
+    }
+    return res.bodyBytes;
+  }
+
   Future<void> linkPaymentCertificate(String certId, String letterId) async {
     final uri = Uri.parse(
         '${AppConfig.baseUrl}/payment-certificates/$certId/link-letter');

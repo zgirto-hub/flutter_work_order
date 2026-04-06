@@ -5,7 +5,9 @@ import '../../services/letter_service.dart';
 import '../../theme/app_theme.dart';
 
 class LetterHistoryTab extends StatefulWidget {
-  const LetterHistoryTab({super.key});
+  final void Function(GeneratedLetter letter)? onEditLetter;
+
+  const LetterHistoryTab({super.key, this.onEditLetter});
 
   @override
   State<LetterHistoryTab> createState() => _LetterHistoryTabState();
@@ -122,9 +124,21 @@ class _LetterHistoryTabState extends State<LetterHistoryTab> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        widget.onEditLetter?.call(letter);
+                      },
+                      icon: const Icon(Icons.edit),
+                      label: const Text('تعديل'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
                       onPressed: () => _regeneratePdf(letter),
-                      child: const Text('إعادة توليد PDF'),
+                      icon: const Icon(Icons.picture_as_pdf),
+                      label: const Text('توليد PDF'),
                     ),
                   ),
                 ],
