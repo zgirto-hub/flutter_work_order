@@ -750,8 +750,15 @@ function insertTable() {
   document.execCommand("insertHTML", false, t);
 }
 function changeFontSize() {
-  var s = prompt("Font size (1-7):", "3");
-  if (s) fmt("fontSize", s);
+  var s = prompt("حجم الخط (pt):", "16");
+  if (!s) return;
+  var sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  var range = sel.getRangeAt(0);
+  var span = document.createElement("span");
+  span.style.fontSize = s + "pt";
+  range.surroundContents(span);
+  sel.removeAllRanges();
 }
 function changeColor() {
   var c = prompt("Color (hex):", "#CC0000");
