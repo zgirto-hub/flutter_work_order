@@ -30,7 +30,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في تحميل الخطابات: $e')),
+          SnackBar(content: Text('Error loading letters: $e')),
         );
       }
     }
@@ -80,7 +80,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     }
@@ -114,19 +114,19 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                   ),
                 ),
               ),
-              Text('تفاصيل الخطاب',
+              Text('Letter Details',
                   style: Theme.of(ctx).textTheme.titleLarge),
               const SizedBox(height: 16),
-              _row('رقم الإشارة', letter.ishara),
-              _row('التاريخ', letter.tarikh),
-              _row('السيد', letter.alsayed),
-              _row('الموضوع', letter.almawdoo),
-              _row('الاسم', letter.alasm),
+              _row('Reference', letter.ishara),
+              _row('Date', letter.tarikh),
+              _row('Recipient', letter.alsayed),
+              _row('Subject', letter.almawdoo),
+              _row('Signer', letter.alasm),
               const Divider(height: 24),
 
               // Linked payment certificates
               if (letter.paymentCertificates.isNotEmpty) ...[
-                Text('شهادات الدفع المرتبطة',
+                Text('Linked Payment Certificates',
                     style: Theme.of(ctx).textTheme.titleSmall),
                 const SizedBox(height: 8),
                 ...letter.paymentCertificates.map((cert) => Card(
@@ -222,7 +222,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
           children: [
             Icon(Icons.mail_outline, size: 48, color: Colors.grey),
             SizedBox(height: 12),
-            Text('لا توجد خطابات سابقة',
+            Text('No previous letters',
                 style: TextStyle(color: Colors.grey, fontSize: 15)),
           ],
         ),
@@ -259,7 +259,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                   if (letter.paymentCertificates.isNotEmpty)
                     Chip(
                       label: Text(
-                        '${letter.paymentCertificates.length} شهادات',
+                        '${letter.paymentCertificates.length} certs',
                         style: const TextStyle(fontSize: 10),
                       ),
                       visualDensity: VisualDensity.compact,
