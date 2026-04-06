@@ -93,6 +93,14 @@ class LetterService {
     return res.bodyBytes;
   }
 
+  Future<void> delete(String letterId) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/letters-v2/$letterId');
+    final res = await http.delete(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to delete letter');
+    }
+  }
+
   Future<void> linkPaymentCertificate(String certId, String letterId) async {
     final uri = Uri.parse(
         '${AppConfig.baseUrl}/payment-certificates/$certId/link-letter');

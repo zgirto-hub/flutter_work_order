@@ -313,6 +313,24 @@ async def update_letter_v2(letter_id: str, data: LetterBodyV2):
     )
 
 
+@router.delete("/letters-v2/{letter_id}")
+async def delete_letter_v2(letter_id: str):
+    """Delete a letter record."""
+    result = (
+        supabase.table("generated_letters").select("id, created_by_email").eq("id", letter_id).execute()
+    )
+    if not result.data:
+        raise HTTPException(404, "Letter not found")
+
+    # Unlink any payment certificates
+    supabase.table("payment_certificates").update({"letter_id": None}).eq("letter_id", letter_id).execute()
+    # Delete the letter
+    supabase.table("generated_letters").delete().eq("id", letter_id).execute()
+
+    log_activity(result.data[0]["created_by_email"], "deleted", "letter", letter_id)
+    return {"status": "deleted", "id": letter_id}
+
+
 @router.post("/letters-v2/{letter_id}/regenerate")
 async def regenerate_letter_v2(letter_id: str):
     """Regenerate a PDF from a saved letter record."""

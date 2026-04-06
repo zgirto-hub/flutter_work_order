@@ -36,6 +36,40 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
     }
   }
 
+  Future<void> _deleteLetter(String letterId, BuildContext ctx) async {
+    final confirm = await showDialog<bool>(
+      context: ctx,
+      builder: (c) => AlertDialog(
+        title: const Text('Delete Letter'),
+        content: const Text('Are you sure you want to delete this letter?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await LetterService().delete(letterId);
+      if (mounted) {
+        Navigator.pop(ctx);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Letter deleted')),
+        );
+        _loadLetters();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _regeneratePdf(String letterId) async {
     try {
       final bytes = await LetterService().regenerate(letterId);
@@ -117,20 +151,33 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                         widget.onEditLetter?.call(letter);
                       },
                       icon: const Icon(Icons.edit),
-                      label: const Text('تعديل'),
+                      label: const Text('Edit'),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: letter.id != null
                           ? () => _regeneratePdf(letter.id!)
                           : null,
                       icon: const Icon(Icons.picture_as_pdf),
-                      label: const Text('توليد PDF'),
+                      label: const Text('PDF'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFCC0000),
                         foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: letter.id != null
+                          ? () => _deleteLetter(letter.id!, context)
+                          : null,
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red),
                       ),
                     ),
                   ),
