@@ -1,0 +1,184 @@
+"""
+Letter Generator v2 — WeasyPrint HTML→PDF approach.
+Renders a Jinja2 HTML template with the DGCA layout,
+injects the rich HTML body from the WYSIWYG editor,
+and converts to PDF via WeasyPrint.
+"""
+
+import os
+import base64
+from datetime import datetime
+from fastapi import APIRouter, HTTPException, Response
+from pydantic import BaseModel
+from jinja2 import Environment, FileSystemLoader
+
+from db import supabase
+from utils.activity import log_activity
+
+router = APIRouter(tags=["letters_v2"])
+
+_assets = os.path.join(os.path.dirname(__file__), "..", "assets")
+_templates = os.path.join(os.path.dirname(__file__), "..", "templates")
+
+# Jinja2 template engine
+_jinja = Environment(loader=FileSystemLoader(_templates), autoescape=False)
+
+
+def _logo_data_uri(filename: str) -> str:
+    """Convert a local logo file to a base64 data URI for embedding in HTML."""
+    path = os.path.join(_assets, filename)
+    if not os.path.exists(path):
+        return ""
+    with open(path, "rb") as f:
+        data = base64.b64encode(f.read()).decode()
+    return f"data:image/png;base64,{data}"
+
+
+class LetterBodyV2(BaseModel):
+    ishara: str
+    alsayed: str
+    almawdoo: str
+    body_html: str  # Rich HTML from WYSIWYG editor
+    alasm: str
+    signature_base64: str | None = None
+    reply_required: bool = False
+    cc_list: str | None = None
+    created_by_email: str
+
+
+def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
+    """Render HTML template with data, then convert to PDF via WeasyPrint."""
+    # Lazy import — WeasyPrint pulls in Cairo/Pango at import time
+    from weasyprint import HTML
+    from weasyprint.text.fonts import FontConfiguration
+
+    template = _jinja.get_template("letter_template.html")
+
+    # Prepare signature image as data URI
+    sig_img = None
+    if data.signature_base64:
+        sig = data.signature_base64
+        if not sig.startswith("data:"):
+            sig = f"data:image/png;base64,{sig}"
+        sig_img = sig
+
+    html_str = template.render(
+        ishara=data.ishara,
+        alsayed=data.alsayed,
+        almawdoo=data.almawdoo,
+        body_html=data.body_html,
+        alasm=data.alasm,
+        signature_img=sig_img,
+        reply_required=data.reply_required,
+        cc_list=data.cc_list or "",
+        logo_civil_aviation=_logo_data_uri("logo_civilaviation.png"),
+        logo_emblem=_logo_data_uri("logo_emblem.png"),
+        logo_newkuwait=_logo_data_uri("logo_newkuwait.png"),
+    )
+
+    font_config = FontConfiguration()
+    pdf_bytes = HTML(string=html_str).write_pdf(font_config=font_config)
+    return pdf_bytes
+
+
+# ── Endpoints ────────────────────────────────────────────────────────────────
+
+
+@router.post("/letters-v2/generate")
+async def generate_letter_v2(data: LetterBodyV2):
+    """Generate a PDF letter and save the record to Supabase."""
+    if not all([data.ishara, data.alsayed, data.almawdoo, data.body_html, data.alasm]):
+        raise HTTPException(400, "Missing required fields")
+
+    pdf_bytes = _build_letter_pdf_v2(data)
+
+    # Save letter record to Supabase
+    record = {
+        "ishara": data.ishara,
+        "tarikh": datetime.utcnow().strftime("%Y-%m-%d"),
+        "alsayed": data.alsayed,
+        "almawdoo": data.almawdoo,
+        "body_text": data.body_html,
+        "alasm": data.alasm,
+        "signature_base64": data.signature_base64,
+        "reply_required": data.reply_required,
+        "cc_list": data.cc_list,
+        "created_by_email": data.created_by_email,
+    }
+    result = supabase.table("generated_letters").insert(record).execute()
+    letter_id = result.data[0]["id"] if result.data else ""
+
+    log_activity(data.created_by_email, "created", "letter", str(letter_id))
+
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="letter_{ts}.pdf"',
+            "X-Letter-Id": str(letter_id),
+        },
+    )
+
+
+@router.get("/letters-v2")
+async def get_letters_v2(email: str):
+    """Fetch letter history for a user."""
+    result = (
+        supabase.table("generated_letters")
+        .select("*")
+        .eq("created_by_email", email)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    letters = result.data or []
+
+    # Attach linked payment certificates to each letter
+    for letter in letters:
+        certs = (
+            supabase.table("payment_certificates")
+            .select("id, certificate_number, subject")
+            .eq("letter_id", letter["id"])
+            .execute()
+        )
+        letter["payment_certificates"] = certs.data or []
+
+    return {"letters": letters}
+
+
+@router.post("/letters-v2/{letter_id}/regenerate")
+async def regenerate_letter_v2(letter_id: str):
+    """Regenerate a PDF from a saved letter record."""
+    result = (
+        supabase.table("generated_letters")
+        .select("*")
+        .eq("id", letter_id)
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(404, "Letter not found")
+
+    rec = result.data[0]
+    body = LetterBodyV2(
+        ishara=rec["ishara"],
+        alsayed=rec["alsayed"],
+        almawdoo=rec["almawdoo"],
+        body_html=rec.get("body_text", ""),
+        alasm=rec["alasm"],
+        signature_base64=rec.get("signature_base64"),
+        reply_required=rec.get("reply_required", False),
+        cc_list=rec.get("cc_list"),
+        created_by_email=rec["created_by_email"],
+    )
+
+    pdf_bytes = _build_letter_pdf_v2(body)
+    log_activity(rec["created_by_email"], "regenerated", "letter", letter_id)
+
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="letter_{ts}.pdf"',
+        },
+    )

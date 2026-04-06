@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+
+  @page {
+    size: A4;
+    margin: 1.5cm 2cm 3cm 2cm;
+    @bottom-center {
+      content: element(footer);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: 'Cairo', 'NotoSansArabic', sans-serif;
+    font-size: 12pt;
+    direction: rtl;
+    color: #222;
+    margin: 0;
+    padding: 0;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .header .logo-right {
+    text-align: right;
+  }
+  .header .logo-center {
+    text-align: center;
+  }
+  .header .logo-left {
+    text-align: left;
+  }
+  .header img {
+    height: 70px;
+    max-width: 160px;
+    object-fit: contain;
+  }
+
+  .red-bar {
+    background: #CC0000;
+    height: 4px;
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
+  .ref-block {
+    text-align: right;
+    font-size: 11pt;
+    margin-bottom: 12px;
+  }
+
+  .recipient {
+    text-align: right;
+    font-size: 12pt;
+    margin-bottom: 2px;
+  }
+
+  .respected {
+    text-align: right;
+    font-size: 12pt;
+    margin-bottom: 14px;
+    padding-right: 40px;
+  }
+
+  .subject {
+    text-align: center;
+    font-weight: 700;
+    font-size: 13pt;
+    margin-bottom: 14px;
+    text-decoration: underline;
+  }
+
+  .body-text {
+    text-align: right;
+    font-size: 12pt;
+    line-height: 1.8;
+    margin-bottom: 20px;
+  }
+
+  .body-text p:first-child {
+    text-indent: 40px;
+  }
+
+  /* Rich text editor content styling */
+  .body-text table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+  }
+  .body-text table td, .body-text table th {
+    border: 1px solid #666;
+    padding: 4px 8px;
+    text-align: right;
+  }
+  .body-text ul, .body-text ol {
+    padding-right: 20px;
+    margin: 6px 0;
+  }
+
+  .reply-required {
+    text-align: right;
+    font-size: 11pt;
+    margin-bottom: 8px;
+  }
+
+  .signoff {
+    text-align: right;
+    margin-top: 30px;
+    font-size: 12pt;
+  }
+
+  .signoff .name {
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .signoff .signature-img {
+    max-height: 60px;
+    max-width: 120px;
+    margin-top: 4px;
+  }
+
+  .attachments {
+    text-align: right;
+    font-size: 11pt;
+    margin-top: 20px;
+    font-weight: 700;
+  }
+
+  .cc-list {
+    text-align: right;
+    font-size: 11pt;
+    margin-top: 10px;
+  }
+
+  /* Fixed footer */
+  .page-footer {
+    position: running(footer);
+    border-top: 3px solid #CC0000;
+    padding-top: 6px;
+    font-size: 8pt;
+    text-align: center;
+    line-height: 1.6;
+    color: #444;
+  }
+  .page-footer .ar {
+    direction: rtl;
+    font-family: 'Cairo', sans-serif;
+  }
+  .page-footer .en {
+    direction: ltr;
+    font-family: sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<!-- Footer (running element - appears on every page) -->
+<div class="page-footer">
+  <div>E-mail: info@dgca.gov.kw &nbsp;&nbsp;&nbsp; www.dgca.gov.kw</div>
+  <div class="ar">ص.ب: 17 &nbsp; الصفاة - الرمز البريدي: 13001 &nbsp; دولة الكويت - البدالة: 24336699 (965+) - الرد الآلي: 161 (965+) - فاكس: 24713504 (965+)</div>
+  <div class="en">P.O.Box: 17 Safat - P.Code: 13001 - State of Kuwait - Operator: (+965) 24336699 - IVR: (+965) 161 - Fax (+965) 24713504</div>
+</div>
+
+<!-- Header with 3 logos -->
+<div class="header">
+  <div class="logo-right">
+    <img src="{{logo_civil_aviation}}" alt="Civil Aviation">
+  </div>
+  <div class="logo-center">
+    <img src="{{logo_emblem}}" alt="Kuwait Emblem">
+  </div>
+  <div class="logo-left">
+    <img src="{{logo_newkuwait}}" alt="New Kuwait">
+  </div>
+</div>
+
+<!-- Red divider bar -->
+<div class="red-bar"></div>
+
+<!-- Reference block -->
+<div class="ref-block">
+  رقم الإشارة: {{ishara}}
+</div>
+
+<!-- Recipient -->
+<div class="recipient">
+  السيد / {{alsayed}}
+</div>
+<div class="respected">المحترم</div>
+
+<!-- Subject (centered, bold) -->
+<div class="subject">
+  {{almawdoo}}
+</div>
+
+<!-- Body text (rich HTML from editor) -->
+<div class="body-text">
+  {{body_html}}
+</div>
+
+<!-- Reply required -->
+{% if reply_required %}
+<div class="reply-required">
+  ☑ مطلوب الرد
+</div>
+{% endif %}
+
+<!-- Sign-off -->
+<div class="signoff">
+  <div class="name">{{alasm}}</div>
+  {% if signature_img %}
+  <img class="signature-img" src="{{signature_img}}" alt="signature">
+  {% endif %}
+</div>
+
+<!-- Attachments label -->
+<div class="attachments">المرفقات:</div>
+
+<!-- CC List -->
+{% if cc_list %}
+<div class="cc-list">
+  قائمة النسخ: {{cc_list}}
+</div>
+{% endif %}
+
+</body>
+</html>

@@ -1,0 +1,667 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:js_interop';
+import 'dart:ui_web' as ui_web;
+import 'package:web/web.dart' as web;
+import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:printing/printing.dart';
+import '../../services/letter_service.dart';
+
+/// Letter form with WYSIWYG rich text editor (v2 — WeasyPrint backend).
+class LetterFormTabV2 extends StatefulWidget {
+  final VoidCallback onLetterSaved;
+
+  const LetterFormTabV2({super.key, required this.onLetterSaved});
+
+  @override
+  State<LetterFormTabV2> createState() => _LetterFormTabV2State();
+}
+
+class _LetterFormTabV2State extends State<LetterFormTabV2> {
+  final _formKey = GlobalKey<FormState>();
+  final _isharaCtrl = TextEditingController();
+  final _alsayedCtrl = TextEditingController();
+  final _almawdooCtrl = TextEditingController();
+  final _alasmCtrl = TextEditingController();
+  final _ccListCtrl = TextEditingController();
+
+  Uint8List? _signatureBytes;
+  String? _signatureBase64;
+  bool _replyRequired = false;
+  bool _isLoading = false;
+  bool _hasPreviewedOnce = false;
+
+  // Unique ID for the HTML editor iframe
+  late final String _editorViewType;
+  web.HTMLIFrameElement? _editorIframe;
+  Completer<String>? _htmlCompleter;
+  StreamSubscription? _messageSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _editorViewType = 'rich-editor-${DateTime.now().millisecondsSinceEpoch}';
+    _registerEditor();
+    _listenForMessages();
+  }
+
+  void _registerEditor() {
+    final iframe = web.HTMLIFrameElement()
+      ..style.setProperty('border', 'none')
+      ..style.setProperty('width', '100%')
+      ..style.setProperty('height', '100%');
+    iframe.setAttribute('srcdoc', _editorHtml);
+    _editorIframe = iframe;
+
+    ui_web.platformViewRegistry.registerViewFactory(
+      _editorViewType,
+      (int viewId) => iframe,
+    );
+  }
+
+  void _listenForMessages() {
+    _messageSub = web.EventStreamProviders.messageEvent
+        .forTarget(web.window)
+        .listen((web.MessageEvent event) {
+      final data = event.data;
+      if (data == null) return;
+      final str = (data as JSString).toDart;
+      if (str.startsWith('EDITOR_HTML:')) {
+        final html = str.substring('EDITOR_HTML:'.length);
+        _htmlCompleter?.complete(html);
+        _htmlCompleter = null;
+      }
+    });
+  }
+
+  /// Request the rich HTML content from the editor iframe via postMessage.
+  Future<String> _getEditorHtml() async {
+    final cw = _editorIframe?.contentWindow;
+    if (cw == null) return '';
+    _htmlCompleter = Completer<String>();
+    cw.postMessage('GET_HTML'.toJS, '*'.toJS);
+    return _htmlCompleter!.future.timeout(
+      const Duration(seconds: 2),
+      onTimeout: () => '',
+    );
+  }
+
+  Future<void> _pickSignature() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    if (file.bytes == null) return;
+    if (file.bytes!.lengthInBytes > 5 * 1024 * 1024) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('حجم الملف يتجاوز 5 ميغابايت')),
+        );
+      }
+      return;
+    }
+    setState(() {
+      _signatureBytes = file.bytes;
+      _signatureBase64 = base64Encode(file.bytes!);
+    });
+  }
+
+  Future<void> _showPreview() async {
+    if (!_formKey.currentState!.validate()) return;
+    final bodyHtml = await _getEditorHtml();
+    if (bodyHtml.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يرجى كتابة نص الخطاب')),
+      );
+      return;
+    }
+
+    setState(() => _hasPreviewedOnce = true);
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 700, maxHeight: 900),
+          child: Column(
+            children: [
+              // Dialog header
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(ctx).colorScheme.primary,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(12)),
+                ),
+                child: Row(
+                  children: [
+                    const Text(
+                      'معاينة الخطاب',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+              ),
+              // Preview content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Directionality(
+                    textDirection: TextDirection.rtl,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Header with 3 logos
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Image.asset('assets/images/logo_civilaviation.png',
+                                height: 55),
+                            Image.asset('assets/images/logo_emblem.png',
+                                height: 55),
+                            Image.asset('assets/images/logo_newkuwait.png',
+                                height: 55),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                            height: 4, color: const Color(0xFFCC0000)),
+                        const SizedBox(height: 14),
+                        Text(
+                          'رقم الإشارة: ${_isharaCtrl.text}',
+                          style: const TextStyle(fontSize: 12),
+                          textAlign: TextAlign.right,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'السيد / ${_alsayedCtrl.text}',
+                          style: const TextStyle(fontSize: 13),
+                          textAlign: TextAlign.right,
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.only(right: 40),
+                          child: Text('المحترم',
+                              style: TextStyle(fontSize: 13)),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _almawdooCtrl.text,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            decoration: TextDecoration.underline,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            _stripHtml(bodyHtml),
+                            style:
+                                const TextStyle(fontSize: 12, height: 1.8),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        if (_replyRequired)
+                          const Text('☑ مطلوب الرد',
+                              style: TextStyle(fontSize: 11),
+                              textAlign: TextAlign.right),
+                        const SizedBox(height: 16),
+                        Text(
+                          _alasmCtrl.text,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13),
+                          textAlign: TextAlign.right,
+                        ),
+                        if (_signatureBytes != null) ...[
+                          const SizedBox(height: 4),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child:
+                                Image.memory(_signatureBytes!, height: 50),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        const Text('المرفقات:',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12),
+                            textAlign: TextAlign.right),
+                        if (_ccListCtrl.text.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text('قائمة النسخ: ${_ccListCtrl.text}',
+                              style: const TextStyle(fontSize: 11),
+                              textAlign: TextAlign.right),
+                        ],
+                        const SizedBox(height: 12),
+                        const Divider(
+                            color: Color(0xFFCC0000), thickness: 2),
+                        const Text(
+                          'E-mail: info@dgca.gov.kw    www.dgca.gov.kw\n'
+                          'ص.ب: 17  الصفاة - الرمز البريدي: 13001  دولة الكويت - البدالة: 24336699 (965+)\n'
+                          'P.O.Box: 17 Safat - P.Code: 13001 - State of Kuwait - Operator: (+965) 24336699',
+                          style: TextStyle(fontSize: 8, color: Colors.grey),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Actions
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('إغلاق'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _generatePdf();
+                      },
+                      icon: const Icon(Icons.picture_as_pdf),
+                      label: const Text('توليد PDF'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFCC0000),
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _generatePdf() async {
+    if (!_formKey.currentState!.validate()) return;
+    final bodyHtml = await _getEditorHtml();
+    if (bodyHtml.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يرجى كتابة نص الخطاب')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final body = {
+        'ishara': _isharaCtrl.text,
+        'alsayed': _alsayedCtrl.text,
+        'almawdoo': _almawdooCtrl.text,
+        'body_html': bodyHtml,
+        'alasm': _alasmCtrl.text,
+        'signature_base64': _signatureBase64,
+        'reply_required': _replyRequired,
+        'cc_list': _ccListCtrl.text.isEmpty ? null : _ccListCtrl.text,
+      };
+
+      final pdfBytes = await LetterService().generateV2(body);
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename: 'letter_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم توليد الخطاب بنجاح')),
+        );
+      }
+      widget.onLetterSaved();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _stripHtml(String htmlStr) {
+    return htmlStr
+        .replaceAll(RegExp(r'<br\s*/?>'), '\n')
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll('&nbsp;', ' ')
+        .trim();
+  }
+
+  @override
+  void dispose() {
+    _messageSub?.cancel();
+    _isharaCtrl.dispose();
+    _alsayedCtrl.dispose();
+    _almawdooCtrl.dispose();
+    _alasmCtrl.dispose();
+    _ccListCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Reference Number (رقم الإشارة) ──
+            _buildLabel('رقم الإشارة'),
+            TextFormField(
+              controller: _isharaCtrl,
+              decoration: _inputDecor('مثال: 2026-23279'),
+              textDirection: TextDirection.ltr,
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? 'مطلوب' : null,
+            ),
+            const SizedBox(height: 16),
+
+            // ── Recipient (السيد) ──
+            _buildLabel('السيد /'),
+            TextFormField(
+              controller: _alsayedCtrl,
+              decoration: _inputDecor('اسم المستلم والمسمى الوظيفي'),
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? 'مطلوب' : null,
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 4, right: 8),
+              child: Text('المحترم',
+                  style: TextStyle(fontSize: 13, color: Colors.grey)),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Subject (الموضوع) ──
+            _buildLabel('الموضوع'),
+            TextFormField(
+              controller: _almawdooCtrl,
+              decoration: _inputDecor('موضوع الخطاب'),
+              maxLines: 3,
+              minLines: 2,
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? 'مطلوب' : null,
+            ),
+            const SizedBox(height: 16),
+
+            // ── Rich Text Editor (Body) ──
+            _buildLabel('نص الخطاب'),
+            Container(
+              height: 350,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade400),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              clipBehavior: Clip.hardEdge,
+              child: HtmlElementView(viewType: _editorViewType),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Signer (الاسم) ──
+            _buildLabel('الاسم'),
+            TextFormField(
+              controller: _alasmCtrl,
+              decoration: _inputDecor('اسم الموقع والمسمى الوظيفي'),
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? 'مطلوب' : null,
+            ),
+            const SizedBox(height: 16),
+
+            // ── Reply Required (مطلوب الرد) ──
+            Row(
+              children: [
+                Checkbox(
+                  value: _replyRequired,
+                  onChanged: (v) =>
+                      setState(() => _replyRequired = v ?? false),
+                ),
+                const Text('مطلوب الرد',
+                    style: TextStyle(fontSize: 14)),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // ── CC List (قائمة النسخ) ──
+            _buildLabel('قائمة النسخ'),
+            TextFormField(
+              controller: _ccListCtrl,
+              decoration: _inputDecor('أسماء الجهات المنسوخة (اختياري)'),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Signature Upload (التوقيع الإلكتروني) ──
+            _buildLabel('التوقيع الإلكتروني'),
+            if (_signatureBytes != null)
+              Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.memory(_signatureBytes!, height: 70),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline,
+                        color: Colors.red),
+                    onPressed: () => setState(() {
+                      _signatureBytes = null;
+                      _signatureBase64 = null;
+                    }),
+                  ),
+                ],
+              )
+            else
+              OutlinedButton.icon(
+                onPressed: _pickSignature,
+                icon: const Icon(Icons.upload_file),
+                label: const Text('رفع التوقيع'),
+              ),
+            const SizedBox(height: 24),
+
+            // ── Action Buttons ──
+            Row(
+              children: [
+                OutlinedButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 14),
+                  ),
+                  child: const Text('الغاء'),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _showPreview,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFCC0000),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 14),
+                  ),
+                  child: const Text('معاينة'),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: (_hasPreviewedOnce && !_isLoading)
+                      ? _generatePdf
+                      : null,
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.picture_as_pdf),
+                  label: const Text('توليد PDF'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFCC0000),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 14),
+                    disabledBackgroundColor: Colors.grey.shade400,
+                  ),
+                ),
+              ],
+            ),
+            if (!_hasPreviewedOnce)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text(
+                  'يجب معاينة الخطاب أولاً قبل التوليد',
+                  style: TextStyle(fontSize: 11, color: Colors.orange),
+                ),
+              ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        text,
+        style:
+            const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecor(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      border: const OutlineInputBorder(),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    );
+  }
+
+  /// HTML for the embedded rich text editor iframe.
+  /// Uses postMessage to communicate content back to Flutter.
+  static const String _editorHtml = '''
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 13px; }
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 2px;
+    padding: 4px 6px; background: #f0f0f0;
+    border-bottom: 1px solid #ccc;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .toolbar button {
+    border: 1px solid #ccc; background: #fff; cursor: pointer;
+    padding: 4px 8px; font-size: 13px; border-radius: 3px;
+    min-width: 28px; display: flex; align-items: center; justify-content: center;
+  }
+  .toolbar button:hover { background: #e0e0e0; }
+  .toolbar .sep { width: 1px; background: #ccc; margin: 0 4px; }
+  #editor {
+    min-height: 250px; padding: 12px; outline: none;
+    direction: rtl; text-align: right;
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    font-size: 14px; line-height: 1.8;
+  }
+  #editor:focus { background: #fefefe; }
+  #editor table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+  #editor table td, #editor table th {
+    border: 1px solid #999; padding: 4px 8px; min-width: 40px;
+  }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button onclick="fmt('bold')" title="Bold"><b>B</b></button>
+  <button onclick="fmt('underline')" title="Underline"><u>U</u></button>
+  <div class="sep"></div>
+  <button onclick="fmt('justifyRight')" title="Align Right">&#8614;</button>
+  <button onclick="fmt('justifyCenter')" title="Align Center">&#8596;</button>
+  <button onclick="fmt('justifyLeft')" title="Align Left">&#8612;</button>
+  <button onclick="fmt('justifyFull')" title="Justify">&#9776;</button>
+  <div class="sep"></div>
+  <button onclick="fmt('insertUnorderedList')" title="Bullets">&#8226;</button>
+  <button onclick="fmt('insertOrderedList')" title="Numbered">1.</button>
+  <div class="sep"></div>
+  <button onclick="insertTable()" title="Table">&#9638;</button>
+  <div class="sep"></div>
+  <button onclick="fmt('undo')" title="Undo">&#8630;</button>
+  <button onclick="fmt('redo')" title="Redo">&#8631;</button>
+  <div class="sep"></div>
+  <button onclick="changeFontSize()" title="Font Size">A&#8597;</button>
+  <button onclick="changeColor()" title="Font Color">A<span style="color:red">&#9607;</span></button>
+</div>
+<div id="editor" contenteditable="true"></div>
+<script>
+function fmt(cmd, val) { document.execCommand(cmd, false, val || null); }
+function insertTable() {
+  var rows = prompt("\\u0639\\u062f\\u062f \\u0627\\u0644\\u0635\\u0641\\u0648\\u0641:", "3");
+  var cols = prompt("\\u0639\\u062f\\u062f \\u0627\\u0644\\u0623\\u0639\\u0645\\u062f\\u0629:", "3");
+  if (!rows || !cols) return;
+  var t = "<table>";
+  for (var r = 0; r < parseInt(rows); r++) {
+    t += "<tr>";
+    for (var c = 0; c < parseInt(cols); c++) t += "<td>&nbsp;</td>";
+    t += "</tr>";
+  }
+  t += "</table>";
+  document.execCommand("insertHTML", false, t);
+}
+function changeFontSize() {
+  var s = prompt("Font size (1-7):", "3");
+  if (s) fmt("fontSize", s);
+}
+function changeColor() {
+  var c = prompt("Color (hex):", "#CC0000");
+  if (c) fmt("foreColor", c);
+}
+// Listen for parent requests
+window.addEventListener("message", function(e) {
+  if (e.data === "GET_HTML") {
+    var html = document.getElementById("editor").innerHTML || "";
+    parent.postMessage("EDITOR_HTML:" + html, "*");
+  }
+});
+</script>
+</body>
+</html>
+''';
+}

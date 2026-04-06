@@ -25,6 +25,8 @@ from routers import (
     ai_assist,
     ai_insights,
     ai_search,
+    letters,
+    letters_v2,
 )
 
 app = FastAPI()
@@ -83,6 +85,8 @@ app.include_router(signatures.router, prefix="/api")
 app.include_router(ai_assist.router, prefix="/api")
 app.include_router(ai_insights.router, prefix="/api")
 app.include_router(ai_search.router, prefix="/api")
+app.include_router(letters.router, prefix="/api")
+app.include_router(letters_v2.router, prefix="/api")
 
 
 @app.get("/api/reset-password")

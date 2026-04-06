@@ -8,6 +8,8 @@ import '../screens/system_status_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/settings/activity_log_screen.dart';
 import '../screens/approvals/pending_approvals_screen.dart';
+import '../screens/letters/letter_generator_screen.dart';
+import '../screens/letters_v2/letter_generator_screen_v2.dart';
 
 class NavScreen {
   final String key;
@@ -79,6 +81,24 @@ class NavScreenRegistry {
       bgColor: Color(0xFFFEE2E2),
     ),
     NavScreen(
+      key: 'letters',
+      title: 'Letters',
+      subtitle: 'خطابات رسمية',
+      icon: Icons.mail_outline,
+      selectedIcon: Icons.mail,
+      color: Color(0xFF7C3AED),
+      bgColor: Color(0xFFF3F0FF),
+    ),
+    NavScreen(
+      key: 'letters_v2',
+      title: 'Letters V2',
+      subtitle: 'خطابات رسمية (محرر متقدم)',
+      icon: Icons.edit_document,
+      selectedIcon: Icons.edit_document,
+      color: Color(0xFFCC0000),
+      bgColor: Color(0xFFFEE2E2),
+    ),
+    NavScreen(
       key: 'system_status',
       title: 'Status',
       subtitle: 'Infrastructure health',
@@ -130,6 +150,8 @@ class NavScreenRegistry {
       'calendar' => CalendarScreen(userRole: userRole),
       'doc_registry' => const DocumentRegistryScreen(),
       'payment_cert' => const PaymentCertificateListScreen(),
+      'letters' => const LetterGeneratorScreen(),
+      'letters_v2' => const LetterGeneratorScreenV2(),
       'system_status' => const SystemStatusScreen(),
       'notifications' => const NotificationsScreen(),
       'activity_log' => const ActivityLogScreen(),
