@@ -7,6 +7,8 @@ import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:printing/printing.dart';
+import 'package:http/http.dart' as http;
+import '../../config.dart';
 import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
 
@@ -184,12 +186,61 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     setState(() => _hasPreviewedOnce = true);
 
     if (!mounted) return;
+
+    // Call backend preview-html endpoint to get the exact HTML that WeasyPrint will render
+    String? previewHtml;
+    try {
+      final body = {
+        'ishara': _isharaCtrl.text,
+        'alsayed': _alsayedCtrl.text,
+        'almawdoo': _almawdooCtrl.text,
+        'body_html': bodyHtml,
+        'alasm': _alasmCtrl.text,
+        'signature_base64': _signatureBase64,
+        'reply_required': _replyRequired,
+        'cc_list': _ccListCtrl.text.isEmpty ? null : _ccListCtrl.text,
+        'created_by_email': '',
+      };
+      final uri = Uri.parse('${AppConfig.baseUrl}/letters-v2/preview-html');
+      final res = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+      if (res.statusCode == 200) {
+        previewHtml = res.body;
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+    if (previewHtml == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('فشل تحميل المعاينة')),
+      );
+      return;
+    }
+
+    // Register a unique iframe to show the preview HTML
+    final previewId = 'preview-${DateTime.now().millisecondsSinceEpoch}';
+    final previewIframe = web.HTMLIFrameElement()
+      ..style.setProperty('border', 'none')
+      ..style.setProperty('width', '100%')
+      ..style.setProperty('height', '100%')
+      ..style.setProperty('background', '#fff');
+    previewIframe.setAttribute('srcdoc', previewHtml);
+
+    ui_web.platformViewRegistry.registerViewFactory(
+      previewId,
+      (int viewId) => previewIframe,
+    );
+
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
         insetPadding: const EdgeInsets.all(16),
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 700, maxHeight: 900),
+          constraints: const BoxConstraints(maxWidth: 750, maxHeight: 950),
           child: Column(
             children: [
               // Dialog header
@@ -218,116 +269,9 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                   ],
                 ),
               ),
-              // Preview content
+              // Preview: actual HTML rendered in iframe (same as PDF)
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Directionality(
-                    textDirection: TextDirection.rtl,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Header with 3 logos
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Image.asset('assets/images/logo_civilaviation.png',
-                                height: 55),
-                            Image.asset('assets/images/logo_emblem.png',
-                                height: 55),
-                            Image.asset('assets/images/logo_newkuwait.png',
-                                height: 55),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                            height: 4, color: const Color(0xFFCC0000)),
-                        const SizedBox(height: 14),
-                        Text(
-                          'رقم الإشارة: ${_isharaCtrl.text}',
-                          style: const TextStyle(fontSize: 12),
-                          textAlign: TextAlign.right,
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'السيد / ${_alsayedCtrl.text}',
-                          style: const TextStyle(fontSize: 13),
-                          textAlign: TextAlign.right,
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.only(right: 40),
-                          child: Text('المحترم',
-                              style: TextStyle(fontSize: 13)),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _almawdooCtrl.text,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            decoration: TextDecoration.underline,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            _stripHtml(bodyHtml),
-                            style:
-                                const TextStyle(fontSize: 12, height: 1.8),
-                            textAlign: TextAlign.right,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        if (_replyRequired)
-                          const Text('☑ مطلوب الرد',
-                              style: TextStyle(fontSize: 11),
-                              textAlign: TextAlign.right),
-                        const SizedBox(height: 16),
-                        Text(
-                          _alasmCtrl.text,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 13),
-                          textAlign: TextAlign.right,
-                        ),
-                        if (_signatureBytes != null) ...[
-                          const SizedBox(height: 4),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child:
-                                Image.memory(_signatureBytes!, height: 50),
-                          ),
-                        ],
-                        const SizedBox(height: 16),
-                        const Text('المرفقات:',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 12),
-                            textAlign: TextAlign.right),
-                        if (_ccListCtrl.text.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Text('قائمة النسخ: ${_ccListCtrl.text}',
-                              style: const TextStyle(fontSize: 11),
-                              textAlign: TextAlign.right),
-                        ],
-                        const SizedBox(height: 12),
-                        const Divider(
-                            color: Color(0xFFCC0000), thickness: 2),
-                        const Text(
-                          'E-mail: info@dgca.gov.kw    www.dgca.gov.kw\n'
-                          'ص.ب: 17  الصفاة - الرمز البريدي: 13001  دولة الكويت - البدالة: 24336699 (965+)\n'
-                          'P.O.Box: 17 Safat - P.Code: 13001 - State of Kuwait - Operator: (+965) 24336699',
-                          style: TextStyle(fontSize: 8, color: Colors.grey),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                child: HtmlElementView(viewType: previewId),
               ),
               // Actions
               Padding(
@@ -419,14 +363,6 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  String _stripHtml(String htmlStr) {
-    return htmlStr
-        .replaceAll(RegExp(r'<br\s*/?>'), '\n')
-        .replaceAll(RegExp(r'<[^>]*>'), '')
-        .replaceAll('&nbsp;', ' ')
-        .trim();
   }
 
   @override
