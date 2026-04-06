@@ -44,6 +44,12 @@ def _font_data_uri(filename: str) -> str:
     return f"data:font/truetype;base64,{data}"
 
 
+class AttachmentItem(BaseModel):
+    name: str
+    data: str  # base64-encoded file content
+    is_image: bool = False
+
+
 class LetterBodyV2(BaseModel):
     ishara: str
     alsayed: str
@@ -54,6 +60,28 @@ class LetterBodyV2(BaseModel):
     reply_required: bool = False
     cc_list: str | None = None
     created_by_email: str
+    attachments: list[AttachmentItem] = []
+
+
+_uploads = os.path.join(os.path.dirname(__file__), "..", "uploaded_files", "letters")
+os.makedirs(_uploads, exist_ok=True)
+
+
+def _save_attachments(attachments: list[AttachmentItem], letter_id: str) -> list[dict]:
+    """Save attachment files to server filesystem, return metadata list."""
+    saved = []
+    for att in attachments:
+        file_bytes = base64.b64decode(att.data)
+        safe_name = f"{letter_id}_{att.name}"
+        file_path = os.path.join(_uploads, safe_name)
+        with open(file_path, "wb") as f:
+            f.write(file_bytes)
+        saved.append({
+            "name": att.name,
+            "path": f"/files/letters/{safe_name}",
+            "is_image": att.is_image,
+        })
+    return saved
 
 
 def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
@@ -119,6 +147,13 @@ async def generate_letter_v2(data: LetterBodyV2):
     }
     result = supabase.table("generated_letters").insert(record).execute()
     letter_id = result.data[0]["id"] if result.data else ""
+
+    # Save attachments to server filesystem
+    if data.attachments:
+        att_meta = _save_attachments(data.attachments, str(letter_id))
+        supabase.table("generated_letters").update(
+            {"attachments": att_meta}
+        ).eq("id", letter_id).execute()
 
     log_activity(data.created_by_email, "created", "letter", str(letter_id))
 

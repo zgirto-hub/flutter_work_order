@@ -37,6 +37,9 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   String? _editingLetterId;
   String? _initialBodyHtml;
 
+  // Attachments
+  final List<_Attachment> _attachments = [];
+
   // Unique ID for the HTML editor iframe
   late final String _editorViewType;
   web.HTMLIFrameElement? _editorIframe;
@@ -112,6 +115,36 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       const Duration(seconds: 2),
       onTimeout: () => '',
     );
+  }
+
+  Future<void> _pickAttachments() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      withData: true,
+      type: FileType.any,
+    );
+    if (result == null || result.files.isEmpty) return;
+    for (final file in result.files) {
+      if (file.bytes == null) continue;
+      if (file.bytes!.lengthInBytes > 10 * 1024 * 1024) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${file.name}: حجم الملف يتجاوز 10 ميغابايت')),
+          );
+        }
+        continue;
+      }
+      final isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp']
+          .contains(file.extension?.toLowerCase());
+      setState(() {
+        _attachments.add(_Attachment(
+          name: file.name,
+          bytes: file.bytes!,
+          base64: base64Encode(file.bytes!),
+          isImage: isImage,
+        ));
+      });
+    }
   }
 
   Future<void> _pickSignature() async {
@@ -351,6 +384,11 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'signature_base64': _signatureBase64,
         'reply_required': _replyRequired,
         'cc_list': _ccListCtrl.text.isEmpty ? null : _ccListCtrl.text,
+        'attachments': _attachments.map((_Attachment a) => <String, dynamic>{
+          'name': a.name,
+          'data': a.base64,
+          'is_image': a.isImage,
+        }).toList(),
       };
 
       final Uint8List pdfBytes;
@@ -491,6 +529,39 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             TextFormField(
               controller: _ccListCtrl,
               decoration: _inputDecor('أسماء الجهات المنسوخة (اختياري)'),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Attachments (المرفقات) ──
+            _buildLabel('المرفقات'),
+            if (_attachments.isNotEmpty)
+              ..._attachments.asMap().entries.map((entry) {
+                final i = entry.key;
+                final att = entry.value;
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  child: ListTile(
+                    leading: att.isImage
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: Image.memory(att.bytes, width: 40, height: 40, fit: BoxFit.cover),
+                          )
+                        : const Icon(Icons.attach_file),
+                    title: Text(att.name, style: const TextStyle(fontSize: 13)),
+                    subtitle: Text('${(att.bytes.lengthInBytes / 1024).toStringAsFixed(0)} KB',
+                        style: const TextStyle(fontSize: 11)),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                      onPressed: () => setState(() => _attachments.removeAt(i)),
+                    ),
+                    dense: true,
+                  ),
+                );
+              }),
+            OutlinedButton.icon(
+              onPressed: _pickAttachments,
+              icon: const Icon(Icons.attach_file),
+              label: const Text('إضافة مرفق'),
             ),
             const SizedBox(height: 16),
 
@@ -703,4 +774,18 @@ window.addEventListener("load", function() {
 </body>
 </html>
 ''';
+}
+
+class _Attachment {
+  final String name;
+  final Uint8List bytes;
+  final String base64;
+  final bool isImage;
+
+  const _Attachment({
+    required this.name,
+    required this.bytes,
+    required this.base64,
+    required this.isImage,
+  });
 }
