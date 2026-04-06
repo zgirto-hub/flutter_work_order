@@ -163,10 +163,7 @@
   }
 
   .respected {
-    text-align: right;
-    font-size: 12pt;
     margin-bottom: 14px;
-    padding-right: 40px;
     direction: rtl;
     unicode-bidi: plaintext;
   }
@@ -287,8 +284,8 @@
 <!-- Recipient -->
 <div class="recipient" style="font-size: {{recipient_font_size}}pt; {% if recipient_bold %}font-weight: 700;{% endif %}">
   السيد / {{alsayed}}
+  <span style="float: left;">المحترم</span>
 </div>
-<div class="respected">المحترم</div>
 
 <!-- Subject (centered, dynamic styling) -->
 <div class="subject" style="font-size: {{subject_font_size}}pt; {% if subject_bold %}font-weight: 700;{% else %}font-weight: 400;{% endif %} {% if subject_underline %}text-decoration: underline;{% else %}text-decoration: none;{% endif %}">
