@@ -37,6 +37,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-06
 - N/A — no persistent data; draft is in-memory only (025-dashboard-ai-wo-card)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, ReportLab, arabic_reshaper, python-bidi (backend); http, supabase_flutter, file_picker, Flutter Material (frontend) (026-civil-aviation-letter-gen)
 - Supabase (PostgreSQL) — new `generated_letters` table; `payment_certificates` table gains `letter_id` FK (026-civil-aviation-letter-gen)
+- Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx (backend); http, Flutter Material (frontend) (027-ai-document-expert)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -59,9 +60,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 027-ai-document-expert: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx (backend); http, Flutter Material (frontend)
 - 026-civil-aviation-letter-gen: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, ReportLab, arabic_reshaper, python-bidi (backend); http, supabase_flutter, file_picker, Flutter Material (frontend)
 - 025-dashboard-ai-wo-card: Added Dart 3.x / Flutter 3.x (frontend only) + Flutter Material (existing), DictationButton from 022 (existing), AiAssistService from 024 (existing), WorkOrderService (existing), DepartmentService (existing), BottomSheetContainer from bottom_sheet_widgets.dart (existing)
-- 023-nl-search-work-orders: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Supabase Python client (backend); http, Flutter Material (frontend)
 
 
 <!-- MANUAL ADDITIONS START -->

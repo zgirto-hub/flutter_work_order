@@ -418,10 +418,10 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // ── Reference Number (رقم الإشارة) ──
-            _buildLabel('رقم الإشارة', big: true),
+            _buildLabel('Reference Number', big: true),
             TextFormField(
               controller: _isharaCtrl,
-              decoration: _inputDecor('مثال: 2026-23279'),
+              decoration: _inputDecor('e.g. 2026-23279'),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               textDirection: TextDirection.ltr,
               validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
@@ -435,7 +435,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             const SizedBox(height: 16),
 
             // ── Date (التاريخ) ──
-            _buildLabel('التاريخ', big: true),
+            _buildLabel('Date', big: true),
             InkWell(
               onTap: () async {
                 final date = await showDatePicker(
@@ -447,7 +447,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 if (date != null) setState(() => _selectedDate = date);
               },
               child: InputDecorator(
-                decoration: _inputDecor('اختر التاريخ'),
+                decoration: _inputDecor('Select date'),
                 child: Text(
                   _selectedDate != null
                       ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
@@ -460,11 +460,11 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             const SizedBox(height: 16),
 
             // ── Recipient (السيد) ──
-            _buildLabel('السيد /', big: true),
+            _buildLabel('Recipient', big: true),
             TextFormField(
               controller: _alsayedCtrl,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              decoration: _inputDecor('اسم المستلم والمسمى الوظيفي'),
+              decoration: _inputDecor('Recipient name and title'),
               validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
             ),
             _buildStyleRow(
@@ -481,10 +481,10 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             const SizedBox(height: 16),
 
             // ── Subject (الموضوع) ──
-            _buildLabel('الموضوع'),
+            _buildLabel('Subject'),
             TextFormField(
               controller: _almawdooCtrl,
-              decoration: _inputDecor('موضوع الخطاب'),
+              decoration: _inputDecor('Letter subject'),
               maxLines: 3,
               minLines: 2,
               validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
@@ -492,7 +492,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             const SizedBox(height: 16),
 
             // ── Rich Text Editor (Body) ──
-            _buildLabel('نص الخطاب'),
+            _buildLabel('Letter Body'),
             Container(
               height: 350,
               decoration: BoxDecoration(
@@ -510,10 +510,10 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             const SizedBox(height: 16),
 
             // ── Signer (الاسم) ──
-            _buildLabel('الاسم'),
+            _buildLabel('Signer Name'),
             TextFormField(
               controller: _alasmCtrl,
-              decoration: _inputDecor('اسم الموقع والمسمى الوظيفي'),
+              decoration: _inputDecor('Signer name and title'),
               validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
             ),
             const SizedBox(height: 16),
@@ -525,21 +525,21 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                   value: _replyRequired,
                   onChanged: (v) => setState(() => _replyRequired = v ?? false),
                 ),
-                const Text('مطلوب الرد', style: TextStyle(fontSize: 14)),
+                const Text('Reply Required', style: TextStyle(fontSize: 14)),
               ],
             ),
             const SizedBox(height: 12),
 
             // ── CC List (قائمة النسخ) ──
-            _buildLabel('قائمة النسخ'),
+            _buildLabel('CC List'),
             TextFormField(
               controller: _ccListCtrl,
-              decoration: _inputDecor('أسماء الجهات المنسوخة (اختياري)'),
+              decoration: _inputDecor('CC recipients (optional)'),
             ),
             const SizedBox(height: 16),
 
             // ── Attachments (المرفقات) ──
-            _buildLabel('المرفقات'),
+            _buildLabel('Attachments'),
             if (_attachments.isNotEmpty)
               ..._attachments.asMap().entries.map((entry) {
                 final i = entry.key;
@@ -570,12 +570,12 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             OutlinedButton.icon(
               onPressed: _pickAttachments,
               icon: const Icon(Icons.attach_file),
-              label: const Text('إضافة مرفق'),
+              label: const Text('Add Attachment'),
             ),
             const SizedBox(height: 16),
 
             // ── Signature Upload (التوقيع الإلكتروني) ──
-            _buildLabel('التوقيع الإلكتروني'),
+            _buildLabel('Electronic Signature'),
             if (_signatureBytes != null)
               Row(
                 children: [
@@ -597,7 +597,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               OutlinedButton.icon(
                 onPressed: _pickSignature,
                 icon: const Icon(Icons.upload_file),
-                label: const Text('رفع التوقيع'),
+                label: const Text('Upload Signature'),
               ),
             const SizedBox(height: 24),
 

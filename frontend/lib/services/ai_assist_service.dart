@@ -84,4 +84,68 @@ class AiAssistService {
       throw Exception('AI service timed out. Please try again.');
     }
   }
+
+  Future<String> documentExpert({
+    required String action,
+    String? htmlContent,
+    String targetLanguage = 'ar',
+    String? instructions,
+  }) async {
+    final body = <String, dynamic>{
+      'action': action,
+      'target_language': targetLanguage,
+    };
+
+    if (htmlContent != null && htmlContent.isNotEmpty) {
+      body['html_content'] = htmlContent;
+    }
+    if (instructions != null && instructions.isNotEmpty) {
+      body['instructions'] = instructions;
+    }
+
+    try {
+      final res = await http
+          .post(
+            Uri.parse('${AppConfig.baseUrl}/ai/document-expert'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 65));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['html_content'] as String;
+      } else if (res.statusCode == 503) {
+        throw Exception(
+            'AI service is currently unavailable. Please try again later.');
+      } else if (res.statusCode == 502) {
+        throw Exception('AI could not process the document. Please try again.');
+      } else if (res.statusCode == 422) {
+        final data = jsonDecode(res.body);
+        throw Exception(data['detail'] ?? 'Invalid request.');
+      } else {
+        throw Exception('Failed to process document.');
+      }
+    } on TimeoutException {
+      throw Exception('Request timed out. Please try again.');
+    }
+  }
+
+  Future<bool> checkAiHealth() async {
+    try {
+      final res = await http
+          .get(
+            Uri.parse('${AppConfig.baseUrl}/ai/health'),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['available'] as bool? ?? false;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
 }

@@ -3,12 +3,29 @@ from pydantic import BaseModel
 from typing import Optional, List
 import httpx
 import json
+from enum import Enum
 
 router = APIRouter()
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "gemma4:e2b"
 OLLAMA_TIMEOUT = 60.0
+
+
+class DocumentExpertAction(str, Enum):
+    improve = "improve"
+    correct = "correct"
+    generate = "generate"
+    translate = "translate"
+    concise = "concise"
+    elaborate = "elaborate"
+
+
+class DocumentExpertRequest(BaseModel):
+    action: DocumentExpertAction
+    html_content: Optional[str] = None
+    target_language: str = "ar"
+    instructions: Optional[str] = None
 
 
 class AiSuggestRequest(BaseModel):
@@ -23,6 +40,41 @@ class AiParseWorkOrderRequest(BaseModel):
     departments: List[str] = []
     types: List[str] = []
     statuses: List[str] = []
+
+
+def _build_document_expert_prompt(
+    action: str,
+    html_content: Optional[str],
+    target_language: str,
+    instructions: Optional[str],
+) -> str:
+    base_persona = "أنت خبير في كتابة المراسلات الرسمية الحكومية باللغة العربية الفصحى. أنت متخصص في دواوين الحكومة الكويتية ومراسلات الطيران المدني."
+
+    action_prompts = {
+        "improve": "أعد كتابة المستند بأسلوب رسمي متميز، صحح Grammar، حسن التراكيب، حافظ على المعنى الأصلي.",
+        "correct": "صححGrammar والإملاء فقط، تجنب التغييرات الجوهرية، حافظ على بنية المستند.",
+        "generate": "اكتب خطاباً رسمياً كاملاً بناءً على الملاحظات أو التعليمات المقدمة.",
+        "translate": "ترجم المستند إلى اللغة المطلوبة مع الحفاظ على الأسلوب الرسمي.",
+        "concise": "اختصر المستند مع الاحتفاظ بجميع النقاط الأساسية.",
+        "elaborate " expand with formal governmental phrasing.",
+    }
+
+    prompt = base_persona + " " + action_prompts.get(action, "")
+
+    if target_language == "en":
+        prompt += " Write in formal English."
+    else:
+        prompt += " اكتب باللغة العربية الفصحى."
+
+    if instructions:
+        prompt += f" التعليمات الإضافية: {instructions}"
+
+    if html_content:
+        prompt += f" نص المستند:\n{html_content}"
+
+    prompt += "\nأعد فقط نص المستند بصيغة HTML. لا تضف أي مقدمة أو شرح."
+
+    return prompt
 
 
 def _build_parse_prompt(
@@ -213,3 +265,63 @@ async def parse_work_order(request: AiParseWorkOrderRequest):
     )
 
     return validated
+
+
+@router.post("/ai/document-expert")
+async def document_expert(request: DocumentExpertRequest):
+    action = request.action.value if isinstance(request.action, DocumentExpertAction) else request.action
+
+    if action != "generate":
+        if not request.html_content or not request.html_content.strip():
+            raise HTTPException(
+                status_code=422, detail="html_content is required for this action"
+            )
+
+    prompt = _build_document_expert_prompt(
+        action,
+        request.html_content,
+        request.target_language,
+        request.instructions,
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
+            res = await client.post(
+                OLLAMA_URL,
+                json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+            )
+    except (httpx.ConnectError, httpx.ConnectTimeout):
+        raise HTTPException(
+            status_code=503, detail="AI service is currently unavailable"
+        )
+    except httpx.ReadTimeout:
+        raise HTTPException(status_code=503, detail="AI service timed out")
+
+    if res.status_code != 200:
+        raise HTTPException(status_code=502, detail="AI model error")
+
+    try:
+        data = res.json()
+        response_text = data.get("response", "")
+    except Exception:
+        raise HTTPException(status_code=502, detail="AI model error")
+
+    stripped = _strip_preamble(response_text)
+    if not stripped:
+        raise HTTPException(
+            status_code=502, detail="AI model returned an empty response"
+        )
+
+    return {"html_content": stripped}
+
+
+@router.get("/ai/health")
+async def ai_health():
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get("http://localhost:11434/api/tags")
+            if res.status_code == 200:
+                return {"available": True}
+            return {"available": False}
+    except Exception:
+        return {"available": False}
