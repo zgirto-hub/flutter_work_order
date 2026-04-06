@@ -820,6 +820,22 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   #editor table td, #editor table th {
     border: 1px solid #999; padding: 4px 8px; min-width: 40px;
   }
+  /* Table dialog overlay */
+  .tbl-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:100; justify-content:center; align-items:center; }
+  .tbl-overlay.show { display:flex; }
+  .tbl-dialog { background:#fff; border-radius:8px; padding:20px; width:340px; font-size:13px; direction:ltr; }
+  .tbl-dialog h3 { margin:0 0 12px; font-size:15px; }
+  .tbl-dialog fieldset { border:1px solid #ddd; border-radius:6px; padding:10px; margin-bottom:12px; }
+  .tbl-dialog legend { font-weight:bold; font-size:12px; padding:0 6px; }
+  .tbl-dialog .row { display:flex; align-items:center; margin-bottom:8px; gap:8px; }
+  .tbl-dialog .row label { width:110px; text-align:right; font-size:12px; }
+  .tbl-dialog .row input, .tbl-dialog .row select { flex:1; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:12px; }
+  .tbl-dialog .row input[type=color] { width:40px; height:28px; padding:0; border:1px solid #ccc; cursor:pointer; }
+  .tbl-dialog .row input[type=number] { width:60px; }
+  .tbl-dialog .row input[type=checkbox] { width:auto; flex:none; }
+  .tbl-dialog .btns { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+  .tbl-dialog .btns button { padding:6px 16px; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:13px; }
+  .tbl-dialog .btns button.ok { background:#CC0000; color:#fff; border-color:#CC0000; }
 </style>
 </head>
 <body>
@@ -844,19 +860,71 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   <button onclick="changeColor()" title="Font Color">A<span style="color:red">&#9607;</span></button>
 </div>
 <div id="editor" contenteditable="true"></div>
+
+<!-- Table Insert Dialog -->
+<div class="tbl-overlay" id="tblOverlay">
+  <div class="tbl-dialog">
+    <h3>Insert Table</h3>
+    <fieldset><legend>Table Size</legend>
+      <div class="row"><label>Columns:</label><input type="number" id="tblCols" value="2" min="1" max="20"></div>
+      <div class="row"><label>Rows:</label><input type="number" id="tblRows" value="2" min="1" max="50"></div>
+      <div class="row"><label>Width:</label><select id="tblWidth"><option value="100%">Full width</option><option value="75%">75%</option><option value="50%">50%</option><option value="auto">Auto</option></select></div>
+      <div class="row"><label>Equal column widths:</label><input type="checkbox" id="tblEqual" checked></div>
+      <div class="row"><label>Height:</label><select id="tblHeight"><option value="auto">AutoFit to contents</option><option value="30px">30px</option><option value="50px">50px</option></select></div>
+    </fieldset>
+    <fieldset><legend>Layout</legend>
+      <div class="row"><label>Cell padding:</label><input type="number" id="tblPadding" value="4" min="0" max="20"></div>
+      <div class="row"><label>Cell spacing:</label><input type="number" id="tblSpacing" value="0" min="0" max="10"></div>
+    </fieldset>
+    <fieldset><legend>Appearance</legend>
+      <div class="row"><label>Border size:</label><input type="number" id="tblBorder" value="1" min="0" max="5"></div>
+      <div class="row"><label>Border color:</label><input type="color" id="tblBorderColor" value="#000000"></div>
+      <div class="row"><label>Background color:</label><input type="color" id="tblBgColor" value="#ffffff"></div>
+    </fieldset>
+    <div class="btns">
+      <button onclick="closeTblDialog()">Cancel</button>
+      <button class="ok" onclick="doInsertTable()">OK</button>
+    </div>
+  </div>
+</div>
+
 <script>
 function fmt(cmd, val) { document.execCommand(cmd, false, val || null); }
+
 function insertTable() {
-  var rows = prompt("\\u0639\\u062f\\u062f \\u0627\\u0644\\u0635\\u0641\\u0648\\u0641:", "3");
-  var cols = prompt("\\u0639\\u062f\\u062f \\u0627\\u0644\\u0623\\u0639\\u0645\\u062f\\u0629:", "3");
-  if (!rows || !cols) return;
-  var t = "<table>";
-  for (var r = 0; r < parseInt(rows); r++) {
+  document.getElementById("tblOverlay").classList.add("show");
+}
+function closeTblDialog() {
+  document.getElementById("tblOverlay").classList.remove("show");
+}
+function doInsertTable() {
+  var cols = parseInt(document.getElementById("tblCols").value) || 2;
+  var rows = parseInt(document.getElementById("tblRows").value) || 2;
+  var width = document.getElementById("tblWidth").value;
+  var height = document.getElementById("tblHeight").value;
+  var padding = document.getElementById("tblPadding").value;
+  var spacing = document.getElementById("tblSpacing").value;
+  var border = document.getElementById("tblBorder").value;
+  var borderColor = document.getElementById("tblBorderColor").value;
+  var bgColor = document.getElementById("tblBgColor").value;
+  var equalW = document.getElementById("tblEqual").checked;
+
+  var colW = equalW ? (100 / cols).toFixed(1) + "%" : "auto";
+  var tdStyle = "border:" + border + "px solid " + borderColor + ";padding:" + padding + "px;";
+  if (height !== "auto") tdStyle += "height:" + height + ";";
+  if (bgColor !== "#ffffff") tdStyle += "background:" + bgColor + ";";
+
+  var t = '<table style="width:' + width + ';border-collapse:collapse;border-spacing:' + spacing + 'px;border:' + border + 'px solid ' + borderColor + ';">';
+  for (var r = 0; r < rows; r++) {
     t += "<tr>";
-    for (var c = 0; c < parseInt(cols); c++) t += "<td>&nbsp;</td>";
+    for (var c = 0; c < cols; c++) {
+      t += '<td style="' + tdStyle + (equalW ? "width:" + colW + ";" : "") + '">&nbsp;</td>';
+    }
     t += "</tr>";
   }
-  t += "</table>";
+  t += "</table><br>";
+  closeTblDialog();
+  document.getElementById("editor").focus();
   document.execCommand("insertHTML", false, t);
 }
 function changeFontSize() {
