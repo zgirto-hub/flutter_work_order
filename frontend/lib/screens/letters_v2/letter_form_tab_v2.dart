@@ -398,6 +398,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             TextFormField(
               controller: _isharaCtrl,
               decoration: _inputDecor('مثال: 2026-23279'),
+              style: const TextStyle(fontSize: 18),
               textDirection: TextDirection.ltr,
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'مطلوب' : null,
@@ -405,7 +406,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             const SizedBox(height: 16),
 
             // ── Date (التاريخ) ──
-            _buildLabel('التاريخ'),
+            _buildLabel('التاريخ', big: true),
             InkWell(
               onTap: () async {
                 final date = await showDatePicker(
@@ -422,7 +423,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                   _selectedDate != null
                       ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
                       : '',
-                  style: const TextStyle(fontSize: 14),
+                  style: const TextStyle(fontSize: 18),
                   textDirection: TextDirection.ltr,
                 ),
               ),
@@ -433,6 +434,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             _buildLabel('السيد /', big: true),
             TextFormField(
               controller: _alsayedCtrl,
+              style: const TextStyle(fontSize: 18),
               decoration: _inputDecor('اسم المستلم والمسمى الوظيفي'),
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'مطلوب' : null,
