@@ -46,6 +46,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   bool _refBold = false;
   double _recipientFontSize = 12;
   bool _recipientBold = false;
+  double _subjectFontSize = 13;
+  bool _subjectBold = true;
   String? _editingLetterId;
   String? _initialBodyHtml;
 
@@ -225,6 +227,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'ref_bold': _refBold,
         'recipient_font_size': _recipientFontSize,
         'recipient_bold': _recipientBold,
+        'subject_font_size': _subjectFontSize,
+        'subject_bold': _subjectBold,
         'created_by_email': '',
       };
       final uri = Uri.parse('${AppConfig.baseUrl}/letters-v2/preview-html');
@@ -488,6 +492,12 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               maxLines: 3,
               minLines: 2,
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+            ),
+            _buildStyleRow(
+              fontSize: _subjectFontSize,
+              bold: _subjectBold,
+              onFontSizeChanged: (v) => setState(() => _subjectFontSize = v),
+              onBoldChanged: (v) => setState(() => _subjectBold = v),
             ),
             const SizedBox(height: 16),
 

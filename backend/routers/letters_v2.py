@@ -85,6 +85,8 @@ class LetterBodyV2(BaseModel):
     ref_bold: bool = False
     recipient_font_size: float = 12
     recipient_bold: bool = False
+    subject_font_size: float = 13
+    subject_bold: bool = True
     created_by_email: str
     attachments: list[AttachmentItem] = []
 
@@ -145,6 +147,8 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
         ref_bold=data.ref_bold,
         recipient_font_size=data.recipient_font_size,
         recipient_bold=data.recipient_bold,
+        subject_font_size=data.subject_font_size,
+        subject_bold=data.subject_bold,
     )
 
     font_config = FontConfiguration()
@@ -187,6 +191,8 @@ async def preview_letter_html(data: LetterBodyV2):
         ref_bold=data.ref_bold,
         recipient_font_size=data.recipient_font_size,
         recipient_bold=data.recipient_bold,
+        subject_font_size=data.subject_font_size,
+        subject_bold=data.subject_bold,
     )
     return Response(content=html_str, media_type="text/html")
 
