@@ -73,6 +73,17 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       _almawdooCtrl.text = letter.almawdoo;
       _alasmCtrl.text = letter.alasm;
       _initialBodyHtml = letter.bodyText;
+      // Restore date — tarikh could be YYYY-MM-DD or DD/MM/YYYY
+      if (letter.tarikh.isNotEmpty) {
+        try {
+          if (letter.tarikh.contains('-')) {
+            _selectedDate = DateTime.parse(letter.tarikh);
+          } else if (letter.tarikh.contains('/')) {
+            final parts = letter.tarikh.split('/');
+            _selectedDate = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+          }
+        } catch (_) {}
+      }
       if (letter.signatureBase64 != null &&
           letter.signatureBase64!.isNotEmpty) {
         _signatureBase64 = letter.signatureBase64;

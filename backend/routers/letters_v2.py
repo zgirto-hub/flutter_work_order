@@ -286,6 +286,7 @@ async def update_letter_v2(letter_id: str, data: LetterBodyV2):
 
     update_data = {
         "ishara": data.ishara,
+        "tarikh": data.tarikh if data.tarikh else datetime.utcnow().strftime("%Y-%m-%d"),
         "alsayed": data.alsayed,
         "almawdoo": data.almawdoo,
         "body_text": data.body_html,
