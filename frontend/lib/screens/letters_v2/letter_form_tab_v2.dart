@@ -48,6 +48,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   bool _recipientBold = false;
   double _subjectFontSize = 13;
   bool _subjectBold = true;
+  bool _subjectUnderline = true;
   String? _editingLetterId;
   String? _initialBodyHtml;
 
@@ -229,6 +230,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'recipient_bold': _recipientBold,
         'subject_font_size': _subjectFontSize,
         'subject_bold': _subjectBold,
+        'subject_underline': _subjectUnderline,
         'created_by_email': '',
       };
       final uri = Uri.parse('${AppConfig.baseUrl}/letters-v2/preview-html');
@@ -495,6 +497,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               bold: _subjectBold,
               onFontSizeChanged: (v) => setState(() => _subjectFontSize = v),
               onBoldChanged: (v) => setState(() => _subjectBold = v),
+              underline: _subjectUnderline,
+              onUnderlineChanged: (v) => setState(() => _subjectUnderline = v),
             ),
             const SizedBox(height: 16),
 
@@ -696,6 +700,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     required bool bold,
     required ValueChanged<double> onFontSizeChanged,
     required ValueChanged<bool> onBoldChanged,
+    bool? underline,
+    ValueChanged<bool>? onUnderlineChanged,
   }) {
     return Padding(
       padding: const EdgeInsets.only(top: 6),
@@ -742,6 +748,28 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               ),
             ),
           ),
+          if (underline != null && onUnderlineChanged != null) ...[
+            const SizedBox(width: 8),
+            InkWell(
+              onTap: () => onUnderlineChanged(!underline),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: underline ? const Color(0xFFCC0000) : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'U',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    decoration: TextDecoration.underline,
+                    color: underline ? Colors.white : Colors.black54,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

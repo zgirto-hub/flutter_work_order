@@ -174,7 +174,6 @@
   .subject {
     text-align: center;
     margin-bottom: 14px;
-    text-decoration: underline;
     line-height: 2.0;
     max-width: 60%;
     margin-left: auto;
@@ -292,7 +291,7 @@
 <div class="respected">المحترم</div>
 
 <!-- Subject (centered, dynamic styling) -->
-<div class="subject" style="font-size: {{subject_font_size}}pt; {% if subject_bold %}font-weight: 700;{% else %}font-weight: 400;{% endif %}">
+<div class="subject" style="font-size: {{subject_font_size}}pt; {% if subject_bold %}font-weight: 700;{% else %}font-weight: 400;{% endif %} {% if subject_underline %}text-decoration: underline;{% else %}text-decoration: none;{% endif %}">
   {{almawdoo}}
 </div>
 
