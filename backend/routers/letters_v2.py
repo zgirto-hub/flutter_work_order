@@ -81,6 +81,10 @@ class LetterBodyV2(BaseModel):
     signature_base64: str | None = None
     reply_required: bool = False
     cc_list: str | None = None
+    ref_font_size: float = 11
+    ref_bold: bool = False
+    recipient_font_size: float = 12
+    recipient_bold: bool = False
     created_by_email: str
     attachments: list[AttachmentItem] = []
 
@@ -137,6 +141,10 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
         logo_newkuwait=_logo_data_uri("logo_newkuwait.png"),
         font_regular=_font_data_uri("calibri.ttf"),
         font_bold=_font_data_uri("calibrib.ttf"),
+        ref_font_size=data.ref_font_size,
+        ref_bold=data.ref_bold,
+        recipient_font_size=data.recipient_font_size,
+        recipient_bold=data.recipient_bold,
     )
 
     font_config = FontConfiguration()
@@ -175,6 +183,10 @@ async def preview_letter_html(data: LetterBodyV2):
         logo_newkuwait=_logo_data_uri("logo_newkuwait.png"),
         font_regular=_font_data_uri("calibri.ttf"),
         font_bold=_font_data_uri("calibrib.ttf"),
+        ref_font_size=data.ref_font_size,
+        ref_bold=data.ref_bold,
+        recipient_font_size=data.recipient_font_size,
+        recipient_bold=data.recipient_bold,
     )
     return Response(content=html_str, media_type="text/html")
 

@@ -38,6 +38,12 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   bool _replyRequired = false;
   bool _isLoading = false;
   bool _hasPreviewedOnce = false;
+
+  // PDF styling options
+  double _refFontSize = 11;
+  bool _refBold = false;
+  double _recipientFontSize = 12;
+  bool _recipientBold = false;
   String? _editingLetterId;
   String? _initialBodyHtml;
 
@@ -204,6 +210,10 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'signature_base64': _signatureBase64,
         'reply_required': _replyRequired,
         'cc_list': _ccListCtrl.text.isEmpty ? null : _ccListCtrl.text,
+        'ref_font_size': _refFontSize,
+        'ref_bold': _refBold,
+        'recipient_font_size': _recipientFontSize,
+        'recipient_bold': _recipientBold,
         'created_by_email': '',
       };
       final uri = Uri.parse('${AppConfig.baseUrl}/letters-v2/preview-html');
@@ -403,6 +413,12 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'مطلوب' : null,
             ),
+            _buildStyleRow(
+              fontSize: _refFontSize,
+              bold: _refBold,
+              onFontSizeChanged: (v) => setState(() => _refFontSize = v),
+              onBoldChanged: (v) => setState(() => _refBold = v),
+            ),
             const SizedBox(height: 16),
 
             // ── Date (التاريخ) ──
@@ -438,6 +454,12 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               decoration: _inputDecor('اسم المستلم والمسمى الوظيفي'),
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'مطلوب' : null,
+            ),
+            _buildStyleRow(
+              fontSize: _recipientFontSize,
+              bold: _recipientBold,
+              onFontSizeChanged: (v) => setState(() => _recipientFontSize = v),
+              onBoldChanged: (v) => setState(() => _recipientBold = v),
             ),
             const Padding(
               padding: EdgeInsets.only(top: 4, right: 8),
@@ -646,6 +668,54 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       border: const OutlineInputBorder(),
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    );
+  }
+
+  Widget _buildStyleRow({
+    required double fontSize,
+    required bool bold,
+    required ValueChanged<double> onFontSizeChanged,
+    required ValueChanged<bool> onBoldChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          const Text('حجم الخط في PDF:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 70,
+            child: DropdownButton<double>(
+              value: fontSize,
+              isExpanded: true,
+              isDense: true,
+              items: [9, 10, 11, 12, 13, 14, 16, 18, 20].map((s) =>
+                DropdownMenuItem(value: s.toDouble(), child: Text('${s}pt', style: const TextStyle(fontSize: 12))),
+              ).toList(),
+              onChanged: (v) { if (v != null) onFontSizeChanged(v); },
+            ),
+          ),
+          const SizedBox(width: 16),
+          InkWell(
+            onTap: () => onBoldChanged(!bold),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: bold ? const Color(0xFFCC0000) : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'B',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: bold ? Colors.white : Colors.black54,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

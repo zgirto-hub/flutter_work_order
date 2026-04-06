@@ -139,8 +139,6 @@
   .ref-block {
     display: flex;
     justify-content: space-between;
-    font-size: 13pt;
-    font-weight: 700;
     margin-bottom: 12px;
     direction: rtl;
     unicode-bidi: plaintext;
@@ -156,8 +154,6 @@
 
   .recipient {
     text-align: right;
-    font-size: 13pt;
-    font-weight: 700;
     margin-bottom: 2px;
     direction: rtl;
     unicode-bidi: plaintext;
@@ -283,13 +279,13 @@
 <!-- Page content (flows across pages, header/footer repeat automatically) -->
 
 <!-- Reference (left) and date (right) -->
-<div class="ref-block">
+<div class="ref-block" style="font-size: {{ref_font_size}}pt; {% if ref_bold %}font-weight: 700;{% endif %}">
   <div class="ref-left">رقم الإشارة: {{ishara}}</div>
   {% if tarikh %}<div class="ref-right">التاريخ: {{tarikh}}</div>{% endif %}
 </div>
 
 <!-- Recipient -->
-<div class="recipient">
+<div class="recipient" style="font-size: {{recipient_font_size}}pt; {% if recipient_bold %}font-weight: 700;{% endif %}">
   السيد / {{alsayed}}
 </div>
 <div class="respected">المحترم</div>
