@@ -7,7 +7,10 @@
 
   @page {
     size: A4;
-    margin: 1.5cm 2cm 3cm 2cm;
+    margin: 4.5cm 2cm 3cm 2cm;
+    @top-center {
+      content: element(pageheader);
+    }
     @bottom-center {
       content: element(footer);
     }
@@ -24,35 +27,51 @@
     padding: 0;
   }
 
-  .header {
+  /* ── Running header (repeats on every page) ── */
+  .page-header {
+    position: running(pageheader);
+    padding-bottom: 10px;
+  }
+
+  .page-header .logos {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 8px;
   }
 
-  .header .logo-right {
-    text-align: right;
-  }
-  .header .logo-center {
-    text-align: center;
-  }
-  .header .logo-left {
-    text-align: left;
-  }
-  .header img {
-    height: 70px;
-    max-width: 160px;
+  .page-header .logos img {
+    height: 60px;
+    max-width: 150px;
     object-fit: contain;
   }
 
-  .red-bar {
+  .page-header .red-bar {
     background: #CC0000;
     height: 4px;
     width: 100%;
-    margin-bottom: 16px;
   }
 
+  /* ── Running footer (repeats on every page) ── */
+  .page-footer {
+    position: running(footer);
+    border-top: 3px solid #CC0000;
+    padding-top: 6px;
+    font-size: 8pt;
+    text-align: center;
+    line-height: 1.6;
+    color: #444;
+  }
+  .page-footer .ar {
+    direction: rtl;
+    font-family: 'Cairo', sans-serif;
+  }
+  .page-footer .en {
+    direction: ltr;
+    font-family: sans-serif;
+  }
+
+  /* ── Body content styles ── */
   .ref-block {
     text-align: right;
     font-size: 11pt;
@@ -91,7 +110,6 @@
     text-indent: 40px;
   }
 
-  /* Rich text editor content styling */
   .body-text table {
     border-collapse: collapse;
     width: 100%;
@@ -142,51 +160,28 @@
     font-size: 11pt;
     margin-top: 10px;
   }
-
-  /* Fixed footer */
-  .page-footer {
-    position: running(footer);
-    border-top: 3px solid #CC0000;
-    padding-top: 6px;
-    font-size: 8pt;
-    text-align: center;
-    line-height: 1.6;
-    color: #444;
-  }
-  .page-footer .ar {
-    direction: rtl;
-    font-family: 'Cairo', sans-serif;
-  }
-  .page-footer .en {
-    direction: ltr;
-    font-family: sans-serif;
-  }
 </style>
 </head>
 <body>
 
-<!-- Footer (running element - appears on every page) -->
+<!-- Running header (appears on EVERY page) -->
+<div class="page-header">
+  <div class="logos">
+    <div><img src="{{logo_civil_aviation}}" alt="Civil Aviation"></div>
+    <div><img src="{{logo_emblem}}" alt="Kuwait Emblem"></div>
+    <div><img src="{{logo_newkuwait}}" alt="New Kuwait"></div>
+  </div>
+  <div class="red-bar"></div>
+</div>
+
+<!-- Running footer (appears on EVERY page) -->
 <div class="page-footer">
   <div>E-mail: info@dgca.gov.kw &nbsp;&nbsp;&nbsp; www.dgca.gov.kw</div>
   <div class="ar">ص.ب: 17 &nbsp; الصفاة - الرمز البريدي: 13001 &nbsp; دولة الكويت - البدالة: 24336699 (965+) - الرد الآلي: 161 (965+) - فاكس: 24713504 (965+)</div>
   <div class="en">P.O.Box: 17 Safat - P.Code: 13001 - State of Kuwait - Operator: (+965) 24336699 - IVR: (+965) 161 - Fax (+965) 24713504</div>
 </div>
 
-<!-- Header with 3 logos -->
-<div class="header">
-  <div class="logo-right">
-    <img src="{{logo_civil_aviation}}" alt="Civil Aviation">
-  </div>
-  <div class="logo-center">
-    <img src="{{logo_emblem}}" alt="Kuwait Emblem">
-  </div>
-  <div class="logo-left">
-    <img src="{{logo_newkuwait}}" alt="New Kuwait">
-  </div>
-</div>
-
-<!-- Red divider bar -->
-<div class="red-bar"></div>
+<!-- Page content (flows across pages, header/footer repeat automatically) -->
 
 <!-- Reference block -->
 <div class="ref-block">
