@@ -37,7 +37,7 @@ class _LetterGeneratorScreenV2State extends State<LetterGeneratorScreenV2> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('إنشاء خطاب رسمي'),
+          title: const Text('Create Official Letter'),
           centerTitle: true,
         ),
         body: Column(
@@ -53,13 +53,13 @@ class _LetterGeneratorScreenV2State extends State<LetterGeneratorScreenV2> {
               child: Row(
                 children: [
                   _Tab(
-                    label: 'خطاب جديد',
+                    label: 'New Letter',
                     icon: Icons.edit_document,
                     active: _tabIndex == 0,
                     onTap: () => setState(() => _tabIndex = 0),
                   ),
                   _Tab(
-                    label: 'السجل',
+                    label: 'History',
                     icon: Icons.history,
                     active: _tabIndex == 1,
                     onTap: () => setState(() => _tabIndex = 1),

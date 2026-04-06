@@ -422,11 +422,10 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // ── Reference Number (رقم الإشارة) ──
-            _buildLabel('Reference Number', big: true),
+            _buildLabel('Reference Number'),
             TextFormField(
               controller: _isharaCtrl,
               decoration: _inputDecor('e.g. 2026-23279'),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               textDirection: TextDirection.ltr,
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
@@ -439,7 +438,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             const SizedBox(height: 16),
 
             // ── Date (التاريخ) ──
-            _buildLabel('Date', big: true),
+            _buildLabel('Date'),
             InkWell(
               onTap: () async {
                 final date = await showDatePicker(
@@ -456,7 +455,6 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                   _selectedDate != null
                       ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
                       : '',
-                  style: const TextStyle(fontSize: 18),
                   textDirection: TextDirection.ltr,
                 ),
               ),
@@ -464,10 +462,9 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             const SizedBox(height: 16),
 
             // ── Recipient (السيد) ──
-            _buildLabel('Recipient', big: true),
+            _buildLabel('Recipient'),
             TextFormField(
               controller: _alsayedCtrl,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               decoration: _inputDecor('Recipient name and title'),
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),

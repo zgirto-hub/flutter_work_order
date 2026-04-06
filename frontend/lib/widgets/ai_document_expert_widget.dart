@@ -154,7 +154,7 @@ class _AiDocumentExpertWidgetState extends State<AiDocumentExpertWidget> {
       margin: const EdgeInsets.all(8),
       child: ExpansionTile(
         title: const Text(
-          'مساعد الوثائق الذكي',
+          'AI Document Expert',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         initiallyExpanded: false,
