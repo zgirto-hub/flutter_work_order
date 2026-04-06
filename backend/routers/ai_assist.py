@@ -56,7 +56,7 @@ def _build_document_expert_prompt(
         "generate": "اكتب خطاباً رسمياً كاملاً بناءً على الملاحظات أو التعليمات المقدمة.",
         "translate": "ترجم المستند إلى اللغة المطلوبة مع الحفاظ على الأسلوب الرسمي.",
         "concise": "اختصر المستند مع الاحتفاظ بجميع النقاط الأساسية.",
-        "elaborate " expand with formal governmental phrasing.",
+        "elaborate": "وسع المستند بعبارات رسمية حكومية مفصلة.",
     }
 
     prompt = base_persona + " " + action_prompts.get(action, "")
