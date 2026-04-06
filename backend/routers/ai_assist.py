@@ -19,6 +19,7 @@ class DocumentExpertAction(str, Enum):
     translate = "translate"
     concise = "concise"
     elaborate = "elaborate"
+    custom = "custom"
 
 
 class DocumentExpertRequest(BaseModel):
@@ -57,6 +58,7 @@ def _build_document_expert_prompt(
         "translate": "ترجم المستند إلى اللغة المطلوبة مع الحفاظ على الأسلوب الرسمي.",
         "concise": "اختصر المستند مع الاحتفاظ بجميع النقاط الأساسية.",
         "elaborate": "وسع المستند بعبارات رسمية حكومية مفصلة.",
+        "custom": "",
     }
 
     prompt = base_persona + " " + action_prompts.get(action, "")
@@ -271,7 +273,12 @@ async def parse_work_order(request: AiParseWorkOrderRequest):
 async def document_expert(request: DocumentExpertRequest):
     action = request.action.value if isinstance(request.action, DocumentExpertAction) else request.action
 
-    if action != "generate":
+    if action == "custom":
+        if not request.instructions or not request.instructions.strip():
+            raise HTTPException(
+                status_code=422, detail="instructions is required for custom action"
+            )
+    elif action != "generate":
         if not request.html_content or not request.html_content.strip():
             raise HTTPException(
                 status_code=422, detail="html_content is required for this action"

@@ -32,6 +32,7 @@ class _AiDocumentExpertWidgetState extends State<AiDocumentExpertWidget> {
     'translate': 'ترجمة',
     'concise': 'تلخيص',
     'elaborate': 'توسيع',
+    'custom': 'تعليمات مخصصة',
   };
 
   String _selectedLanguage = 'ar';
@@ -69,10 +70,19 @@ class _AiDocumentExpertWidgetState extends State<AiDocumentExpertWidget> {
       return;
     }
 
+    if (action == 'custom') {
+      if (_instructionsCtrl.text.trim().isEmpty) {
+        _showSnackBar('يرجى إدخال التعليمات أولاً');
+        return;
+      }
+    }
+
     final currentRequestId = ++_requestId;
 
     String? html;
-    if (action != 'generate') {
+    if (action == 'custom') {
+      html = await widget.onGetHtml();
+    } else if (action != 'generate') {
       html = await widget.onGetHtml();
       final stripped = _stripHtmlTags(html);
       if (stripped.isEmpty) {
