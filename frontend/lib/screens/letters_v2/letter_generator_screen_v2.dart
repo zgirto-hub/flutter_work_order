@@ -69,16 +69,21 @@ class _LetterGeneratorScreenV2State extends State<LetterGeneratorScreenV2> {
             ),
             // Tab body
             Expanded(
-              child: _tabIndex == 0
-                  ? LetterFormTabV2(
-                      key: ValueKey(_editLetter?.id),
-                      onLetterSaved: _onLetterSaved,
-                      editLetter: _editLetter,
-                    )
-                  : LetterHistoryTabV2(
-                      key: _historyKey,
-                      onEditLetter: _onEditLetter,
-                    ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 700),
+                  child: _tabIndex == 0
+                      ? LetterFormTabV2(
+                          key: ValueKey(_editLetter?.id),
+                          onLetterSaved: _onLetterSaved,
+                          editLetter: _editLetter,
+                        )
+                      : LetterHistoryTabV2(
+                          key: _historyKey,
+                          onEditLetter: _onEditLetter,
+                        ),
+                ),
+              ),
             ),
           ],
         ),
