@@ -146,6 +146,44 @@ async def get_letters_v2(email: str):
     return {"letters": letters}
 
 
+@router.put("/letters-v2/{letter_id}")
+async def update_letter_v2(letter_id: str, data: LetterBodyV2):
+    """Update an existing letter record and regenerate its PDF."""
+    result = (
+        supabase.table("generated_letters")
+        .select("id")
+        .eq("id", letter_id)
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(404, "Letter not found")
+
+    update_data = {
+        "ishara": data.ishara,
+        "alsayed": data.alsayed,
+        "almawdoo": data.almawdoo,
+        "body_text": data.body_html,
+        "alasm": data.alasm,
+        "signature_base64": data.signature_base64,
+        "reply_required": data.reply_required,
+        "cc_list": data.cc_list,
+    }
+    supabase.table("generated_letters").update(update_data).eq("id", letter_id).execute()
+
+    pdf_bytes = _build_letter_pdf_v2(data)
+    log_activity(data.created_by_email, "updated", "letter", letter_id)
+
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="letter_{ts}.pdf"',
+            "X-Letter-Id": letter_id,
+        },
+    )
+
+
 @router.post("/letters-v2/{letter_id}/regenerate")
 async def regenerate_letter_v2(letter_id: str):
     """Regenerate a PDF from a saved letter record."""

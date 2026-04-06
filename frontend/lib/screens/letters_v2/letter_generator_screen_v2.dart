@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../models/generated_letter.dart';
 import 'letter_form_tab_v2.dart';
 import 'letter_history_tab_v2.dart';
 
@@ -13,11 +14,20 @@ class LetterGeneratorScreenV2 extends StatefulWidget {
 class _LetterGeneratorScreenV2State extends State<LetterGeneratorScreenV2> {
   int _tabIndex = 0;
   Key _historyKey = UniqueKey();
+  GeneratedLetter? _editLetter;
 
   void _onLetterSaved() {
     setState(() {
       _tabIndex = 1;
+      _editLetter = null;
       _historyKey = UniqueKey();
+    });
+  }
+
+  void _onEditLetter(GeneratedLetter letter) {
+    setState(() {
+      _editLetter = letter;
+      _tabIndex = 0;
     });
   }
 
@@ -60,8 +70,15 @@ class _LetterGeneratorScreenV2State extends State<LetterGeneratorScreenV2> {
             // Tab body
             Expanded(
               child: _tabIndex == 0
-                  ? LetterFormTabV2(onLetterSaved: _onLetterSaved)
-                  : LetterHistoryTabV2(key: _historyKey),
+                  ? LetterFormTabV2(
+                      key: ValueKey(_editLetter?.id),
+                      onLetterSaved: _onLetterSaved,
+                      editLetter: _editLetter,
+                    )
+                  : LetterHistoryTabV2(
+                      key: _historyKey,
+                      onEditLetter: _onEditLetter,
+                    ),
             ),
           ],
         ),

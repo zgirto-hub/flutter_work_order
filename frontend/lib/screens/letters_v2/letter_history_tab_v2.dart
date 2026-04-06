@@ -4,7 +4,9 @@ import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
 
 class LetterHistoryTabV2 extends StatefulWidget {
-  const LetterHistoryTabV2({super.key});
+  final void Function(GeneratedLetter letter)? onEditLetter;
+
+  const LetterHistoryTabV2({super.key, this.onEditLetter});
 
   @override
   State<LetterHistoryTabV2> createState() => _LetterHistoryTabV2State();
@@ -105,18 +107,34 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                 const SizedBox(height: 16),
               ],
 
-              // Regenerate button
-              ElevatedButton.icon(
-                onPressed: letter.id != null
-                    ? () => _regeneratePdf(letter.id!)
-                    : null,
-                icon: const Icon(Icons.picture_as_pdf),
-                label: const Text('إعادة توليد PDF'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFCC0000),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        widget.onEditLetter?.call(letter);
+                      },
+                      icon: const Icon(Icons.edit),
+                      label: const Text('تعديل'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: letter.id != null
+                          ? () => _regeneratePdf(letter.id!)
+                          : null,
+                      icon: const Icon(Icons.picture_as_pdf),
+                      label: const Text('توليد PDF'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFCC0000),
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

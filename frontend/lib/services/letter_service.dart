@@ -78,6 +78,21 @@ class LetterService {
     return res.bodyBytes;
   }
 
+  /// V2 update — updates existing letter record with rich HTML body.
+  Future<Uint8List> updateV2(String letterId, Map<String, dynamic> body) async {
+    body['created_by_email'] = _email;
+    final uri = Uri.parse('${AppConfig.baseUrl}/letters-v2/$letterId');
+    final res = await http.put(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to update letter');
+    }
+    return res.bodyBytes;
+  }
+
   Future<void> linkPaymentCertificate(String certId, String letterId) async {
     final uri = Uri.parse(
         '${AppConfig.baseUrl}/payment-certificates/$certId/link-letter');

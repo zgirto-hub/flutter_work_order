@@ -7,13 +7,15 @@ import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:printing/printing.dart';
+import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
 
 /// Letter form with WYSIWYG rich text editor (v2 — WeasyPrint backend).
 class LetterFormTabV2 extends StatefulWidget {
   final VoidCallback onLetterSaved;
+  final GeneratedLetter? editLetter;
 
-  const LetterFormTabV2({super.key, required this.onLetterSaved});
+  const LetterFormTabV2({super.key, required this.onLetterSaved, this.editLetter});
 
   @override
   State<LetterFormTabV2> createState() => _LetterFormTabV2State();
@@ -32,6 +34,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   bool _replyRequired = false;
   bool _isLoading = false;
   bool _hasPreviewedOnce = false;
+  String? _editingLetterId;
+  String? _initialBodyHtml;
 
   // Unique ID for the HTML editor iframe
   late final String _editorViewType;
@@ -43,6 +47,23 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   void initState() {
     super.initState();
     _editorViewType = 'rich-editor-${DateTime.now().millisecondsSinceEpoch}';
+    final letter = widget.editLetter;
+    if (letter != null) {
+      _editingLetterId = letter.id;
+      _isharaCtrl.text = letter.ishara;
+      _alsayedCtrl.text = letter.alsayed;
+      _almawdooCtrl.text = letter.almawdoo;
+      _alasmCtrl.text = letter.alasm;
+      _initialBodyHtml = letter.bodyText;
+      if (letter.signatureBase64 != null && letter.signatureBase64!.isNotEmpty) {
+        _signatureBase64 = letter.signatureBase64;
+        try {
+          String b64 = letter.signatureBase64!;
+          if (b64.contains(',')) b64 = b64.split(',').last;
+          _signatureBytes = base64Decode(b64);
+        } catch (_) {}
+      }
+    }
     _registerEditor();
     _listenForMessages();
   }
@@ -72,6 +93,11 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         final html = str.substring('EDITOR_HTML:'.length);
         _htmlCompleter?.complete(html);
         _htmlCompleter = null;
+      } else if (str == 'EDITOR_READY' && _initialBodyHtml != null) {
+        // Editor iframe loaded — inject the initial HTML for editing
+        final cw = _editorIframe?.contentWindow;
+        cw?.postMessage('SET_HTML:$_initialBodyHtml'.toJS, '*'.toJS);
+        _initialBodyHtml = null;
       }
     });
   }
@@ -327,7 +353,12 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'cc_list': _ccListCtrl.text.isEmpty ? null : _ccListCtrl.text,
       };
 
-      final pdfBytes = await LetterService().generateV2(body);
+      final Uint8List pdfBytes;
+      if (_editingLetterId != null) {
+        pdfBytes = await LetterService().updateV2(_editingLetterId!, body);
+      } else {
+        pdfBytes = await LetterService().generateV2(body);
+      }
       await Printing.sharePdf(
         bytes: pdfBytes,
         filename: 'letter_${DateTime.now().millisecondsSinceEpoch}.pdf',
@@ -335,7 +366,9 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم توليد الخطاب بنجاح')),
+          SnackBar(content: Text(_editingLetterId != null
+              ? 'تم تحديث الخطاب بنجاح'
+              : 'تم توليد الخطاب بنجاح')),
         );
       }
       widget.onLetterSaved();
@@ -658,7 +691,13 @@ window.addEventListener("message", function(e) {
   if (e.data === "GET_HTML") {
     var html = document.getElementById("editor").innerHTML || "";
     parent.postMessage("EDITOR_HTML:" + html, "*");
+  } else if (typeof e.data === "string" && e.data.startsWith("SET_HTML:")) {
+    document.getElementById("editor").innerHTML = e.data.substring(9);
   }
+});
+// Notify parent that editor is ready
+window.addEventListener("load", function() {
+  parent.postMessage("EDITOR_READY", "*");
 });
 </script>
 </body>
