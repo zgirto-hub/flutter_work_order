@@ -62,6 +62,10 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
             sig = f"data:image/png;base64,{sig}"
         sig_img = sig
 
+    # Font file paths as file:// URIs for @font-face
+    font_regular = os.path.join(_assets, "NotoSansArabic-Regular.ttf")
+    font_bold = os.path.join(_assets, "NotoSansArabic-Bold.ttf")
+
     html_str = template.render(
         ishara=data.ishara,
         alsayed=data.alsayed,
@@ -74,6 +78,8 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
         logo_civil_aviation=_logo_data_uri("logo_civilaviation.png"),
         logo_emblem=_logo_data_uri("logo_emblem.png"),
         logo_newkuwait=_logo_data_uri("logo_newkuwait.png"),
+        font_regular=f"file://{os.path.abspath(font_regular)}",
+        font_bold=f"file://{os.path.abspath(font_bold)}",
     )
 
     font_config = FontConfiguration()

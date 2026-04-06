@@ -3,7 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+  @font-face {
+    font-family: 'NotoArabic';
+    src: url('{{font_regular}}');
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: 'NotoArabic';
+    src: url('{{font_bold}}');
+    font-weight: 700;
+  }
 
   @page {
     size: A4;
@@ -19,7 +28,7 @@
   * { box-sizing: border-box; }
 
   body {
-    font-family: 'Cairo', 'NotoSansArabic', sans-serif;
+    font-family: 'NotoArabic', sans-serif;
     font-size: 12pt;
     direction: rtl;
     color: #222;
@@ -106,7 +115,7 @@
   }
   .page-footer .ar {
     direction: rtl;
-    font-family: 'Cairo', sans-serif;
+    font-family: 'NotoArabic', sans-serif;
   }
   .page-footer .en {
     direction: ltr;
