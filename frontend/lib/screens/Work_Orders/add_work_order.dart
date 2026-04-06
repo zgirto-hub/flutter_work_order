@@ -24,6 +24,8 @@ import '../../models/work_order_signature.dart';
 import '../../services/signature_service.dart';
 import '../../services/report_service.dart';
 import '../../services/ai_assist_service.dart';
+import '../../services/dictation_service.dart';
+import '../../widgets/dictation_button.dart';
 import '../../widgets/pdf_preview_screen.dart';
 import '../../theme/app_theme.dart';
 import '../../config.dart';
@@ -114,6 +116,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
   // AI assist state
   bool _aiLoading = false;
+
+  // Dictation state
+  String _dictationLanguage = 'en';
+  bool _speechAvailable = false;
   final AiAssistService _aiAssistService = AiAssistService();
 
   // Signature state
@@ -177,6 +183,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     });
     _loadUserRole();
     _loadAllUsers();
+    DictationService().initialize().then((available) {
+      if (mounted) setState(() => _speechAvailable = available);
+    });
     if (widget.workOrder != null) {
       jobNoController.text = widget.workOrder!.jobNo;
       clientController.text = widget.workOrder!.title;
@@ -530,6 +539,25 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     } finally {
       _isAutoSaving = false;
     }
+  }
+
+  Widget _buildDictationLanguageChip(String label, String value) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: _dictationLanguage == value,
+      onSelected: (selected) {
+        if (selected) {
+          setState(() => _dictationLanguage = value);
+        }
+      },
+      selectedColor: AppColors.accent.withValues(alpha: 0.3),
+      labelStyle: TextStyle(
+        color: _dictationLanguage == value
+            ? AppColors.accent
+            : AppColors.textSecondary,
+        fontSize: 12,
+      ),
+    );
   }
 
   Widget _buildAutoSaveIndicator() {
@@ -1152,7 +1180,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                                         : widget.workOrder!.closedAt != null &&
                                                 widget.workOrder!.closedAt!
                                                     .isNotEmpty
-                                            ? _formatDateTimeString(widget.workOrder!.closedAt!)
+                                            ? _formatDateTimeString(
+                                                widget.workOrder!.closedAt!)
                                             : '',
                                   ),
                                 ),
@@ -1163,7 +1192,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                                 selectedStatus == 'Closed') ...[
                               SizedBox(height: 10),
                               TextFormField(
-                                initialValue: _formatDateTimeString(widget.workOrder!.closedAt!),
+                                initialValue: _formatDateTimeString(
+                                    widget.workOrder!.closedAt!),
                                 readOnly: true,
                                 decoration: InputDecoration(
                                   labelText: "Closed At",
@@ -1268,7 +1298,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                     isScrollControlled: true,
                     builder: (context) => UserSelector(
                       users: _allUsers,
-                      selectedUserId: _overriddenCreatedBy ?? widget.workOrder!.createdBy,
+                      selectedUserId:
+                          _overriddenCreatedBy ?? widget.workOrder!.createdBy,
                       onSelected: (user) {
                         setState(() {
                           _selectedCreatedByUser = user;
@@ -1357,7 +1388,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                     _overriddenCreatedAt != null
                         ? _formatDateTime(_overriddenCreatedAt!)
                         : widget.workOrder!.dateCreated.isNotEmpty
-                            ? _formatDateTimeString(widget.workOrder!.dateCreated)
+                            ? _formatDateTimeString(
+                                widget.workOrder!.dateCreated)
                             : '',
                   ),
                 ),
@@ -1366,7 +1398,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                 widget.workOrder!.dateCreated.isNotEmpty) ...[
               SizedBox(height: 10),
               TextFormField(
-                initialValue: _formatDateTimeString(widget.workOrder!.dateCreated),
+                initialValue:
+                    _formatDateTimeString(widget.workOrder!.dateCreated),
                 readOnly: true,
                 decoration: InputDecoration(
                   labelText: "Created At",
@@ -1375,11 +1408,34 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               ),
             ],
             SizedBox(height: 10),
+            if (canEdit && _speechAvailable)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.mic, size: 16, color: AppColors.textSecondary),
+                    SizedBox(width: 4),
+                    _buildDictationLanguageChip('EN', 'en'),
+                    SizedBox(width: 8),
+                    _buildDictationLanguageChip('AR', 'ar'),
+                  ],
+                ),
+              ),
+
             TextFormField(
               controller: clientController,
               focusNode: _titleFocusNode,
               readOnly: !canEdit,
-              decoration: InputDecoration(labelText: "Title"),
+              decoration: InputDecoration(
+                labelText: "Title",
+                suffixIcon: canEdit
+                    ? DictationButton(
+                        controller: clientController,
+                        language: _dictationLanguage,
+                        enabled: canEdit,
+                      )
+                    : null,
+              ),
               textInputAction: TextInputAction.next,
               onFieldSubmitted: (_) {
                 FocusScope.of(context).requestFocus(_descriptionFocusNode);
@@ -1522,7 +1578,16 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               controller: descriptionController,
               focusNode: _descriptionFocusNode,
               readOnly: !canEdit,
-              decoration: InputDecoration(labelText: "Description"),
+              decoration: InputDecoration(
+                labelText: "Description",
+                suffixIcon: canEdit
+                    ? DictationButton(
+                        controller: descriptionController,
+                        language: _dictationLanguage,
+                        enabled: canEdit,
+                      )
+                    : null,
+              ),
               maxLines: 3,
               textInputAction: TextInputAction.done,
             ),
