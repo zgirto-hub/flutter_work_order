@@ -763,7 +763,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 const SizedBox(width: 12),
                 ElevatedButton.icon(
                   onPressed:
-                      (_hasPreviewedOnce && !_isLoading) ? _generatePdf : null,
+                      ((_hasPreviewedOnce || _editingLetterId != null) && !_isLoading) ? _generatePdf : null,
                   icon: _isLoading
                       ? const SizedBox(
                           width: 18,
@@ -785,7 +785,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 ),
               ],
             ),
-            if (!_hasPreviewedOnce)
+            if (!_hasPreviewedOnce && _editingLetterId == null)
               const Padding(
                 padding: EdgeInsets.only(top: 6),
                 child: Text(
