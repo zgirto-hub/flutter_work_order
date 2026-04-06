@@ -84,8 +84,8 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
         logo_civil_aviation=_logo_data_uri("logo_civilaviation.png"),
         logo_emblem=_logo_data_uri("logo_emblem.png"),
         logo_newkuwait=_logo_data_uri("logo_newkuwait.png"),
-        font_regular=_font_data_uri("NotoSansArabic-Regular.ttf"),
-        font_bold=_font_data_uri("NotoSansArabic-Bold.ttf"),
+        font_regular=_font_data_uri("calibri.ttf"),
+        font_bold=_font_data_uri("calibrib.ttf"),
     )
 
     font_config = FontConfiguration()
