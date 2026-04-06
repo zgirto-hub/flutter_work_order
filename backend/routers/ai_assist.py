@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import httpx
+import json
 
 router = APIRouter()
 
@@ -14,6 +15,75 @@ class AiSuggestRequest(BaseModel):
     title: str
     location: Optional[str] = None
     type: Optional[str] = None
+
+
+class AiParseWorkOrderRequest(BaseModel):
+    text: str
+    language: str = "en"
+    departments: List[str] = []
+    types: List[str] = []
+    statuses: List[str] = []
+
+
+def _build_parse_prompt(
+    text: str,
+    language: str,
+    departments: List[str],
+    types: List[str],
+    statuses: List[str],
+) -> str:
+    prompt = "You are a work order parsing assistant.\n"
+    prompt += "Parse the following user input into structured work order fields.\n"
+    prompt += "Return ONLY a JSON object with these keys: title, description, location, type, department, status.\n"
+    prompt += "For the description field: expand all abbreviations and shorthand into full professional language. Fix grammar and spelling errors. Write 2-4 complete sentences.\n"
+
+    if departments:
+        prompt += f"\nValid departments: {', '.join(departments)}"
+    if types:
+        prompt += f"\nValid types: {', '.join(types)}"
+    if statuses:
+        prompt += f"\nValid statuses: {', '.join(statuses)}"
+
+    if language == "ar":
+        prompt += "\nRespond in Arabic. All field values must be in Arabic."
+    elif language == "en":
+        prompt += "\nRespond in English."
+
+    prompt += "\nIf you cannot determine a field, set it to null."
+    prompt += "\nDo NOT include any text outside the JSON object. No preamble, no explanation."
+    prompt += f"\nUser input: {text}"
+
+    return prompt
+
+
+def _extract_json(text: str) -> dict:
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1:
+        raise ValueError("No valid JSON found in response")
+    json_str = text[start : end + 1]
+    return json.loads(json_str)
+
+
+def _validate_parse_response(
+    data: dict, departments: List[str], types: List[str], statuses: List[str]
+) -> dict:
+    result = {}
+
+    result["title"] = data.get("title")
+    result["description"] = data.get("description")
+    result["location"] = data.get("location")
+
+    type_val = data.get("type")
+    result["type"] = type_val if type_val in types else None
+
+    dept_val = data.get("department")
+    result["department"] = dept_val if dept_val in departments else None
+
+    status_val = data.get("status")
+    result["status"] = status_val if status_val in statuses else None
+
+    return result
 
 
 def _strip_preamble(text: str) -> str:
@@ -95,3 +165,51 @@ async def suggest_description(request: AiSuggestRequest):
         )
 
     return {"description": stripped}
+
+
+@router.post("/ai/parse-work-order")
+async def parse_work_order(request: AiParseWorkOrderRequest):
+    text = request.text.strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="Text cannot be empty")
+
+    prompt = _build_parse_prompt(
+        request.text,
+        request.language,
+        request.departments,
+        request.types,
+        request.statuses,
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
+            res = await client.post(
+                OLLAMA_URL,
+                json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+            )
+    except (httpx.ConnectError, httpx.ConnectTimeout):
+        raise HTTPException(
+            status_code=503, detail="AI service is currently unavailable"
+        )
+    except httpx.ReadTimeout:
+        raise HTTPException(status_code=503, detail="AI service timed out")
+
+    if res.status_code != 200:
+        raise HTTPException(status_code=502, detail="AI model error")
+
+    try:
+        data = res.json()
+        response_text = data.get("response", "")
+    except Exception:
+        raise HTTPException(status_code=502, detail="AI model error")
+
+    try:
+        parsed = _extract_json(response_text)
+    except ValueError:
+        raise HTTPException(status_code=502, detail="AI returned invalid response")
+
+    validated = _validate_parse_response(
+        parsed, request.departments, request.types, request.statuses
+    )
+
+    return validated
