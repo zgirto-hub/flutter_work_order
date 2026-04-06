@@ -6,6 +6,7 @@ and converts to PDF via WeasyPrint.
 """
 
 import os
+import re
 import base64
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Response
@@ -32,6 +33,26 @@ def _logo_data_uri(filename: str) -> str:
     with open(path, "rb") as f:
         data = base64.b64encode(f.read()).decode()
     return f"data:image/png;base64,{data}"
+
+
+def _sanitize_editor_html(html: str) -> str:
+    """Clean up editor HTML for WeasyPrint compatibility.
+    - Convert <font color="X"> to <span style="color: X">
+    - Strip font-family from inline styles (let CSS handle it)
+    """
+    # Convert <font color="#cc0000">...</font> to <span style="color:#cc0000">...</span>
+    html = re.sub(
+        r'<font\s+color="([^"]*)"[^>]*>',
+        r'<span style="color: \1;">',
+        html,
+        flags=re.IGNORECASE,
+    )
+    html = html.replace("</font>", "</span>")
+
+    # Strip font-family from inline styles so our CSS Calibri takes over
+    html = re.sub(r'font-family:\s*[^;"]+;?\s*', '', html)
+
+    return html
 
 
 def _font_data_uri(filename: str) -> str:
@@ -104,7 +125,7 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
         ishara=data.ishara,
         alsayed=data.alsayed,
         almawdoo=data.almawdoo,
-        body_html=data.body_html,
+        body_html=_sanitize_editor_html(data.body_html),
         alasm=data.alasm,
         signature_img=sig_img,
         reply_required=data.reply_required,
@@ -141,7 +162,7 @@ async def preview_letter_html(data: LetterBodyV2):
         ishara=data.ishara,
         alsayed=data.alsayed,
         almawdoo=data.almawdoo,
-        body_html=data.body_html,
+        body_html=_sanitize_editor_html(data.body_html),
         alasm=data.alasm,
         signature_img=sig_img,
         reply_required=data.reply_required,
