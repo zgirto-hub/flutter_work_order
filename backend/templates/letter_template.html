@@ -16,13 +16,17 @@
 
   @page {
     size: A4;
-    margin: 5.5cm 2cm 3cm 2cm;
+    margin: 5.5cm 0 3cm 0;
     @top-center {
       content: element(pageheader);
     }
     @bottom-center {
       content: element(footer);
     }
+  }
+
+  body {
+    padding: 0 2cm;
   }
 
   * { box-sizing: border-box; }
@@ -99,10 +103,18 @@
     height: 75px;
   }
 
+  .page-header {
+    padding: 0;
+  }
+
+  .page-header table.logos {
+    margin: 0 2cm;
+    width: calc(100% - 4cm);
+  }
+
   .page-header .red-bars {
     margin-top: 6px;
-    margin-left: -2cm;
-    margin-right: -2cm;
+    width: 100%;
   }
 
   .page-header .red-bars .thick {
@@ -126,10 +138,9 @@
     position: running(footer);
     border-top: 3px solid #CC0000;
     padding-top: 6px;
-    margin-left: -2cm;
-    margin-right: -2cm;
     padding-left: 2cm;
     padding-right: 2cm;
+    width: 100%;
     font-size: 8pt;
     text-align: center;
     line-height: 1.6;
