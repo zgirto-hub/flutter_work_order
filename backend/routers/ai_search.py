@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
+import os
 import httpx
 import json
 from datetime import date
@@ -9,9 +10,9 @@ from utils.activity import log_activity
 
 router = APIRouter(tags=["search"])
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "gemma4:e2b"
-OLLAMA_TIMEOUT = 5.0
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:e2b")
+OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "60.0"))
 
 VALID_STATUSES = ["Pending", "In Progress", "Resolved", "Closed"]
 VALID_TYPES = ["Technical", "Inspection", "Other"]
