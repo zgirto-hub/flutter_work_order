@@ -468,7 +468,9 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                   : 'Letter generated successfully')),
         );
       }
-      widget.onLetterSaved();
+      if (_editingLetterId == null) {
+        widget.onLetterSaved();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
