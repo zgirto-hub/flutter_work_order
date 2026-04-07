@@ -449,43 +449,68 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Reference Number (رقم الإشارة) ──
-            _buildLabel('Reference Number'),
-            TextFormField(
-              controller: _isharaCtrl,
-              decoration: _inputDecor('e.g. 2026-23279'),
-              textAlign: TextAlign.right,
-              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-            ),
-            _buildStyleRow(
-              fontSize: _refFontSize,
-              bold: _refBold,
-              onFontSizeChanged: (v) => setState(() => _refFontSize = v),
-              onBoldChanged: (v) => setState(() => _refBold = v),
-            ),
-            const SizedBox(height: 16),
-
-            // ── Date (التاريخ) ──
-            _buildLabel('Date'),
-            InkWell(
-              onTap: () async {
-                final date = await showDatePicker(
-                  context: context,
-                  initialDate: _selectedDate ?? DateTime.now(),
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2100),
-                );
-                if (date != null) setState(() => _selectedDate = date);
-              },
-              child: InputDecorator(
-                decoration: _inputDecor('Select date'),
-                child: Text(
-                  _selectedDate != null
-                      ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
-                      : '',
-                  textAlign: TextAlign.right,
+            // ── Reference Number + Date (same row) ──
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Reference Number
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildLabel('Reference Number'),
+                      SizedBox(
+                        width: 180,
+                        child: TextFormField(
+                          controller: _isharaCtrl,
+                          decoration: _inputDecor('e.g. 2026-23279'),
+                          textAlign: TextAlign.right,
+                          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                        ),
+                      ),
+                      _buildStyleRow(
+                        fontSize: _refFontSize,
+                        bold: _refBold,
+                        onFontSizeChanged: (v) => setState(() => _refFontSize = v),
+                        onBoldChanged: (v) => setState(() => _refBold = v),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(width: 16),
+                // Date
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildLabel('Date'),
+                      SizedBox(
+                        width: 180,
+                        child: InkWell(
+                          onTap: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: _selectedDate ?? DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2100),
+                            );
+                            if (date != null) setState(() => _selectedDate = date);
+                          },
+                          child: InputDecorator(
+                            decoration: _inputDecor('Select date'),
+                            child: Text(
+                              _selectedDate != null
+                                  ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
+                                  : '',
+                              textAlign: TextAlign.right,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
