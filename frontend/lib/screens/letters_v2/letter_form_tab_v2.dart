@@ -443,7 +443,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
       child: Form(
         key: _formKey,
         child: Column(
