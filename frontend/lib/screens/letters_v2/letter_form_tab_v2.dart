@@ -447,7 +447,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             TextFormField(
               controller: _isharaCtrl,
               decoration: _inputDecor('e.g. 2026-23279'),
-              textDirection: TextDirection.ltr,
+              textAlign: TextAlign.right,
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             _buildStyleRow(
@@ -476,7 +476,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                   _selectedDate != null
                       ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
                       : '',
-                  textDirection: TextDirection.ltr,
+                  textAlign: TextAlign.right,
                 ),
               ),
             ),
