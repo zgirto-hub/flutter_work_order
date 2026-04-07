@@ -1,0 +1,47 @@
+{
+  "llm": {
+    "provider": "ollama",
+    "endpoint": "http://localhost:11434",
+    "model": "__OLLAMA_MODEL__"
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "__TELEGRAM_BOT_TOKEN__",
+      "allowFrom": ["__ADMIN_TELEGRAM_USER_ID__"]
+    }
+  },
+  "skills": {
+    "directory": "~/.openclaw/skills",
+    "cron": [
+      {
+        "name": "daily_digest",
+        "schedule": "0 7 * * *",
+        "skill": "heartbeat/daily_digest.py",
+        "enabled": true
+      },
+      {
+        "name": "weekly_summary",
+        "schedule": "0 18 * * 0",
+        "skill": "heartbeat/weekly_summary.py",
+        "enabled": true
+      },
+      {
+        "name": "push_failure_check",
+        "schedule": "0 * * * *",
+        "skill": "heartbeat/push_failure_check.py",
+        "enabled": true
+      }
+    ]
+  },
+  "audit": {
+    "logPath": "~/.openclaw/audit.log"
+  },
+  "confirmation": {
+    "windowSeconds": 60
+  },
+  "env": {
+    "ADMIN_EMAIL": "__ADMIN_EMAIL__",
+    "API_BASE_URL": "http://localhost:8000/api"
+  }
+}

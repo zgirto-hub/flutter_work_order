@@ -1,0 +1,19 @@
+[Unit]
+Description=OpenClaw Telegram Ops Assistant for Work Order System
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=openclaw
+Group=openclaw
+WorkingDirectory=/home/openclaw
+Environment="HOME=/home/openclaw"
+ExecStart=/usr/bin/openclaw run --config /home/openclaw/.openclaw/openclaw.json
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
