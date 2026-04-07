@@ -46,15 +46,25 @@
   @media screen {
     body {
       padding: 20px 40px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
     .page-header {
       position: static;
       padding-bottom: 10px;
       margin-bottom: 10px;
+      order: 1;
     }
     .page-footer {
       position: static;
-      margin-top: 30px;
+      margin-top: auto;
+      padding-top: 30px;
+      order: 3;
+    }
+    .content-wrap {
+      order: 2;
+      flex: 1;
     }
   }
 
@@ -293,6 +303,8 @@
   <div class="en">P.O.Box: 17 Safat - P.Code: 13001 - State of Kuwait - Operator: (+965) 24336699 - IVR: (+965) 161 - Fax (+965) 24713504</div>
 </div>
 
+<div class="content-wrap">
+
 <!-- Page content (flows across pages, header/footer repeat automatically) -->
 
 <!-- Reference (left) and date (right) -->
@@ -346,6 +358,8 @@
 
 <!-- Attachments label -->
 <div class="attachments">المرفقات:</div>
+
+</div><!-- /content-wrap -->
 
 </body>
 </html>
