@@ -474,9 +474,9 @@ async def export_with_attachments(
 
     rec = result.data[0]
     user_result = (
-        supabase.table("users").select("role").eq("email", requester_email).execute()
+        supabase.table("users").select("user_type").eq("email", requester_email).execute()
     )
-    is_admin = user_result.data and user_result.data[0].get("role") == "admin"
+    is_admin = user_result.data and user_result.data[0].get("user_type") == "admin"
     if rec["created_by_email"] != requester_email and not is_admin:
         raise HTTPException(403, "Not authorized to export this letter")
 
