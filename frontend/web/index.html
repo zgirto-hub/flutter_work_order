@@ -24,6 +24,9 @@
 
   <link rel="preload" href="flutter_bootstrap.js" as="script">
   <link rel="preload" href="main.dart.js" as="script">
+  <!-- Preload MaterialIcons font so iOS standalone PWA has it ready before first frame.
+       Fixes post-update icon tofu (▯) that only clears after a force-close/reopen. -->
+  <link rel="preload" href="assets/fonts/MaterialIcons-Regular.otf" as="font" type="font/otf" crossorigin>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -560,6 +563,21 @@
       window.registerUpdateCallback = function(callback) {
         window._pwaUpdateCallback = callback;
       };
+    })();
+  </script>
+
+  <script>
+    // iOS PWA post-update icon-font fix: once fonts are ready, force Flutter to repaint
+    // by dispatching a resize event. Without this, MaterialIcons glyphs render as tofu
+    // on the first launch after an update until the user force-closes and reopens.
+    (function() {
+      if (!document.fonts || !document.fonts.ready) return;
+      document.fonts.ready.then(function() {
+        // Defer past first frame so Flutter has mounted.
+        setTimeout(function() {
+          try { window.dispatchEvent(new Event('resize')); } catch (e) {}
+        }, 0);
+      });
     })();
   </script>
 
