@@ -10,7 +10,7 @@ class GeneratedLetter {
   final String? signatureBase64;
   final String? createdByEmail;
   final String? ccList;
-  final List<Map<String, dynamic>> paymentCertificates;
+  final List<LinkedPaymentCertificate> paymentCertificates;
 
   const GeneratedLetter({
     this.id,
@@ -35,8 +35,11 @@ class GeneratedLetter {
   factory GeneratedLetter.fromJson(Map<String, dynamic> json) {
     final rawCerts = json['payment_certificates'];
     final certs = rawCerts is List
-        ? rawCerts.cast<Map<String, dynamic>>().toList()
-        : <Map<String, dynamic>>[];
+        ? rawCerts
+            .map((c) =>
+                LinkedPaymentCertificate.fromJson(c as Map<String, dynamic>))
+            .toList()
+        : <LinkedPaymentCertificate>[];
 
     return GeneratedLetter(
       id: json['id'],
@@ -63,5 +66,35 @@ class GeneratedLetter {
         'alasm': alasm,
         'signature_base64': signatureBase64,
         'created_by_email': createdByEmail,
+      };
+}
+
+class LinkedPaymentCertificate {
+  final String id;
+  final String certificateNumber;
+  final String subject;
+  final int letterLinkOrder;
+
+  const LinkedPaymentCertificate({
+    required this.id,
+    required this.certificateNumber,
+    required this.subject,
+    required this.letterLinkOrder,
+  });
+
+  factory LinkedPaymentCertificate.fromJson(Map<String, dynamic> json) {
+    return LinkedPaymentCertificate(
+      id: json['id'] ?? '',
+      certificateNumber: json['certificate_number'] ?? '',
+      subject: json['subject'] ?? '',
+      letterLinkOrder: json['letter_link_order'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'certificate_number': certificateNumber,
+        'subject': subject,
+        'letter_link_order': letterLinkOrder,
       };
 }

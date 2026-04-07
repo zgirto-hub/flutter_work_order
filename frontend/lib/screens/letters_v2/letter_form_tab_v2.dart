@@ -8,10 +8,14 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:printing/printing.dart';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config.dart';
 import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
+import '../../services/payment_certificate_service.dart';
+import '../../services/pdf/payment_certificate_pdf_service.dart';
 import '../../widgets/ai_document_expert_widget.dart';
+import 'widgets/payment_cert_picker.dart';
 
 /// Letter form with WYSIWYG rich text editor (v2 — WeasyPrint backend).
 class LetterFormTabV2 extends StatefulWidget {
@@ -57,6 +61,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
 
   // Attachments
   final List<_Attachment> _attachments = [];
+  List<LinkedPaymentCertificate> _linkedCerts = [];
 
   // Unique ID for the HTML editor iframe
   late final String _editorViewType;
@@ -76,9 +81,11 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       _almawdooCtrl.text = letter.almawdoo;
       _alasmCtrl.text = letter.alasm;
       _initialBodyHtml = letter.bodyText;
+      _linkedCerts = List.from(letter.paymentCertificates);
       // Restore CC names
       if (letter.ccList != null && letter.ccList!.isNotEmpty) {
-        _ccNames.addAll(letter.ccList!.split('\n').where((n) => n.trim().isNotEmpty));
+        _ccNames.addAll(
+            letter.ccList!.split('\n').where((n) => n.trim().isNotEmpty));
       }
       // Restore date — tarikh could be YYYY-MM-DD or DD/MM/YYYY
       if (letter.tarikh.isNotEmpty) {
@@ -87,7 +94,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             _selectedDate = DateTime.parse(letter.tarikh);
           } else if (letter.tarikh.contains('/')) {
             final parts = letter.tarikh.split('/');
-            _selectedDate = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+            _selectedDate = DateTime(
+                int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
           }
         } catch (_) {}
       }
@@ -170,8 +178,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       if (file.bytes!.lengthInBytes > 10 * 1024 * 1024) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('${file.name}: File exceeds 10MB limit')),
+            SnackBar(content: Text('${file.name}: File exceeds 10MB limit')),
           );
         }
         continue;
@@ -397,11 +404,56 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             .toList(),
       };
 
-      final Uint8List pdfBytes;
-      if (_editingLetterId != null) {
-        pdfBytes = await LetterService().updateV2(_editingLetterId!, body);
-      } else {
-        pdfBytes = await LetterService().generateV2(body);
+      Uint8List pdfBytes = Uint8List(0);
+      try {
+        if (_editingLetterId != null) {
+          pdfBytes = await LetterService().updateV2(
+            _editingLetterId!,
+            body,
+            paymentCertificateIds: _linkedCerts.map((c) => c.id).toList(),
+          );
+        } else {
+          pdfBytes = await LetterService().generateV2(
+            body,
+            paymentCertificateIds: _linkedCerts.map((c) => c.id).toList(),
+          );
+        }
+      } on CertificatesAlreadyLinkedException catch (e) {
+        if (!mounted) return;
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Reassign payment certificate?'),
+            content: Text(
+              'This certificate is already linked to another letter. Reassign it?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Reassign'),
+              ),
+            ],
+          ),
+        );
+        if (confirm != true) return;
+        if (_editingLetterId != null) {
+          pdfBytes = await LetterService().updateV2(
+            _editingLetterId!,
+            body,
+            paymentCertificateIds: _linkedCerts.map((c) => c.id).toList(),
+            forceReassign: true,
+          );
+        } else {
+          pdfBytes = await LetterService().generateV2(
+            body,
+            paymentCertificateIds: _linkedCerts.map((c) => c.id).toList(),
+            forceReassign: true,
+          );
+        }
       }
       await Printing.sharePdf(
         bytes: pdfBytes,
@@ -421,6 +473,82 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _exportCombinedPdf() async {
+    if (_editingLetterId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please save the letter first')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final bodyHtml = await _getEditorHtml();
+      final body = {
+        'ishara': _isharaCtrl.text,
+        'tarikh': _selectedDate != null
+            ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
+            : '',
+        'alsayed': _alsayedCtrl.text,
+        'almawdoo': _almawdooCtrl.text,
+        'body_html': bodyHtml,
+        'alasm': _alasmCtrl.text,
+        'signature_base64': _signatureBase64,
+        'reply_required': _replyRequired,
+        'cc_list': _ccNames.isEmpty ? null : _ccNames.join('\n'),
+        'ref_font_size': _refFontSize,
+        'ref_bold': _refBold,
+        'recipient_font_size': _recipientFontSize,
+        'recipient_bold': _recipientBold,
+        'subject_font_size': _subjectFontSize,
+        'subject_bold': _subjectBold,
+        'subject_underline': _subjectUnderline,
+        'created_by_email':
+            Supabase.instance.client.auth.currentUser?.email ?? '',
+      };
+
+      final Map<String, Uint8List> certPdfs = {};
+      for (final cert in _linkedCerts) {
+        final fullCert = await PaymentCertificateService().getById(cert.id);
+        if (fullCert != null) {
+          final pdfBytes = await PaymentCertificatePdfService.build(fullCert);
+          certPdfs[cert.id] = pdfBytes;
+        }
+      }
+
+      final requesterEmail =
+          Supabase.instance.client.auth.currentUser?.email ?? '';
+      final mergedPdf = await LetterService().exportLetterWithAttachments(
+        letterId: _editingLetterId!,
+        letterBody: body,
+        orderedCertIds: _linkedCerts.map((c) => c.id).toList(),
+        certPdfs: certPdfs,
+        requesterEmail: requesterEmail,
+      );
+
+      if (mounted) {
+        await Printing.sharePdf(
+          bytes: mergedPdf,
+          filename:
+              'letter_${DateTime.now().millisecondsSinceEpoch}_combined.pdf',
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Combined PDF exported successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error exporting combined PDF: $e')),
         );
       }
     } finally {
@@ -465,13 +593,15 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                           controller: _isharaCtrl,
                           decoration: _inputDecor('e.g. 2026-23279'),
                           textAlign: TextAlign.right,
-                          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                          validator: (v) =>
+                              (v == null || v.isEmpty) ? 'Required' : null,
                         ),
                       ),
                       _buildStyleRow(
                         fontSize: _refFontSize,
                         bold: _refBold,
-                        onFontSizeChanged: (v) => setState(() => _refFontSize = v),
+                        onFontSizeChanged: (v) =>
+                            setState(() => _refFontSize = v),
                         onBoldChanged: (v) => setState(() => _refBold = v),
                       ),
                     ],
@@ -494,7 +624,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                               firstDate: DateTime(2020),
                               lastDate: DateTime(2100),
                             );
-                            if (date != null) setState(() => _selectedDate = date);
+                            if (date != null)
+                              setState(() => _selectedDate = date);
                           },
                           child: InputDecorator(
                             decoration: _inputDecor('Select date'),
@@ -561,7 +692,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                   height: _editorHeight,
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade400),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(8)),
                   ),
                   clipBehavior: Clip.hardEdge,
                   child: HtmlElementView(viewType: _editorViewType),
@@ -569,14 +701,16 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 GestureDetector(
                   onVerticalDragUpdate: (details) {
                     setState(() {
-                      _editorHeight = (_editorHeight + details.delta.dy).clamp(200, 1200);
+                      _editorHeight =
+                          (_editorHeight + details.delta.dy).clamp(200, 1200);
                     });
                   },
                   child: Container(
                     height: 18,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade200,
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+                      borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(8)),
                       border: Border.all(color: Colors.grey.shade400),
                     ),
                     child: Center(
@@ -631,9 +765,11 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                     decoration: InputDecoration(
                       hintText: 'Add CC name',
                       border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
                       suffixIcon: IconButton(
-                        icon: const Icon(Icons.add_circle, color: Color(0xFFCC0000)),
+                        icon: const Icon(Icons.add_circle,
+                            color: Color(0xFFCC0000)),
                         onPressed: () {
                           final name = _ccNameCtrl.text.trim();
                           if (name.isNotEmpty) {
@@ -668,15 +804,26 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 child: Column(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade700,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(5)),
                       ),
                       child: const Row(
                         children: [
-                          Expanded(child: Text('CC', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
-                          Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                          Expanded(
+                              child: Text('CC',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13))),
+                          Text('Delete',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13)),
                         ],
                       ),
                     ),
@@ -684,16 +831,22 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                       final i = entry.key;
                       final name = entry.value;
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
-                          border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                          border: Border(
+                              bottom: BorderSide(color: Colors.grey.shade200)),
                         ),
                         child: Row(
                           children: [
-                            Expanded(child: Text(name, style: const TextStyle(fontSize: 13))),
+                            Expanded(
+                                child: Text(name,
+                                    style: const TextStyle(fontSize: 13))),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                              onPressed: () => setState(() => _ccNames.removeAt(i)),
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Colors.red, size: 20),
+                              onPressed: () =>
+                                  setState(() => _ccNames.removeAt(i)),
                               constraints: const BoxConstraints(),
                               padding: EdgeInsets.zero,
                             ),
@@ -740,6 +893,74 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               onPressed: _pickAttachments,
               icon: const Icon(Icons.attach_file),
               label: const Text('Add Attachment'),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Payment Certificate Attachments ──
+            _buildLabel('Payment Certificates'),
+            if (_linkedCerts.isNotEmpty)
+              SizedBox(
+                height: 150,
+                child: ReorderableListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _linkedCerts.length,
+                  onReorder: (oldIndex, newIndex) {
+                    setState(() {
+                      if (newIndex > oldIndex) newIndex--;
+                      final item = _linkedCerts.removeAt(oldIndex);
+                      _linkedCerts.insert(newIndex, item);
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    final cert = _linkedCerts[index];
+                    return Card(
+                      key: ValueKey(cert.id),
+                      margin: const EdgeInsets.only(bottom: 6),
+                      child: ListTile(
+                        leading: const Icon(Icons.description),
+                        title: Text(cert.certificateNumber,
+                            style: const TextStyle(fontSize: 13)),
+                        subtitle: Text(cert.subject,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Colors.red, size: 20),
+                              onPressed: () =>
+                                  setState(() => _linkedCerts.removeAt(index)),
+                            ),
+                            const Icon(Icons.drag_handle),
+                          ],
+                        ),
+                        dense: true,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            OutlinedButton.icon(
+              onPressed: () async {
+                final selected = await PaymentCertPicker.show(
+                  context,
+                  alreadySelectedIds: _linkedCerts.map((c) => c.id).toList(),
+                );
+                if (selected != null && selected.isNotEmpty) {
+                  setState(() {
+                    for (int i = 0; i < selected.length; i++) {
+                      _linkedCerts.add(LinkedPaymentCertificate(
+                        id: selected[i].id,
+                        certificateNumber: selected[i].certificateNumber,
+                        subject: selected[i].subject,
+                        letterLinkOrder: _linkedCerts.length + i,
+                      ));
+                    }
+                  });
+                }
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Add Payment Certificate'),
             ),
             const SizedBox(height: 16),
 
@@ -794,8 +1015,10 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton.icon(
-                  onPressed:
-                      ((_hasPreviewedOnce || _editingLetterId != null) && !_isLoading) ? _generatePdf : null,
+                  onPressed: ((_hasPreviewedOnce || _editingLetterId != null) &&
+                          !_isLoading)
+                      ? _generatePdf
+                      : null,
                   icon: _isLoading
                       ? const SizedBox(
                           width: 18,
@@ -805,8 +1028,12 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                             color: Colors.white,
                           ),
                         )
-                      : Icon(_editingLetterId != null ? Icons.save : Icons.picture_as_pdf),
-                  label: Text(_editingLetterId != null ? 'Save Changes' : 'Generate PDF'),
+                      : Icon(_editingLetterId != null
+                          ? Icons.save
+                          : Icons.picture_as_pdf),
+                  label: Text(_editingLetterId != null
+                      ? 'Save Changes'
+                      : 'Generate PDF'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFCC0000),
                     foregroundColor: Colors.white,
@@ -817,6 +1044,20 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 ),
               ],
             ),
+            if (_linkedCerts.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _linkedCerts.isEmpty ? null : _exportCombinedPdf,
+                icon: const Icon(Icons.picture_as_pdf),
+                label: const Text('Export Combined PDF'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                ),
+              ),
+            ],
             if (!_hasPreviewedOnce && _editingLetterId == null)
               const Padding(
                 padding: EdgeInsets.only(top: 6),
@@ -888,7 +1129,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             width: 40,
             alignment: Alignment.center,
             child: Text('${fontSize.toInt()}pt',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
           ),
           InkWell(
             onTap: () {
@@ -932,7 +1174,9 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: underline ? const Color(0xFFCC0000) : Colors.grey.shade200,
+                  color: underline
+                      ? const Color(0xFFCC0000)
+                      : Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(

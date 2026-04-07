@@ -132,10 +132,8 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                 ...letter.paymentCertificates.map((cert) => Card(
                       child: ListTile(
                         leading: const Icon(Icons.receipt_long),
-                        title: Text(
-                            cert['certificate_number']?.toString() ?? ''),
-                        subtitle:
-                            Text(cert['subject']?.toString() ?? ''),
+                        title: Text(cert.certificateNumber),
+                        subtitle: Text(cert.subject),
                       ),
                     )),
                 const SizedBox(height: 16),

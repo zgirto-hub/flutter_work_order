@@ -8,10 +8,13 @@ and converts to PDF via WeasyPrint.
 import os
 import re
 import base64
+import io
+import json
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Response, Form, File, UploadFile
 from pydantic import BaseModel
 from jinja2 import Environment, FileSystemLoader
+import PyPDF2 as pypdf
 
 from db import supabase
 from utils.activity import log_activity
@@ -50,7 +53,7 @@ def _sanitize_editor_html(html: str) -> str:
     html = html.replace("</font>", "</span>")
 
     # Strip font-family from inline styles so our CSS Calibri takes over
-    html = re.sub(r'font-family:\s*[^;"]+;?\s*', '', html)
+    html = re.sub(r'font-family:\s*[^;"]+;?\s*', "", html)
 
     return html
 
@@ -90,6 +93,8 @@ class LetterBodyV2(BaseModel):
     subject_underline: bool = True
     created_by_email: str
     attachments: list[AttachmentItem] = []
+    payment_certificate_ids: list[str] = []
+    force_reassign: bool = False
 
 
 _uploads = os.path.join(os.path.dirname(__file__), "..", "uploaded_files", "letters")
@@ -105,11 +110,13 @@ def _save_attachments(attachments: list[AttachmentItem], letter_id: str) -> list
         file_path = os.path.join(_uploads, safe_name)
         with open(file_path, "wb") as f:
             f.write(file_bytes)
-        saved.append({
-            "name": att.name,
-            "path": f"/files/letters/{safe_name}",
-            "is_image": att.is_image,
-        })
+        saved.append(
+            {
+                "name": att.name,
+                "path": f"/files/letters/{safe_name}",
+                "is_image": att.is_image,
+            }
+        )
     return saved
 
 
@@ -157,6 +164,71 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
     font_config = FontConfiguration()
     pdf_bytes = HTML(string=html_str).write_pdf(font_config=font_config)
     return pdf_bytes
+
+
+def _apply_cert_links(
+    letter_id: str, cert_ids: list[str], force_reassign: bool
+) -> list[dict]:
+    """Apply payment certificate links to a letter.
+
+    If cert_ids is empty, any currently linked certificates are unlinked.
+    """
+    previously_linked = (
+        supabase.table("payment_certificates")
+        .select("id")
+        .eq("letter_id", letter_id)
+        .execute()
+        .data
+        or []
+    )
+
+    conflicts = []
+    for cid in cert_ids:
+        cert = (
+            supabase.table("payment_certificates")
+            .select("id, letter_id")
+            .eq("id", cid)
+            .execute()
+            .data
+        )
+        if not cert:
+            raise HTTPException(404, f"payment_certificate {cid} not found")
+        if (
+            cert[0].get("letter_id")
+            and cert[0]["letter_id"] != letter_id
+            and not force_reassign
+        ):
+            conflicts.append(
+                {"certificate_id": cid, "existing_letter_id": cert[0]["letter_id"]}
+            )
+
+    if conflicts:
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "certificates_already_linked", "conflicts": conflicts},
+        )
+
+    for prev in previously_linked:
+        if prev["id"] not in cert_ids:
+            supabase.table("payment_certificates").update(
+                {"letter_id": None, "letter_link_order": None}
+            ).eq("id", prev["id"]).execute()
+
+    final_certs = []
+    for idx, cid in enumerate(cert_ids):
+        supabase.table("payment_certificates").update(
+            {"letter_id": letter_id, "letter_link_order": idx}
+        ).eq("id", cid).execute()
+        cert = (
+            supabase.table("payment_certificates")
+            .select("id, certificate_number, subject, letter_link_order")
+            .eq("id", cid)
+            .execute()
+            .data[0]
+        )
+        final_certs.append(cert)
+
+    return final_certs
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -229,12 +301,18 @@ async def generate_letter_v2(data: LetterBodyV2):
     result = supabase.table("generated_letters").insert(record).execute()
     letter_id = result.data[0]["id"] if result.data else ""
 
+    # Apply payment certificate links
+    if data.payment_certificate_ids:
+        _apply_cert_links(
+            str(letter_id), data.payment_certificate_ids, data.force_reassign
+        )
+
     # Save attachments to server filesystem
     if data.attachments:
         att_meta = _save_attachments(data.attachments, str(letter_id))
-        supabase.table("generated_letters").update(
-            {"attachments": att_meta}
-        ).eq("id", letter_id).execute()
+        supabase.table("generated_letters").update({"attachments": att_meta}).eq(
+            "id", letter_id
+        ).execute()
 
     log_activity(data.created_by_email, "created", "letter", str(letter_id))
 
@@ -265,8 +343,9 @@ async def get_letters_v2(email: str):
     for letter in letters:
         certs = (
             supabase.table("payment_certificates")
-            .select("id, certificate_number, subject")
+            .select("id, certificate_number, subject, letter_link_order")
             .eq("letter_id", letter["id"])
+            .order("letter_link_order")
             .execute()
         )
         letter["payment_certificates"] = certs.data or []
@@ -278,17 +357,16 @@ async def get_letters_v2(email: str):
 async def update_letter_v2(letter_id: str, data: LetterBodyV2):
     """Update an existing letter record and regenerate its PDF."""
     result = (
-        supabase.table("generated_letters")
-        .select("id")
-        .eq("id", letter_id)
-        .execute()
+        supabase.table("generated_letters").select("id").eq("id", letter_id).execute()
     )
     if not result.data:
         raise HTTPException(404, "Letter not found")
 
     update_data = {
         "ishara": data.ishara,
-        "tarikh": data.tarikh if data.tarikh else datetime.utcnow().strftime("%Y-%m-%d"),
+        "tarikh": data.tarikh
+        if data.tarikh
+        else datetime.utcnow().strftime("%Y-%m-%d"),
         "alsayed": data.alsayed,
         "almawdoo": data.almawdoo,
         "body_text": data.body_html,
@@ -297,7 +375,12 @@ async def update_letter_v2(letter_id: str, data: LetterBodyV2):
         "reply_required": data.reply_required,
         "cc_list": data.cc_list,
     }
-    supabase.table("generated_letters").update(update_data).eq("id", letter_id).execute()
+    supabase.table("generated_letters").update(update_data).eq(
+        "id", letter_id
+    ).execute()
+
+    # Apply payment certificate links (empty list clears any existing links)
+    _apply_cert_links(letter_id, data.payment_certificate_ids, data.force_reassign)
 
     pdf_bytes = _build_letter_pdf_v2(data)
     log_activity(data.created_by_email, "updated", "letter", letter_id)
@@ -317,13 +400,18 @@ async def update_letter_v2(letter_id: str, data: LetterBodyV2):
 async def delete_letter_v2(letter_id: str):
     """Delete a letter record."""
     result = (
-        supabase.table("generated_letters").select("id, created_by_email").eq("id", letter_id).execute()
+        supabase.table("generated_letters")
+        .select("id, created_by_email")
+        .eq("id", letter_id)
+        .execute()
     )
     if not result.data:
         raise HTTPException(404, "Letter not found")
 
     # Unlink any payment certificates
-    supabase.table("payment_certificates").update({"letter_id": None}).eq("letter_id", letter_id).execute()
+    supabase.table("payment_certificates").update(
+        {"letter_id": None, "letter_link_order": None}
+    ).eq("letter_id", letter_id).execute()
     # Delete the letter
     supabase.table("generated_letters").delete().eq("id", letter_id).execute()
 
@@ -335,10 +423,7 @@ async def delete_letter_v2(letter_id: str):
 async def regenerate_letter_v2(letter_id: str):
     """Regenerate a PDF from a saved letter record."""
     result = (
-        supabase.table("generated_letters")
-        .select("*")
-        .eq("id", letter_id)
-        .execute()
+        supabase.table("generated_letters").select("*").eq("id", letter_id).execute()
     )
     if not result.data:
         raise HTTPException(404, "Letter not found")
@@ -366,4 +451,64 @@ async def regenerate_letter_v2(letter_id: str):
         headers={
             "Content-Disposition": f'attachment; filename="letter_{ts}.pdf"',
         },
+    )
+
+
+@router.post("/letters-v2/{letter_id}/export-with-attachments")
+async def export_with_attachments(
+    letter_id: str,
+    letter_body: str = Form(...),
+    order: str = Form(...),
+    requester_email: str = Form(...),
+    files: list[UploadFile] = File(default=[]),
+):
+    """Export a letter with attached payment certificates as a merged PDF."""
+    result = (
+        supabase.table("generated_letters")
+        .select("id, created_by_email")
+        .eq("id", letter_id)
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(404, "Letter not found")
+
+    rec = result.data[0]
+    user_result = (
+        supabase.table("users").select("role").eq("email", requester_email).execute()
+    )
+    is_admin = user_result.data and user_result.data[0].get("role") == "admin"
+    if rec["created_by_email"] != requester_email and not is_admin:
+        raise HTTPException(403, "Not authorized to export this letter")
+
+    body = LetterBodyV2(**json.loads(letter_body))
+    cert_order = json.loads(order)
+
+    letter_pdf = _build_letter_pdf_v2(body)
+
+    writer = pypdf.PdfWriter()
+    writer.append(pypdf.PdfReader(io.BytesIO(letter_pdf)))
+
+    file_map = {}
+    for f in files:
+        file_map[f.filename] = await f.read()
+
+    for cid in cert_order:
+        if cid not in file_map:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "missing_cert_upload", "certificate_id": cid},
+            )
+        writer.append(pypdf.PdfReader(io.BytesIO(file_map[cid])))
+
+    output = io.BytesIO()
+    writer.write(output)
+    merged_bytes = output.getvalue()
+
+    log_activity(requester_email, "exported", "letter", letter_id)
+
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    return Response(
+        content=merged_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="letter_{ts}.pdf"'},
     )

@@ -113,7 +113,7 @@ class _LetterHistoryTabState extends State<LetterHistoryTab> {
                         ...letter.paymentCertificates.map((cert) => Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
-                                  '- ${cert['certificate_number']}: ${cert['subject']}'),
+                                  '- ${cert.certificateNumber}: ${cert.subject}'),
                             )),
                       ],
                     ],

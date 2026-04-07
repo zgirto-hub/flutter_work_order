@@ -48,14 +48,27 @@ class LetterService {
   }
 
   /// V2 endpoint — sends raw map with body_html for WeasyPrint rendering.
-  Future<Uint8List> generateV2(Map<String, dynamic> body) async {
+  Future<Uint8List> generateV2(Map<String, dynamic> body,
+      {List<String> paymentCertificateIds = const [],
+      bool forceReassign = false}) async {
     body['created_by_email'] = _email;
+    body['payment_certificate_ids'] = paymentCertificateIds;
+    body['force_reassign'] = forceReassign;
     final uri = Uri.parse('${AppConfig.baseUrl}/letters-v2/generate');
     final res = await http.post(
       uri,
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(body),
     );
+    if (res.statusCode == 409) {
+      final errorBody = jsonDecode(res.body);
+      if (errorBody['error'] == 'certificates_already_linked') {
+        throw CertificatesAlreadyLinkedException(
+            ((errorBody['conflicts'] ?? []) as List)
+                .map((c) => Map<String, dynamic>.from(c as Map))
+                .toList());
+      }
+    }
     if (res.statusCode != 200) {
       throw Exception('Failed to generate letter');
     }
@@ -79,14 +92,27 @@ class LetterService {
   }
 
   /// V2 update — updates existing letter record with rich HTML body.
-  Future<Uint8List> updateV2(String letterId, Map<String, dynamic> body) async {
+  Future<Uint8List> updateV2(String letterId, Map<String, dynamic> body,
+      {List<String> paymentCertificateIds = const [],
+      bool forceReassign = false}) async {
     body['created_by_email'] = _email;
+    body['payment_certificate_ids'] = paymentCertificateIds;
+    body['force_reassign'] = forceReassign;
     final uri = Uri.parse('${AppConfig.baseUrl}/letters-v2/$letterId');
     final res = await http.put(
       uri,
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(body),
     );
+    if (res.statusCode == 409) {
+      final errorBody = jsonDecode(res.body);
+      if (errorBody['error'] == 'certificates_already_linked') {
+        throw CertificatesAlreadyLinkedException(
+            ((errorBody['conflicts'] ?? []) as List)
+                .map((c) => Map<String, dynamic>.from(c as Map))
+                .toList());
+      }
+    }
     if (res.statusCode != 200) {
       throw Exception('Failed to update letter');
     }
@@ -113,4 +139,40 @@ class LetterService {
       throw Exception('Failed to link payment certificate');
     }
   }
+
+  Future<Uint8List> exportLetterWithAttachments({
+    required String letterId,
+    required Map<String, dynamic> letterBody,
+    required List<String> orderedCertIds,
+    required Map<String, Uint8List> certPdfs,
+    required String requesterEmail,
+  }) async {
+    final uri = Uri.parse(
+        '${AppConfig.baseUrl}/letters-v2/$letterId/export-with-attachments');
+    final request = http.MultipartRequest('POST', uri);
+    request.fields['letter_body'] = jsonEncode(letterBody);
+    request.fields['order'] = jsonEncode(orderedCertIds);
+    request.fields['requester_email'] = requesterEmail;
+    for (final entry in certPdfs.entries) {
+      request.files.add(http.MultipartFile.fromBytes(
+        'files',
+        entry.value,
+        filename: entry.key,
+      ));
+    }
+    final streamedRes = await request.send();
+    final res = await http.Response.fromStream(streamedRes);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to export letter with attachments');
+    }
+    return res.bodyBytes;
+  }
+}
+
+class CertificatesAlreadyLinkedException implements Exception {
+  final List<Map<String, dynamic>> conflicts;
+  CertificatesAlreadyLinkedException(this.conflicts);
+  @override
+  String toString() =>
+      'CertificatesAlreadyLinkedException(${conflicts.length} conflicts)';
 }

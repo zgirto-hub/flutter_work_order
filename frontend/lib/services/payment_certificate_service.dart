@@ -5,8 +5,7 @@ import '../config.dart';
 import '../models/payment_certificate.dart';
 
 class PaymentCertificateService {
-  String get _email =>
-      Supabase.instance.client.auth.currentUser?.email ?? '';
+  String get _email => Supabase.instance.client.auth.currentUser?.email ?? '';
 
   Future<({List<PaymentCertificate> items, int total})> fetchAll({
     int? limit,
@@ -50,18 +49,14 @@ class PaymentCertificateService {
     return PaymentCertificate.fromJson(data['certificate']);
   }
 
-  Future<PaymentCertificate> update(
-      String id, PaymentCertificate cert) async {
+  Future<PaymentCertificate> update(String id, PaymentCertificate cert) async {
     final body = cert.toJson();
-    body['created_by_email'] = cert.createdByEmail.isNotEmpty
-        ? cert.createdByEmail
-        : _email;
-    body['created_by'] = cert.createdBy.isNotEmpty
-        ? cert.createdBy
-        : _email.split('@').first;
+    body['created_by_email'] =
+        cert.createdByEmail.isNotEmpty ? cert.createdByEmail : _email;
+    body['created_by'] =
+        cert.createdBy.isNotEmpty ? cert.createdBy : _email.split('@').first;
 
-    final uri = Uri.parse(
-            '${AppConfig.baseUrl}/payment-certificates/$id')
+    final uri = Uri.parse('${AppConfig.baseUrl}/payment-certificates/$id')
         .replace(queryParameters: {'user_email': _email});
     final res = await http.put(
       uri,
@@ -76,8 +71,7 @@ class PaymentCertificateService {
   }
 
   Future<void> delete(String id) async {
-    final uri = Uri.parse(
-            '${AppConfig.baseUrl}/payment-certificates/$id')
+    final uri = Uri.parse('${AppConfig.baseUrl}/payment-certificates/$id')
         .replace(queryParameters: {'user_email': _email});
     final res = await http.delete(uri);
     if (res.statusCode != 200) {
@@ -85,4 +79,26 @@ class PaymentCertificateService {
     }
   }
 
+  Future<List<PaymentCertificate>> listAll() async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/payment-certificates')
+        .replace(queryParameters: {'email': _email, 'limit': '1000'});
+    final res = await http.get(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to fetch certificates');
+    }
+    final data = jsonDecode(res.body);
+    return (data['certificates'] as List)
+        .map((j) => PaymentCertificate.fromJson(j))
+        .toList();
+  }
+
+  Future<PaymentCertificate?> getById(String id) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/payment-certificates/$id');
+    final res = await http.get(uri);
+    if (res.statusCode != 200) {
+      return null;
+    }
+    final data = jsonDecode(res.body);
+    return PaymentCertificate.fromJson(data['certificate']);
+  }
 }
