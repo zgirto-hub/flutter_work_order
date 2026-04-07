@@ -381,6 +381,13 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'signature_base64': _signatureBase64,
         'reply_required': _replyRequired,
         'cc_list': _ccNames.isEmpty ? null : _ccNames.join('\n'),
+        'ref_font_size': _refFontSize,
+        'ref_bold': _refBold,
+        'recipient_font_size': _recipientFontSize,
+        'recipient_bold': _recipientBold,
+        'subject_font_size': _subjectFontSize,
+        'subject_bold': _subjectBold,
+        'subject_underline': _subjectUnderline,
         'attachments': _attachments
             .map((_Attachment a) => <String, dynamic>{
                   'name': a.name,
