@@ -40,6 +40,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-07
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx (backend); http, Flutter Material (frontend) (027-ai-document-expert)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, reportlab, **pypdf (NEW)** (backend); http, supabase_flutter, Flutter `pdf`, existing `PaymentCertificatePdfService` (frontend) (029-link-cert-letter)
 - Supabase (PostgreSQL) — existing `generated_letters`, `payment_certificates` (`letter_id` FK already present; add `letter_link_order int` column for ordering) (029-link-cert-letter)
+- Dart 3.x / Flutter 3.x + Flutter Material (existing), `AiInsightsCard` (existing), `NlInputCard` (existing) (030-collapsible-ai-cards)
+- N/A — UI state only, in-memory, not persisted (030-collapsible-ai-cards)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -62,9 +64,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 030-collapsible-ai-cards: Added Dart 3.x / Flutter 3.x + Flutter Material (existing), `AiInsightsCard` (existing), `NlInputCard` (existing)
+- 028-openclaw-telegram-ops: Added out-of-tree server ops assistant (OpenClaw + local Gemma + Telegram bot); no backend/frontend code changes
 - 029-link-cert-letter: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, reportlab, **pypdf (NEW)** (backend); http, supabase_flutter, Flutter `pdf`, existing `PaymentCertificatePdfService` (frontend)
-- 027-ai-document-expert: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx (backend); http, Flutter Material (frontend)
-- 026-civil-aviation-letter-gen: Added Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, ReportLab, arabic_reshaper, python-bidi (backend); http, supabase_flutter, file_picker, Flutter Material (frontend)
 
 
 <!-- MANUAL ADDITIONS START -->
