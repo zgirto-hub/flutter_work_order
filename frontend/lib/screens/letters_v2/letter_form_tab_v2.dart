@@ -836,23 +836,42 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
           const Text('PDF font size:',
               style: TextStyle(fontSize: 12, color: Colors.grey)),
           const SizedBox(width: 8),
-          SizedBox(
-            width: 70,
-            child: DropdownButton<double>(
-              value: fontSize,
-              isExpanded: true,
-              isDense: true,
-              items: [9, 10, 11, 12, 13, 14, 16, 18, 20]
-                  .map(
-                    (s) => DropdownMenuItem(
-                        value: s.toDouble(),
-                        child: Text('${s}pt',
-                            style: const TextStyle(fontSize: 12))),
-                  )
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) onFontSizeChanged(v);
-              },
+          InkWell(
+            onTap: () {
+              final next = (fontSize - 1).clamp(6, 40).toDouble();
+              onFontSizeChanged(next);
+            },
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey.shade400),
+              ),
+              child: const Icon(Icons.remove, size: 16),
+            ),
+          ),
+          Container(
+            width: 40,
+            alignment: Alignment.center,
+            child: Text('${fontSize.toInt()}pt',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+          InkWell(
+            onTap: () {
+              final next = (fontSize + 1).clamp(6, 40).toDouble();
+              onFontSizeChanged(next);
+            },
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey.shade400),
+              ),
+              child: const Icon(Icons.add, size: 16),
             ),
           ),
           const SizedBox(width: 16),
