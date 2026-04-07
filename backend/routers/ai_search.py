@@ -96,6 +96,19 @@ async def _parse_query_with_ai(query: str, departments: List[str]) -> Optional[d
         return None
 
     stripped = _strip_preamble(response_text)
+    # Strip markdown code fences (```json ... ``` or ``` ... ```)
+    if stripped.startswith("```"):
+        lines = stripped.split("\n")
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        stripped = "\n".join(lines).strip()
+    # Extract JSON object if extra text surrounds it
+    if "{" in stripped and "}" in stripped:
+        start = stripped.find("{")
+        end = stripped.rfind("}") + 1
+        stripped = stripped[start:end]
     try:
         parsed = json.loads(stripped)
         return parsed
