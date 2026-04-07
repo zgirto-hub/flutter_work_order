@@ -44,6 +44,8 @@ class DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
   bool _loading = true;
   bool _refreshing = false;
+  bool _aiInsightsExpanded = false;
+  bool _aiWorkOrderExpanded = false;
   int _openWorkOrders = 0;
   int _inProgressWorkOrders = 0;
   int _inspectionsToday = 0;
@@ -607,17 +609,31 @@ class DashboardScreenState extends State<DashboardScreen>
                   if (widget.userRole == 'admin' ||
                       widget.userRole == 'supervisor') ...[
                     const SizedBox(height: 12),
-                    AiInsightsCard(
-                      email: _email,
-                      userRole: widget.userRole,
+                    _CollapsibleCard(
+                      icon: Icons.auto_awesome,
+                      title: 'AI Insights',
+                      expanded: _aiInsightsExpanded,
+                      onTap: () => setState(
+                          () => _aiInsightsExpanded = !_aiInsightsExpanded),
+                      child: AiInsightsCard(
+                        email: _email,
+                        userRole: widget.userRole,
+                      ),
                     ),
                   ],
 
                   const SizedBox(height: 12),
-                  NlInputCard(
-                    controller: _nlController,
-                    isGenerating: _isGenerating,
-                    onGenerate: _generateAiWorkOrder,
+                  _CollapsibleCard(
+                    icon: Icons.auto_awesome,
+                    title: 'AI Work Order',
+                    expanded: _aiWorkOrderExpanded,
+                    onTap: () => setState(
+                        () => _aiWorkOrderExpanded = !_aiWorkOrderExpanded),
+                    child: NlInputCard(
+                      controller: _nlController,
+                      isGenerating: _isGenerating,
+                      onGenerate: _generateAiWorkOrder,
+                    ),
                   ),
 
                   SizedBox(height: 24),
@@ -1050,6 +1066,95 @@ class _RecentActivityRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Collapsible Card ─────────────────────────────────────────────────────────
+
+class _CollapsibleCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final bool expanded;
+  final VoidCallback onTap;
+  final Widget child;
+
+  const _CollapsibleCard({
+    required this.icon,
+    required this.title,
+    required this.expanded,
+    required this.onTap,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final header = Material(
+      color: AppColors.bgSurface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border, width: 0.5),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Icon(icon, size: 16, color: AppColors.accent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              AnimatedRotation(
+                turns: expanded ? 0.5 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  Icons.expand_more_rounded,
+                  size: 18,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final body = AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      child: ClipRect(
+        child: Align(
+          alignment: Alignment.topCenter,
+          heightFactor: expanded ? 1.0 : 0.0,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: child,
+          ),
+        ),
+      ),
+    );
+
+    return Semantics(
+      button: true,
+      expanded: expanded,
+      label: title,
+      container: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [header, body],
       ),
     );
   }
