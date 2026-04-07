@@ -936,7 +936,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
 <meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { background: #fff; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 13px; }
+  html, body { background: #fff; font-family: 'Calibri', 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 13px; }
   .toolbar {
     display: flex; flex-wrap: wrap; gap: 2px;
     padding: 4px 6px; background: #f0f0f0;
@@ -953,7 +953,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   #editor {
     min-height: 250px; padding: 12px; outline: none;
     direction: rtl; text-align: right;
-    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    font-family: 'Calibri', 'Segoe UI', Tahoma, Arial, sans-serif;
     font-size: 14px; line-height: 1.8;
     background: #fff;
   }
