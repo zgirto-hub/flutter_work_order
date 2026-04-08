@@ -80,10 +80,10 @@ def _generate_barcode_data_uri(value: str) -> str | None:
         Code128(value, writer=ImageWriter()).write(
             buffer,
             options={
-                "module_height": 8.0,
-                "module_width": 0.25,
-                "font_size": 8,
-                "text_distance": 3.0,
+                "module_height": 15.0,
+                "module_width": 0.4,
+                "font_size": 10,
+                "text_distance": 4.0,
                 "quiet_zone": 2.0,
                 "write_text": True,
             },
