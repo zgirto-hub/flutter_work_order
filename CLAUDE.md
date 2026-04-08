@@ -44,6 +44,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-08
 - N/A — UI state only, in-memory, not persisted (030-collapsible-ai-cards)
 - Python 3.10 (backend) + FastAPI, Jinja2, WeasyPrint, Pillow (existing); `python-barcode==0.15.1` (NEW) (032-letter-barcode)
 - N/A (no DB or filesystem changes — barcode is in-memory PNG → base64 data URI) (032-letter-barcode)
+- Dart 3.x / Flutter 3.x (embedded HTML5 / JS ES5 inside string constant) + Flutter Material (existing), browser-native `document.execCommand`, `Range`, `TreeWalker`, CSS `zoom` (033-gdocs-editor-toolbar)
+- N/A — all state lives in editor DOM; persists as inline HTML via existing letters_v2 save pipeline (033-gdocs-editor-toolbar)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -66,9 +68,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 033-gdocs-editor-toolbar: Added Dart 3.x / Flutter 3.x (embedded HTML5 / JS ES5 inside string constant) + Flutter Material (existing), browser-native `document.execCommand`, `Range`, `TreeWalker`, CSS `zoom`
 - 032-letter-barcode: Added Python 3.10 (backend) + FastAPI, Jinja2, WeasyPrint, Pillow (existing); `python-barcode==0.15.1` (NEW)
 - 030-collapsible-ai-cards: Added Dart 3.x / Flutter 3.x + Flutter Material (existing), `AiInsightsCard` (existing), `NlInputCard` (existing)
-- 028-openclaw-telegram-ops: Added out-of-tree server ops assistant (OpenClaw + local Gemma + Telegram bot); no backend/frontend code changes
 
 
 <!-- MANUAL ADDITIONS START -->

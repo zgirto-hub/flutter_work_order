@@ -1270,12 +1270,12 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   }
   .toolbar button:hover { background: #e0e0e0; }
   .toolbar .sep { width: 1px; background: #ccc; margin: 0 4px; }
-  .toolbar .fontsize-select {
+  .toolbar .tb-select {
     border: 1px solid #ccc; background: #fff; cursor: pointer;
     padding: 4px 6px; font-size: 13px; border-radius: 3px;
     height: 28px;
   }
-  .toolbar .fontsize-select:hover { background: #e0e0e0; }
+  .toolbar .tb-select:hover { background: #e0e0e0; }
   .toolbar .color-btn {
     border: 1px solid #ccc; background: #fff; cursor: pointer;
     padding: 4px 8px; font-size: 13px; border-radius: 3px;
@@ -1329,13 +1329,39 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   <div class="sep"></div>
   <button onclick="fmt('insertUnorderedList')" title="Bullets">&#8226;</button>
   <button onclick="fmt('insertOrderedList')" title="Numbered">1.</button>
+  <button onclick="fmt('indent')" title="Increase indent">&#8679;</button>
+  <button onclick="fmt('outdent')" title="Decrease indent">&#8678;</button>
+  <select onchange="applyLineSpacing(this.value); this.value=''" title="Line spacing" class="tb-select">
+    <option value="" selected>Spacing</option>
+    <option value="1">Single</option>
+    <option value="1.15">1.15</option>
+    <option value="1.5">1.5</option>
+    <option value="2">Double</option>
+  </select>
   <div class="sep"></div>
   <button onclick="insertTable()" title="Table">&#9638;</button>
   <div class="sep"></div>
   <button onclick="fmt('undo')" title="Undo">&#8630;</button>
   <button onclick="fmt('redo')" title="Redo">&#8631;</button>
   <div class="sep"></div>
-  <select onchange="applyFontSize(this.value); this.value=''" title="Font Size" class="fontsize-select">
+  <select onchange="applyParaStyle(this.value); this.value=''" title="Paragraph style" class="tb-select">
+    <option value="" selected>Style</option>
+    <option value="p">Normal text</option>
+    <option value="h1">Heading 1</option>
+    <option value="h2">Heading 2</option>
+    <option value="h3">Heading 3</option>
+  </select>
+  <select onchange="applyFontFamily(this.value); this.value=''" title="Font" class="tb-select">
+    <option value="" selected>Font</option>
+    <option value="Calibri, 'Segoe UI', sans-serif">Calibri</option>
+    <option value="Arial, sans-serif">Arial</option>
+    <option value="'Times New Roman', serif">Times New Roman</option>
+    <option value="Tahoma, sans-serif">Tahoma</option>
+    <option value="Georgia, serif">Georgia</option>
+    <option value="'Courier New', monospace">Courier New</option>
+    <option value="Verdana, sans-serif">Verdana</option>
+  </select>
+  <select onchange="applyFontSize(this.value); this.value=''" title="Font Size" class="tb-select">
     <option value="" selected>Size</option>
     <option value="10">10 pt</option>
     <option value="11">11 pt</option>
@@ -1351,6 +1377,16 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     <option value="48">48 pt</option>
   </select>
   <label class="color-btn" title="Font Color">A<span id="colorSwatch">&#9607;</span><input type="color" id="fontColorInput" value="#CC0000" onchange="applyFontColor(this.value)" /></label>
+  <label class="color-btn" title="Highlight"><span id="hlSwatch" style="color:#FFFF00">&#9607;</span><input type="color" value="#FFFF00" onchange="applyHighlight(this.value); document.getElementById('hlSwatch').style.color=this.value" /></label>
+  <button onclick="clearFormatting()" title="Clear formatting">&#9108;</button>
+  <div class="sep"></div>
+  <select id="zoomSelect" onchange="applyZoom(this.value)" title="Zoom" class="tb-select">
+    <option value="0.5">50%</option>
+    <option value="0.75">75%</option>
+    <option value="1" selected>100%</option>
+    <option value="1.25">125%</option>
+    <option value="1.5">150%</option>
+  </select>
 </div>
 <div id="editor" contenteditable="true"></div>
 
@@ -1420,8 +1456,7 @@ function doInsertTable() {
   document.getElementById("editor").focus();
   document.execCommand("insertHTML", false, t);
 }
-function applyFontSize(s) {
-  if (!s) return;
+function wrapSelectionWithStyle(styleProp, styleVal) {
   var editor = document.getElementById("editor");
   editor.focus();
   var sel = window.getSelection();
@@ -1429,8 +1464,6 @@ function applyFontSize(s) {
   var range = sel.getRangeAt(0);
 
   if (!sel.isCollapsed) {
-    // Walk every text node intersecting the selection and wrap each in a sized span.
-    // This handles both inline and block-spanning selections correctly.
     var walker = document.createTreeWalker(
       editor,
       NodeFilter.SHOW_TEXT,
@@ -1447,14 +1480,12 @@ function applyFontSize(s) {
     while ((n = walker.nextNode())) textNodes.push(n);
 
     textNodes.forEach(function(tn) {
-      // Determine the slice of this text node that's actually in the range
       var startOffset = 0;
       var endOffset = tn.nodeValue.length;
       if (tn === range.startContainer) startOffset = range.startOffset;
       if (tn === range.endContainer) endOffset = range.endOffset;
       if (startOffset >= endOffset) return;
 
-      // Split the text node to isolate the selected portion
       var middle = tn;
       if (endOffset < tn.nodeValue.length) {
         middle.splitText(endOffset);
@@ -1463,104 +1494,96 @@ function applyFontSize(s) {
         middle = middle.splitText(startOffset);
       }
 
-      // If parent is already a span we own, just update its size
       if (middle.parentNode && middle.parentNode.nodeName === "SPAN" &&
           middle.parentNode.childNodes.length === 1 &&
-          middle.parentNode.style && middle.parentNode.style.fontSize) {
-        middle.parentNode.style.fontSize = s + "pt";
+          middle.parentNode.style && middle.parentNode.style[styleProp]) {
+        middle.parentNode.style[styleProp] = styleVal;
         return;
       }
 
       var span = document.createElement("span");
-      span.style.fontSize = s + "pt";
+      span.style[styleProp] = styleVal;
       middle.parentNode.insertBefore(span, middle);
       span.appendChild(middle);
     });
     return;
   }
 
-  // No selection — insert an empty span with a zero-width space and place caret inside
   var span = document.createElement("span");
-  span.style.fontSize = s + "pt";
+  span.style[styleProp] = styleVal;
   var zwsp = document.createTextNode("\u200B");
   span.appendChild(zwsp);
   range.insertNode(span);
 
-  // Move caret inside the span, after the zero-width space
   var newRange = document.createRange();
   newRange.setStart(zwsp, 1);
   newRange.setEnd(zwsp, 1);
   sel.removeAllRanges();
   sel.addRange(newRange);
 }
+function applyFontSize(s) {
+  if (!s) return;
+  document.getElementById("editor").focus();
+  wrapSelectionWithStyle("fontSize", s + "pt");
+}
 function applyFontColor(c) {
   if (!c) return;
   var swatch = document.getElementById("colorSwatch");
   if (swatch) swatch.style.color = c;
+  document.getElementById("editor").focus();
+  wrapSelectionWithStyle("color", c);
+}
+function applyHighlight(c) {
+  if (!c) return;
+  document.getElementById("editor").focus();
+  wrapSelectionWithStyle("backgroundColor", c);
+}
+function applyLineSpacing(v) {
+  if (!v) return;
   var editor = document.getElementById("editor");
   editor.focus();
   var sel = window.getSelection();
   if (!sel.rangeCount) return;
-
-  if (!sel.isCollapsed) {
-    var range = sel.getRangeAt(0);
-    var walker = document.createTreeWalker(
-      editor,
-      NodeFilter.SHOW_TEXT,
-      {
-        acceptNode: function(node) {
-          if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
-          if (!range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
-          return NodeFilter.FILTER_ACCEPT;
-        }
-      }
-    );
-    var textNodes = [];
-    var n;
-    while ((n = walker.nextNode())) textNodes.push(n);
-
-    textNodes.forEach(function(tn) {
-      var startOffset = 0;
-      var endOffset = tn.nodeValue.length;
-      if (tn === range.startContainer) startOffset = range.startOffset;
-      if (tn === range.endContainer) endOffset = range.endOffset;
-      if (startOffset >= endOffset) return;
-
-      var middle = tn;
-      if (endOffset < tn.nodeValue.length) {
-        middle.splitText(endOffset);
-      }
-      if (startOffset > 0) {
-        middle = middle.splitText(startOffset);
-      }
-
-      if (middle.parentNode && middle.parentNode.nodeName === "SPAN" &&
-          middle.parentNode.childNodes.length === 1 &&
-          middle.parentNode.style && middle.parentNode.style.color) {
-        middle.parentNode.style.color = c;
-        return;
-      }
-
-      var span = document.createElement("span");
-      span.style.color = c;
-      middle.parentNode.insertBefore(span, middle);
-      span.appendChild(middle);
-    });
-    return;
-  }
-
-  // No selection — insert styled marker so next typing uses this color
   var range = sel.getRangeAt(0);
-  var span = document.createElement("span");
-  span.style.color = c;
-  var zwsp = document.createTextNode("\u200B");
-  span.appendChild(zwsp);
-  range.insertNode(span);
-  var newRange = document.createRange();
-  newRange.setStart(zwsp, 1);
-  newRange.setEnd(zwsp, 1);
-  sel.removeAllRanges();
-  sel.addRange(newRange);
+  var blockTags = ["P", "DIV", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "BLOCKQUOTE"];
+  var blocks = [];
+  var walker = document.createTreeWalker(editor, NodeFilter.SHOW_ELEMENT, {
+    acceptNode: function(node) {
+      if (blockTags.indexOf(node.nodeName) === -1) return NodeFilter.FILTER_SKIP;
+      if (!range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  var n;
+  while ((n = walker.nextNode())) blocks.push(n);
+  if (blocks.length === 0) {
+    var el = range.commonAncestorContainer;
+    if (el.nodeType === Node.TEXT_NODE) el = el.parentNode;
+    while (el && el !== editor && blockTags.indexOf(el.nodeName) === -1) el = el.parentNode;
+    if (el && el !== editor) blocks.push(el);
+  }
+  blocks.forEach(function(b) { b.style.lineHeight = v; });
+}
+function clearFormatting() {
+  document.getElementById("editor").focus();
+  document.execCommand("removeFormat");
+  var sel = window.getSelection();
+  if (sel.rangeCount && !sel.isCollapsed) {
+    document.execCommand("formatBlock", false, "p");
+  }
+}
+function applyZoom(z) {
+  document.getElementById("editor").style.zoom = z;
+}
+function applyParaStyle(tag) {
+  if (!tag) return;
+  document.getElementById("editor").focus();
+  document.execCommand("formatBlock", false, tag);
+}
+function applyFontFamily(f) {
+  if (!f) return;
+  document.getElementById("editor").focus();
+  wrapSelectionWithStyle("fontFamily", f);
 }
 // ── Table context menu (right-click on cells) ──
 var ctxMenu = null;
