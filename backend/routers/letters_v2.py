@@ -84,7 +84,7 @@ def _generate_barcode_data_uri(value: str) -> str | None:
             options={
                 "module_height": 6.0,
                 "module_width": 0.3,
-                "font_size": 14,
+                "font_size": 10,
                 "text_distance": 4.0,
                 "quiet_zone": 2.0,
                 "write_text": True,
