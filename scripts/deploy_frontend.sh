@@ -177,7 +177,7 @@ if [[ "$BUMP" != "--no-bump" ]]; then
   echo ""
   echo "Syncing version bump to git..."
   cd "$SCRIPT_DIR/.."
-  git add frontend/pubspec.yaml
+  git add frontend/pubspec.yaml frontend/pubspec.lock
   git commit -m "bump version to v$NEW_VERSION+$BUILD_NUMBER"
   git push
 
