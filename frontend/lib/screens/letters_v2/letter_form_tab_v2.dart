@@ -1429,12 +1429,53 @@ function applyFontSize(s) {
   var range = sel.getRangeAt(0);
 
   if (!sel.isCollapsed) {
-    // Selection exists — wrap it
-    var frag = range.cloneContents();
-    var div = document.createElement("div");
-    div.appendChild(frag);
-    var html = '<span style="font-size:' + s + 'pt">' + div.innerHTML + '</span>';
-    document.execCommand("insertHTML", false, html);
+    // Walk every text node intersecting the selection and wrap each in a sized span.
+    // This handles both inline and block-spanning selections correctly.
+    var walker = document.createTreeWalker(
+      editor,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function(node) {
+          if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+          if (!range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }
+    );
+    var textNodes = [];
+    var n;
+    while ((n = walker.nextNode())) textNodes.push(n);
+
+    textNodes.forEach(function(tn) {
+      // Determine the slice of this text node that's actually in the range
+      var startOffset = 0;
+      var endOffset = tn.nodeValue.length;
+      if (tn === range.startContainer) startOffset = range.startOffset;
+      if (tn === range.endContainer) endOffset = range.endOffset;
+      if (startOffset >= endOffset) return;
+
+      // Split the text node to isolate the selected portion
+      var middle = tn;
+      if (endOffset < tn.nodeValue.length) {
+        middle.splitText(endOffset);
+      }
+      if (startOffset > 0) {
+        middle = middle.splitText(startOffset);
+      }
+
+      // If parent is already a span we own, just update its size
+      if (middle.parentNode && middle.parentNode.nodeName === "SPAN" &&
+          middle.parentNode.childNodes.length === 1 &&
+          middle.parentNode.style && middle.parentNode.style.fontSize) {
+        middle.parentNode.style.fontSize = s + "pt";
+        return;
+      }
+
+      var span = document.createElement("span");
+      span.style.fontSize = s + "pt";
+      middle.parentNode.insertBefore(span, middle);
+      span.appendChild(middle);
+    });
     return;
   }
 
@@ -1462,7 +1503,49 @@ function applyFontColor(c) {
   if (!sel.rangeCount) return;
 
   if (!sel.isCollapsed) {
-    document.execCommand("foreColor", false, c);
+    var range = sel.getRangeAt(0);
+    var walker = document.createTreeWalker(
+      editor,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function(node) {
+          if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+          if (!range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }
+    );
+    var textNodes = [];
+    var n;
+    while ((n = walker.nextNode())) textNodes.push(n);
+
+    textNodes.forEach(function(tn) {
+      var startOffset = 0;
+      var endOffset = tn.nodeValue.length;
+      if (tn === range.startContainer) startOffset = range.startOffset;
+      if (tn === range.endContainer) endOffset = range.endOffset;
+      if (startOffset >= endOffset) return;
+
+      var middle = tn;
+      if (endOffset < tn.nodeValue.length) {
+        middle.splitText(endOffset);
+      }
+      if (startOffset > 0) {
+        middle = middle.splitText(startOffset);
+      }
+
+      if (middle.parentNode && middle.parentNode.nodeName === "SPAN" &&
+          middle.parentNode.childNodes.length === 1 &&
+          middle.parentNode.style && middle.parentNode.style.color) {
+        middle.parentNode.style.color = c;
+        return;
+      }
+
+      var span = document.createElement("span");
+      span.style.color = c;
+      middle.parentNode.insertBefore(span, middle);
+      span.appendChild(middle);
+    });
     return;
   }
 
