@@ -69,20 +69,22 @@ def _font_data_uri(filename: str) -> str:
 
 
 def _generate_barcode_data_uri(value: str) -> str | None:
-    """Generate a Code 128 barcode as a base64 PNG data URI."""
+    """Generate a Code 39 barcode as a base64 PNG data URI."""
     if not value or not value.strip():
         return None
     try:
-        from barcode import Code128
+        from barcode import Code39
         from barcode.writer import ImageWriter
 
         buffer = io.BytesIO()
-        Code128(value, writer=ImageWriter()).write(
+        # Code 39 is case-insensitive and typically uppercase; normalize
+        # to uppercase so digits + dash encode cleanly.
+        Code39(value.upper(), writer=ImageWriter(), add_checksum=False).write(
             buffer,
             options={
                 "module_height": 15.0,
-                "module_width": 0.2,
-                "font_size": 10,
+                "module_width": 0.3,
+                "font_size": 14,
                 "text_distance": 4.0,
                 "quiet_zone": 2.0,
                 "write_text": True,
