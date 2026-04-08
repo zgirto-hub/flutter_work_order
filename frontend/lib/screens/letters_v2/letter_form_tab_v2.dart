@@ -1254,6 +1254,9 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
 <html dir="rtl" lang="ar">
 <head>
 <meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background: #fff; font-family: 'Calibri', 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 13px; }
@@ -1360,6 +1363,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     <option value="Georgia, serif">Georgia</option>
     <option value="'Courier New', monospace">Courier New</option>
     <option value="Verdana, sans-serif">Verdana</option>
+    <option value="'Traditional Arabic', 'Arabic Typesetting', serif">Traditional Arabic</option>
+    <option value="Inter, system-ui, sans-serif">Inter</option>
   </select>
   <select onchange="applyFontSize(this.value); this.value=''" title="Font Size" class="tb-select">
     <option value="" selected>Size</option>
