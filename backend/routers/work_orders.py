@@ -732,17 +732,17 @@ async def update_work_order(
     user_email: str = Query(...),
 ):
     editor_user = _get_user_by_email(user_email)
-    user_role = editor_user.get("user_type", "reporter") if editor_user else "reporter"
-    user_id = editor_user.get("id", "unknown") if editor_user else "unknown"
-    editor_name = (
-        (editor_user.get("full_name") or user_email.split("@")[0])
-        if editor_user
-        else user_email.split("@")[0]
-    )
+    if not editor_user:
+        raise HTTPException(status_code=401, detail="User not found")
+    user_role = editor_user.get("user_type", "reporter")
+    user_id = editor_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User has no id")
+    editor_name = editor_user.get("full_name") or user_email.split("@")[0]
 
     existing = (
         supabase.table("work_orders")
-        .select("id, status, type, created_by")
+        .select("id, status, type, created_by, created_at")
         .eq("id", work_order_id)
         .execute()
     )
@@ -881,7 +881,8 @@ async def update_work_order(
             payload["closed_at"] = body.closed_at
 
         if body.status == "Closed" and old_status != "Closed":
-            payload["closed_at"] = now
+            if body.closed_at is None:
+                payload["closed_at"] = now
             payload["closed_by"] = user_id
 
     supabase.table("work_orders").update(payload).eq("id", work_order_id).execute()
