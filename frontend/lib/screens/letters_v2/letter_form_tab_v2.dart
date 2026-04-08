@@ -1270,6 +1270,12 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   }
   .toolbar button:hover { background: #e0e0e0; }
   .toolbar .sep { width: 1px; background: #ccc; margin: 0 4px; }
+  .toolbar .fontsize-select {
+    border: 1px solid #ccc; background: #fff; cursor: pointer;
+    padding: 4px 6px; font-size: 13px; border-radius: 3px;
+    height: 28px;
+  }
+  .toolbar .fontsize-select:hover { background: #e0e0e0; }
   #editor {
     min-height: 250px; padding: 12px; outline: none;
     direction: rtl; text-align: right;
@@ -1317,7 +1323,21 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   <button onclick="fmt('undo')" title="Undo">&#8630;</button>
   <button onclick="fmt('redo')" title="Redo">&#8631;</button>
   <div class="sep"></div>
-  <button onclick="changeFontSize()" title="Font Size">A&#8597;</button>
+  <select onchange="applyFontSize(this.value); this.value=''" title="Font Size" class="fontsize-select">
+    <option value="" selected>Size</option>
+    <option value="10">10 pt</option>
+    <option value="11">11 pt</option>
+    <option value="12">12 pt</option>
+    <option value="14">14 pt</option>
+    <option value="16">16 pt</option>
+    <option value="18">18 pt</option>
+    <option value="20">20 pt</option>
+    <option value="24">24 pt</option>
+    <option value="28">28 pt</option>
+    <option value="32">32 pt</option>
+    <option value="36">36 pt</option>
+    <option value="48">48 pt</option>
+  </select>
   <button onclick="changeColor()" title="Font Color">A<span style="color:red">&#9607;</span></button>
 </div>
 <div id="editor" contenteditable="true"></div>
@@ -1388,17 +1408,37 @@ function doInsertTable() {
   document.getElementById("editor").focus();
   document.execCommand("insertHTML", false, t);
 }
-function changeFontSize() {
-  var s = prompt("Font size (pt):", "16");
+function applyFontSize(s) {
   if (!s) return;
+  var editor = document.getElementById("editor");
+  editor.focus();
   var sel = window.getSelection();
-  if (!sel.rangeCount || sel.isCollapsed) return;
+  if (!sel.rangeCount) return;
   var range = sel.getRangeAt(0);
-  var frag = range.cloneContents();
-  var div = document.createElement("div");
-  div.appendChild(frag);
-  var html = '<span style="font-size:' + s + 'pt">' + div.innerHTML + '</span>';
-  document.execCommand("insertHTML", false, html);
+
+  if (!sel.isCollapsed) {
+    // Selection exists — wrap it
+    var frag = range.cloneContents();
+    var div = document.createElement("div");
+    div.appendChild(frag);
+    var html = '<span style="font-size:' + s + 'pt">' + div.innerHTML + '</span>';
+    document.execCommand("insertHTML", false, html);
+    return;
+  }
+
+  // No selection — insert an empty span with a zero-width space and place caret inside
+  var span = document.createElement("span");
+  span.style.fontSize = s + "pt";
+  var zwsp = document.createTextNode("\u200B");
+  span.appendChild(zwsp);
+  range.insertNode(span);
+
+  // Move caret inside the span, after the zero-width space
+  var newRange = document.createRange();
+  newRange.setStart(zwsp, 1);
+  newRange.setEnd(zwsp, 1);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
 }
 function changeColor() {
   var c = prompt("Color (hex):", "#CC0000");
