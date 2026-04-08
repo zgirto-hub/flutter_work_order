@@ -873,8 +873,6 @@ async def update_work_order(
         # Add metadata fields to payload
         if body.created_by is not None and user_record:
             payload["created_by"] = body.created_by
-            payload["created_by_email"] = user_record["email"]
-            payload["created_by_name"] = user_record["full_name"]
         if body.created_at is not None:
             payload["created_at"] = body.created_at
         if body.closed_at is not None:
