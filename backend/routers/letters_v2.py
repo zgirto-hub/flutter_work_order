@@ -82,7 +82,7 @@ def _generate_barcode_data_uri(value: str) -> str | None:
         Code39(value.upper(), writer=ImageWriter(), add_checksum=False).write(
             buffer,
             options={
-                "module_height": 10.0,
+                "module_height": 6.0,
                 "module_width": 0.3,
                 "font_size": 14,
                 "text_distance": 4.0,
