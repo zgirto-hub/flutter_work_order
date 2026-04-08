@@ -74,9 +74,50 @@ def _build_document_expert_prompt(
     if html_content:
         prompt += f" نص المستند:\n{html_content}"
 
-    prompt += "\nأعد فقط نص المستند بصيغة HTML. لا تضف أي مقدمة أو شرح."
+    prompt += (
+        "\nأعد المحتوى فقط كفقرات HTML بسيطة باستخدام وسوم <p> و <br> فقط."
+        "\nلا تضع المحتوى داخل <div> أو <blockquote> أو <section> أو أي حاوية."
+        "\nلا تستخدم علامات markdown مثل ```html أو ```."
+        "\nلا تضف أي مقدمة أو شرح أو تعليق. أعد وسوم <p> مباشرة."
+    )
 
     return prompt
+
+
+def _strip_code_fences(text: str) -> str:
+    """Remove ```html ... ``` or ``` ... ``` markdown code fences."""
+    import re
+    stripped = text.strip()
+    # Match ```html\n...\n``` or ```\n...\n```
+    fence_pattern = re.compile(
+        r"^```(?:html|HTML)?\s*\n?(.*?)\n?```\s*$",
+        re.DOTALL,
+    )
+    m = fence_pattern.match(stripped)
+    if m:
+        return m.group(1).strip()
+    # Also strip leading/trailing single-line fences
+    stripped = re.sub(r"^```(?:html|HTML)?\s*", "", stripped)
+    stripped = re.sub(r"\s*```\s*$", "", stripped)
+    return stripped.strip()
+
+
+def _unwrap_outer_container(html: str) -> str:
+    """If the entire HTML is wrapped in a single <div>/<blockquote>/<section>,
+    unwrap it. Leaves content as inline <p> tags."""
+    import re
+    s = html.strip()
+    # Match <div ...>...</div> as the sole outer element
+    for tag in ("div", "blockquote", "section", "article"):
+        pattern = re.compile(
+            rf"^<{tag}\b[^>]*>(.*)</{tag}>\s*$",
+            re.DOTALL | re.IGNORECASE,
+        )
+        m = pattern.match(s)
+        if m:
+            s = m.group(1).strip()
+            break
+    return s
 
 
 def _build_parse_prompt(
@@ -314,6 +355,8 @@ async def document_expert(request: DocumentExpertRequest):
         raise HTTPException(status_code=502, detail="AI model error")
 
     stripped = _strip_preamble(response_text)
+    stripped = _strip_code_fences(stripped)
+    stripped = _unwrap_outer_container(stripped)
     if not stripped:
         raise HTTPException(
             status_code=502, detail="AI model returned an empty response"
