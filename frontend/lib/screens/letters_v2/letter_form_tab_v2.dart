@@ -1276,6 +1276,18 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     height: 28px;
   }
   .toolbar .fontsize-select:hover { background: #e0e0e0; }
+  .toolbar .color-btn {
+    border: 1px solid #ccc; background: #fff; cursor: pointer;
+    padding: 4px 8px; font-size: 13px; border-radius: 3px;
+    min-width: 28px; height: 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .toolbar .color-btn:hover { background: #e0e0e0; }
+  .toolbar .color-btn #colorSwatch { color: #CC0000; margin-left: 2px; }
+  .toolbar .color-btn input[type="color"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; border: none;
+  }
   #editor {
     min-height: 250px; padding: 12px; outline: none;
     direction: rtl; text-align: right;
@@ -1338,7 +1350,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     <option value="36">36 pt</option>
     <option value="48">48 pt</option>
   </select>
-  <button onclick="changeColor()" title="Font Color">A<span style="color:red">&#9607;</span></button>
+  <label class="color-btn" title="Font Color">A<span id="colorSwatch">&#9607;</span><input type="color" id="fontColorInput" value="#CC0000" onchange="applyFontColor(this.value)" /></label>
 </div>
 <div id="editor" contenteditable="true"></div>
 
@@ -1440,9 +1452,32 @@ function applyFontSize(s) {
   sel.removeAllRanges();
   sel.addRange(newRange);
 }
-function changeColor() {
-  var c = prompt("Color (hex):", "#CC0000");
-  if (c) fmt("foreColor", c);
+function applyFontColor(c) {
+  if (!c) return;
+  var swatch = document.getElementById("colorSwatch");
+  if (swatch) swatch.style.color = c;
+  var editor = document.getElementById("editor");
+  editor.focus();
+  var sel = window.getSelection();
+  if (!sel.rangeCount) return;
+
+  if (!sel.isCollapsed) {
+    document.execCommand("foreColor", false, c);
+    return;
+  }
+
+  // No selection — insert styled marker so next typing uses this color
+  var range = sel.getRangeAt(0);
+  var span = document.createElement("span");
+  span.style.color = c;
+  var zwsp = document.createTextNode("\u200B");
+  span.appendChild(zwsp);
+  range.insertNode(span);
+  var newRange = document.createRange();
+  newRange.setStart(zwsp, 1);
+  newRange.setEnd(zwsp, 1);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
 }
 // ── Table context menu (right-click on cells) ──
 var ctxMenu = null;
