@@ -11,6 +11,18 @@ class GeneratedLetter {
   final String? createdByEmail;
   final String? ccList;
   final List<LinkedPaymentCertificate> paymentCertificates;
+  final double refFontSize;
+  final bool refBold;
+  final bool refUnderline;
+  final double tarikhFontSize;
+  final bool tarikhBold;
+  final bool tarikhUnderline;
+  final double recipientFontSize;
+  final bool recipientBold;
+  final bool recipientUnderline;
+  final double subjectFontSize;
+  final bool subjectBold;
+  final bool subjectUnderline;
 
   const GeneratedLetter({
     this.id,
@@ -25,6 +37,18 @@ class GeneratedLetter {
     this.createdByEmail,
     this.ccList,
     this.paymentCertificates = const [],
+    this.refFontSize = 11,
+    this.refBold = false,
+    this.refUnderline = false,
+    this.tarikhFontSize = 11,
+    this.tarikhBold = false,
+    this.tarikhUnderline = false,
+    this.recipientFontSize = 12,
+    this.recipientBold = false,
+    this.recipientUnderline = false,
+    this.subjectFontSize = 13,
+    this.subjectBold = true,
+    this.subjectUnderline = true,
   });
 
   static DateTime? _parseDate(dynamic v) {
@@ -36,9 +60,12 @@ class GeneratedLetter {
     final rawCerts = json['payment_certificates'];
     final certs = rawCerts is List
         ? rawCerts
-            .map((c) =>
-                LinkedPaymentCertificate.fromJson(c as Map<String, dynamic>))
-            .toList()
+              .map(
+                (c) => LinkedPaymentCertificate.fromJson(
+                  c as Map<String, dynamic>,
+                ),
+              )
+              .toList()
         : <LinkedPaymentCertificate>[];
 
     return GeneratedLetter(
@@ -54,19 +81,45 @@ class GeneratedLetter {
       createdByEmail: json['created_by_email'],
       ccList: json['cc_list'],
       paymentCertificates: certs,
+      refFontSize: (json['ref_font_size'] as num?)?.toDouble() ?? 11,
+      refBold: json['ref_bold'] as bool? ?? false,
+      refUnderline: json['ref_underline'] as bool? ?? false,
+      tarikhFontSize: (json['tarikh_font_size'] as num?)?.toDouble() ?? 11,
+      tarikhBold: json['tarikh_bold'] as bool? ?? false,
+      tarikhUnderline: json['tarikh_underline'] as bool? ?? false,
+      recipientFontSize:
+          (json['recipient_font_size'] as num?)?.toDouble() ?? 12,
+      recipientBold: json['recipient_bold'] as bool? ?? false,
+      recipientUnderline: json['recipient_underline'] as bool? ?? false,
+      subjectFontSize: (json['subject_font_size'] as num?)?.toDouble() ?? 13,
+      subjectBold: json['subject_bold'] as bool? ?? true,
+      subjectUnderline: json['subject_underline'] as bool? ?? true,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'ishara': ishara,
-        'tarikh': tarikh,
-        'alsayed': alsayed,
-        'almawdoo': almawdoo,
-        'body_text': bodyText,
-        'alasm': alasm,
-        'signature_base64': signatureBase64,
-        'created_by_email': createdByEmail,
-      };
+    'ishara': ishara,
+    'tarikh': tarikh,
+    'alsayed': alsayed,
+    'almawdoo': almawdoo,
+    'body_text': bodyText,
+    'alasm': alasm,
+    'signature_base64': signatureBase64,
+    'created_by_email': createdByEmail,
+    'cc_list': ccList,
+    'ref_font_size': refFontSize,
+    'ref_bold': refBold,
+    'ref_underline': refUnderline,
+    'tarikh_font_size': tarikhFontSize,
+    'tarikh_bold': tarikhBold,
+    'tarikh_underline': tarikhUnderline,
+    'recipient_font_size': recipientFontSize,
+    'recipient_bold': recipientBold,
+    'recipient_underline': recipientUnderline,
+    'subject_font_size': subjectFontSize,
+    'subject_bold': subjectBold,
+    'subject_underline': subjectUnderline,
+  };
 }
 
 class LinkedPaymentCertificate {
@@ -92,9 +145,9 @@ class LinkedPaymentCertificate {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'certificate_number': certificateNumber,
-        'subject': subject,
-        'letter_link_order': letterLinkOrder,
-      };
+    'id': id,
+    'certificate_number': certificateNumber,
+    'subject': subject,
+    'letter_link_order': letterLinkOrder,
+  };
 }

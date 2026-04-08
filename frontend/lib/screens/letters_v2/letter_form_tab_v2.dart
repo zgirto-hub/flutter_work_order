@@ -51,11 +51,16 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   // PDF styling options
   double _refFontSize = 11;
   bool _refBold = false;
+  bool _refUnderline = false;
   double _recipientFontSize = 12;
   bool _recipientBold = false;
+  bool _recipientUnderline = false;
   double _subjectFontSize = 13;
   bool _subjectBold = true;
   bool _subjectUnderline = true;
+  double _dateFontSize = 11;
+  bool _dateBold = false;
+  bool _dateUnderline = false;
   String? _editingLetterId;
   String? _initialBodyHtml;
 
@@ -108,6 +113,19 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
           _signatureBytes = base64Decode(b64);
         } catch (_) {}
       }
+      // Restore formatting state
+      _refFontSize = letter.refFontSize;
+      _refBold = letter.refBold;
+      _refUnderline = letter.refUnderline;
+      _dateFontSize = letter.tarikhFontSize;
+      _dateBold = letter.tarikhBold;
+      _dateUnderline = letter.tarikhUnderline;
+      _recipientFontSize = letter.recipientFontSize;
+      _recipientBold = letter.recipientBold;
+      _recipientUnderline = letter.recipientUnderline;
+      _subjectFontSize = letter.subjectFontSize;
+      _subjectBold = letter.subjectBold;
+      _subjectUnderline = letter.subjectUnderline;
     }
     _registerEditor();
     _listenForMessages();
@@ -251,8 +269,13 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'cc_list': _ccNames.isEmpty ? null : _ccNames.join('\n'),
         'ref_font_size': _refFontSize,
         'ref_bold': _refBold,
+        'ref_underline': _refUnderline,
+        'tarikh_font_size': _dateFontSize,
+        'tarikh_bold': _dateBold,
+        'tarikh_underline': _dateUnderline,
         'recipient_font_size': _recipientFontSize,
         'recipient_bold': _recipientBold,
+        'recipient_underline': _recipientUnderline,
         'subject_font_size': _subjectFontSize,
         'subject_bold': _subjectBold,
         'subject_underline': _subjectUnderline,
@@ -390,8 +413,13 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'cc_list': _ccNames.isEmpty ? null : _ccNames.join('\n'),
         'ref_font_size': _refFontSize,
         'ref_bold': _refBold,
+        'ref_underline': _refUnderline,
+        'tarikh_font_size': _dateFontSize,
+        'tarikh_bold': _dateBold,
+        'tarikh_underline': _dateUnderline,
         'recipient_font_size': _recipientFontSize,
         'recipient_bold': _recipientBold,
+        'recipient_underline': _recipientUnderline,
         'subject_font_size': _subjectFontSize,
         'subject_bold': _subjectBold,
         'subject_underline': _subjectUnderline,
@@ -509,8 +537,13 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'cc_list': _ccNames.isEmpty ? null : _ccNames.join('\n'),
         'ref_font_size': _refFontSize,
         'ref_bold': _refBold,
+        'ref_underline': _refUnderline,
+        'tarikh_font_size': _dateFontSize,
+        'tarikh_bold': _dateBold,
+        'tarikh_underline': _dateUnderline,
         'recipient_font_size': _recipientFontSize,
         'recipient_bold': _recipientBold,
+        'recipient_underline': _recipientUnderline,
         'subject_font_size': _subjectFontSize,
         'subject_bold': _subjectBold,
         'subject_underline': _subjectUnderline,
@@ -602,9 +635,12 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                       _buildStyleRow(
                         fontSize: _refFontSize,
                         bold: _refBold,
+                        underline: _refUnderline,
                         onFontSizeChanged: (v) =>
                             setState(() => _refFontSize = v),
                         onBoldChanged: (v) => setState(() => _refBold = v),
+                        onUnderlineChanged: (v) =>
+                            setState(() => _refUnderline = v),
                       ),
                     ],
                   ),
@@ -640,6 +676,16 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                           ),
                         ),
                       ),
+                      _buildStyleRow(
+                        fontSize: _dateFontSize,
+                        bold: _dateBold,
+                        underline: _dateUnderline,
+                        onFontSizeChanged: (v) =>
+                            setState(() => _dateFontSize = v),
+                        onBoldChanged: (v) => setState(() => _dateBold = v),
+                        onUnderlineChanged: (v) =>
+                            setState(() => _dateUnderline = v),
+                      ),
                     ],
                   ),
                 ),
@@ -657,8 +703,11 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             _buildStyleRow(
               fontSize: _recipientFontSize,
               bold: _recipientBold,
+              underline: _recipientUnderline,
               onFontSizeChanged: (v) => setState(() => _recipientFontSize = v),
               onBoldChanged: (v) => setState(() => _recipientBold = v),
+              onUnderlineChanged: (v) =>
+                  setState(() => _recipientUnderline = v),
             ),
             const Padding(
               padding: EdgeInsets.only(top: 4, right: 8),
