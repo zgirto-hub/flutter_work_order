@@ -181,7 +181,7 @@
   .ref-barcode {
     display: block;
     height: 70px;
-    margin-bottom: 6px;
+    margin-top: 4px;
     margin-left: auto;
   }
 
@@ -318,8 +318,8 @@
 <div class="ref-block" style="font-size: {{ref_font_size}}pt; {% if ref_bold %}font-weight: 700;{% endif %} {% if ref_underline %}text-decoration: underline;{% else %}text-decoration: none;{% endif %}">
   {% if tarikh %}<div class="ref-left"><span style="font-size: {{tarikh_font_size}}pt; {% if tarikh_bold %}font-weight: 700;{% endif %} {% if tarikh_underline %}text-decoration: underline;{% else %}text-decoration: none;{% endif %}">التاريخ: {{tarikh}}</span></div>{% endif %}
   <div class="ref-right">
-    {% if barcode_data_uri %}<img src="{{barcode_data_uri}}" class="ref-barcode" />{% endif %}
     <div>رقم الإشارة: {{ishara}}</div>
+    {% if barcode_data_uri %}<img src="{{barcode_data_uri}}" class="ref-barcode" />{% endif %}
   </div>
 </div>
 
