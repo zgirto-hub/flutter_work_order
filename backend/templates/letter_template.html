@@ -178,6 +178,13 @@
     text-align: right;
   }
 
+  .ref-barcode {
+    display: block;
+    height: 38px;
+    margin-bottom: 4px;
+    margin-left: auto;
+  }
+
   .recipient {
     text-align: right;
     margin-bottom: 20px;
@@ -308,13 +315,16 @@
 <!-- Page content (flows across pages, header/footer repeat automatically) -->
 
 <!-- Reference (left) and date (right) -->
-<div class="ref-block" style="font-size: {{ref_font_size}}pt; {% if ref_bold %}font-weight: 700;{% endif %}">
-  <div class="ref-left">رقم الإشارة: {{ishara}}</div>
-  {% if tarikh %}<div class="ref-right">التاريخ: {{tarikh}}</div>{% endif %}
+<div class="ref-block" style="font-size: {{ref_font_size}}pt; {% if ref_bold %}font-weight: 700;{% endif %} {% if ref_underline %}text-decoration: underline;{% else %}text-decoration: none;{% endif %}">
+  {% if tarikh %}<div class="ref-left"><span style="font-size: {{tarikh_font_size}}pt; {% if tarikh_bold %}font-weight: 700;{% endif %} {% if tarikh_underline %}text-decoration: underline;{% else %}text-decoration: none;{% endif %}">التاريخ: {{tarikh}}</span></div>{% endif %}
+  <div class="ref-right">
+    {% if barcode_data_uri %}<img src="{{barcode_data_uri}}" class="ref-barcode" />{% endif %}
+    <div>رقم الإشارة: {{ishara}}</div>
+  </div>
 </div>
 
 <!-- Recipient -->
-<div class="recipient" style="font-size: {{recipient_font_size}}pt; {% if recipient_bold %}font-weight: 700;{% endif %}">
+<div class="recipient" style="font-size: {{recipient_font_size}}pt; {% if recipient_bold %}font-weight: 700;{% endif %} {% if recipient_underline %}text-decoration: underline;{% else %}text-decoration: none;{% endif %}">
   السيد / {{alsayed}}
   <span style="float: left;">المحترم</span>
 </div>

@@ -68,6 +68,31 @@ def _font_data_uri(filename: str) -> str:
     return f"data:font/truetype;base64,{data}"
 
 
+def _generate_barcode_data_uri(value: str) -> str | None:
+    """Generate a Code 128 barcode as a base64 PNG data URI."""
+    if not value or not value.strip():
+        return None
+    try:
+        from barcode import Code128
+        from barcode.writer import ImageWriter
+
+        buffer = io.BytesIO()
+        Code128(value, writer=ImageWriter()).write(
+            buffer,
+            options={
+                "module_height": 8.0,
+                "module_width": 0.25,
+                "font_size": 8,
+                "text_distance": 3.0,
+                "quiet_zone": 2.0,
+                "write_text": True,
+            },
+        )
+        return f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode('ascii')}"
+    except Exception:
+        return None
+
+
 class AttachmentItem(BaseModel):
     name: str
     data: str  # base64-encoded file content
@@ -86,8 +111,13 @@ class LetterBodyV2(BaseModel):
     cc_list: str | None = None
     ref_font_size: float = 11
     ref_bold: bool = False
+    ref_underline: bool = False
+    tarikh_font_size: float = 11
+    tarikh_bold: bool = False
+    tarikh_underline: bool = False
     recipient_font_size: float = 12
     recipient_bold: bool = False
+    recipient_underline: bool = False
     subject_font_size: float = 13
     subject_bold: bool = True
     subject_underline: bool = True
@@ -95,6 +125,46 @@ class LetterBodyV2(BaseModel):
     attachments: list[AttachmentItem] = []
     payment_certificate_ids: list[str] = []
     force_reassign: bool = False
+
+
+def _coalesce_letter_format(row: dict) -> dict:
+    """Return a dict containing the 12 formatting keys with NULL → defaults applied."""
+    return {
+        "ref_font_size": row.get("ref_font_size")
+        if row.get("ref_font_size") is not None
+        else 11,
+        "ref_bold": row.get("ref_bold") if row.get("ref_bold") is not None else False,
+        "ref_underline": row.get("ref_underline")
+        if row.get("ref_underline") is not None
+        else False,
+        "tarikh_font_size": row.get("tarikh_font_size")
+        if row.get("tarikh_font_size") is not None
+        else 11,
+        "tarikh_bold": row.get("tarikh_bold")
+        if row.get("tarikh_bold") is not None
+        else False,
+        "tarikh_underline": row.get("tarikh_underline")
+        if row.get("tarikh_underline") is not None
+        else False,
+        "recipient_font_size": row.get("recipient_font_size")
+        if row.get("recipient_font_size") is not None
+        else 12,
+        "recipient_bold": row.get("recipient_bold")
+        if row.get("recipient_bold") is not None
+        else False,
+        "recipient_underline": row.get("recipient_underline")
+        if row.get("recipient_underline") is not None
+        else False,
+        "subject_font_size": row.get("subject_font_size")
+        if row.get("subject_font_size") is not None
+        else 13,
+        "subject_bold": row.get("subject_bold")
+        if row.get("subject_bold") is not None
+        else True,
+        "subject_underline": row.get("subject_underline")
+        if row.get("subject_underline") is not None
+        else True,
+    }
 
 
 _uploads = os.path.join(os.path.dirname(__file__), "..", "uploaded_files", "letters")
@@ -138,6 +208,7 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
 
     html_str = template.render(
         ishara=data.ishara,
+        barcode_data_uri=_generate_barcode_data_uri(data.ishara),
         tarikh=data.tarikh,
         alsayed=data.alsayed,
         almawdoo=data.almawdoo,
@@ -154,8 +225,13 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
         font_bold=_font_data_uri("calibrib.ttf"),
         ref_font_size=data.ref_font_size,
         ref_bold=data.ref_bold,
+        ref_underline=data.ref_underline,
+        tarikh_font_size=data.tarikh_font_size,
+        tarikh_bold=data.tarikh_bold,
+        tarikh_underline=data.tarikh_underline,
         recipient_font_size=data.recipient_font_size,
         recipient_bold=data.recipient_bold,
+        recipient_underline=data.recipient_underline,
         subject_font_size=data.subject_font_size,
         subject_bold=data.subject_bold,
         subject_underline=data.subject_underline,
@@ -249,6 +325,7 @@ async def preview_letter_html(data: LetterBodyV2):
 
     html_str = template.render(
         ishara=data.ishara,
+        barcode_data_uri=_generate_barcode_data_uri(data.ishara),
         tarikh=data.tarikh,
         alsayed=data.alsayed,
         almawdoo=data.almawdoo,
@@ -265,8 +342,13 @@ async def preview_letter_html(data: LetterBodyV2):
         font_bold=_font_data_uri("calibrib.ttf"),
         ref_font_size=data.ref_font_size,
         ref_bold=data.ref_bold,
+        ref_underline=data.ref_underline,
+        tarikh_font_size=data.tarikh_font_size,
+        tarikh_bold=data.tarikh_bold,
+        tarikh_underline=data.tarikh_underline,
         recipient_font_size=data.recipient_font_size,
         recipient_bold=data.recipient_bold,
+        recipient_underline=data.recipient_underline,
         subject_font_size=data.subject_font_size,
         subject_bold=data.subject_bold,
         subject_underline=data.subject_underline,
@@ -288,7 +370,9 @@ async def generate_letter_v2(data: LetterBodyV2):
     # Save letter record to Supabase
     record = {
         "ishara": data.ishara,
-        "tarikh": datetime.utcnow().strftime("%Y-%m-%d"),
+        "tarikh": data.tarikh
+        if data.tarikh
+        else datetime.utcnow().strftime("%Y-%m-%d"),
         "alsayed": data.alsayed,
         "almawdoo": data.almawdoo,
         "body_text": data.body_html,
@@ -297,6 +381,18 @@ async def generate_letter_v2(data: LetterBodyV2):
         "reply_required": data.reply_required,
         "cc_list": data.cc_list,
         "created_by_email": data.created_by_email,
+        "ref_font_size": data.ref_font_size,
+        "ref_bold": data.ref_bold,
+        "ref_underline": data.ref_underline,
+        "tarikh_font_size": data.tarikh_font_size,
+        "tarikh_bold": data.tarikh_bold,
+        "tarikh_underline": data.tarikh_underline,
+        "recipient_font_size": data.recipient_font_size,
+        "recipient_bold": data.recipient_bold,
+        "recipient_underline": data.recipient_underline,
+        "subject_font_size": data.subject_font_size,
+        "subject_bold": data.subject_bold,
+        "subject_underline": data.subject_underline,
     }
     result = supabase.table("generated_letters").insert(record).execute()
     letter_id = result.data[0]["id"] if result.data else ""
@@ -349,6 +445,7 @@ async def get_letters_v2(email: str):
             .execute()
         )
         letter["payment_certificates"] = certs.data or []
+        letter.update(_coalesce_letter_format(letter))
 
     return {"letters": letters}
 
@@ -374,6 +471,18 @@ async def update_letter_v2(letter_id: str, data: LetterBodyV2):
         "signature_base64": data.signature_base64,
         "reply_required": data.reply_required,
         "cc_list": data.cc_list,
+        "ref_font_size": data.ref_font_size,
+        "ref_bold": data.ref_bold,
+        "ref_underline": data.ref_underline,
+        "tarikh_font_size": data.tarikh_font_size,
+        "tarikh_bold": data.tarikh_bold,
+        "tarikh_underline": data.tarikh_underline,
+        "recipient_font_size": data.recipient_font_size,
+        "recipient_bold": data.recipient_bold,
+        "recipient_underline": data.recipient_underline,
+        "subject_font_size": data.subject_font_size,
+        "subject_bold": data.subject_bold,
+        "subject_underline": data.subject_underline,
     }
     supabase.table("generated_letters").update(update_data).eq(
         "id", letter_id
@@ -429,8 +538,10 @@ async def regenerate_letter_v2(letter_id: str):
         raise HTTPException(404, "Letter not found")
 
     rec = result.data[0]
+    fmt = _coalesce_letter_format(rec)
     body = LetterBodyV2(
         ishara=rec["ishara"],
+        tarikh=rec.get("tarikh", ""),
         alsayed=rec["alsayed"],
         almawdoo=rec["almawdoo"],
         body_html=rec.get("body_text", ""),
@@ -439,6 +550,7 @@ async def regenerate_letter_v2(letter_id: str):
         reply_required=rec.get("reply_required", False),
         cc_list=rec.get("cc_list"),
         created_by_email=rec["created_by_email"],
+        **fmt,
     )
 
     pdf_bytes = _build_letter_pdf_v2(body)
@@ -474,7 +586,10 @@ async def export_with_attachments(
 
     rec = result.data[0]
     user_result = (
-        supabase.table("users").select("user_type").eq("email", requester_email).execute()
+        supabase.table("users")
+        .select("user_type")
+        .eq("email", requester_email)
+        .execute()
     )
     is_admin = user_result.data and user_result.data[0].get("user_type") == "admin"
     if rec["created_by_email"] != requester_email and not is_admin:
