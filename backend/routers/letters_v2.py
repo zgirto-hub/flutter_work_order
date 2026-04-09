@@ -10,11 +10,13 @@ import re
 import base64
 import io
 import json
+import uuid
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Response, Form, File, UploadFile
 from pydantic import BaseModel
 from jinja2 import Environment, FileSystemLoader
 import PyPDF2 as pypdf
+from PIL import Image
 
 from db import supabase
 from utils.activity import log_activity
@@ -107,6 +109,7 @@ class LetterBodyV2(BaseModel):
     alsayed: str
     almawdoo: str
     body_html: str  # Rich HTML from WYSIWYG editor
+    signer_title: str = ""
     alasm: str
     signature_base64: str | None = None
     reply_required: bool = False
@@ -192,6 +195,86 @@ def _save_attachments(attachments: list[AttachmentItem], letter_id: str) -> list
     return saved
 
 
+@router.post("/letters-v2/upload-image")
+async def upload_letter_image(file: UploadFile = File(...)) -> dict:
+    """Upload an image for inline use in the letter editor."""
+    ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
+    MAX_SIZE = 5 * 1024 * 1024  # 5MB
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Unsupported file format. Accepted: png, jpg, jpeg, gif, webp")
+
+    file_bytes = await file.read()
+    if len(file_bytes) > MAX_SIZE:
+        raise HTTPException(status_code=400, detail="File size exceeds 5MB limit")
+
+    try:
+        img = Image.open(io.BytesIO(file_bytes))
+        if img.width > 1920:
+            ratio = 1920 / img.width
+            new_height = int(img.height * ratio)
+            img = img.resize((1920, new_height), Image.LANCZOS)
+
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        uuid8 = uuid.uuid4().hex[:8]
+        filename = f"letter_img_{timestamp}_{uuid8}.{ext}"
+        save_path = os.path.join(_uploads, filename)
+
+        buf = io.BytesIO()
+        if ext in ("jpg", "jpeg"):
+            img.save(buf, format="JPEG", quality=80)
+        elif ext == "webp":
+            img.save(buf, format="WebP", quality=80)
+        elif ext == "gif":
+            img.save(buf, format="GIF")
+        else:
+            img.save(buf, format="PNG")
+
+        with open(save_path, "wb") as f:
+            f.write(buf.getvalue())
+
+        log_activity("system", "uploaded_image", "letter", filename)
+        return {"status": "success", "url": f"/files/letters/{filename}"}
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to process image")
+
+
+def _convert_body_images_to_data_uris(html: str) -> str:
+    """Replace /files/letters/... image URLs with base64 data URIs for PDF rendering."""
+    import mimetypes
+
+    def _replace_img_src(match):
+        rel_path = match.group(1)
+        fs_rel = rel_path.lstrip("/").replace("files/", "", 1)
+        abs_path = os.path.realpath(
+            os.path.join(
+                os.path.dirname(__file__), "..", "uploaded_files", fs_rel
+            )
+        )
+        allowed_dir = os.path.realpath(
+            os.path.join(os.path.dirname(__file__), "..", "uploaded_files")
+        )
+        if not abs_path.startswith(allowed_dir + os.sep):
+            return match.group(0)  # reject path traversal
+        if not os.path.exists(abs_path):
+            return match.group(0)
+        mime, _ = mimetypes.guess_type(abs_path)
+        if not mime:
+            mime = "image/png"
+        with open(abs_path, "rb") as f:
+            data = base64.b64encode(f.read()).decode()
+        return f'src="data:{mime};base64,{data}"'
+
+    return re.sub(
+        r'src="(?:https?://[^/]+)?(/files/letters/[^"]+)"',
+        _replace_img_src,
+        html,
+    )
+
+
 def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
     """Render HTML template with data, then convert to PDF via WeasyPrint."""
     # Lazy import — WeasyPrint pulls in Cairo/Pango at import time
@@ -214,7 +297,8 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
         tarikh=data.tarikh,
         alsayed=data.alsayed,
         almawdoo=data.almawdoo,
-        body_html=_sanitize_editor_html(data.body_html),
+        body_html=_convert_body_images_to_data_uris(_sanitize_editor_html(data.body_html)),
+        signer_title=data.signer_title,
         alasm=data.alasm,
         signature_img=sig_img,
         reply_required=data.reply_required,
@@ -331,7 +415,8 @@ async def preview_letter_html(data: LetterBodyV2):
         tarikh=data.tarikh,
         alsayed=data.alsayed,
         almawdoo=data.almawdoo,
-        body_html=_sanitize_editor_html(data.body_html),
+        body_html=_convert_body_images_to_data_uris(_sanitize_editor_html(data.body_html)),
+        signer_title=data.signer_title,
         alasm=data.alasm,
         signature_img=sig_img,
         reply_required=data.reply_required,
@@ -378,6 +463,7 @@ async def generate_letter_v2(data: LetterBodyV2):
         "alsayed": data.alsayed,
         "almawdoo": data.almawdoo,
         "body_text": data.body_html,
+        "signer_title": data.signer_title,
         "alasm": data.alasm,
         "signature_base64": data.signature_base64,
         "reply_required": data.reply_required,
@@ -469,6 +555,7 @@ async def update_letter_v2(letter_id: str, data: LetterBodyV2):
         "alsayed": data.alsayed,
         "almawdoo": data.almawdoo,
         "body_text": data.body_html,
+        "signer_title": data.signer_title,
         "alasm": data.alasm,
         "signature_base64": data.signature_base64,
         "reply_required": data.reply_required,
@@ -547,6 +634,7 @@ async def regenerate_letter_v2(letter_id: str):
         alsayed=rec["alsayed"],
         almawdoo=rec["almawdoo"],
         body_html=rec.get("body_text", ""),
+        signer_title=rec.get("signer_title", ""),
         alasm=rec["alasm"],
         signature_base64=rec.get("signature_base64"),
         reply_required=rec.get("reply_required", False),

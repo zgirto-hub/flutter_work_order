@@ -6,7 +6,6 @@ import 'dart:ui_web' as ui_web;
 import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:printing/printing.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config.dart';
@@ -34,6 +33,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   final _isharaCtrl = TextEditingController();
   final _alsayedCtrl = TextEditingController();
   final _almawdooCtrl = TextEditingController();
+  final _signerTitleCtrl = TextEditingController();
   final _alasmCtrl = TextEditingController();
   final _ccListCtrl = TextEditingController();
   final _ccNameCtrl = TextEditingController();
@@ -67,6 +67,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   // Attachments
   final List<_Attachment> _attachments = [];
   List<LinkedPaymentCertificate> _linkedCerts = [];
+  int _imageCount = 0;
 
   // Unique ID for the HTML editor iframe
   late final String _editorViewType;
@@ -84,6 +85,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       _isharaCtrl.text = letter.ishara;
       _alsayedCtrl.text = letter.alsayed;
       _almawdooCtrl.text = letter.almawdoo;
+      _signerTitleCtrl.text = letter.signerTitle;
       _alasmCtrl.text = letter.alasm;
       _initialBodyHtml = letter.bodyText;
       _linkedCerts = List.from(letter.paymentCertificates);
@@ -161,6 +163,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         final cw = _editorIframe?.contentWindow;
         cw?.postMessage('SET_HTML:$_initialBodyHtml'.toJS, '*'.toJS);
         _initialBodyHtml = null;
+      } else if (str == 'INSERT_IMAGE_REQUEST') {
+        _uploadImage();
       }
     });
   }
@@ -237,6 +241,74 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     });
   }
 
+  Future<void> _uploadImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
+      allowMultiple: false,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    if (file.bytes == null) return;
+    if (file.bytes!.lengthInBytes > 5 * 1024 * 1024) {
+      _editorIframe?.contentWindow?.postMessage(
+        'INSERT_IMAGE_ERROR:File exceeds 5MB limit. Please choose a smaller image.'
+            .toJS,
+        '*'.toJS,
+      );
+      return;
+    }
+    _imageCount++;
+    if (_imageCount > 10) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Image Limit Warning'),
+          content: const Text(
+            'This letter already has more than 10 images. '
+            'Adding more may affect performance. Continue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) {
+        _imageCount--;
+        return;
+      }
+    }
+    _editorIframe?.contentWindow?.postMessage(
+      'INSERT_IMAGE_LOADING'.toJS,
+      '*'.toJS,
+    );
+    try {
+      final url = await LetterService().uploadImage(file.bytes!, file.name);
+      final fullUrl = '${AppConfig.downloadUrl}$url';
+      _editorIframe?.contentWindow?.postMessage(
+        'INSERT_IMAGE:$fullUrl'.toJS,
+        '*'.toJS,
+      );
+    } catch (e) {
+      _editorIframe?.contentWindow?.postMessage(
+        'REMOVE_IMAGE_LOADING'.toJS,
+        '*'.toJS,
+      );
+      _editorIframe?.contentWindow?.postMessage(
+        'INSERT_IMAGE_ERROR:${e.toString()}'.toJS,
+        '*'.toJS,
+      );
+    }
+  }
+
   Future<void> _showPreview() async {
     if (!_formKey.currentState!.validate()) return;
     final bodyHtml = await _getEditorHtml();
@@ -263,6 +335,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'alsayed': _alsayedCtrl.text,
         'almawdoo': _almawdooCtrl.text,
         'body_html': bodyHtml,
+        'signer_title': _signerTitleCtrl.text,
         'alasm': _alasmCtrl.text,
         'signature_base64': _signatureBase64,
         'reply_required': _replyRequired,
@@ -407,6 +480,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'alsayed': _alsayedCtrl.text,
         'almawdoo': _almawdooCtrl.text,
         'body_html': bodyHtml,
+        'signer_title': _signerTitleCtrl.text,
         'alasm': _alasmCtrl.text,
         'signature_base64': _signatureBase64,
         'reply_required': _replyRequired,
@@ -483,10 +557,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
           );
         }
       }
-      await Printing.sharePdf(
-        bytes: pdfBytes,
-        filename: 'letter_${DateTime.now().millisecondsSinceEpoch}.pdf',
-      );
+      _downloadPdfBytes(pdfBytes, 'letter_${DateTime.now().millisecondsSinceEpoch}.pdf');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -510,6 +581,23 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     }
   }
 
+  void _downloadPdfBytes(Uint8List bytes, String filename) {
+    final blob = web.Blob(
+      <JSAny>[bytes.toJS].toJS,
+      web.BlobPropertyBag(type: 'application/pdf'),
+    );
+    final url = web.URL.createObjectURL(blob);
+    final anchor = web.document.createElement('a') as web.HTMLAnchorElement
+      ..href = url
+      ..download = filename;
+    web.document.body?.append(anchor);
+    anchor.click();
+    Future.delayed(const Duration(milliseconds: 150), () {
+      anchor.remove();
+      web.URL.revokeObjectURL(url);
+    });
+  }
+
   Future<void> _exportCombinedPdf() async {
     if (_editingLetterId == null) {
       if (mounted) {
@@ -531,6 +619,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'alsayed': _alsayedCtrl.text,
         'almawdoo': _almawdooCtrl.text,
         'body_html': bodyHtml,
+        'signer_title': _signerTitleCtrl.text,
         'alasm': _alasmCtrl.text,
         'signature_base64': _signatureBase64,
         'reply_required': _replyRequired,
@@ -571,11 +660,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       );
 
       if (mounted) {
-        await Printing.sharePdf(
-          bytes: mergedPdf,
-          filename:
-              'letter_${DateTime.now().millisecondsSinceEpoch}_combined.pdf',
-        );
+        _downloadPdfBytes(mergedPdf, 'letter_${DateTime.now().millisecondsSinceEpoch}_combined.pdf');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Combined PDF exported successfully')),
         );
@@ -597,6 +682,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     _isharaCtrl.dispose();
     _alsayedCtrl.dispose();
     _almawdooCtrl.dispose();
+    _signerTitleCtrl.dispose();
     _alasmCtrl.dispose();
     _ccListCtrl.dispose();
     _ccNameCtrl.dispose();
@@ -612,84 +698,60 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Reference Number + Date (same row) ──
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Reference Number
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildLabel('Reference Number'),
-                      SizedBox(
-                        width: 180,
-                        child: TextFormField(
-                          controller: _isharaCtrl,
-                          decoration: _inputDecor('e.g. 2026-23279'),
-                          textAlign: TextAlign.right,
-                          validator: (v) =>
-                              (v == null || v.isEmpty) ? 'Required' : null,
-                        ),
-                      ),
-                      _buildStyleRow(
-                        fontSize: _refFontSize,
-                        bold: _refBold,
-                        underline: _refUnderline,
-                        onFontSizeChanged: (v) =>
-                            setState(() => _refFontSize = v),
-                        onBoldChanged: (v) => setState(() => _refBold = v),
-                        onUnderlineChanged: (v) =>
-                            setState(() => _refUnderline = v),
-                      ),
-                    ],
-                  ),
+            // ── Reference Number ──
+            _buildLabel('Reference Number'),
+            TextFormField(
+              controller: _isharaCtrl,
+              decoration: _inputDecor('e.g. 2026-23279'),
+              textAlign: TextAlign.right,
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? 'Required' : null,
+            ),
+            _buildStyleRow(
+              fontSize: _refFontSize,
+              bold: _refBold,
+              underline: _refUnderline,
+              onFontSizeChanged: (v) =>
+                  setState(() => _refFontSize = v),
+              onBoldChanged: (v) => setState(() => _refBold = v),
+              onUnderlineChanged: (v) =>
+                  setState(() => _refUnderline = v),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Date ──
+            _buildLabel('Date'),
+            InkWell(
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _selectedDate ?? DateTime.now(),
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2100),
+                );
+                if (date != null) {
+                  setState(() => _selectedDate = date);
+                }
+              },
+              child: InputDecorator(
+                decoration: _inputDecor('Select date'),
+                child: Text(
+                  _selectedDate != null
+                      ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
+                      : '',
+                  textAlign: TextAlign.right,
                 ),
-                const SizedBox(width: 16),
-                // Date
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildLabel('Date'),
-                      SizedBox(
-                        width: 180,
-                        child: InkWell(
-                          onTap: () async {
-                            final date = await showDatePicker(
-                              context: context,
-                              initialDate: _selectedDate ?? DateTime.now(),
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2100),
-                            );
-                            if (date != null)
-                              setState(() => _selectedDate = date);
-                          },
-                          child: InputDecorator(
-                            decoration: _inputDecor('Select date'),
-                            child: Text(
-                              _selectedDate != null
-                                  ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
-                                  : '',
-                              textAlign: TextAlign.right,
-                            ),
-                          ),
-                        ),
-                      ),
-                      _buildStyleRow(
-                        fontSize: _dateFontSize,
-                        bold: _dateBold,
-                        underline: _dateUnderline,
-                        onFontSizeChanged: (v) =>
-                            setState(() => _dateFontSize = v),
-                        onBoldChanged: (v) => setState(() => _dateBold = v),
-                        onUnderlineChanged: (v) =>
-                            setState(() => _dateUnderline = v),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
+            ),
+            _buildStyleRow(
+              fontSize: _dateFontSize,
+              bold: _dateBold,
+              underline: _dateUnderline,
+              onFontSizeChanged: (v) =>
+                  setState(() => _dateFontSize = v),
+              onBoldChanged: (v) => setState(() => _dateBold = v),
+              onUnderlineChanged: (v) =>
+                  setState(() => _dateUnderline = v),
             ),
             const SizedBox(height: 16),
 
@@ -785,11 +847,19 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             ),
             const SizedBox(height: 16),
 
+            // ── Signer Title ──
+            _buildLabel('Signer Title'),
+            TextFormField(
+              controller: _signerTitleCtrl,
+              decoration: _inputDecor('e.g. مدير عام، رئيس قسم'),
+            ),
+            const SizedBox(height: 16),
+
             // ── Signer (الاسم) ──
             _buildLabel('Signer Name'),
             TextFormField(
               controller: _alasmCtrl,
-              decoration: _inputDecor('Signer name and title'),
+              decoration: _inputDecor('Signer name'),
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 16),
@@ -1298,6 +1368,26 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     font-size: 14px; line-height: 1.8;
     background: #fff;
   }
+  #editor img { cursor: pointer; }
+  #editor img.img-selected { outline: 2px solid #2196F3; }
+  .img-resize-wrap {
+    position: relative; display: inline-block; line-height: 0;
+  }
+  .img-resize-wrap img { display: block; }
+  .img-resize-handle {
+    position: absolute; width: 10px; height: 10px;
+    background: #2196F3; border: 1px solid #fff; border-radius: 2px;
+    cursor: nwse-resize; z-index: 20;
+  }
+  .img-resize-handle.br { bottom: -5px; right: -5px; }
+  .img-resize-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+  .img-resize-handle.tr { top: -5px; right: -5px; cursor: nesw-resize; }
+  .img-resize-handle.tl { top: -5px; left: -5px; cursor: nwse-resize; }
+  .img-resize-info {
+    position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.7); color: #fff; font-size: 10px;
+    padding: 2px 6px; border-radius: 3px; white-space: nowrap; z-index: 20;
+  }
   #editor table { border-collapse: collapse; width: 100%; margin: 8px 0; }
   #editor table td, #editor table th {
     border: 1px solid #999; padding: 4px 8px; min-width: 40px;
@@ -1384,6 +1474,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   <label class="color-btn" title="Font Color">A<span id="colorSwatch">&#9607;</span><input type="color" id="fontColorInput" value="#CC0000" onchange="applyFontColor(this.value)" /></label>
   <label class="color-btn" title="Highlight"><span id="hlSwatch" style="color:#FFFF00">&#9607;</span><input type="color" value="#FFFF00" onchange="applyHighlight(this.value); document.getElementById('hlSwatch').style.color=this.value" /></label>
   <button onclick="clearFormatting()" title="Clear formatting">&#9108;</button>
+  <div class="sep"></div>
+  <button onclick="requestInsertImage()" title="Insert Image">&#128247;</button>
   <div class="sep"></div>
   <select id="zoomSelect" onchange="applyZoom(this.value)" title="Zoom" class="tb-select">
     <option value="0.5">50%</option>
@@ -1730,13 +1822,100 @@ function tableAction(action) {
   }
 }
 
+// --- Image resize logic ---
+var _activeImg = null;
+function _clearResize() {
+  var old = document.querySelector(".img-resize-wrap");
+  if (old) {
+    var img = old.querySelector("img");
+    if (img) { old.parentNode.insertBefore(img, old); old.remove(); }
+  }
+  _activeImg = null;
+}
+function _wrapForResize(img) {
+  _clearResize();
+  _activeImg = img;
+  var wrap = document.createElement("span");
+  wrap.className = "img-resize-wrap";
+  wrap.contentEditable = "false";
+  img.parentNode.insertBefore(wrap, img);
+  wrap.appendChild(img);
+  var corners = ["br","bl","tr","tl"];
+  corners.forEach(function(c) {
+    var h = document.createElement("span");
+    h.className = "img-resize-handle " + c;
+    h.addEventListener("mousedown", function(ev) { _startResize(ev, img, c); });
+    wrap.appendChild(h);
+  });
+  var info = document.createElement("span");
+  info.className = "img-resize-info";
+  info.textContent = Math.round(img.offsetWidth) + " x " + Math.round(img.offsetHeight);
+  wrap.appendChild(info);
+}
+function _startResize(ev, img, corner) {
+  ev.preventDefault(); ev.stopPropagation();
+  var startX = ev.clientX, startY = ev.clientY;
+  var startW = img.offsetWidth, startH = img.offsetHeight;
+  var ratio = startW / startH;
+  var info = img.parentNode.querySelector(".img-resize-info");
+  function onMove(e) {
+    var dx = e.clientX - startX, dy = e.clientY - startY;
+    var nw = startW, nh = startH;
+    if (corner === "br") { nw = startW + dx; }
+    else if (corner === "bl") { nw = startW - dx; }
+    else if (corner === "tr") { nw = startW + dx; }
+    else if (corner === "tl") { nw = startW - dx; }
+    if (nw < 30) nw = 30;
+    nh = nw / ratio;
+    img.style.width = Math.round(nw) + "px";
+    img.style.height = Math.round(nh) + "px";
+    img.style.maxWidth = "none";
+    if (info) info.textContent = Math.round(nw) + " x " + Math.round(nh);
+  }
+  function onUp() {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+  }
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
+document.getElementById("editor").addEventListener("click", function(ev) {
+  if (ev.target.tagName === "IMG" && !ev.target.closest(".img-resize-wrap")) {
+    _wrapForResize(ev.target);
+  } else if (!ev.target.closest(".img-resize-wrap")) {
+    _clearResize();
+  }
+});
+document.addEventListener("keydown", function(ev) {
+  if (_activeImg && (ev.key === "Escape" || ev.key === "Delete" || ev.key === "Backspace")) {
+    if (ev.key === "Escape") { _clearResize(); }
+    else { var w = _activeImg.closest(".img-resize-wrap"); if (w) w.remove(); else _activeImg.remove(); _activeImg = null; }
+  }
+});
+
 // Listen for parent requests
+function requestInsertImage(){parent.postMessage("INSERT_IMAGE_REQUEST","*");}
 window.addEventListener("message", function(e) {
   if (e.data === "GET_HTML") {
+    _clearResize();
     var html = document.getElementById("editor").innerHTML || "";
     parent.postMessage("EDITOR_HTML:" + html, "*");
   } else if (typeof e.data === "string" && e.data.startsWith("SET_HTML:")) {
     document.getElementById("editor").innerHTML = e.data.substring(9);
+  } else if (typeof e.data === "string" && e.data.startsWith("INSERT_IMAGE:")) {
+    var url = e.data.substring(13);
+    var ld = document.getElementById("img-loading");
+    if (ld) ld.remove();
+    document.getElementById("editor").focus();
+    document.execCommand("insertHTML", false, '<img src="' + url + '" style="max-width:100%;">');
+  } else if (typeof e.data === "string" && e.data.startsWith("INSERT_IMAGE_ERROR:")) {
+    alert(e.data.substring(19));
+  } else if (e.data === "INSERT_IMAGE_LOADING") {
+    document.getElementById("editor").focus();
+    document.execCommand("insertHTML", false, '<span id="img-loading" style="display:inline-block;padding:8px 16px;background:#f0f0f0;border:1px dashed #999;border-radius:4px;color:#666;font-style:italic;">Uploading image...</span>');
+  } else if (e.data === "REMOVE_IMAGE_LOADING") {
+    var el = document.getElementById("img-loading");
+    if (el) el.remove();
   }
 });
 // Notify parent that editor is ready

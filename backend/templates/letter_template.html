@@ -336,9 +336,10 @@
 
 <!-- Recipient -->
 <div class="recipient" style="font-size: {{recipient_font_size}}pt; {% if recipient_bold %}font-weight: 700;{% endif %} {% if recipient_underline %}text-decoration: underline;{% else %}text-decoration: none;{% endif %}">
-  السيد / {{alsayed}}
-  <span style="float: left;">المحترم</span>
+  {{alsayed}}
+  <span style="margin-right: 9em;">المحترم</span>
 </div>
+<div style="font-size: {{recipient_font_size}}pt; margin-top: 4px;">تحية طيبة و بعد ،،،</div>
 
 <!-- Subject (centered, dynamic styling) -->
 <div class="subject" style="font-size: {{subject_font_size}}pt; {% if subject_bold %}font-weight: 700;{% else %}font-weight: 400;{% endif %} {% if subject_underline %}text-decoration: underline;{% else %}text-decoration: none;{% endif %}">
@@ -369,6 +370,7 @@
       {% endif %}
     </td>
     <td style="vertical-align:top; text-align:left; width:50%; border:none; padding:0;">
+      {% if signer_title %}<div style="font-size:11pt;">{{signer_title}}</div>{% endif %}
       <div style="font-size:12pt; font-weight:700;">{{alasm}}</div>
       {% if signature_img %}
       <img style="max-height:100px; max-width:200px; margin-top:6px;" src="{{signature_img}}" alt="signature">
