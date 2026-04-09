@@ -16,6 +16,21 @@ import '../screens/approvals/pending_approvals_screen.dart';
 import '../screens/letters_v2/letter_generator_screen_v2.dart';
 import '../models/nav_screen.dart';
 
+class _TileCategory {
+  final String label;
+  final List<String> keys;
+  const _TileCategory(this.label, this.keys);
+}
+
+const _categories = [
+  _TileCategory('Documents & Files',
+      ['files', 'doc_registry', 'payment_cert', 'letters_v2']),
+  _TileCategory(
+      'Reports & Monitoring', ['reports', 'system_status', 'activity_log']),
+  _TileCategory(
+      'Scheduling & Approvals', ['calendar', 'approvals', 'notifications']),
+];
+
 class MoreScreen extends StatefulWidget {
   final ThemeController themeController;
   final String userRole;
@@ -71,9 +86,6 @@ class _MoreScreenState extends State<MoreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Build grid items based on role
-    final items = _buildItems(context);
-
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       body: SafeArea(
@@ -147,27 +159,14 @@ class _MoreScreenState extends State<MoreScreen> {
 
             Divider(height: 0, thickness: 0.5, color: AppColors.border),
 
-            // ── Grid ──────────────────────────────────────
+            // ── Categorised grid ─────────────────────────
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Main grid
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 3.6,
-                      ),
-                      itemCount: items.length,
-                      itemBuilder: (context, i) => _MoreCard(item: items[i]),
-                    ),
+                    ..._buildCategorySections(context),
 
                     SizedBox(height: 24),
 
@@ -197,11 +196,15 @@ class _MoreScreenState extends State<MoreScreen> {
     return widget.allowedScreens!.contains(key);
   }
 
-  List<_MoreItem> _buildItems(BuildContext context) {
+  Map<String, _MoreItem> _buildItemMap(BuildContext context) {
     final pinned = widget.themeController.pinnedNavScreens;
+    final map = <String, _MoreItem>{};
 
-    _MoreItem buildItem(NavScreen s, VoidCallback onTap, {String? subtitle}) {
-      return _MoreItem(
+    void add(String key, VoidCallback onTap, {String? subtitle}) {
+      if (!_canShow(key)) return;
+      final s = NavScreenRegistry.get(key);
+      if (s == null) return;
+      map[key] = _MoreItem(
         title: s.title,
         subtitle: subtitle ?? s.subtitle,
         icon: s.icon,
@@ -212,86 +215,65 @@ class _MoreScreenState extends State<MoreScreen> {
       );
     }
 
-    final items = <_MoreItem>[
-      if (_canShow('files'))
-        buildItem(
-            NavScreenRegistry.get('files')!,
-            () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FilesScreen()),
-                )),
-      if (_canShow('reports'))
-        buildItem(
-            NavScreenRegistry.get('reports')!,
-            () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const WorkOrderReportScreen()),
-                )),
-      if (_canShow('calendar'))
-        buildItem(
-            NavScreenRegistry.get('calendar')!,
-            () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) =>
-                          CalendarScreen(userRole: widget.userRole)),
-                )),
-      if (_canShow('doc_registry'))
-        buildItem(
-            NavScreenRegistry.get('doc_registry')!,
-            () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const DocumentRegistryScreen()),
-                )),
-      if (_canShow('payment_cert'))
-        buildItem(
-            NavScreenRegistry.get('payment_cert')!,
-            () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const PaymentCertificateListScreen()),
-                )),
-      if (_canShow('letters_v2'))
-        buildItem(
-            NavScreenRegistry.get('letters_v2')!,
-            () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const LetterGeneratorScreenV2()),
-                )),
-      if (_canShow('system_status'))
-        buildItem(
-            NavScreenRegistry.get('system_status')!,
-            () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SystemStatusScreen()),
-                )),
-      if (_canShow('notifications'))
-        buildItem(
-          NavScreenRegistry.get('notifications')!,
-          _openNotifications,
-          subtitle: _unreadCount > 0 ? '$_unreadCount unread' : null,
-        ),
-      if (_canShow('activity_log'))
-        buildItem(
-            NavScreenRegistry.get('activity_log')!,
-            () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ActivityLogScreen()),
-                )),
-      if (_canShow('approvals'))
-        buildItem(
-            NavScreenRegistry.get('approvals')!,
-            () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const PendingApprovalsScreen()),
-                )),
-    ];
+    add('files', () => Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const FilesScreen())));
+    add('reports', () => Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const WorkOrderReportScreen())));
+    add('calendar', () => Navigator.push(context,
+        MaterialPageRoute(builder: (_) => CalendarScreen(userRole: widget.userRole))));
+    add('doc_registry', () => Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const DocumentRegistryScreen())));
+    add('payment_cert', () => Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const PaymentCertificateListScreen())));
+    add('letters_v2', () => Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const LetterGeneratorScreenV2())));
+    add('system_status', () => Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const SystemStatusScreen())));
+    add('notifications', _openNotifications,
+        subtitle: _unreadCount > 0 ? '$_unreadCount unread' : null);
+    add('activity_log', () => Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const ActivityLogScreen())));
+    add('approvals', () => Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const PendingApprovalsScreen())));
 
-    return items;
+    return map;
+  }
+
+  List<Widget> _buildCategorySections(BuildContext context) {
+    final itemMap = _buildItemMap(context);
+    final sections = <Widget>[];
+
+    for (final category in _categories) {
+      final items = category.keys
+          .where((key) => itemMap.containsKey(key))
+          .map((key) => itemMap[key]!)
+          .toList();
+
+      if (items.isEmpty) continue;
+
+      if (sections.isNotEmpty) {
+        sections.add(const SizedBox(height: 24));
+      }
+
+      sections.add(SectionLabel(text: category.label));
+      sections.add(const SizedBox(height: 8));
+      sections.add(
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 3.6,
+          ),
+          itemCount: items.length,
+          itemBuilder: (context, i) => _MoreCard(item: items[i]),
+        ),
+      );
+    }
+
+    return sections;
   }
 }
 
