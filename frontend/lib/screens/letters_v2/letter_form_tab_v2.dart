@@ -1369,6 +1369,26 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     font-size: 14px; line-height: 1.8;
     background: #fff;
   }
+  #editor img { cursor: pointer; }
+  #editor img.img-selected { outline: 2px solid #2196F3; }
+  .img-resize-wrap {
+    position: relative; display: inline-block; line-height: 0;
+  }
+  .img-resize-wrap img { display: block; }
+  .img-resize-handle {
+    position: absolute; width: 10px; height: 10px;
+    background: #2196F3; border: 1px solid #fff; border-radius: 2px;
+    cursor: nwse-resize; z-index: 20;
+  }
+  .img-resize-handle.br { bottom: -5px; right: -5px; }
+  .img-resize-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+  .img-resize-handle.tr { top: -5px; right: -5px; cursor: nesw-resize; }
+  .img-resize-handle.tl { top: -5px; left: -5px; cursor: nwse-resize; }
+  .img-resize-info {
+    position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.7); color: #fff; font-size: 10px;
+    padding: 2px 6px; border-radius: 3px; white-space: nowrap; z-index: 20;
+  }
   #editor table { border-collapse: collapse; width: 100%; margin: 8px 0; }
   #editor table td, #editor table th {
     border: 1px solid #999; padding: 4px 8px; min-width: 40px;
@@ -1803,10 +1823,82 @@ function tableAction(action) {
   }
 }
 
+// --- Image resize logic ---
+var _activeImg = null;
+function _clearResize() {
+  var old = document.querySelector(".img-resize-wrap");
+  if (old) {
+    var img = old.querySelector("img");
+    if (img) { old.parentNode.insertBefore(img, old); old.remove(); }
+  }
+  _activeImg = null;
+}
+function _wrapForResize(img) {
+  _clearResize();
+  _activeImg = img;
+  var wrap = document.createElement("span");
+  wrap.className = "img-resize-wrap";
+  wrap.contentEditable = "false";
+  img.parentNode.insertBefore(wrap, img);
+  wrap.appendChild(img);
+  var corners = ["br","bl","tr","tl"];
+  corners.forEach(function(c) {
+    var h = document.createElement("span");
+    h.className = "img-resize-handle " + c;
+    h.addEventListener("mousedown", function(ev) { _startResize(ev, img, c); });
+    wrap.appendChild(h);
+  });
+  var info = document.createElement("span");
+  info.className = "img-resize-info";
+  info.textContent = Math.round(img.offsetWidth) + " x " + Math.round(img.offsetHeight);
+  wrap.appendChild(info);
+}
+function _startResize(ev, img, corner) {
+  ev.preventDefault(); ev.stopPropagation();
+  var startX = ev.clientX, startY = ev.clientY;
+  var startW = img.offsetWidth, startH = img.offsetHeight;
+  var ratio = startW / startH;
+  var info = img.parentNode.querySelector(".img-resize-info");
+  function onMove(e) {
+    var dx = e.clientX - startX, dy = e.clientY - startY;
+    var nw = startW, nh = startH;
+    if (corner === "br") { nw = startW + dx; }
+    else if (corner === "bl") { nw = startW - dx; }
+    else if (corner === "tr") { nw = startW + dx; }
+    else if (corner === "tl") { nw = startW - dx; }
+    if (nw < 30) nw = 30;
+    nh = nw / ratio;
+    img.style.width = Math.round(nw) + "px";
+    img.style.height = Math.round(nh) + "px";
+    img.style.maxWidth = "none";
+    if (info) info.textContent = Math.round(nw) + " x " + Math.round(nh);
+  }
+  function onUp() {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+  }
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
+document.getElementById("editor").addEventListener("click", function(ev) {
+  if (ev.target.tagName === "IMG" && !ev.target.closest(".img-resize-wrap")) {
+    _wrapForResize(ev.target);
+  } else if (!ev.target.closest(".img-resize-wrap")) {
+    _clearResize();
+  }
+});
+document.addEventListener("keydown", function(ev) {
+  if (_activeImg && (ev.key === "Escape" || ev.key === "Delete" || ev.key === "Backspace")) {
+    if (ev.key === "Escape") { _clearResize(); }
+    else { var w = _activeImg.closest(".img-resize-wrap"); if (w) w.remove(); else _activeImg.remove(); _activeImg = null; }
+  }
+});
+
 // Listen for parent requests
 function requestInsertImage(){parent.postMessage("INSERT_IMAGE_REQUEST","*");}
 window.addEventListener("message", function(e) {
   if (e.data === "GET_HTML") {
+    _clearResize();
     var html = document.getElementById("editor").innerHTML || "";
     parent.postMessage("EDITOR_HTML:" + html, "*");
   } else if (typeof e.data === "string" && e.data.startsWith("SET_HTML:")) {
