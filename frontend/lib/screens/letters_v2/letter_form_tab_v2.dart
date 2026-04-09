@@ -6,7 +6,6 @@ import 'dart:ui_web' as ui_web;
 import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:printing/printing.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config.dart';
@@ -558,10 +557,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
           );
         }
       }
-      await Printing.sharePdf(
-        bytes: pdfBytes,
-        filename: 'letter_${DateTime.now().millisecondsSinceEpoch}.pdf',
-      );
+      _downloadPdfBytes(pdfBytes, 'letter_${DateTime.now().millisecondsSinceEpoch}.pdf');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -583,6 +579,23 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _downloadPdfBytes(Uint8List bytes, String filename) {
+    final blob = web.Blob(
+      <JSAny>[bytes.toJS].toJS,
+      web.BlobPropertyBag(type: 'application/pdf'),
+    );
+    final url = web.URL.createObjectURL(blob);
+    final anchor = web.document.createElement('a') as web.HTMLAnchorElement
+      ..href = url
+      ..download = filename;
+    web.document.body?.append(anchor);
+    anchor.click();
+    Future.delayed(const Duration(milliseconds: 150), () {
+      anchor.remove();
+      web.URL.revokeObjectURL(url);
+    });
   }
 
   Future<void> _exportCombinedPdf() async {
@@ -647,11 +660,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       );
 
       if (mounted) {
-        await Printing.sharePdf(
-          bytes: mergedPdf,
-          filename:
-              'letter_${DateTime.now().millisecondsSinceEpoch}_combined.pdf',
-        );
+        _downloadPdfBytes(mergedPdf, 'letter_${DateTime.now().millisecondsSinceEpoch}_combined.pdf');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Combined PDF exported successfully')),
         );
