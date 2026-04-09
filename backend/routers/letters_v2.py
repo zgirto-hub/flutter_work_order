@@ -109,6 +109,7 @@ class LetterBodyV2(BaseModel):
     alsayed: str
     almawdoo: str
     body_html: str  # Rich HTML from WYSIWYG editor
+    signer_title: str = ""
     alasm: str
     signature_base64: str | None = None
     reply_required: bool = False
@@ -297,6 +298,7 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
         alsayed=data.alsayed,
         almawdoo=data.almawdoo,
         body_html=_convert_body_images_to_data_uris(_sanitize_editor_html(data.body_html)),
+        signer_title=data.signer_title,
         alasm=data.alasm,
         signature_img=sig_img,
         reply_required=data.reply_required,
@@ -414,6 +416,7 @@ async def preview_letter_html(data: LetterBodyV2):
         alsayed=data.alsayed,
         almawdoo=data.almawdoo,
         body_html=_convert_body_images_to_data_uris(_sanitize_editor_html(data.body_html)),
+        signer_title=data.signer_title,
         alasm=data.alasm,
         signature_img=sig_img,
         reply_required=data.reply_required,
@@ -460,6 +463,7 @@ async def generate_letter_v2(data: LetterBodyV2):
         "alsayed": data.alsayed,
         "almawdoo": data.almawdoo,
         "body_text": data.body_html,
+        "signer_title": data.signer_title,
         "alasm": data.alasm,
         "signature_base64": data.signature_base64,
         "reply_required": data.reply_required,
@@ -551,6 +555,7 @@ async def update_letter_v2(letter_id: str, data: LetterBodyV2):
         "alsayed": data.alsayed,
         "almawdoo": data.almawdoo,
         "body_text": data.body_html,
+        "signer_title": data.signer_title,
         "alasm": data.alasm,
         "signature_base64": data.signature_base64,
         "reply_required": data.reply_required,
@@ -629,6 +634,7 @@ async def regenerate_letter_v2(letter_id: str):
         alsayed=rec["alsayed"],
         almawdoo=rec["almawdoo"],
         body_html=rec.get("body_text", ""),
+        signer_title=rec.get("signer_title", ""),
         alasm=rec["alasm"],
         signature_base64=rec.get("signature_base64"),
         reply_required=rec.get("reply_required", False),

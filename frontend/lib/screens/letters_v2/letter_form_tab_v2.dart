@@ -34,6 +34,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   final _isharaCtrl = TextEditingController();
   final _alsayedCtrl = TextEditingController();
   final _almawdooCtrl = TextEditingController();
+  final _signerTitleCtrl = TextEditingController();
   final _alasmCtrl = TextEditingController();
   final _ccListCtrl = TextEditingController();
   final _ccNameCtrl = TextEditingController();
@@ -85,6 +86,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       _isharaCtrl.text = letter.ishara;
       _alsayedCtrl.text = letter.alsayed;
       _almawdooCtrl.text = letter.almawdoo;
+      _signerTitleCtrl.text = letter.signerTitle;
       _alasmCtrl.text = letter.alasm;
       _initialBodyHtml = letter.bodyText;
       _linkedCerts = List.from(letter.paymentCertificates);
@@ -334,6 +336,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'alsayed': _alsayedCtrl.text,
         'almawdoo': _almawdooCtrl.text,
         'body_html': bodyHtml,
+        'signer_title': _signerTitleCtrl.text,
         'alasm': _alasmCtrl.text,
         'signature_base64': _signatureBase64,
         'reply_required': _replyRequired,
@@ -478,6 +481,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'alsayed': _alsayedCtrl.text,
         'almawdoo': _almawdooCtrl.text,
         'body_html': bodyHtml,
+        'signer_title': _signerTitleCtrl.text,
         'alasm': _alasmCtrl.text,
         'signature_base64': _signatureBase64,
         'reply_required': _replyRequired,
@@ -602,6 +606,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         'alsayed': _alsayedCtrl.text,
         'almawdoo': _almawdooCtrl.text,
         'body_html': bodyHtml,
+        'signer_title': _signerTitleCtrl.text,
         'alasm': _alasmCtrl.text,
         'signature_base64': _signatureBase64,
         'reply_required': _replyRequired,
@@ -668,6 +673,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     _isharaCtrl.dispose();
     _alsayedCtrl.dispose();
     _almawdooCtrl.dispose();
+    _signerTitleCtrl.dispose();
     _alasmCtrl.dispose();
     _ccListCtrl.dispose();
     _ccNameCtrl.dispose();
@@ -856,11 +862,19 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             ),
             const SizedBox(height: 16),
 
+            // ── Signer Title ──
+            _buildLabel('Signer Title'),
+            TextFormField(
+              controller: _signerTitleCtrl,
+              decoration: _inputDecor('e.g. مدير عام، رئيس قسم'),
+            ),
+            const SizedBox(height: 16),
+
             // ── Signer (الاسم) ──
             _buildLabel('Signer Name'),
             TextFormField(
               controller: _alasmCtrl,
-              decoration: _inputDecor('Signer name and title'),
+              decoration: _inputDecor('Signer name'),
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 16),

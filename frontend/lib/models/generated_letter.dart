@@ -6,6 +6,7 @@ class GeneratedLetter {
   final String alsayed;
   final String almawdoo;
   final String bodyText;
+  final String signerTitle;
   final String alasm;
   final String? signatureBase64;
   final String? createdByEmail;
@@ -32,6 +33,7 @@ class GeneratedLetter {
     required this.alsayed,
     required this.almawdoo,
     required this.bodyText,
+    this.signerTitle = '',
     required this.alasm,
     this.signatureBase64,
     this.createdByEmail,
@@ -76,6 +78,7 @@ class GeneratedLetter {
       alsayed: json['alsayed'] ?? '',
       almawdoo: json['almawdoo'] ?? '',
       bodyText: json['body_text'] ?? '',
+      signerTitle: json['signer_title'] ?? '',
       alasm: json['alasm'] ?? '',
       signatureBase64: json['signature_base64'],
       createdByEmail: json['created_by_email'],
@@ -103,6 +106,7 @@ class GeneratedLetter {
     'alsayed': alsayed,
     'almawdoo': almawdoo,
     'body_text': bodyText,
+    'signer_title': signerTitle,
     'alasm': alasm,
     'signature_base64': signatureBase64,
     'created_by_email': createdByEmail,
