@@ -10,9 +10,9 @@ import '../services/pwa_update_stub.dart'
 import '../theme/app_theme.dart';
 import '../config.dart';
 import '../widgets/claude_widgets.dart';
-import '../services/activity_log_service.dart';
+
 import '../services/user_service.dart';
-import '../models/activity_log_entry.dart';
+
 import 'system_status_screen.dart';
 import '../features/analytics/ai_insights_card.dart';
 import '../widgets/nl_input_card.dart';
@@ -49,13 +49,13 @@ class DashboardScreenState extends State<DashboardScreen>
   int _openWorkOrders = 0;
   int _inProgressWorkOrders = 0;
   int _inspectionsToday = 0;
-  List<ActivityLogEntry> _recentActivity = [];
+
   String _appVersion = '';
   String _appBuild = '';
   bool _checkingUpdate = false;
   String _updateMessage = '';
   bool _updateAvailable = false;
-  bool _recentJustLoaded = false;
+
   String _displayName = '';
 
   final TextEditingController _nlController = TextEditingController();
@@ -251,7 +251,6 @@ class DashboardScreenState extends State<DashboardScreen>
     try {
       await Future.wait([
         _loadWorkOrderStats(),
-        _loadRecentActivity(),
         _loadUserName(),
       ]);
     } catch (_) {}
@@ -297,19 +296,6 @@ class DashboardScreenState extends State<DashboardScreen>
     } catch (_) {}
   }
 
-  Future<void> _loadRecentActivity() async {
-    try {
-      final logs = await ActivityLogService().fetchLogs(limit: 5);
-      if (!mounted) return;
-      setState(() {
-        _recentActivity = logs;
-        _recentJustLoaded = true;
-      });
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) setState(() => _recentJustLoaded = false);
-      });
-    } catch (_) {}
-  }
 
   String _formatUpdateMessage(UpdateInfo info) {
     if (info.version != null && info.build != null) {
@@ -642,15 +628,6 @@ class DashboardScreenState extends State<DashboardScreen>
                   SectionLabel(text: 'Quick Actions'),
                   SizedBox(height: 8),
                   _QuickAction(
-                    label: 'New Work Order',
-                    icon: Icons.add_circle_outline_rounded,
-                    color: AppColors.accent,
-                    onTap: () => widget.onNavigate(1),
-                    trailing: Icon(Icons.chevron_right_rounded,
-                        size: 16, color: AppColors.textTertiary),
-                  ),
-                  SizedBox(height: 10),
-                  _QuickAction(
                     label: 'System Status',
                     icon: Icons.monitor_heart_outlined,
                     color: AppColors.accent,
@@ -722,72 +699,6 @@ class DashboardScreenState extends State<DashboardScreen>
                         : SizedBox.shrink(),
                   ),
 
-                  SizedBox(height: 24),
-
-                  // ── Recent activity ────────────────────────
-                  Text(
-                    'Recent Activity',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-
-                  if (_recentActivity.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppColors.bgSurface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.border, width: 0.5),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'No recent activity',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textTertiary,
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    AnimatedOpacity(
-                      opacity: _recentJustLoaded ? 0.6 : 1.0,
-                      duration: const Duration(milliseconds: 300),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.bgSurface,
-                          borderRadius: BorderRadius.circular(14),
-                          border:
-                              Border.all(color: AppColors.border, width: 0.5),
-                        ),
-                        child: Column(
-                          children:
-                              _recentActivity.asMap().entries.map((entry) {
-                            final i = entry.key;
-                            final item = entry.value;
-                            final isLast = i == _recentActivity.length - 1;
-                            return Column(
-                              children: [
-                                _RecentActivityRow(entry: item),
-                                if (!isLast)
-                                  Divider(
-                                    height: 0,
-                                    thickness: 0.5,
-                                    color: AppColors.border,
-                                    indent: 14,
-                                    endIndent: 14,
-                                  ),
-                              ],
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
                 ],
               ],
             ),
@@ -958,118 +869,6 @@ class _QuickAction extends StatelessWidget {
   }
 }
 
-// ── Recent Activity Row ───────────────────────────────────────────────────────
-
-class _RecentActivityRow extends StatelessWidget {
-  final ActivityLogEntry entry;
-
-  const _RecentActivityRow({required this.entry});
-
-  IconData _actionIcon(String action, String category) {
-    switch (action) {
-      case 'signed_in':
-        return Icons.login_rounded;
-      case 'signed_out':
-        return Icons.logout_rounded;
-      case 'created':
-        return Icons.add_circle_outline_rounded;
-      case 'updated':
-        return Icons.edit_outlined;
-      case 'deleted':
-        return Icons.delete_outline_rounded;
-      case 'closed':
-        return Icons.check_circle_outline_rounded;
-      case 'uploaded':
-        return Icons.upload_file_rounded;
-      case 'role_changed':
-        return Icons.swap_horiz_rounded;
-      case 'password_reset':
-      case 'password_reset_completed':
-        return Icons.lock_reset_rounded;
-      case 'user_created':
-        return Icons.person_add_outlined;
-      default:
-        return Icons.circle_outlined;
-    }
-  }
-
-  Color _actionColor(String action) {
-    switch (action) {
-      case 'created':
-      case 'user_created':
-        return AppColors.closedText;
-      case 'deleted':
-        return AppColors.dangerText;
-      case 'signed_in':
-      case 'signed_out':
-        return AppColors.textTertiary;
-      default:
-        return AppColors.accent;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final label = entry.targetLabel ?? '';
-    final desc = entry.description;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: _actionColor(entry.action).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Icon(_actionIcon(entry.action, entry.category),
-                size: 15, color: _actionColor(entry.action)),
-          ),
-          SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  desc,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (label.isNotEmpty) ...[
-                  SizedBox(height: 2),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: AppColors.textTertiary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          SizedBox(width: 8),
-          Text(
-            entry.formattedTime,
-            style: TextStyle(
-              fontSize: 10,
-              color: AppColors.textTertiary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ── Collapsible Card ─────────────────────────────────────────────────────────
 
