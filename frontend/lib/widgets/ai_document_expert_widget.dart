@@ -216,10 +216,16 @@ class _AiDocumentExpertWidgetState extends State<AiDocumentExpertWidget> {
         side: BorderSide(color: Colors.grey.shade200),
       ),
       child: ExpansionTile(
-        leading: const Icon(Icons.smart_toy_outlined, color: Color(0xFF9C27B0)),
-        title: const Text(
-          'AI Document Expert',
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        title: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.smart_toy_outlined, color: Color(0xFF9C27B0), size: 20),
+            SizedBox(width: 8),
+            Text(
+              'AI Document Expert',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+            ),
+          ],
         ),
         initiallyExpanded: false,
         onExpansionChanged: (expanded) {
