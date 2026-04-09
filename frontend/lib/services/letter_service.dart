@@ -75,6 +75,21 @@ class LetterService {
     return res.bodyBytes;
   }
 
+  Future<String> uploadImage(Uint8List bytes, String filename) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/letters-v2/upload-image');
+    final request = http.MultipartRequest('POST', uri);
+    request.files
+        .add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    final streamedRes = await request.send();
+    final res = await http.Response.fromStream(streamedRes);
+    if (res.statusCode != 200) {
+      final errorBody = jsonDecode(res.body);
+      throw Exception(errorBody['detail'] ?? 'Failed to upload image');
+    }
+    final response = jsonDecode(res.body);
+    return response['url'];
+  }
+
   /// Update an existing letter record and regenerate PDF.
   Future<Uint8List> update(String letterId, GeneratedLetter letter) async {
     final body = letter.toJson();

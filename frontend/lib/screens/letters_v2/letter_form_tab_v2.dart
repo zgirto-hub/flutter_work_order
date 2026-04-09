@@ -67,6 +67,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   // Attachments
   final List<_Attachment> _attachments = [];
   List<LinkedPaymentCertificate> _linkedCerts = [];
+  int _imageCount = 0;
 
   // Unique ID for the HTML editor iframe
   late final String _editorViewType;
@@ -161,6 +162,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
         final cw = _editorIframe?.contentWindow;
         cw?.postMessage('SET_HTML:$_initialBodyHtml'.toJS, '*'.toJS);
         _initialBodyHtml = null;
+      } else if (str == 'INSERT_IMAGE_REQUEST') {
+        _uploadImage();
       }
     });
   }
@@ -235,6 +238,74 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       _signatureBytes = file.bytes;
       _signatureBase64 = base64Encode(file.bytes!);
     });
+  }
+
+  Future<void> _uploadImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
+      allowMultiple: false,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    if (file.bytes == null) return;
+    if (file.bytes!.lengthInBytes > 5 * 1024 * 1024) {
+      _editorIframe?.contentWindow?.postMessage(
+        'INSERT_IMAGE_ERROR:File exceeds 5MB limit. Please choose a smaller image.'
+            .toJS,
+        '*'.toJS,
+      );
+      return;
+    }
+    _imageCount++;
+    if (_imageCount > 10) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Image Limit Warning'),
+          content: const Text(
+            'This letter already has more than 10 images. '
+            'Adding more may affect performance. Continue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) {
+        _imageCount--;
+        return;
+      }
+    }
+    _editorIframe?.contentWindow?.postMessage(
+      'INSERT_IMAGE_LOADING'.toJS,
+      '*'.toJS,
+    );
+    try {
+      final url = await LetterService().uploadImage(file.bytes!, file.name);
+      final fullUrl = '${AppConfig.downloadUrl}$url';
+      _editorIframe?.contentWindow?.postMessage(
+        'INSERT_IMAGE:$fullUrl'.toJS,
+        '*'.toJS,
+      );
+    } catch (e) {
+      _editorIframe?.contentWindow?.postMessage(
+        'REMOVE_IMAGE_LOADING'.toJS,
+        '*'.toJS,
+      );
+      _editorIframe?.contentWindow?.postMessage(
+        'INSERT_IMAGE_ERROR:${e.toString()}'.toJS,
+        '*'.toJS,
+      );
+    }
   }
 
   Future<void> _showPreview() async {
@@ -1385,6 +1456,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   <label class="color-btn" title="Highlight"><span id="hlSwatch" style="color:#FFFF00">&#9607;</span><input type="color" value="#FFFF00" onchange="applyHighlight(this.value); document.getElementById('hlSwatch').style.color=this.value" /></label>
   <button onclick="clearFormatting()" title="Clear formatting">&#9108;</button>
   <div class="sep"></div>
+  <button onclick="requestInsertImage()" title="Insert Image">&#128247;</button>
+  <div class="sep"></div>
   <select id="zoomSelect" onchange="applyZoom(this.value)" title="Zoom" class="tb-select">
     <option value="0.5">50%</option>
     <option value="0.75">75%</option>
@@ -1731,12 +1804,27 @@ function tableAction(action) {
 }
 
 // Listen for parent requests
+function requestInsertImage(){parent.postMessage("INSERT_IMAGE_REQUEST","*");}
 window.addEventListener("message", function(e) {
   if (e.data === "GET_HTML") {
     var html = document.getElementById("editor").innerHTML || "";
     parent.postMessage("EDITOR_HTML:" + html, "*");
   } else if (typeof e.data === "string" && e.data.startsWith("SET_HTML:")) {
     document.getElementById("editor").innerHTML = e.data.substring(9);
+  } else if (typeof e.data === "string" && e.data.startsWith("INSERT_IMAGE:")) {
+    var url = e.data.substring(13);
+    var ld = document.getElementById("img-loading");
+    if (ld) ld.remove();
+    document.getElementById("editor").focus();
+    document.execCommand("insertHTML", false, '<img src="' + url + '" style="max-width:100%;">');
+  } else if (typeof e.data === "string" && e.data.startsWith("INSERT_IMAGE_ERROR:")) {
+    alert(e.data.substring(19));
+  } else if (e.data === "INSERT_IMAGE_LOADING") {
+    document.getElementById("editor").focus();
+    document.execCommand("insertHTML", false, '<span id="img-loading" style="display:inline-block;padding:8px 16px;background:#f0f0f0;border:1px dashed #999;border-radius:4px;color:#666;font-style:italic;">Uploading image...</span>');
+  } else if (e.data === "REMOVE_IMAGE_LOADING") {
+    var el = document.getElementById("img-loading");
+    if (el) el.remove();
   }
 });
 // Notify parent that editor is ready
