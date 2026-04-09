@@ -1,10 +1,11 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:js_interop';
 import 'package:flutter/material.dart';
+import 'package:web/web.dart' as web;
 import '../../models/payment_certificate.dart';
 import '../../theme/app_theme.dart';
 import '../../services/pdf/payment_certificate_pdf_service.dart';
 import '../../services/payment_certificate_service.dart';
-import 'package:printing/printing.dart';
+import '../Files/file_viewer_screen.dart';
 
 class AddPaymentCertificateScreen extends StatefulWidget {
   final PaymentCertificate? certificate;
@@ -235,16 +236,22 @@ class _AddPaymentCertificateScreenState
       final model = _buildModel();
       final bytes = await PaymentCertificatePdfService.build(model);
       if (!mounted) return;
-      if (kIsWeb) {
-        // On web (including iOS PWA), sharePdf triggers a file download
-        // via blob URL which works reliably, unlike layoutPdf which uses
-        // window.print() and is silently blocked in iOS PWA standalone mode.
-        final fileName =
-            'شهادة_دفع_${model.certificateNumber.replaceAll(' ', '_')}.pdf';
-        await Printing.sharePdf(bytes: bytes, filename: fileName);
-      } else {
-        await Printing.layoutPdf(onLayout: (_) => bytes);
-      }
+      final fileName =
+          'شهادة_دفع_${model.certificateNumber.replaceAll(' ', '_')}.pdf';
+      final blob = web.Blob(
+        <JSAny>[bytes.toJS].toJS,
+        web.BlobPropertyBag(type: 'application/pdf'),
+      );
+      final blobUrl = web.URL.createObjectURL(blob);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FileViewerScreen(
+            fileUrl: blobUrl,
+            fileName: fileName,
+          ),
+        ),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(

@@ -1,7 +1,9 @@
+import 'dart:js_interop';
 import 'package:flutter/material.dart';
-import 'package:printing/printing.dart';
+import 'package:web/web.dart' as web;
 import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
+import '../Files/file_viewer_screen.dart';
 
 class LetterHistoryTabV2 extends StatefulWidget {
   final void Function(GeneratedLetter letter)? onEditLetter;
@@ -73,9 +75,20 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
   Future<void> _regeneratePdf(String letterId) async {
     try {
       final bytes = await LetterService().regenerate(letterId);
-      await Printing.sharePdf(
-        bytes: bytes,
-        filename: 'letter_$letterId.pdf',
+      if (!mounted) return;
+      final blob = web.Blob(
+        <JSAny>[bytes.toJS].toJS,
+        web.BlobPropertyBag(type: 'application/pdf'),
+      );
+      final blobUrl = web.URL.createObjectURL(blob);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FileViewerScreen(
+            fileUrl: blobUrl,
+            fileName: 'letter_$letterId.pdf',
+          ),
+        ),
       );
     } catch (e) {
       if (mounted) {

@@ -14,13 +14,8 @@ import '../../services/letter_service.dart';
 import '../../services/payment_certificate_service.dart';
 import '../../services/pdf/payment_certificate_pdf_service.dart';
 import '../../widgets/ai_document_expert_widget.dart';
+import '../Files/file_viewer_screen.dart';
 import 'widgets/payment_cert_picker.dart';
-
-@JS('navigator.canShare')
-external bool _jsCanShare(JSObject shareData);
-
-@JS('navigator.share')
-external JSPromise _jsShare(JSObject shareData);
 
 /// Letter form with WYSIWYG rich text editor (v2 — WeasyPrint backend).
 class LetterFormTabV2 extends StatefulWidget {
@@ -563,7 +558,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
           );
         }
       }
-      await _downloadPdfBytes(pdfBytes, 'letter_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      _downloadPdfBytes(pdfBytes, 'letter_${DateTime.now().millisecondsSinceEpoch}.pdf');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -587,58 +582,40 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
     }
   }
 
-  Future<void> _downloadPdfBytes(Uint8List bytes, String filename) async {
+  void _downloadPdfBytes(Uint8List bytes, String filename) {
     final ua = web.window.navigator.userAgent.toLowerCase();
     final isIos = ua.contains('iphone') || ua.contains('ipad') || ua.contains('ipod');
 
-    if (isIos) {
-      // Use Web Share API on iOS to avoid leaving the PWA
-      try {
-        final blob = web.Blob(
-          <JSAny>[bytes.toJS].toJS,
-          web.BlobPropertyBag(type: 'application/pdf'),
-        );
-        final file = web.File(
-          <JSAny>[blob].toJS,
-          filename,
-          web.FilePropertyBag(type: 'application/pdf'),
-        );
-        final shareData = <String, dynamic>{
-          'files': <JSAny>[file].toJS,
-          'title': filename,
-        }.jsify()! as JSObject;
-
-        bool canShare = false;
-        try {
-          canShare = _jsCanShare(shareData);
-        } catch (_) {}
-
-        if (canShare) {
-          await _jsShare(shareData).toDart;
-          return;
-        }
-      } catch (e) {
-        final err = e.toString();
-        if (err.contains('AbortError') || err.contains('cancel') || err.contains('abort')) {
-          return; // user cancelled — fine
-        }
-      }
-    }
-
-    // Desktop / Android: standard anchor-click download
+    // Create blob URL from bytes
     final blob = web.Blob(
       <JSAny>[bytes.toJS].toJS,
       web.BlobPropertyBag(type: 'application/pdf'),
     );
-    final url = web.URL.createObjectURL(blob);
+    final blobUrl = web.URL.createObjectURL(blob);
+
+    if (isIos) {
+      // iOS PWA: open in-app FileViewerScreen (stays in PWA, no reload)
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FileViewerScreen(
+            fileUrl: blobUrl,
+            fileName: filename,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Desktop / Android: standard anchor-click download
     final anchor = web.document.createElement('a') as web.HTMLAnchorElement
-      ..href = url
+      ..href = blobUrl
       ..download = filename;
     web.document.body?.append(anchor);
     anchor.click();
     Future.delayed(const Duration(milliseconds: 150), () {
       anchor.remove();
-      web.URL.revokeObjectURL(url);
+      web.URL.revokeObjectURL(blobUrl);
     });
   }
 
@@ -704,7 +681,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       );
 
       if (mounted) {
-        await _downloadPdfBytes(mergedPdf, 'letter_${DateTime.now().millisecondsSinceEpoch}_combined.pdf');
+        _downloadPdfBytes(mergedPdf, 'letter_${DateTime.now().millisecondsSinceEpoch}_combined.pdf');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Combined PDF exported successfully')),
         );
