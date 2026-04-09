@@ -47,6 +47,29 @@ class LetterService {
     return res.bodyBytes;
   }
 
+  Future<List<GeneratedLetter>> fetchAllV2() async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/letters-v2')
+        .replace(queryParameters: {'email': _email});
+    final res = await http.get(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to fetch letters');
+    }
+    final data = jsonDecode(res.body);
+    final letters = (data['letters'] as List)
+        .map((j) => GeneratedLetter.fromJson(j))
+        .toList();
+    return letters;
+  }
+
+  Future<GeneratedLetter> fetchOneV2(String letterId) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/letters-v2/$letterId');
+    final res = await http.get(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to fetch letter');
+    }
+    return GeneratedLetter.fromJson(jsonDecode(res.body));
+  }
+
   /// V2 endpoint — sends raw map with body_html for WeasyPrint rendering.
   Future<Uint8List> generateV2(Map<String, dynamic> body,
       {List<String> paymentCertificateIds = const [],

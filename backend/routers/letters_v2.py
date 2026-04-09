@@ -514,28 +514,70 @@ async def generate_letter_v2(data: LetterBodyV2):
 @router.get("/letters-v2")
 async def get_letters_v2(email: str):
     """Fetch letter history for a user."""
+    # Select only the columns needed for the list view (exclude heavy body_text, signature_base64)
     result = (
         supabase.table("generated_letters")
-        .select("*")
+        .select(
+            "id, created_at, ishara, tarikh, alsayed, almawdoo, alasm, signer_title,"
+            " reply_required, cc_list, created_by_email,"
+            " ref_font_size, ref_bold, ref_underline,"
+            " tarikh_font_size, tarikh_bold, tarikh_underline,"
+            " recipient_font_size, recipient_bold, recipient_underline,"
+            " subject_font_size, subject_bold, subject_underline"
+        )
         .eq("created_by_email", email)
         .order("created_at", desc=True)
         .execute()
     )
     letters = result.data or []
 
-    # Attach linked payment certificates to each letter
-    for letter in letters:
-        certs = (
+    if letters:
+        # Batch-fetch all payment certificates for these letters in one query
+        letter_ids = [l["id"] for l in letters]
+        certs_result = (
             supabase.table("payment_certificates")
-            .select("id, certificate_number, subject, letter_link_order")
-            .eq("letter_id", letter["id"])
+            .select("id, certificate_number, subject, letter_link_order, letter_id")
+            .in_("letter_id", letter_ids)
             .order("letter_link_order")
             .execute()
         )
-        letter["payment_certificates"] = certs.data or []
-        letter.update(_coalesce_letter_format(letter))
+        # Group certs by letter_id
+        certs_by_letter = {}
+        for cert in (certs_result.data or []):
+            lid = cert.pop("letter_id", None)
+            if lid:
+                certs_by_letter.setdefault(lid, []).append(cert)
+
+        for letter in letters:
+            letter["payment_certificates"] = certs_by_letter.get(letter["id"], [])
+            letter.update(_coalesce_letter_format(letter))
 
     return {"letters": letters}
+
+
+@router.get("/letters-v2/{letter_id}")
+async def get_letter_v2(letter_id: str):
+    """Fetch a single letter with all fields (including body_text)."""
+    result = (
+        supabase.table("generated_letters")
+        .select("*")
+        .eq("id", letter_id)
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(404, "Letter not found")
+
+    letter = result.data[0]
+    certs = (
+        supabase.table("payment_certificates")
+        .select("id, certificate_number, subject, letter_link_order")
+        .eq("letter_id", letter_id)
+        .order("letter_link_order")
+        .execute()
+    )
+    letter["payment_certificates"] = certs.data or []
+    letter.update(_coalesce_letter_format(letter))
+    return letter
 
 
 @router.put("/letters-v2/{letter_id}")

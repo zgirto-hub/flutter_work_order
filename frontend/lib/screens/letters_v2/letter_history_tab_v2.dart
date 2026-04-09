@@ -24,7 +24,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
 
   Future<void> _loadLetters() async {
     try {
-      final letters = await LetterService().fetchAll();
+      final letters = await LetterService().fetchAllV2();
       if (mounted) setState(() { _letters = letters; _isLoading = false; });
     } catch (e) {
       if (mounted) {
@@ -144,9 +144,18 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(context);
-                        widget.onEditLetter?.call(letter);
+                        if (letter.id != null) {
+                          try {
+                            final full = await LetterService().fetchOneV2(letter.id!);
+                            widget.onEditLetter?.call(full);
+                          } catch (_) {
+                            widget.onEditLetter?.call(letter);
+                          }
+                        } else {
+                          widget.onEditLetter?.call(letter);
+                        }
                       },
                       icon: const Icon(Icons.edit),
                       label: const Text('Edit'),
