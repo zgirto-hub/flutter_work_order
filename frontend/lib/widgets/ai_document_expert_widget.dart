@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
 import '../services/ai_assist_service.dart';
 
+class _ActionItem {
+  final String key;
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  const _ActionItem(this.key, this.label, this.icon, this.color);
+}
+
 class AiDocumentExpertWidget extends StatefulWidget {
   final Future<String> Function() onGetHtml;
   final void Function(String html) onApplyHtml;
@@ -25,27 +34,20 @@ class _AiDocumentExpertWidgetState extends State<AiDocumentExpertWidget> {
   String? _resultHtml;
   int _requestId = 0;
 
-  static const Map<String, String> _actionLabels = {
-    'improve': 'تحسين وتنسيق',
-    'correct': 'تصحيح نحوي',
-    'generate': 'توليد من ملاحظات',
-    'translate': 'ترجمة',
-    'concise': 'تلخيص',
-    'elaborate': 'توسيع',
-    'custom': 'تعليمات مخصصة',
-  };
+  static final List<_ActionItem> _actions = [
+    const _ActionItem('improve', 'تحسين وتنسيق', Icons.auto_fix_high, Color(0xFF2196F3)),
+    const _ActionItem('correct', 'تصحيح نحوي', Icons.spellcheck, Color(0xFF4CAF50)),
+    const _ActionItem('generate', 'توليد من ملاحظات', Icons.note_add, Color(0xFF9C27B0)),
+    const _ActionItem('translate', 'ترجمة', Icons.translate, Color(0xFFFF9800)),
+    const _ActionItem('concise', 'تلخيص', Icons.compress, Color(0xFF00BCD4)),
+    const _ActionItem('elaborate', 'توسيع', Icons.expand, Color(0xFFE91E63)),
+    const _ActionItem('custom', 'تعليمات مخصصة', Icons.tune, Color(0xFF607D8B)),
+  ];
 
   String _selectedLanguage = 'ar';
 
   bool get _hasContent {
     return _resultHtml != null && _resultHtml!.isNotEmpty;
-  }
-
-  bool get _shouldCheckHealth => _isExpanded && _isAvailable == null;
-
-  @override
-  void initState() {
-    super.initState();
   }
 
   @override
@@ -158,14 +160,66 @@ class _AiDocumentExpertWidgetState extends State<AiDocumentExpertWidget> {
     });
   }
 
+  Widget _buildActionButton(_ActionItem item) {
+    final isDisabled = _isAvailable == false;
+    final isActive = _isLoading;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: isDisabled || isActive ? null : () => _handleAction(item.key),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDisabled
+                ? Colors.grey.shade100
+                : item.color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDisabled
+                  ? Colors.grey.shade300
+                  : item.color.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                item.icon,
+                size: 18,
+                color: isDisabled ? Colors.grey.shade400 : item.color,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                item.label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isDisabled ? Colors.grey.shade400 : item.color.withValues(alpha: 0.9),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.all(8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
       child: ExpansionTile(
+        leading: const Icon(Icons.smart_toy_outlined, color: Color(0xFF9C27B0)),
         title: const Text(
           'AI Document Expert',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
         ),
         initiallyExpanded: false,
         onExpansionChanged: (expanded) {
@@ -178,52 +232,59 @@ class _AiDocumentExpertWidgetState extends State<AiDocumentExpertWidget> {
         },
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: _actionLabels.entries.map((entry) {
-                    final isDisabled = _isAvailable == false;
-                    return Tooltip(
-                      message:
-                          isDisabled ? 'خدمة الذكاء الاصطناعي غير متاحة' : '',
-                      child: OutlinedButton(
-                        onPressed:
-                            isDisabled ? null : () => _handleAction(entry.key),
-                        child: Text(entry.value),
+                  children: _actions.map((item) => _buildActionButton(item)).toList(),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.language, size: 18, color: Colors.grey.shade600),
+                      const SizedBox(width: 8),
+                      Text('اللغة:', style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SegmentedButton<String>(
+                          segments: const [
+                            ButtonSegment(value: 'ar', label: Text('العربية')),
+                            ButtonSegment(value: 'en', label: Text('English')),
+                          ],
+                          selected: {_selectedLanguage},
+                          onSelectionChanged: (selection) {
+                            setState(() {
+                              _selectedLanguage = selection.first;
+                            });
+                          },
+                          style: ButtonStyle(
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
                       ),
-                    );
-                  }).toList(),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Text('اللغة: '),
-                    const SizedBox(width: 8),
-                    SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(value: 'ar', label: Text('العربية')),
-                        ButtonSegment(value: 'en', label: Text('English')),
-                      ],
-                      selected: {_selectedLanguage},
-                      onSelectionChanged: (selection) {
-                        setState(() {
-                          _selectedLanguage = selection.first;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 TextField(
                   controller: _instructionsCtrl,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'تعليمات إضافية (اختياري)',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     hintText: 'أدخل أي تعليمات خاصة أو ملاحظات',
+                    prefixIcon: const Icon(Icons.edit_note),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
                   ),
                   maxLines: 2,
                   maxLength: 1000,
@@ -256,14 +317,16 @@ class _AiDocumentExpertWidgetState extends State<AiDocumentExpertWidget> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      OutlinedButton(
+                      OutlinedButton.icon(
                         onPressed: _discardResult,
-                        child: const Text('تجاهل'),
+                        icon: const Icon(Icons.close, size: 18),
+                        label: const Text('تجاهل'),
                       ),
                       const SizedBox(width: 12),
-                      FilledButton(
+                      FilledButton.icon(
                         onPressed: _applyResult,
-                        child: const Text('تطبيق'),
+                        icon: const Icon(Icons.check, size: 18),
+                        label: const Text('تطبيق'),
                       ),
                     ],
                   ),
