@@ -170,12 +170,12 @@ class _AiDocumentExpertWidgetState extends State<AiDocumentExpertWidget> {
         onTap: isDisabled || isActive ? null : () => _handleAction(item.key),
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: isDisabled
                 ? Colors.grey.shade100
                 : item.color.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isDisabled
                   ? Colors.grey.shade300
@@ -187,14 +187,14 @@ class _AiDocumentExpertWidgetState extends State<AiDocumentExpertWidget> {
             children: [
               Icon(
                 item.icon,
-                size: 18,
+                size: 14,
                 color: isDisabled ? Colors.grey.shade400 : item.color,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               Text(
                 item.label,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: isDisabled ? Colors.grey.shade400 : item.color.withValues(alpha: 0.9),
                 ),
@@ -242,38 +242,28 @@ class _AiDocumentExpertWidgetState extends State<AiDocumentExpertWidget> {
                   children: _actions.map((item) => _buildActionButton(item)).toList(),
                 ),
                 const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.language, size: 18, color: Colors.grey.shade600),
-                      const SizedBox(width: 8),
-                      Text('اللغة:', style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: SegmentedButton<String>(
-                          segments: const [
-                            ButtonSegment(value: 'ar', label: Text('العربية')),
-                            ButtonSegment(value: 'en', label: Text('English')),
-                          ],
-                          selected: {_selectedLanguage},
-                          onSelectionChanged: (selection) {
-                            setState(() {
-                              _selectedLanguage = selection.first;
-                            });
-                          },
-                          style: ButtonStyle(
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                Row(
+                  children: [
+                    Icon(Icons.language, size: 16, color: Colors.grey.shade600),
+                    const SizedBox(width: 4),
+                    Text('اللغة:', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: const Text('العربية', style: TextStyle(fontSize: 11)),
+                      selected: _selectedLanguage == 'ar',
+                      onSelected: (_) => setState(() => _selectedLanguage = 'ar'),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    const SizedBox(width: 6),
+                    ChoiceChip(
+                      label: const Text('English', style: TextStyle(fontSize: 11)),
+                      selected: _selectedLanguage == 'en',
+                      onSelected: (_) => setState(() => _selectedLanguage = 'en'),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 TextField(
