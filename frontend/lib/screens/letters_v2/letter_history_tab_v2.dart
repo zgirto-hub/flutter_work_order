@@ -1,12 +1,10 @@
 import 'dart:js_interop';
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/claude_widgets.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/claude_widgets.dart';
 import 'package:web/web.dart' as web;
 import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/claude_widgets.dart';
 import '../Files/file_viewer_screen.dart';
 
 class LetterHistoryTabV2 extends StatefulWidget {
@@ -21,6 +19,10 @@ class LetterHistoryTabV2 extends StatefulWidget {
 class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
   List<GeneratedLetter> _letters = [];
   bool _isLoading = true;
+  int _expandedIndex = -1;
+  final Map<String, String> _bodyCache = {}; // letterId -> bodyText
+  bool _loadingBody = false;
+  bool _actionInProgress = false;
 
   @override
   void initState() {
@@ -42,17 +44,19 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
     }
   }
 
-  Future<void> _deleteLetter(String letterId, BuildContext ctx) async {
+  Future<void> _deleteLetter(String letterId) async {
     final confirm = await showDialog<bool>(
-      context: ctx,
+      context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Delete Letter'),
-        content: const Text('Are you sure you want to delete this letter?'),
+        backgroundColor: AppColors.bgSurface,
+        title: Text('Delete Letter', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text('Are you sure you want to delete this letter?',
+            style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
-            child: const Text('Delete', style: TextStyle(color: AppColors.dangerText)),
+            child: Text('Delete', style: TextStyle(color: AppColors.dangerText)),
           ),
         ],
       ),
@@ -61,10 +65,10 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
     try {
       await LetterService().delete(letterId);
       if (mounted) {
-        Navigator.pop(ctx);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Letter deleted')),
         );
+        setState(() => _expandedIndex = -1);
         _loadLetters();
       }
     } catch (e) {
@@ -103,165 +107,10 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
     }
   }
 
-  void _showLetterDetail(GeneratedLetter letter) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        final viewInsets = MediaQuery.of(ctx).viewInsets;
-        return DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        builder: (_, scrollCtrl) => Directionality(
-          textDirection: TextDirection.rtl,
-          child: ListView(
-            controller: scrollCtrl,
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + viewInsets.bottom),
-            children: [
-              // Handle bar
-              Center(
-                child: Container(
-                  width: 40, height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text('Letter Details',
-                  style: Theme.of(ctx).textTheme.titleLarge),
-              const SizedBox(height: 16),
-              _row('Reference', letter.ishara),
-              _row('Date', letter.tarikh),
-              _row('Recipient', letter.alsayed),
-              _row('Subject', letter.almawdoo),
-              _row('Signer', letter.alasm),
-              const Divider(height: 24),
-
-              // Linked payment certificates
-              if (letter.paymentCertificates.isNotEmpty) ...[
-                Text('Linked Payment Certificates',
-                    style: Theme.of(ctx).textTheme.titleSmall),
-                const SizedBox(height: 8),
-                ...letter.paymentCertificates.map((cert) => Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.receipt_long),
-                        title: Text(cert.certificateNumber),
-                        subtitle: Text(cert.subject),
-                      ),
-                    )),
-                const SizedBox(height: 16),
-              ],
-
-              // Action buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        if (letter.id != null) {
-                          try {
-                            final full = await LetterService().fetchOneV2(letter.id!);
-                            widget.onEditLetter?.call(full);
-                          } catch (_) {
-                            widget.onEditLetter?.call(letter);
-                          }
-                        } else {
-                          widget.onEditLetter?.call(letter);
-                        }
-                      },
-                      icon: const Icon(Icons.edit),
-                      label: const Text('Edit'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        GeneratedLetter source = letter;
-                        if (letter.id != null) {
-                          try {
-                            source = await LetterService().fetchOneV2(letter.id!);
-                          } catch (_) {}
-                        }
-                        widget.onEditLetter?.call(source.asCopy());
-                      },
-                      icon: const Icon(Icons.copy),
-                      label: const Text('Copy'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: letter.id != null
-                          ? () => _regeneratePdf(letter.id!)
-                          : null,
-                      icon: const Icon(Icons.picture_as_pdf),
-                      label: const Text('PDF'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: letter.id != null
-                          ? () => _deleteLetter(letter.id!, context)
-                          : null,
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      label: const Text('Delete', style: TextStyle(color: AppColors.dangerText)),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.dangerBorder),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
-      },
-    );
-  }
-
-  Widget _row(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(label,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 13)),
-          ),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 13)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+      return Center(child: CircularProgressIndicator(color: AppColors.accent));
     }
     if (_letters.isEmpty) {
       return EmptyState(
@@ -270,49 +119,482 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
         subtitle: 'Letters you create will appear here',
       );
     }
-    return RefreshIndicator(color: AppColors.accent,
+    return RefreshIndicator(
+      color: AppColors.accent,
       onRefresh: _loadLetters,
       child: ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: _letters.length,
         itemBuilder: (ctx, i) {
           final letter = _letters[i];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              title: Text(
-                letter.almawdoo,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textPrimary),
-              ),
-              subtitle: Text('${letter.alsayed} — ${letter.tarikh}', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-              trailing: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  if (letter.createdAt != null)
-                    Text(
-                      '${letter.createdAt!.day}/${letter.createdAt!.month}/${letter.createdAt!.year}',
-                      style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
-                    ),
-                  if (letter.paymentCertificates.isNotEmpty)
-                    Chip(
-                      label: Text(
-                        '${letter.paymentCertificates.length} certs',
-                        style: const TextStyle(fontSize: 10),
-                      ),
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                    ),
-                ],
-              ),
-              onTap: () => _showLetterDetail(letter),
+          final expanded = _expandedIndex == i;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _LetterCard(
+              letter: letter,
+              expanded: expanded,
+              onTap: () {
+                if (expanded) {
+                  setState(() => _expandedIndex = -1);
+                } else {
+                  setState(() {
+                    _expandedIndex = i;
+                    _loadingBody = true;
+                  });
+                  // Fetch body if not cached
+                  final lid = letter.id;
+                  if (lid != null && !_bodyCache.containsKey(lid)) {
+                    LetterService().fetchOneV2(lid).then((full) {
+                      if (mounted) {
+                        setState(() {
+                          _bodyCache[lid] = full.bodyText;
+                          _loadingBody = false;
+                        });
+                      }
+                    }).catchError((_) {
+                      if (mounted) setState(() => _loadingBody = false);
+                    });
+                  } else {
+                    _loadingBody = false;
+                  }
+                }
+              },
+              onEdit: () async {
+                if (_actionInProgress) return;
+                _actionInProgress = true;
+                try {
+                  if (letter.id != null) {
+                    try {
+                      final full = await LetterService().fetchOneV2(letter.id!);
+                      widget.onEditLetter?.call(full);
+                    } catch (_) {
+                      widget.onEditLetter?.call(letter);
+                    }
+                  } else {
+                    widget.onEditLetter?.call(letter);
+                  }
+                } finally {
+                  _actionInProgress = false;
+                }
+              },
+              onCopy: () async {
+                if (_actionInProgress) return;
+                _actionInProgress = true;
+                try {
+                  GeneratedLetter source = letter;
+                  if (letter.id != null) {
+                    try {
+                      source = await LetterService().fetchOneV2(letter.id!);
+                    } catch (_) {}
+                  }
+                  widget.onEditLetter?.call(source.asCopy());
+                } finally {
+                  _actionInProgress = false;
+                }
+              },
+              bodyText: letter.id != null ? _bodyCache[letter.id!] : null,
+              loadingBody: _loadingBody && expanded,
+              onPdf: letter.id != null ? () {
+                if (_actionInProgress) return;
+                _actionInProgress = true;
+                _regeneratePdf(letter.id!).whenComplete(() => _actionInProgress = false);
+              } : null,
+              onDelete: letter.id != null ? () {
+                if (_actionInProgress) return;
+                _actionInProgress = true;
+                _deleteLetter(letter.id!).whenComplete(() => _actionInProgress = false);
+              } : null,
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// ─── Expandable Letter Card ──────────────────────────────────────────────────
+
+class _LetterCard extends StatefulWidget {
+  final GeneratedLetter letter;
+  final bool expanded;
+  final String? bodyText;
+  final bool loadingBody;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onCopy;
+  final VoidCallback? onPdf;
+  final VoidCallback? onDelete;
+
+  const _LetterCard({
+    required this.letter,
+    required this.expanded,
+    this.bodyText,
+    this.loadingBody = false,
+    required this.onTap,
+    required this.onEdit,
+    required this.onCopy,
+    this.onPdf,
+    this.onDelete,
+  });
+
+  @override
+  State<_LetterCard> createState() => _LetterCardState();
+}
+
+class _LetterCardState extends State<_LetterCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 240),
+    value: widget.expanded ? 1.0 : 0.0,
+  );
+
+  late final Animation<double> _size =
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOutCubic);
+  late final Animation<double> _fade =
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+  late final Animation<double> _chevron =
+      Tween<double>(begin: 0.0, end: 0.5).animate(
+    CurvedAnimation(parent: _ctrl, curve: Curves.easeInOutCubic),
+  );
+
+  @override
+  void didUpdateWidget(_LetterCard old) {
+    super.didUpdateWidget(old);
+    if (old.expanded != widget.expanded) {
+      widget.expanded ? _ctrl.forward() : _ctrl.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final letter = widget.letter;
+
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: AppColors.bgSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: widget.expanded ? AppColors.border2 : AppColors.border,
+            width: 0.5,
+          ),
+        ),
+        child: Column(
+          children: [
+            // ── Main Row ─────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Top row: reference + date
+                        Row(
+                          children: [
+                            if (letter.ishara.isNotEmpty)
+                              Text(
+                                letter.ishara,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textTertiary,
+                                  letterSpacing: 0.03,
+                                ),
+                              ),
+                            if (letter.paymentCertificates.isNotEmpty) ...[
+                              SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: AppColors.bgSurface2,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                      color: AppColors.border2, width: 0.5),
+                                ),
+                                child: Text(
+                                  '${letter.paymentCertificates.length} certs',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textTertiary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            const Spacer(),
+                            if (letter.createdAt != null)
+                              Text(
+                                '${letter.createdAt!.day}/${letter.createdAt!.month}/${letter.createdAt!.year}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        SizedBox(height: 5),
+
+                        // Subject (title)
+                        Text(
+                          letter.almawdoo,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary,
+                            height: 1.4,
+                          ),
+                          maxLines: widget.expanded ? null : 1,
+                          overflow: widget.expanded
+                              ? null
+                              : TextOverflow.ellipsis,
+                        ),
+
+                        SizedBox(height: 3),
+
+                        // Recipient
+                        Text(
+                          letter.alsayed,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Chevron
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2, left: 8),
+                    child: AnimatedBuilder(
+                      animation: _chevron,
+                      builder: (_, child) => Transform.rotate(
+                        angle: _chevron.value * 3.14159265,
+                        child: child,
+                      ),
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 18,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Expanded Section ─────────────────────────────
+            SizeTransition(
+              sizeFactor: _size,
+              axisAlignment: -1,
+              child: FadeTransition(
+                opacity: _fade,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface2,
+                    borderRadius:
+                        BorderRadius.vertical(bottom: Radius.circular(14)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Letter body preview
+                      if (widget.loadingBody) ...[
+                        SizedBox(
+                          height: 40,
+                          child: Center(
+                            child: SizedBox(
+                              width: 16, height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2, color: AppColors.textTertiary),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                      ] else if (widget.bodyText != null && widget.bodyText!.isNotEmpty) ...[
+                        Text(
+                          _stripHtml(widget.bodyText!),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                            height: 1.5,
+                          ),
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 10),
+                      ],
+
+                      // Details
+                      if (letter.tarikh.isNotEmpty)
+                        _detailRow('Date', letter.tarikh),
+                      if (letter.alasm.isNotEmpty)
+                        _detailRow('Signer', letter.alasm),
+                      if (letter.signerTitle.isNotEmpty)
+                        _detailRow('Title', letter.signerTitle),
+
+                      // Linked certs
+                      if (letter.paymentCertificates.isNotEmpty) ...[
+                        SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: letter.paymentCertificates.map((cert) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.bgSurface,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                    color: AppColors.border2, width: 0.5),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.receipt_long,
+                                      size: 12, color: AppColors.textTertiary),
+                                  SizedBox(width: 5),
+                                  Text(cert.certificateNumber,
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.textSecondary,
+                                          fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+
+                      SizedBox(height: 10),
+
+                      // Action buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          _actionButton(
+                            icon: Icons.picture_as_pdf_outlined,
+                            label: 'PDF',
+                            onTap: widget.onPdf,
+                          ),
+                          SizedBox(width: 8),
+                          _actionButton(
+                            icon: Icons.copy_outlined,
+                            label: 'Copy',
+                            onTap: widget.onCopy,
+                          ),
+                          SizedBox(width: 8),
+                          _actionButton(
+                            icon: Icons.edit_outlined,
+                            label: 'Edit',
+                            onTap: widget.onEdit,
+                          ),
+                          SizedBox(width: 8),
+                          _actionButton(
+                            icon: Icons.delete_outline,
+                            label: 'Delete',
+                            onTap: widget.onDelete,
+                            danger: true,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _stripHtml(String html) {
+    return html
+        .replaceAll(RegExp(r'<br\s*/?>'), '\n')
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll(RegExp(r'&nbsp;'), ' ')
+        .replaceAll(RegExp(r'&amp;'), '&')
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        .trim();
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 60,
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textTertiary)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: TextStyle(
+                    fontSize: 11, color: AppColors.textSecondary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton({
+    required IconData icon,
+    required String label,
+    VoidCallback? onTap,
+    bool danger = false,
+  }) {
+    final color = danger ? AppColors.dangerText : AppColors.textSecondary;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: AppColors.bgSurface,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: danger ? AppColors.dangerBorder : AppColors.border2,
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: color),
+            SizedBox(width: 5),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: color,
+                    fontWeight: FontWeight.w500)),
+          ],
+        ),
       ),
     );
   }
