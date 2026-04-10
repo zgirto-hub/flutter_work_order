@@ -802,8 +802,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               onUnderlineChanged: (v) =>
                   setState(() => _recipientUnderline = v),
             ),
-            const Padding(
-              padding: EdgeInsets.only(top: 4, right: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 4, right: 8),
               child: Text('المحترم',
                   style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
             ),
@@ -1211,8 +1211,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               ),
             ],
             if (!_hasPreviewedOnce && _editingLetterId == null)
-              const Padding(
-                padding: EdgeInsets.only(top: 6),
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
                 child: Text(
                   'Preview required before generating',
                   style: TextStyle(fontSize: 11, color: AppColors.pendingText),
@@ -1255,7 +1255,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       padding: const EdgeInsets.only(top: 6),
       child: Row(
         children: [
-          const Text('PDF font size:',
+          Text('PDF font size:',
               style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           const SizedBox(width: 8),
           InkWell(

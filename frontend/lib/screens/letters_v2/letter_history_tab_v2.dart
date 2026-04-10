@@ -224,7 +224,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                       icon: const Icon(Icons.delete_outline, color: Colors.red),
                       label: const Text('Delete', style: TextStyle(color: AppColors.dangerText)),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.dangerBorder),
+                        side: BorderSide(color: AppColors.dangerBorder),
                       ),
                     ),
                   ),
@@ -233,7 +233,8 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
             ],
           ),
         ),
-      ),
+      );
+      },
     );
   }
 
@@ -269,7 +270,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
         subtitle: 'Letters you create will appear here',
       );
     }
-    return RefreshIndicator(color: AppColors.accent,color: AppColors.accent,
+    return RefreshIndicator(color: AppColors.accent,
       onRefresh: _loadLetters,
       child: ListView.builder(
         padding: const EdgeInsets.all(12),
@@ -295,7 +296,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                   if (letter.createdAt != null)
                     Text(
                       '${letter.createdAt!.day}/${letter.createdAt!.month}/${letter.createdAt!.year}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                      style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
                     ),
                   if (letter.paymentCertificates.isNotEmpty)
                     Chip(
