@@ -265,7 +265,7 @@ class _MoreScreenState extends State<MoreScreen> {
             crossAxisCount: 2,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            childAspectRatio: 3.6,
+            childAspectRatio: 2.8,
           ),
           itemCount: items.length,
           itemBuilder: (context, i) => _MoreCard(item: items[i]),
@@ -311,7 +311,7 @@ class _MoreCard extends StatelessWidget {
     return GestureDetector(
       onTap: item.onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: AppColors.bgSurface,
           borderRadius: BorderRadius.circular(12),
@@ -324,13 +324,13 @@ class _MoreCard extends StatelessWidget {
               clipBehavior: Clip.none,
               children: [
                 Container(
-                  width: 32,
-                  height: 32,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: item.bgColor,
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(item.icon, size: 16, color: item.color),
+                  child: Icon(item.icon, size: 18, color: item.color),
                 ),
                 if (item.isPinned)
                   Positioned(
@@ -359,18 +359,18 @@ class _MoreCard extends StatelessWidget {
                   Text(
                     item.title,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: 1),
+                  SizedBox(height: 2),
                   Text(
                     item.subtitle,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 11.5,
                       color: AppColors.textTertiary,
                     ),
                     maxLines: 1,

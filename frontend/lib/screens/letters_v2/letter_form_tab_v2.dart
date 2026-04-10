@@ -11,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config.dart';
 import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
+import '../../theme/app_theme.dart';
 import '../../services/payment_certificate_service.dart';
 import '../../services/pdf/payment_certificate_pdf_service.dart';
 import '../../widgets/ai_document_expert_widget.dart';
@@ -39,6 +40,15 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   final _ccListCtrl = TextEditingController();
   final _ccNameCtrl = TextEditingController();
   final List<String> _ccNames = [];
+
+  // Focus nodes for keyboard scrolling
+  final _isharaFocus = FocusNode();
+  final _dateFocus = FocusNode();
+  final _alsayedFocus = FocusNode();
+  final _almawdooFocus = FocusNode();
+  final _signerTitleFocus = FocusNode();
+  final _alasmFocus = FocusNode();
+  final _ccNameFocus = FocusNode();
 
   DateTime? _selectedDate;
 
@@ -446,7 +456,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                       icon: const Icon(Icons.picture_as_pdf),
                       label: const Text('Generate PDF'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFCC0000),
+                        backgroundColor: AppColors.accent,
                         foregroundColor: Colors.white,
                       ),
                     ),
@@ -723,7 +733,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             _buildLabel('Reference Number'),
             TextFormField(
               controller: _isharaCtrl,
-              decoration: _inputDecor('e.g. 2026-23279'),
+              decoration: InputDecoration(hintText: 'e.g. 2026-23279'),
               textAlign: TextAlign.right,
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'Required' : null,
@@ -755,7 +765,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 }
               },
               child: InputDecorator(
-                decoration: _inputDecor('Select date'),
+                decoration: InputDecoration(hintText: 'Select date'),
                 child: Text(
                   _selectedDate != null
                       ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
@@ -780,7 +790,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             _buildLabel('Recipient'),
             TextFormField(
               controller: _alsayedCtrl,
-              decoration: _inputDecor('Recipient name and title'),
+              decoration: InputDecoration(labelText: 'Recipient name and title'),
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             _buildStyleRow(
@@ -795,7 +805,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             const Padding(
               padding: EdgeInsets.only(top: 4, right: 8),
               child: Text('المحترم',
-                  style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
             ),
             const SizedBox(height: 16),
 
@@ -803,7 +813,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             _buildLabel('Subject'),
             TextFormField(
               controller: _almawdooCtrl,
-              decoration: _inputDecor('Letter subject'),
+              decoration: InputDecoration(labelText: 'Letter subject'),
               maxLines: 3,
               minLines: 2,
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
@@ -825,7 +835,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 Container(
                   height: _editorHeight,
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade400),
+                    border: Border.all(color: AppColors.border2),
                     borderRadius:
                         const BorderRadius.vertical(top: Radius.circular(8)),
                   ),
@@ -842,10 +852,10 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                   child: Container(
                     height: 18,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
+                      color: AppColors.bgSurface2,
                       borderRadius: const BorderRadius.vertical(
                           bottom: Radius.circular(8)),
-                      border: Border.all(color: Colors.grey.shade400),
+                      border: Border.all(color: AppColors.border2),
                     ),
                     child: Center(
                       child: Container(
@@ -872,7 +882,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             _buildLabel('Signer Title'),
             TextFormField(
               controller: _signerTitleCtrl,
-              decoration: _inputDecor('e.g. مدير عام، رئيس قسم'),
+              decoration: InputDecoration(labelText: 'e.g. مدير عام، رئيس قسم'),
             ),
             const SizedBox(height: 16),
 
@@ -880,7 +890,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             _buildLabel('Signer Name'),
             TextFormField(
               controller: _alasmCtrl,
-              decoration: _inputDecor('Signer name'),
+              decoration: InputDecoration(labelText: 'Signer name'),
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 16),
@@ -911,7 +921,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                           horizontal: 12, vertical: 10),
                       suffixIcon: IconButton(
                         icon: const Icon(Icons.add_circle,
-                            color: Color(0xFFCC0000)),
+                            color: AppColors.accent),
                         onPressed: () {
                           final name = _ccNameCtrl.text.trim();
                           if (name.isNotEmpty) {
@@ -940,7 +950,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: AppColors.border),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Column(
@@ -949,7 +959,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade700,
+                        color: AppColors.textSecondary,
                         borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(5)),
                       ),
@@ -977,7 +987,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                             horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
                           border: Border(
-                              bottom: BorderSide(color: Colors.grey.shade200)),
+                              bottom: BorderSide(color: AppColors.bgSurface2)),
                         ),
                         child: Row(
                           children: [
@@ -986,7 +996,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                                     style: const TextStyle(fontSize: 13))),
                             IconButton(
                               icon: const Icon(Icons.delete_outline,
-                                  color: Colors.red, size: 20),
+                                  color: AppColors.dangerText, size: 20),
                               onPressed: () =>
                                   setState(() => _ccNames.removeAt(i)),
                               constraints: const BoxConstraints(),
@@ -1024,7 +1034,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                         style: const TextStyle(fontSize: 11)),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline,
-                          color: Colors.red, size: 20),
+                          color: AppColors.dangerText, size: 20),
                       onPressed: () => setState(() => _attachments.removeAt(i)),
                     ),
                     dense: true,
@@ -1069,7 +1079,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.delete_outline,
-                                  color: Colors.red, size: 20),
+                                  color: AppColors.dangerText, size: 20),
                               onPressed: () =>
                                   setState(() => _linkedCerts.removeAt(index)),
                             ),
@@ -1117,7 +1127,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    icon: const Icon(Icons.delete_outline, color: AppColors.dangerText),
                     onPressed: () => setState(() {
                       _signatureBytes = null;
                       _signatureBase64 = null;
@@ -1148,7 +1158,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : _showPreview,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFCC0000),
+                    backgroundColor: AppColors.accent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 14),
@@ -1177,11 +1187,11 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                       ? 'Save Changes'
                       : 'Generate PDF'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFCC0000),
+                    backgroundColor: AppColors.accent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 14),
-                    disabledBackgroundColor: Colors.grey.shade400,
+                    disabledBackgroundColor: AppColors.bgSurface3,
                   ),
                 ),
               ],
@@ -1193,7 +1203,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 icon: const Icon(Icons.picture_as_pdf),
                 label: const Text('Export Combined PDF'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: AppColors.accent,
                   foregroundColor: Colors.white,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -1205,7 +1215,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 padding: EdgeInsets.only(top: 6),
                 child: Text(
                   'Preview required before generating',
-                  style: TextStyle(fontSize: 11, color: Colors.orange),
+                  style: TextStyle(fontSize: 11, color: AppColors.pendingText),
                 ),
               ),
             const SizedBox(height: 40),
@@ -1221,19 +1231,16 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       child: Text(
         text,
         style: TextStyle(
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w600,
           fontSize: big ? 18 : 14,
+          color: AppColors.textPrimary,
         ),
       ),
     );
   }
 
   InputDecoration _inputDecor(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      border: const OutlineInputBorder(),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    );
+    return InputDecoration(hintText: hint);
   }
 
   Widget _buildStyleRow({
@@ -1249,7 +1256,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       child: Row(
         children: [
           const Text('PDF font size:',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           const SizedBox(width: 8),
           InkWell(
             onTap: () {
@@ -1260,9 +1267,9 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               width: 24,
               height: 24,
               decoration: BoxDecoration(
-                color: Colors.grey.shade200,
+                color: AppColors.bgSurface2,
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.grey.shade400),
+                border: Border.all(color: AppColors.border2),
               ),
               child: const Icon(Icons.remove, size: 16),
             ),
@@ -1283,9 +1290,9 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               width: 24,
               height: 24,
               decoration: BoxDecoration(
-                color: Colors.grey.shade200,
+                color: AppColors.bgSurface2,
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.grey.shade400),
+                border: Border.all(color: AppColors.border2),
               ),
               child: const Icon(Icons.add, size: 16),
             ),

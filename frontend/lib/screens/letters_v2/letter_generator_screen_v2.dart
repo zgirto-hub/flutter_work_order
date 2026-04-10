@@ -42,58 +42,64 @@ class _LetterGeneratorScreenV2State extends State<LetterGeneratorScreenV2> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header (matches More screen) ──
               Container(
                 color: AppColors.bgSurface,
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                child: Row(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Column(
                   children: [
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).maybePop(),
-                      child: Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: AppColors.bgSurface2,
-                          borderRadius: BorderRadius.circular(9),
-                          border: Border.all(
-                              color: AppColors.border2, width: 0.5),
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).maybePop(),
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSurface2,
+                              borderRadius: BorderRadius.circular(9),
+                              border: Border.all(
+                                  color: AppColors.border2, width: 0.5),
+                            ),
+                            child: Icon(
+                              Icons.arrow_back_rounded,
+                              size: 16,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ),
-                        child: Icon(
-                          Icons.arrow_back,
-                          size: 17,
-                          color: AppColors.textSecondary,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Create Official Letter',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Create Official Letter',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                          letterSpacing: -0.3,
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        _Tab(
+                          label: 'New Letter',
+                          active: _tabIndex == 0,
+                          onTap: () => setState(() => _tabIndex = 0),
                         ),
-                      ),
+                        _Tab(
+                          label: 'History',
+                          active: _tabIndex == 1,
+                          onTap: () => setState(() => _tabIndex = 1),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
               Divider(height: 0, thickness: 0.5, color: AppColors.border),
-
-              // ── iOS-style segmented tabs ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: _SegmentedTabs(
-                  tabs: const ['New Letter', 'History'],
-                  selectedIndex: _tabIndex,
-                  onChanged: (i) => setState(() => _tabIndex = i),
-                ),
-              ),
-
-              // ── Tab body ──
               Expanded(
                 child: Directionality(
                   textDirection: TextDirection.rtl,
@@ -122,69 +128,41 @@ class _LetterGeneratorScreenV2State extends State<LetterGeneratorScreenV2> {
   }
 }
 
-/// iOS-style segmented control (pill-shaped tabs)
-class _SegmentedTabs extends StatelessWidget {
-  final List<String> tabs;
-  final int selectedIndex;
-  final ValueChanged<int> onChanged;
+class _Tab extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
 
-  const _SegmentedTabs({
-    required this.tabs,
-    required this.selectedIndex,
-    required this.onChanged,
+  const _Tab({
+    required this.label,
+    required this.active,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: AppColors.bgSurface2,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border2, width: 0.5),
-      ),
-      padding: const EdgeInsets.all(2),
-      child: Row(
-        children: List.generate(tabs.length, (i) {
-          final active = i == selectedIndex;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onChanged(i),
-              behavior: HitTestBehavior.opaque,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOut,
-                decoration: BoxDecoration(
-                  color: active ? AppColors.bgSurface : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: active
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ]
-                      : null,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  tabs[i],
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                    color: active
-                        ? AppColors.textPrimary
-                        : AppColors.textSecondary,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-              ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.only(bottom: 10),
+        margin: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: active ? AppColors.accent : Colors.transparent,
+              width: 2,
             ),
-          );
-        }),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: active ? AppColors.accent : AppColors.textSecondary,
+          ),
+        ),
       ),
     );
   }
 }
-

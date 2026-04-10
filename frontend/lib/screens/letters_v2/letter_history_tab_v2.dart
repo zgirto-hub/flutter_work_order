@@ -1,5 +1,9 @@
 import 'dart:js_interop';
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/claude_widgets.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/claude_widgets.dart';
 import 'package:web/web.dart' as web;
 import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
@@ -48,7 +52,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Delete', style: TextStyle(color: AppColors.dangerText)),
           ),
         ],
       ),
@@ -106,7 +110,9 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (ctx) => DraggableScrollableSheet(
+      builder: (ctx) {
+        final viewInsets = MediaQuery.of(ctx).viewInsets;
+        return DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.7,
         maxChildSize: 0.9,
@@ -114,7 +120,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
           textDirection: TextDirection.rtl,
           child: ListView(
             controller: scrollCtrl,
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + viewInsets.bottom),
             children: [
               // Handle bar
               Center(
@@ -122,7 +128,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                   width: 40, height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: AppColors.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -204,7 +210,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                       icon: const Icon(Icons.picture_as_pdf),
                       label: const Text('PDF'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFCC0000),
+                        backgroundColor: AppColors.accent,
                         foregroundColor: Colors.white,
                       ),
                     ),
@@ -216,9 +222,9 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                           ? () => _deleteLetter(letter.id!, context)
                           : null,
                       icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                      label: const Text('Delete', style: TextStyle(color: AppColors.dangerText)),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.red),
+                        side: const BorderSide(color: AppColors.dangerBorder),
                       ),
                     ),
                   ),
@@ -254,22 +260,16 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator(color: AppColors.accent));
     }
     if (_letters.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.mail_outline, size: 48, color: Colors.grey),
-            SizedBox(height: 12),
-            Text('No previous letters',
-                style: TextStyle(color: Colors.grey, fontSize: 15)),
-          ],
-        ),
+      return EmptyState(
+        icon: Icons.mail_outline,
+        title: 'No Letters Yet',
+        subtitle: 'Letters you create will appear here',
       );
     }
-    return RefreshIndicator(
+    return RefreshIndicator(color: AppColors.accent,color: AppColors.accent,
       onRefresh: _loadLetters,
       child: ListView.builder(
         padding: const EdgeInsets.all(12),
@@ -285,9 +285,9 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                 letter.almawdoo,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textPrimary),
               ),
-              subtitle: Text('${letter.alsayed} — ${letter.tarikh}'),
+              subtitle: Text('${letter.alsayed} — ${letter.tarikh}', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
               trailing: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -295,7 +295,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                   if (letter.createdAt != null)
                     Text(
                       '${letter.createdAt!.day}/${letter.createdAt!.month}/${letter.createdAt!.year}',
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
                     ),
                   if (letter.paymentCertificates.isNotEmpty)
                     Chip(

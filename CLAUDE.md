@@ -1,6 +1,6 @@
 ﻿# flutter_work_order Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-09
+Auto-generated from all feature plans. Last updated: 2026-04-10
 
 ## Active Technologies
 - Dart 3.x / Flutter 3.x + `pdf` ^3.10.7 (existing), `printing` ^5.12.0 (existing), `htmltopdfwidgets` (NEW) (002-use-html-css)
@@ -48,6 +48,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-09
 - N/A — all state lives in editor DOM; persists as inline HTML via existing letters_v2 save pipeline (033-gdocs-editor-toolbar)
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Pillow 12.1.1 (backend); http, file_picker, Flutter Material (frontend) (034-editor-image-insert)
 - Server filesystem `backend/uploaded_files/letters/` — no database changes (034-editor-image-insert)
+- Dart 3.x / Flutter 3.x + Flutter Material, AppColors/AppShadows/AppTheme (centralized theme), shared widgets from `claude_widgets.dart` (EmptyState, SectionLabel) (035-letters-v2-ui-refactor)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -70,9 +71,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 035-letters-v2-ui-refactor: Added Dart 3.x / Flutter 3.x + Flutter Material, AppColors/AppShadows/AppTheme (centralized theme), shared widgets from `claude_widgets.dart` (EmptyState, SectionLabel)
 - 034-editor-image-insert: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Pillow 12.1.1 (backend); http, file_picker, Flutter Material (frontend)
 - 033-gdocs-editor-toolbar: Added Dart 3.x / Flutter 3.x (embedded HTML5 / JS ES5 inside string constant) + Flutter Material (existing), browser-native `document.execCommand`, `Range`, `TreeWalker`, CSS `zoom`
-- 032-letter-barcode: Added Python 3.10 (backend) + FastAPI, Jinja2, WeasyPrint, Pillow (existing); `python-barcode==0.15.1` (NEW)
 
 
 <!-- MANUAL ADDITIONS START -->
