@@ -176,6 +176,27 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        GeneratedLetter source = letter;
+                        if (letter.id != null) {
+                          try {
+                            source = await LetterService().fetchOneV2(letter.id!);
+                          } catch (_) {}
+                        }
+                        widget.onEditLetter?.call(source.asCopy());
+                      },
+                      icon: const Icon(Icons.copy),
+                      label: const Text('Copy'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
                     child: ElevatedButton.icon(
                       onPressed: letter.id != null
                           ? () => _regeneratePdf(letter.id!)

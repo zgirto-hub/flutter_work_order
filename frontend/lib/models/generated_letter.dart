@@ -100,6 +100,32 @@ class GeneratedLetter {
     );
   }
 
+  /// Return a copy suitable for creating a new letter (no id, no timestamps,
+  /// no linked payment certificates).
+  GeneratedLetter asCopy() => GeneratedLetter(
+        ishara: ishara,
+        tarikh: tarikh,
+        alsayed: alsayed,
+        almawdoo: almawdoo,
+        bodyText: bodyText,
+        signerTitle: signerTitle,
+        alasm: alasm,
+        signatureBase64: signatureBase64,
+        ccList: ccList,
+        refFontSize: refFontSize,
+        refBold: refBold,
+        refUnderline: refUnderline,
+        tarikhFontSize: tarikhFontSize,
+        tarikhBold: tarikhBold,
+        tarikhUnderline: tarikhUnderline,
+        recipientFontSize: recipientFontSize,
+        recipientBold: recipientBold,
+        recipientUnderline: recipientUnderline,
+        subjectFontSize: subjectFontSize,
+        subjectBold: subjectBold,
+        subjectUnderline: subjectUnderline,
+      );
+
   Map<String, dynamic> toJson() => {
     'ishara': ishara,
     'tarikh': tarikh,
