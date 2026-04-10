@@ -74,7 +74,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
 
   Future<void> _regeneratePdf(String letterId) async {
     try {
-      final bytes = await LetterService().regenerate(letterId);
+      final bytes = await LetterService().regenerateV2(letterId);
       if (!mounted) return;
       final blob = web.Blob(
         <JSAny>[bytes.toJS].toJS,

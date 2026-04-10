@@ -47,6 +47,16 @@ class LetterService {
     return res.bodyBytes;
   }
 
+  Future<Uint8List> regenerateV2(String letterId) async {
+    final uri =
+        Uri.parse('${AppConfig.baseUrl}/letters-v2/$letterId/regenerate');
+    final res = await http.post(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to regenerate letter');
+    }
+    return res.bodyBytes;
+  }
+
   Future<List<GeneratedLetter>> fetchAllV2() async {
     final uri = Uri.parse('${AppConfig.baseUrl}/letters-v2')
         .replace(queryParameters: {'email': _email});
