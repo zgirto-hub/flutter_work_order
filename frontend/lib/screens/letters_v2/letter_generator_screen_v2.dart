@@ -54,25 +54,27 @@ class _LetterGeneratorScreenV2State extends State<LetterGeneratorScreenV2> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 child: Row(
                   children: [
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).maybePop(),
-                      child: Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: AppColors.bgSurface2,
-                          borderRadius: BorderRadius.circular(9),
-                          border: Border.all(
-                              color: AppColors.border2, width: 0.5),
-                        ),
-                        child: Icon(
-                          Icons.arrow_back_rounded,
-                          size: 16,
-                          color: AppColors.textSecondary,
+                    if (Navigator.canPop(context)) ...[
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).maybePop(),
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: AppColors.bgSurface2,
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(
+                                color: AppColors.border2, width: 0.5),
+                          ),
+                          child: Icon(
+                            Icons.arrow_back_rounded,
+                            size: 16,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
+                      const SizedBox(width: 12),
+                    ],
                     Expanded(
                       child: Text(
                         'Official Letters',
