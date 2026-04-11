@@ -10,10 +10,12 @@ import re
 import base64
 import io
 import json
+import mimetypes
 import uuid
 from datetime import datetime
 from functools import lru_cache
 from fastapi import APIRouter, HTTPException, Response, Form, File, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from jinja2 import Environment, FileSystemLoader
 import PyPDF2 as pypdf
@@ -83,6 +85,36 @@ def _font_data_uri(filename: str) -> str:
     with open(path, "rb") as f:
         data = base64.b64encode(f.read()).decode()
     return f"data:font/truetype;base64,{data}"
+
+
+# ─── Layer 2: preview-path assets as cacheable static URLs ───────────────────
+# The preview HTML rendered for the in-app viewer references these via URL
+# so the browser can cache them for a year. The PDF build path keeps using
+# the data-URI helpers above because WeasyPrint consumes the HTML offline.
+LETTER_STATIC_ASSETS = frozenset({
+    "calibri.ttf",
+    "calibrib.ttf",
+    "logo_civilaviation.png",
+    "logo_emblem.png",
+    "logo_newkuwait.png",
+})
+
+
+def _asset_url(filename: str) -> str:
+    """Build a path-absolute URL for a whitelisted letter asset.
+
+    Appends ?v=<mtime> as a cache-buster so replacing a file on disk
+    invalidates the URL for all clients on the next render, without
+    needing to restart the service or purge caches.
+    """
+    if filename not in LETTER_STATIC_ASSETS:
+        return ""
+    path = os.path.join(_assets, filename)
+    try:
+        version = int(os.path.getmtime(path))
+    except OSError:
+        return ""
+    return f"/api/letters-v2/assets/{filename}?v={version}"
 
 
 def _generate_barcode_data_uri(value: str) -> str | None:
@@ -290,8 +322,20 @@ def _convert_body_images_to_data_uris(html: str) -> str:
     )
 
 
-def _render_letter_html(data: LetterBodyV2) -> str:
-    """Render the Jinja2 letter template to an HTML string."""
+def _render_letter_html(data: LetterBodyV2, *, use_asset_urls: bool = False) -> str:
+    """Render the Jinja2 letter template to an HTML string.
+
+    When ``use_asset_urls`` is False (default, used by the PDF build path),
+    logos and fonts are inlined as base64 data URIs so WeasyPrint can resolve
+    them offline without needing an HTTP fetcher.
+
+    When True (used by the in-app preview endpoints), logos and fonts are
+    referenced as path-absolute URLs pointing at the cacheable
+    ``/api/letters-v2/assets/<file>?v=<mtime>`` route. This drops the wire
+    size of a preview HTML response from ~5 MB to ~30 KB and lets the
+    browser cache the multi-MB Calibri TTFs for a year instead of
+    re-downloading them on every click.
+    """
     template = _jinja.get_template("letter_template.html")
 
     sig_img = None
@@ -300,6 +344,19 @@ def _render_letter_html(data: LetterBodyV2) -> str:
         if not sig.startswith("data:"):
             sig = f"data:image/png;base64,{sig}"
         sig_img = sig
+
+    if use_asset_urls:
+        logo_civil_aviation = _asset_url("logo_civilaviation.png")
+        logo_emblem = _asset_url("logo_emblem.png")
+        logo_newkuwait = _asset_url("logo_newkuwait.png")
+        font_regular = _asset_url("calibri.ttf")
+        font_bold = _asset_url("calibrib.ttf")
+    else:
+        logo_civil_aviation = _logo_data_uri("logo_civilaviation.png")
+        logo_emblem = _logo_data_uri("logo_emblem.png")
+        logo_newkuwait = _logo_data_uri("logo_newkuwait.png")
+        font_regular = _font_data_uri("calibri.ttf")
+        font_bold = _font_data_uri("calibrib.ttf")
 
     return template.render(
         ishara=data.ishara,
@@ -314,11 +371,11 @@ def _render_letter_html(data: LetterBodyV2) -> str:
         reply_required=data.reply_required,
         cc_list=data.cc_list or "",
         cc_names=[n.strip() for n in (data.cc_list or "").split("\n") if n.strip()],
-        logo_civil_aviation=_logo_data_uri("logo_civilaviation.png"),
-        logo_emblem=_logo_data_uri("logo_emblem.png"),
-        logo_newkuwait=_logo_data_uri("logo_newkuwait.png"),
-        font_regular=_font_data_uri("calibri.ttf"),
-        font_bold=_font_data_uri("calibrib.ttf"),
+        logo_civil_aviation=logo_civil_aviation,
+        logo_emblem=logo_emblem,
+        logo_newkuwait=logo_newkuwait,
+        font_regular=font_regular,
+        font_bold=font_bold,
         ref_font_size=data.ref_font_size,
         ref_bold=data.ref_bold,
         ref_underline=data.ref_underline,
@@ -413,10 +470,35 @@ def _apply_cert_links(
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 
+@router.get("/letters-v2/assets/{filename}")
+async def get_letter_asset(filename: str):
+    """Serve a whitelisted letter asset (logo PNG or Calibri TTF) with an
+    immutable long-lived cache header.
+
+    The preview HTML references these via ``/api/letters-v2/assets/<file>?v=<mtime>``
+    so the browser can cache them across preview clicks and across letters,
+    instead of receiving ~5 MB of inline base64 on every request. The ?v=
+    query string is a cache-buster that changes when the file on disk is
+    replaced — clients pick up the new version on the next preview without
+    needing to clear anything manually.
+    """
+    if filename not in LETTER_STATIC_ASSETS:
+        raise HTTPException(404, "asset not found")
+    path = os.path.join(_assets, filename)
+    if not os.path.exists(path):
+        raise HTTPException(404, "asset not found")
+    media_type, _ = mimetypes.guess_type(path)
+    if not media_type:
+        # TTFs aren't always in the default map; force a sensible default.
+        media_type = "font/ttf" if filename.lower().endswith(".ttf") else "application/octet-stream"
+    headers = {"Cache-Control": "public, max-age=31536000, immutable"}
+    return FileResponse(path, media_type=media_type, headers=headers)
+
+
 @router.post("/letters-v2/preview-html")
 async def preview_letter_html(data: LetterBodyV2):
     """Return the rendered HTML (before PDF conversion) for in-app preview."""
-    html_str = _render_letter_html(data)
+    html_str = _render_letter_html(data, use_asset_urls=True)
     return Response(content=html_str, media_type="text/html")
 
 
@@ -445,7 +527,7 @@ async def preview_saved_letter_html(letter_id: str):
         created_by_email=rec["created_by_email"],
         **fmt,
     )
-    html_str = _render_letter_html(body)
+    html_str = _render_letter_html(body, use_asset_urls=True)
     return Response(content=html_str, media_type="text/html")
 
 

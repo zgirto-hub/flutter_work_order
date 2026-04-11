@@ -1,5 +1,4 @@
 // Web implementation - renders PDF via blob URL in an iframe
-import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:js_interop';
 import 'package:web/web.dart' as web;
@@ -51,7 +50,15 @@ class _PdfWebViewerState extends State<PdfWebViewer> {
   }
 }
 
-/// Renders an HTML string as a blob URL inside an iframe — web only
+/// Renders an HTML string inside an iframe via `srcdoc` — web only.
+///
+/// Uses the `srcdoc` attribute instead of a blob: URL so the inner document
+/// inherits the parent's base URL. That matters for letter previews, whose
+/// HTML references assets (logos, Calibri fonts) via path-absolute URLs
+/// like `/api/letters-v2/assets/calibri.ttf`. Inside a blob: iframe those
+/// relative URLs resolve against a null origin and would 404; inside a
+/// srcdoc iframe they resolve against the Flutter app's origin, so the
+/// browser fetches them from the backend same-origin and caches them.
 class HtmlBlobViewer extends StatefulWidget {
   final String html;
   const HtmlBlobViewer({super.key, required this.html});
@@ -62,18 +69,16 @@ class HtmlBlobViewer extends StatefulWidget {
 
 class _HtmlBlobViewerState extends State<HtmlBlobViewer> {
   late final String _viewId;
-  late final String _blobUrl;
 
   @override
   void initState() {
     super.initState();
-    final bytes = Uint8List.fromList(utf8.encode(widget.html));
-    _blobUrl = createBlobUrl(bytes, 'text/html');
-    _viewId = 'html-preview-${_blobUrl.hashCode}';
+    _viewId = 'html-preview-${widget.html.hashCode}';
+    final htmlForClosure = widget.html;
 
     ui.platformViewRegistry.registerViewFactory(_viewId, (int id) {
       final iframe = web.document.createElement('iframe') as web.HTMLIFrameElement
-        ..src = _blobUrl
+        ..srcdoc = htmlForClosure.toJS
         ..style.border = 'none'
         ..style.width = '100%'
         ..style.height = '100%'
