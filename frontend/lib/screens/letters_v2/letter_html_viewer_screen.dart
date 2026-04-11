@@ -35,6 +35,40 @@ class LetterHtmlViewerScreen extends StatefulWidget {
 class _LetterHtmlViewerScreenState extends State<LetterHtmlViewerScreen> {
   bool _isSharing = false;
 
+  // Pre-fetched PDF bytes for the share flow. We build these up-front in
+  // initState (instead of on-demand when the share button is tapped) because
+  // iOS Safari's Web Share API requires a live "transient user activation"
+  // at the moment `navigator.share()` is called. Awaiting a multi-second
+  // network fetch to the backend's WeasyPrint renderer inside the tap handler
+  // blows past that activation window, `navigator.share()` throws
+  // NotAllowedError, and the share sheet silently fails to open. The WO flow
+  // works because PdfPreviewScreen caches its bytes during widget build for
+  // the exact same reason.
+  Uint8List? _prefetchedBytes;
+  bool _prefetchInFlight = false;
+  bool _prefetchFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.onShare != null) {
+      _prefetchInFlight = true;
+      widget.onShare!().then((bytes) {
+        if (!mounted) return;
+        setState(() {
+          _prefetchedBytes = bytes;
+          _prefetchInFlight = false;
+        });
+      }).catchError((Object e) {
+        if (!mounted) return;
+        setState(() {
+          _prefetchInFlight = false;
+          _prefetchFailed = true;
+        });
+      });
+    }
+  }
+
   void _openInNewTab() {
     // Open an empty window first, then write the HTML into it. The new tab
     // inherits the opener's origin, so path-absolute URLs inside the letter
@@ -50,12 +84,17 @@ class _LetterHtmlViewerScreenState extends State<LetterHtmlViewerScreen> {
   }
 
   Future<void> _handleShare() async {
-    if (widget.onShare == null) return;
+    // Bytes must be pre-fetched — see initState. If they aren't ready yet
+    // the button is disabled, so reaching this path means we have them.
+    final bytes = _prefetchedBytes;
+    if (bytes == null) return;
     setState(() => _isSharing = true);
     try {
-      final bytes = await widget.onShare!();
-      if (bytes == null) return; // user cancelled a caller-side dialog
       final fileName = widget.shareFileName ?? 'letter.pdf';
+      // CRITICAL: no awaits between this line and the sharePdfBytes call,
+      // so navigator.share() fires synchronously from the user gesture and
+      // iOS keeps transient user activation live. This is what makes the
+      // native share sheet open without leaving the PWA.
       final outcome = await sharePdfBytes(bytes, fileName, widget.title);
       if (!mounted) return;
       if (outcome == ShareOutcome.fallbackDownloaded) {
@@ -70,6 +109,31 @@ class _LetterHtmlViewerScreenState extends State<LetterHtmlViewerScreen> {
       );
     } finally {
       if (mounted) setState(() => _isSharing = false);
+    }
+  }
+
+  Future<void> _retryPrefetch() async {
+    if (widget.onShare == null) return;
+    setState(() {
+      _prefetchInFlight = true;
+      _prefetchFailed = false;
+    });
+    try {
+      final bytes = await widget.onShare!();
+      if (!mounted) return;
+      setState(() {
+        _prefetchedBytes = bytes;
+        _prefetchInFlight = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _prefetchInFlight = false;
+        _prefetchFailed = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Couldn\'t load PDF for sharing')),
+      );
     }
   }
 
@@ -99,10 +163,30 @@ class _LetterHtmlViewerScreenState extends State<LetterHtmlViewerScreen> {
             ),
           if (widget.onShare != null && canUseNativeShareControl())
             IconButton(
-              icon: Icon(Icons.ios_share_rounded,
-                  size: 18, color: AppColors.textSecondary),
-              tooltip: 'Share',
-              onPressed: _isSharing ? null : _handleShare,
+              icon: _prefetchInFlight
+                  ? SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: AppColors.textSecondary,
+                      ),
+                    )
+                  : Icon(
+                      _prefetchFailed
+                          ? Icons.refresh_rounded
+                          : Icons.ios_share_rounded,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
+              tooltip: _prefetchInFlight
+                  ? 'Preparing PDF…'
+                  : _prefetchFailed
+                      ? 'Retry loading PDF'
+                      : 'Share',
+              onPressed: _isSharing || _prefetchInFlight
+                  ? null
+                  : (_prefetchFailed ? _retryPrefetch : _handleShare),
             )
           else
             IconButton(
