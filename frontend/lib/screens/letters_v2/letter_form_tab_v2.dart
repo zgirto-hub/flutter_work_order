@@ -462,7 +462,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             paymentCertificateIds: _linkedCerts.map((c) => c.id).toList(),
           );
         }
-      } on CertificatesAlreadyLinkedException catch (e) {
+      } on CertificatesAlreadyLinkedException {
         if (!mounted) return;
         final confirm = await showDialog<bool>(
           context: context,

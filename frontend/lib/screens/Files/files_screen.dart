@@ -2074,7 +2074,7 @@ class _Pill extends StatelessWidget {
   final String label;
   final Color bg;
   final Color fg;
-  _Pill({required this.label, required this.bg, required this.fg});
+  const _Pill({required this.label, required this.bg, required this.fg});
 
   @override
   Widget build(BuildContext context) {

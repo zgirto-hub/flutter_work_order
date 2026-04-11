@@ -161,7 +161,9 @@ class _CalendarScreenState extends State<CalendarScreen>
 
         case 'yearly':
           if (normalDay.month != normalStart.month ||
-              normalDay.day   != normalStart.day) return false;
+              normalDay.day   != normalStart.day) {
+            return false;
+          }
           final diffYears = normalDay.year - normalStart.year;
           return diffYears >= 0 && diffYears % n == 0;
 

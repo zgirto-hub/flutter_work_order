@@ -359,16 +359,18 @@ class AppTheme {
         backgroundColor: bgSurface,
         indicatorColor: accent.withValues(alpha: 0.12),
         iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected))
+          if (states.contains(WidgetState.selected)) {
             return IconThemeData(color: accent, size: 22);
+          }
           return IconThemeData(color: textTert, size: 22);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected))
+          if (states.contains(WidgetState.selected)) {
             return TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
                 color: accent);
+          }
           return TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w500,

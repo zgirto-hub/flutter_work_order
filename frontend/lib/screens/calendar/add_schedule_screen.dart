@@ -143,8 +143,9 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
         _departments = depts;
         _technicians =
             techs.where((u) => u.userType == UserType.technician).toList();
-        if (_selectedDeptId.isEmpty && depts.isNotEmpty)
+        if (_selectedDeptId.isEmpty && depts.isNotEmpty) {
           _selectedDeptId = depts.first.id;
+        }
         if (_woDeptId.isEmpty && depts.isNotEmpty) _woDeptId = depts.first.id;
         _loadingData = false;
       });
@@ -481,11 +482,12 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
       firstDate: DateTime(2024),
       lastDate: DateTime(2035),
     );
-    if (picked != null)
+    if (picked != null) {
       setState(() {
         _date = picked;
         _dateCtrl.text = _displayDate(picked);
       });
+    }
   }
 
   Future<void> _pickEndDate() async {
@@ -495,11 +497,12 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
       firstDate: _date,
       lastDate: DateTime(2035),
     );
-    if (picked != null)
+    if (picked != null) {
       setState(() {
         _endDate = picked;
         _endDateCtrl.text = _displayDate(picked);
       });
+    }
   }
 
   Future<void> _pickWODate() async {
@@ -509,11 +512,12 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
       firstDate: DateTime(2024),
       lastDate: DateTime(2035),
     );
-    if (picked != null)
+    if (picked != null) {
       setState(() {
         _woDate = picked;
         _woDateCtrl.text = _displayDate(picked);
       });
+    }
   }
 
   Future<void> _pickWOEndDate() async {
@@ -523,11 +527,12 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
       firstDate: _woDate,
       lastDate: DateTime(2035),
     );
-    if (picked != null)
+    if (picked != null) {
       setState(() {
         _woEndDate = picked;
         _woEndDateCtrl.text = _displayDate(picked);
       });
+    }
   }
 
   void _openTechSelector({bool isWO = false}) {
@@ -817,12 +822,12 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<_RepeatOption>(
-            value: _woRepeat,
+            initialValue: _woRepeat,
             items: _repeatOptions
                 .map((o) => DropdownMenuItem(value: o.$1, child: Text(o.$2)))
                 .toList(),
             onChanged: (v) {
-              if (v != null)
+              if (v != null) {
                 setState(() {
                   _woRepeat = v;
                   if (v == _RepeatOption.never) {
@@ -830,6 +835,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                     _woEndDateCtrl.clear();
                   }
                 });
+              }
             },
             decoration: const InputDecoration(labelText: 'Repeat'),
           ),
@@ -875,7 +881,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
           ],
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: _woType,
+            initialValue: _woType,
             items: _woTypes
                 .map((t) => DropdownMenuItem(
                       value: t,
@@ -893,7 +899,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: deptName,
+            initialValue: deptName,
             items: _departments
                 .map(
                     (d) => DropdownMenuItem(value: d.name, child: Text(d.name)))
@@ -968,12 +974,12 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<_RepeatOption>(
-            value: _repeat,
+            initialValue: _repeat,
             items: _repeatOptions
                 .map((o) => DropdownMenuItem(value: o.$1, child: Text(o.$2)))
                 .toList(),
             onChanged: (v) {
-              if (v != null)
+              if (v != null) {
                 setState(() {
                   _repeat = v;
                   if (v == _RepeatOption.never) {
@@ -981,6 +987,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                     _endDateCtrl.clear();
                   }
                 });
+              }
             },
             decoration: const InputDecoration(labelText: 'Repeat'),
           ),
@@ -1026,7 +1033,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
           ],
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: _inspectionType,
+            initialValue: _inspectionType,
             items: _woTypes
                 .map((t) => DropdownMenuItem(
                       value: t,
@@ -1044,7 +1051,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: deptName,
+            initialValue: deptName,
             items: _departments
                 .map(
                     (d) => DropdownMenuItem(value: d.name, child: Text(d.name)))

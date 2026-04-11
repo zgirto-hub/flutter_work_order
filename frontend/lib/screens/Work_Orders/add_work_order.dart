@@ -137,7 +137,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   final TextEditingController _nlInputController = TextEditingController();
   bool _isGenerating = false;
   Set<String> _highlightedFields = {};
-  bool _nlCardExpanded = true;
+  final bool _nlCardExpanded = true;
 
   // Signature state
   final SignatureService _signatureService = SignatureService();
@@ -2076,10 +2076,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               Text(signature.signerName,
                   style:
                       TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-            if (signature.signedAt != null)
-              Text(_formatDateTime(signature.signedAt),
-                  style:
-                      TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+            Text(_formatDateTime(signature.signedAt),
+                style:
+                    TextStyle(fontSize: 11, color: AppColors.textTertiary)),
           ],
           if (signature == null && canSign) ...[
             SizedBox(height: 8),

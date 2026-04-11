@@ -163,7 +163,7 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen>
         }
         if (fields?['date'] != null) {
           _dateCtrl.text = fields!['date'];
-          _selectedDate = DateTime.tryParse(fields!['date']);
+          _selectedDate = DateTime.tryParse(fields['date']);
         }
         _pendingAttachment = file;
         _isExtracting = false;

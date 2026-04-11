@@ -491,7 +491,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   : () async {
                       if (emailCtrl.text.isEmpty ||
                           passCtrl.text.isEmpty ||
-                          nameCtrl.text.isEmpty) return;
+                          nameCtrl.text.isEmpty) {
+                        return;
+                      }
                       if (passCtrl.text != confirmPassCtrl.text) {
                         setDlg(() => passwordError = 'Passwords do not match');
                         return;
@@ -516,10 +518,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         _loadData();
                       } catch (e) {
                         setDlg(() => loading = false);
-                        if (mounted)
+                        if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                               content: Text('Error: $e'),
                               backgroundColor: AppColors.dangerText));
+                        }
                       }
                     },
               style: ElevatedButton.styleFrom(
@@ -1138,10 +1141,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         _loadData();
                       } catch (e) {
                         setDlg(() => loading = false);
-                        if (ctx.mounted)
+                        if (ctx.mounted) {
                           ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
                               content: Text('Error: $e'),
                               backgroundColor: AppColors.dangerText));
+                        }
                       }
                     },
               style: ElevatedButton.styleFrom(

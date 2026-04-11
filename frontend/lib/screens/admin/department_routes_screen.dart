@@ -379,8 +379,10 @@ class _DepartmentRoutesScreenState extends State<DepartmentRoutesScreen> {
                           _loadData();
                         } catch (e) {
                           setDlg(() => loading = false);
-                          if (dialogCtx.mounted) ScaffoldMessenger.of(dialogCtx).showSnackBar(
+                          if (dialogCtx.mounted) {
+                            ScaffoldMessenger.of(dialogCtx).showSnackBar(
                               SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.dangerText));
+                          }
                         }
                       },
                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
@@ -483,8 +485,10 @@ class _DepartmentRoutesScreenState extends State<DepartmentRoutesScreen> {
                         _loadData();
                       } catch (e) {
                         setDlg(() => loading = false);
-                        if (dialogCtx.mounted) ScaffoldMessenger.of(dialogCtx).showSnackBar(
+                        if (dialogCtx.mounted) {
+                          ScaffoldMessenger.of(dialogCtx).showSnackBar(
                             SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.dangerText));
+                        }
                       }
                     },
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),

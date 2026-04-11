@@ -319,7 +319,7 @@ class _AddFileScreenState extends State<AddFileScreen> {
                   title: Text('Private file', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
                   subtitle: Text('Only you can see this', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
                   value: isPrivate,
-                  activeColor: AppColors.accent,
+                  activeThumbColor: AppColors.accent,
                   onChanged: (v) => setState(() => isPrivate = v),
                 ),
               ),

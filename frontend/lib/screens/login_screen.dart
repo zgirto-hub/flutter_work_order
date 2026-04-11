@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/download_helper_mobile.dart'
-    if (dart.library.js_interop) '../services/download_helper_web.dart';
 import '../theme/app_theme.dart';
 import '../config.dart';
 import '../services/user_service.dart';
