@@ -13,6 +13,7 @@ import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
 import '../../theme/app_theme.dart';
 import '../../services/payment_certificate_service.dart';
+import 'letter_html_viewer_screen.dart';
 import '../../services/pdf/payment_certificate_pdf_service.dart';
 import '../../widgets/ai_document_expert_widget.dart';
 import '../Files/file_viewer_screen.dart';
@@ -384,87 +385,17 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       return;
     }
 
-    // Register a unique iframe to show the preview HTML
-    final previewId = 'preview-${DateTime.now().millisecondsSinceEpoch}';
-    final previewIframe = web.HTMLIFrameElement()
-      ..style.setProperty('border', 'none')
-      ..style.setProperty('width', '100%')
-      ..style.setProperty('height', '100%')
-      ..style.setProperty('background', '#fff');
-    previewIframe.setAttribute('srcdoc', previewHtml);
-
-    ui_web.platformViewRegistry.registerViewFactory(
-      previewId,
-      (int viewId) => previewIframe,
-    );
-
     if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        insetPadding: const EdgeInsets.all(16),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 750, maxHeight: 950),
-          child: Column(
-            children: [
-              // Dialog header
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(ctx).colorScheme.primary,
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(12)),
-                ),
-                child: Row(
-                  children: [
-                    const Text(
-                      'Letter Preview',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
-              ),
-              // Preview: actual HTML rendered in iframe (same as PDF)
-              Expanded(
-                child: HtmlElementView(viewType: previewId),
-              ),
-              // Actions
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Close'),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _generatePdf();
-                      },
-                      icon: const Icon(Icons.picture_as_pdf),
-                      label: const Text('Generate PDF'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LetterHtmlViewerScreen(
+          title: 'Letter Preview',
+          html: previewHtml!,
+          onGeneratePdf: () {
+            Navigator.pop(context);
+            _generatePdf();
+          },
         ),
       ),
     );

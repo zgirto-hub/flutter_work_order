@@ -1,11 +1,9 @@
-import 'dart:js_interop';
 import 'package:flutter/material.dart';
-import 'package:web/web.dart' as web;
 import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/claude_widgets.dart';
-import '../Files/file_viewer_screen.dart';
+import 'letter_html_viewer_screen.dart';
 
 class LetterHistoryTabV2 extends StatefulWidget {
   final void Function(GeneratedLetter letter)? onEditLetter;
@@ -78,21 +76,16 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
     }
   }
 
-  Future<void> _regeneratePdf(String letterId) async {
+  Future<void> _previewLetter(String letterId) async {
     try {
-      final bytes = await LetterService().regenerateV2(letterId);
+      final html = await LetterService().previewHtmlById(letterId);
       if (!mounted) return;
-      final blob = web.Blob(
-        <JSAny>[bytes.toJS].toJS,
-        web.BlobPropertyBag(type: 'application/pdf'),
-      );
-      final blobUrl = web.URL.createObjectURL(blob);
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => FileViewerScreen(
-            fileUrl: blobUrl,
-            fileName: 'letter_$letterId.pdf',
+          builder: (_) => LetterHtmlViewerScreen(
+            title: 'Letter Preview',
+            html: html,
           ),
         ),
       );
@@ -173,7 +166,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
               onPdf: letter.id != null ? () {
                 if (_actionInProgress) return;
                 _actionInProgress = true;
-                _regeneratePdf(letter.id!).whenComplete(() => _actionInProgress = false);
+                _previewLetter(letter.id!).whenComplete(() => _actionInProgress = false);
               } : null,
               onDelete: letter.id != null ? () {
                 if (_actionInProgress) return;

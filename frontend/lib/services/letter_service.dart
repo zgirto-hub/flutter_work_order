@@ -18,6 +18,16 @@ class LetterService {
     return res.bodyBytes;
   }
 
+  Future<String> previewHtmlById(String letterId) async {
+    final uri =
+        Uri.parse('${AppConfig.baseUrl}/letters-v2/$letterId/preview-html');
+    final res = await http.get(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load letter preview');
+    }
+    return res.body;
+  }
+
   Future<List<GeneratedLetter>> fetchAllV2() async {
     final uri = Uri.parse('${AppConfig.baseUrl}/letters-v2')
         .replace(queryParameters: {'email': _email});

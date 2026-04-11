@@ -275,15 +275,10 @@ def _convert_body_images_to_data_uris(html: str) -> str:
     )
 
 
-def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
-    """Render HTML template with data, then convert to PDF via WeasyPrint."""
-    # Lazy import — WeasyPrint pulls in Cairo/Pango at import time
-    from weasyprint import HTML
-    from weasyprint.text.fonts import FontConfiguration
-
+def _render_letter_html(data: LetterBodyV2) -> str:
+    """Render the Jinja2 letter template to an HTML string."""
     template = _jinja.get_template("letter_template.html")
 
-    # Prepare signature image as data URI
     sig_img = None
     if data.signature_base64:
         sig = data.signature_base64
@@ -291,7 +286,7 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
             sig = f"data:image/png;base64,{sig}"
         sig_img = sig
 
-    html_str = template.render(
+    return template.render(
         ishara=data.ishara,
         barcode_data_uri=_generate_barcode_data_uri(data.ishara),
         tarikh=data.tarikh,
@@ -323,6 +318,13 @@ def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
         subject_underline=data.subject_underline,
     )
 
+
+def _build_letter_pdf_v2(data: LetterBodyV2) -> bytes:
+    """Render HTML template with data, then convert to PDF via WeasyPrint."""
+    from weasyprint import HTML
+    from weasyprint.text.fonts import FontConfiguration
+
+    html_str = _render_letter_html(data)
     font_config = FontConfiguration()
     pdf_bytes = HTML(string=html_str).write_pdf(font_config=font_config)
     return pdf_bytes
@@ -398,48 +400,37 @@ def _apply_cert_links(
 
 @router.post("/letters-v2/preview-html")
 async def preview_letter_html(data: LetterBodyV2):
-    """Debug: return the rendered HTML (before PDF conversion) for inspection."""
-    from weasyprint.text.fonts import FontConfiguration
+    """Return the rendered HTML (before PDF conversion) for in-app preview."""
+    html_str = _render_letter_html(data)
+    return Response(content=html_str, media_type="text/html")
 
-    template = _jinja.get_template("letter_template.html")
-    sig_img = None
-    if data.signature_base64:
-        sig = data.signature_base64
-        if not sig.startswith("data:"):
-            sig = f"data:image/png;base64,{sig}"
-        sig_img = sig
 
-    html_str = template.render(
-        ishara=data.ishara,
-        barcode_data_uri=_generate_barcode_data_uri(data.ishara),
-        tarikh=data.tarikh,
-        alsayed=data.alsayed,
-        almawdoo=data.almawdoo,
-        body_html=_convert_body_images_to_data_uris(_sanitize_editor_html(data.body_html)),
-        signer_title=data.signer_title,
-        alasm=data.alasm,
-        signature_img=sig_img,
-        reply_required=data.reply_required,
-        cc_list=data.cc_list or "",
-        cc_names=[n.strip() for n in (data.cc_list or "").split("\n") if n.strip()],
-        logo_civil_aviation=_logo_data_uri("logo_civilaviation.png"),
-        logo_emblem=_logo_data_uri("logo_emblem.png"),
-        logo_newkuwait=_logo_data_uri("logo_newkuwait.png"),
-        font_regular=_font_data_uri("calibri.ttf"),
-        font_bold=_font_data_uri("calibrib.ttf"),
-        ref_font_size=data.ref_font_size,
-        ref_bold=data.ref_bold,
-        ref_underline=data.ref_underline,
-        tarikh_font_size=data.tarikh_font_size,
-        tarikh_bold=data.tarikh_bold,
-        tarikh_underline=data.tarikh_underline,
-        recipient_font_size=data.recipient_font_size,
-        recipient_bold=data.recipient_bold,
-        recipient_underline=data.recipient_underline,
-        subject_font_size=data.subject_font_size,
-        subject_bold=data.subject_bold,
-        subject_underline=data.subject_underline,
+@router.get("/letters-v2/{letter_id}/preview-html")
+async def preview_saved_letter_html(letter_id: str):
+    """Return rendered HTML for a saved letter (for in-app preview)."""
+    result = (
+        supabase.table("generated_letters").select("*").eq("id", letter_id).execute()
     )
+    if not result.data:
+        raise HTTPException(404, "Letter not found")
+
+    rec = result.data[0]
+    fmt = _coalesce_letter_format(rec)
+    body = LetterBodyV2(
+        ishara=rec["ishara"],
+        tarikh=rec.get("tarikh", ""),
+        alsayed=rec["alsayed"],
+        almawdoo=rec["almawdoo"],
+        body_html=rec.get("body_text", ""),
+        signer_title=rec.get("signer_title", ""),
+        alasm=rec["alasm"],
+        signature_base64=rec.get("signature_base64"),
+        reply_required=rec.get("reply_required", False),
+        cc_list=rec.get("cc_list"),
+        created_by_email=rec["created_by_email"],
+        **fmt,
+    )
+    html_str = _render_letter_html(body)
     return Response(content=html_str, media_type="text/html")
 
 
