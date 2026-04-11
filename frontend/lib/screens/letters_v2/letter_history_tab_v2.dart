@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
-import '../../services/activity_log_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/claude_widgets.dart';
-import 'letter_html_viewer_screen.dart';
+import '../../widgets/pdf_preview_screen.dart';
 
 class LetterHistoryTabV2 extends StatefulWidget {
   final void Function(GeneratedLetter letter)? onEditLetter;
@@ -86,34 +85,26 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
   }
 
   Future<void> _previewLetter(String letterId) async {
-    try {
-      final html = await LetterService().previewHtmlById(letterId);
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => LetterHtmlViewerScreen(
-            title: 'Letter Preview',
-            html: html,
-            onShare: () async {
-              ActivityLogService().logShared(
-                documentType: 'letter',
-                documentId: letterId,
-              );
-              return await LetterService().regenerateV2(letterId);
-            },
-            shareFileName:
-                'letter_${letterId.substring(0, letterId.length < 8 ? letterId.length : 8)}.pdf',
-          ),
+    // Route through PdfPreviewScreen (same widget the WO flow uses) so the
+    // preview renders the actual WeasyPrint PDF via pdf.js — paginated with
+    // margins, header and footer — instead of a browser-flowed HTML iframe.
+    // The preview bytes and the share sheet bytes are cached and reused by
+    // _buildAndCache inside PdfPreviewScreen, so the preview and the shared
+    // artefact are byte-for-byte identical.
+    final shortId =
+        letterId.length < 8 ? letterId : letterId.substring(0, 8);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PdfPreviewScreen(
+          title: 'Letter Preview',
+          buildPdf: () => LetterService().regenerateV2(letterId),
+          shareFileName: 'letter_$shortId.pdf',
+          documentId: letterId,
+          documentType: 'letter',
         ),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    }
+      ),
+    );
   }
 
   @override
