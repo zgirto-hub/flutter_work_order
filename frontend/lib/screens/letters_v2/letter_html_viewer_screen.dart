@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:js_interop';
 import 'package:web/web.dart' as web;
@@ -37,13 +36,17 @@ class _LetterHtmlViewerScreenState extends State<LetterHtmlViewerScreen> {
   bool _isSharing = false;
 
   void _openInNewTab() {
-    final bytes = Uint8List.fromList(utf8.encode(widget.html));
-    final blob = web.Blob(
-      [bytes.toJS].toJS,
-      web.BlobPropertyBag(type: 'text/html'),
-    );
-    final url = web.URL.createObjectURL(blob);
-    web.window.open(url, '_blank');
+    // Open an empty window first, then write the HTML into it. The new tab
+    // inherits the opener's origin, so path-absolute URLs inside the letter
+    // HTML (e.g. `/api/letters-v2/assets/calibri.ttf`) resolve against the
+    // Flutter app's backend origin instead of a null blob: context. That
+    // keeps fonts and logos working for the "print from a new tab" flow
+    // on desktop.
+    final popup = web.window.open('', '_blank');
+    if (popup == null) return; // popup blocked
+    popup.document.open();
+    popup.document.write(widget.html.toJS);
+    popup.document.close();
   }
 
   Future<void> _handleShare() async {
