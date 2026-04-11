@@ -12,6 +12,7 @@ import io
 import json
 import uuid
 from datetime import datetime
+from functools import lru_cache
 from fastapi import APIRouter, HTTPException, Response, Form, File, UploadFile
 from pydantic import BaseModel
 from jinja2 import Environment, FileSystemLoader
@@ -30,8 +31,15 @@ _templates = os.path.join(os.path.dirname(__file__), "..", "templates")
 _jinja = Environment(loader=FileSystemLoader(_templates), autoescape=False)
 
 
+@lru_cache(maxsize=None)
 def _logo_data_uri(filename: str) -> str:
-    """Convert a local logo file to a base64 data URI for embedding in HTML."""
+    """Convert a local logo file to a base64 data URI for embedding in HTML.
+
+    Cached in-process: logos are static assets that never change between
+    service restarts, so there is no reason to re-read and re-encode them
+    on every preview/PDF request. Restart the FastAPI service to pick up
+    a replaced file.
+    """
     path = os.path.join(_assets, filename)
     if not os.path.exists(path):
         return ""
@@ -60,8 +68,15 @@ def _sanitize_editor_html(html: str) -> str:
     return html
 
 
+@lru_cache(maxsize=None)
 def _font_data_uri(filename: str) -> str:
-    """Convert a local font file to a base64 data URI for embedding in CSS."""
+    """Convert a local font file to a base64 data URI for embedding in CSS.
+
+    Cached in-process: fonts are multi-MB static assets; re-reading and
+    re-base64-encoding calibri.ttf (1.65 MB) + calibrib.ttf (1.62 MB) on
+    every request was the dominant cost of the letter preview path.
+    Restart the FastAPI service to pick up a replaced font file.
+    """
     path = os.path.join(_assets, filename)
     if not os.path.exists(path):
         return ""
