@@ -257,7 +257,8 @@ class _WorkOrderReportScreenState extends State<WorkOrderReportScreen> {
       backgroundColor: AppColors.bgPrimary,
       appBar: AppBar(
         backgroundColor: AppColors.bgSurface,
-        leading: Navigator.canPop(context)
+        automaticallyImplyLeading: false,
+        leading: ModalRoute.of(context)?.isFirst == false
             ? GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: Center(

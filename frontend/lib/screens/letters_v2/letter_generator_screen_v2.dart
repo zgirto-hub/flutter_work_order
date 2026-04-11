@@ -54,7 +54,7 @@ class _LetterGeneratorScreenV2State extends State<LetterGeneratorScreenV2> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 child: Row(
                   children: [
-                    if (Navigator.canPop(context)) ...[
+                    if (ModalRoute.of(context)?.isFirst == false) ...[
                       GestureDetector(
                         onTap: () => Navigator.of(context).maybePop(),
                         child: Container(

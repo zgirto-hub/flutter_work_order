@@ -1044,7 +1044,8 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
             color: AppColors.textPrimary,
           ),
         ),
-        leading: Navigator.canPop(context)
+        automaticallyImplyLeading: false,
+        leading: ModalRoute.of(context)?.isFirst == false
             ? IconButton(
                 icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
                 onPressed: () => Navigator.pop(context),

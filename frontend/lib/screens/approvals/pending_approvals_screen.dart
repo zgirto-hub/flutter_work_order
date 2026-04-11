@@ -148,6 +148,8 @@ class _PendingApprovalsScreenState extends State<PendingApprovalsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading:
+            ModalRoute.of(context)?.isFirst == false,
         title: Text('Pending Approvals'),
         centerTitle: true,
         actions: [

@@ -249,7 +249,7 @@ class _CalendarScreenState extends State<CalendarScreen>
               padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
               child: Row(
                 children: [
-                  if (Navigator.canPop(context))
+                  if (ModalRoute.of(context)?.isFirst == false)
                     IconButton(
                       icon: Icon(Icons.arrow_back_ios_new_rounded,
                           size: 18, color: AppColors.textPrimary),

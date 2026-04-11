@@ -233,7 +233,7 @@ class _PaymentCertificateListScreenState
         children: [
           Row(
             children: [
-              if (Navigator.canPop(context)) ...[
+              if (ModalRoute.of(context)?.isFirst == false) ...[
                 ClaudeIconButton(
                   icon: Icons.arrow_back_rounded,
                   onTap: () => Navigator.pop(context),

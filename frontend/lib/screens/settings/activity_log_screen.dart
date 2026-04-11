@@ -116,21 +116,23 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                 children: [
                   Row(
                     children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          width: 34, height: 34,
-                          decoration: BoxDecoration(
-                            color: AppColors.bgSurface2,
-                            borderRadius: BorderRadius.circular(9),
-                            border: Border.all(
-                                color: AppColors.border2, width: 0.5),
+                      if (ModalRoute.of(context)?.isFirst == false) ...[
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 34, height: 34,
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSurface2,
+                              borderRadius: BorderRadius.circular(9),
+                              border: Border.all(
+                                  color: AppColors.border2, width: 0.5),
+                            ),
+                            child: Icon(Icons.arrow_back_rounded,
+                                size: 16, color: AppColors.textSecondary),
                           ),
-                          child: Icon(Icons.arrow_back_rounded,
-                              size: 16, color: AppColors.textSecondary),
                         ),
-                      ),
-                      SizedBox(width: 12),
+                        SizedBox(width: 12),
+                      ],
                       Text('Activity log',
                           style: TextStyle(
                               fontSize: 16,

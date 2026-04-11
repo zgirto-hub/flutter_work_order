@@ -1322,7 +1322,7 @@ class _FilesScreenState extends State<FilesScreen>
         children: [
           Row(
             children: [
-              if (!_selectionMode && Navigator.canPop(context))
+              if (!_selectionMode && ModalRoute.of(context)?.isFirst == false)
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
                   child: Container(

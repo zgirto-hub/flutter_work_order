@@ -202,7 +202,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Row(
                 children: [
-                  if (Navigator.canPop(context)) ...[
+                  if (ModalRoute.of(context)?.isFirst == false) ...[
                     GestureDetector(
                       onTap: () => Navigator.pop(context, true),
                       child: Container(
