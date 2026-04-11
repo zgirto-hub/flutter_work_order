@@ -654,8 +654,34 @@
       // Guard against re-triggering
       window._pwaUpdateApplied = true;
 
-      // With skipWaiting the new SW activates immediately, just wait briefly for caches
-      await new Promise(function(resolve) { setTimeout(resolve, 1500); });
+      // Flutter's default service worker does NOT call skipWaiting(), so a plain
+      // reload just hits the old SW and gets old cached assets — the new version
+      // only appears after a force-close/relaunch. Force-evict the Flutter SW and
+      // its caches here so the next reload fetches a fresh flutter_bootstrap.js
+      // and registers the new SW. OneSignalSDKWorker.js is left alone so push
+      // subscriptions stay intact.
+      try {
+        if ('serviceWorker' in navigator) {
+          var regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(function(reg) {
+            var url = (reg.active && reg.active.scriptURL) ||
+                      (reg.waiting && reg.waiting.scriptURL) ||
+                      (reg.installing && reg.installing.scriptURL) || '';
+            if (url.indexOf('flutter_service_worker') !== -1) {
+              return reg.unregister();
+            }
+            return null;
+          }));
+        }
+        if ('caches' in window) {
+          var keys = await caches.keys();
+          await Promise.all(keys
+            .filter(function(k) { return k.indexOf('flutter-') === 0; })
+            .map(function(k) { return caches.delete(k); }));
+        }
+      } catch (e) {
+        // Best-effort — fall through to reload regardless
+      }
 
       window.location.reload();
     };
