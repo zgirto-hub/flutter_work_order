@@ -13,6 +13,7 @@ import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
 import '../../theme/app_theme.dart';
 import '../../services/payment_certificate_service.dart';
+import '../../services/activity_log_service.dart';
 import 'letter_html_viewer_screen.dart';
 import '../../services/pdf/payment_certificate_pdf_service.dart';
 import '../../widgets/ai_document_expert_widget.dart';
@@ -396,12 +397,123 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             Navigator.pop(context);
             _generatePdf();
           },
+          onShare: () async {
+            ActivityLogService().logShared(
+              documentType: 'letter',
+              documentId: _editingLetterId ?? 'new-letter',
+            );
+            return await _buildPdfBytesForShare();
+          },
+          shareFileName: 'letter_${DateTime.now().millisecondsSinceEpoch}.pdf',
         ),
       ),
     );
   }
 
+  /// Assemble the letter body payload from the current form state.
+  /// Caller is responsible for having run form validation first.
+  Map<String, dynamic> _assembleLetterBody(String bodyHtml) {
+    return {
+      'ishara': _isharaCtrl.text,
+      'tarikh': _selectedDate != null
+          ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
+          : '',
+      'alsayed': _alsayedCtrl.text,
+      'almawdoo': _almawdooCtrl.text,
+      'body_html': bodyHtml,
+      'signer_title': _signerTitleCtrl.text,
+      'alasm': _alasmCtrl.text,
+      'signature_base64': _signatureBase64,
+      'reply_required': _replyRequired,
+      'cc_list': _ccNames.isEmpty ? null : _ccNames.join('\n'),
+      'ref_font_size': _refFontSize,
+      'ref_bold': _refBold,
+      'ref_underline': _refUnderline,
+      'tarikh_font_size': _dateFontSize,
+      'tarikh_bold': _dateBold,
+      'tarikh_underline': _dateUnderline,
+      'recipient_font_size': _recipientFontSize,
+      'recipient_bold': _recipientBold,
+      'recipient_underline': _recipientUnderline,
+      'subject_font_size': _subjectFontSize,
+      'subject_bold': _subjectBold,
+      'subject_underline': _subjectUnderline,
+      'attachments': _attachments
+          .map((_Attachment a) => <String, dynamic>{
+                'name': a.name,
+                'data': a.base64,
+                'is_image': a.isImage,
+              })
+          .toList(),
+    };
+  }
+
+  Future<Uint8List> _callGenerateOrUpdate(
+    Map<String, dynamic> body, {
+    required bool forceReassign,
+  }) {
+    final certIds = _linkedCerts.map((c) => c.id).toList();
+    if (_editingLetterId != null) {
+      return LetterService().updateV2(
+        _editingLetterId!,
+        body,
+        paymentCertificateIds: certIds,
+        forceReassign: forceReassign,
+      );
+    }
+    return LetterService().generateV2(
+      body,
+      paymentCertificateIds: certIds,
+      forceReassign: forceReassign,
+    );
+  }
+
+  /// Builds the letter PDF bytes, including the reassign-certificate
+  /// recovery dialog. Returns `null` if the user cancels the reassign
+  /// prompt — callers should treat that as a silent no-op. Throws for
+  /// validation / server errors, which callers should surface.
+  Future<Uint8List?> _buildPdfBytesForShare() async {
+    if (!_formKey.currentState!.validate()) {
+      throw Exception('Form validation failed');
+    }
+    final bodyHtml = await _getEditorHtml();
+    if (bodyHtml.trim().isEmpty) {
+      throw Exception('Please enter the letter body');
+    }
+    final body = _assembleLetterBody(bodyHtml);
+
+    try {
+      return await _callGenerateOrUpdate(body, forceReassign: false);
+    } on CertificatesAlreadyLinkedException {
+      if (!mounted) return null;
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Reassign payment certificate?'),
+          content: const Text(
+            'This certificate is already linked to another letter. Reassign it?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Reassign'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return null;
+      return await _callGenerateOrUpdate(body, forceReassign: true);
+    }
+  }
+
   Future<void> _generatePdf() async {
+    // Preserve the pre-existing UX: validation fails silently, empty body
+    // shows a specific hint. _buildPdfBytesForShare re-validates defensively
+    // but those checks are idempotent.
     if (!_formKey.currentState!.validate()) return;
     final bodyHtml = await _getEditorHtml();
     if (bodyHtml.trim().isEmpty) {
@@ -414,92 +526,10 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
 
     setState(() => _isLoading = true);
     try {
-      final body = {
-        'ishara': _isharaCtrl.text,
-        'tarikh': _selectedDate != null
-            ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
-            : '',
-        'alsayed': _alsayedCtrl.text,
-        'almawdoo': _almawdooCtrl.text,
-        'body_html': bodyHtml,
-        'signer_title': _signerTitleCtrl.text,
-        'alasm': _alasmCtrl.text,
-        'signature_base64': _signatureBase64,
-        'reply_required': _replyRequired,
-        'cc_list': _ccNames.isEmpty ? null : _ccNames.join('\n'),
-        'ref_font_size': _refFontSize,
-        'ref_bold': _refBold,
-        'ref_underline': _refUnderline,
-        'tarikh_font_size': _dateFontSize,
-        'tarikh_bold': _dateBold,
-        'tarikh_underline': _dateUnderline,
-        'recipient_font_size': _recipientFontSize,
-        'recipient_bold': _recipientBold,
-        'recipient_underline': _recipientUnderline,
-        'subject_font_size': _subjectFontSize,
-        'subject_bold': _subjectBold,
-        'subject_underline': _subjectUnderline,
-        'attachments': _attachments
-            .map((_Attachment a) => <String, dynamic>{
-                  'name': a.name,
-                  'data': a.base64,
-                  'is_image': a.isImage,
-                })
-            .toList(),
-      };
-
-      Uint8List pdfBytes = Uint8List(0);
-      try {
-        if (_editingLetterId != null) {
-          pdfBytes = await LetterService().updateV2(
-            _editingLetterId!,
-            body,
-            paymentCertificateIds: _linkedCerts.map((c) => c.id).toList(),
-          );
-        } else {
-          pdfBytes = await LetterService().generateV2(
-            body,
-            paymentCertificateIds: _linkedCerts.map((c) => c.id).toList(),
-          );
-        }
-      } on CertificatesAlreadyLinkedException {
-        if (!mounted) return;
-        final confirm = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Reassign payment certificate?'),
-            content: Text(
-              'This certificate is already linked to another letter. Reassign it?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Reassign'),
-              ),
-            ],
-          ),
-        );
-        if (confirm != true) return;
-        if (_editingLetterId != null) {
-          pdfBytes = await LetterService().updateV2(
-            _editingLetterId!,
-            body,
-            paymentCertificateIds: _linkedCerts.map((c) => c.id).toList(),
-            forceReassign: true,
-          );
-        } else {
-          pdfBytes = await LetterService().generateV2(
-            body,
-            paymentCertificateIds: _linkedCerts.map((c) => c.id).toList(),
-            forceReassign: true,
-          );
-        }
-      }
-      _downloadPdfBytes(pdfBytes, 'letter_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      final pdfBytes = await _buildPdfBytesForShare();
+      if (pdfBytes == null) return; // user cancelled the reassign dialog
+      _downloadPdfBytes(
+          pdfBytes, 'letter_${DateTime.now().millisecondsSinceEpoch}.pdf');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -525,7 +555,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
 
   void _downloadPdfBytes(Uint8List bytes, String filename) {
     final ua = web.window.navigator.userAgent.toLowerCase();
-    final isIos = ua.contains('iphone') || ua.contains('ipad') || ua.contains('ipod');
+    final isIos =
+        ua.contains('iphone') || ua.contains('ipad') || ua.contains('ipod');
 
     // Create blob URL from bytes
     final blob = web.Blob(
@@ -622,7 +653,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
       );
 
       if (mounted) {
-        _downloadPdfBytes(mergedPdf, 'letter_${DateTime.now().millisecondsSinceEpoch}_combined.pdf');
+        _downloadPdfBytes(mergedPdf,
+            'letter_${DateTime.now().millisecondsSinceEpoch}_combined.pdf');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Combined PDF exported successfully')),
         );
@@ -666,18 +698,15 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               controller: _isharaCtrl,
               decoration: InputDecoration(hintText: 'e.g. 2026-23279'),
               textAlign: TextAlign.right,
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Required' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             _buildStyleRow(
               fontSize: _refFontSize,
               bold: _refBold,
               underline: _refUnderline,
-              onFontSizeChanged: (v) =>
-                  setState(() => _refFontSize = v),
+              onFontSizeChanged: (v) => setState(() => _refFontSize = v),
               onBoldChanged: (v) => setState(() => _refBold = v),
-              onUnderlineChanged: (v) =>
-                  setState(() => _refUnderline = v),
+              onUnderlineChanged: (v) => setState(() => _refUnderline = v),
             ),
             const SizedBox(height: 16),
 
@@ -709,11 +738,9 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               fontSize: _dateFontSize,
               bold: _dateBold,
               underline: _dateUnderline,
-              onFontSizeChanged: (v) =>
-                  setState(() => _dateFontSize = v),
+              onFontSizeChanged: (v) => setState(() => _dateFontSize = v),
               onBoldChanged: (v) => setState(() => _dateBold = v),
-              onUnderlineChanged: (v) =>
-                  setState(() => _dateUnderline = v),
+              onUnderlineChanged: (v) => setState(() => _dateUnderline = v),
             ),
             const SizedBox(height: 16),
 
@@ -721,7 +748,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             _buildLabel('Recipient'),
             TextFormField(
               controller: _alsayedCtrl,
-              decoration: InputDecoration(labelText: 'Recipient name and title'),
+              decoration:
+                  InputDecoration(labelText: 'Recipient name and title'),
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             _buildStyleRow(
@@ -736,7 +764,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
             Padding(
               padding: const EdgeInsets.only(top: 4, right: 8),
               child: Text('المحترم',
-                  style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
+                  style:
+                      TextStyle(fontSize: 13, color: AppColors.textTertiary)),
             ),
             const SizedBox(height: 16),
 
@@ -1058,7 +1087,8 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, color: AppColors.dangerText),
+                    icon: const Icon(Icons.delete_outline,
+                        color: AppColors.dangerText),
                     onPressed: () => setState(() {
                       _signatureBytes = null;
                       _signatureBase64 = null;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/generated_letter.dart';
 import '../../services/letter_service.dart';
+import '../../services/activity_log_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/claude_widgets.dart';
 import 'letter_html_viewer_screen.dart';
@@ -29,7 +30,11 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
   Future<void> _loadLetters() async {
     try {
       final letters = await LetterService().fetchAllV2();
-      if (mounted) setState(() { _letters = letters; _isLoading = false; });
+      if (mounted)
+        setState(() {
+          _letters = letters;
+          _isLoading = false;
+        });
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -45,14 +50,18 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
       context: context,
       builder: (c) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
-        title: Text('Delete Letter', style: TextStyle(color: AppColors.textPrimary)),
+        title: Text('Delete Letter',
+            style: TextStyle(color: AppColors.textPrimary)),
         content: Text('Are you sure you want to delete this letter?',
             style: TextStyle(color: AppColors.textSecondary)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
-            child: Text('Delete', style: TextStyle(color: AppColors.dangerText)),
+            child:
+                Text('Delete', style: TextStyle(color: AppColors.dangerText)),
           ),
         ],
       ),
@@ -86,6 +95,15 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
           builder: (_) => LetterHtmlViewerScreen(
             title: 'Letter Preview',
             html: html,
+            onShare: () async {
+              ActivityLogService().logShared(
+                documentType: 'letter',
+                documentId: letterId,
+              );
+              return await LetterService().regenerateV2(letterId);
+            },
+            shareFileName:
+                'letter_${letterId.substring(0, letterId.length < 8 ? letterId.length : 8)}.pdf',
           ),
         ),
       );
@@ -163,16 +181,22 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                 }
               },
               bodyText: letter.bodyPreview,
-              onPdf: letter.id != null ? () {
-                if (_actionInProgress) return;
-                _actionInProgress = true;
-                _previewLetter(letter.id!).whenComplete(() => _actionInProgress = false);
-              } : null,
-              onDelete: letter.id != null ? () {
-                if (_actionInProgress) return;
-                _actionInProgress = true;
-                _deleteLetter(letter.id!).whenComplete(() => _actionInProgress = false);
-              } : null,
+              onPdf: letter.id != null
+                  ? () {
+                      if (_actionInProgress) return;
+                      _actionInProgress = true;
+                      _previewLetter(letter.id!)
+                          .whenComplete(() => _actionInProgress = false);
+                    }
+                  : null,
+              onDelete: letter.id != null
+                  ? () {
+                      if (_actionInProgress) return;
+                      _actionInProgress = true;
+                      _deleteLetter(letter.id!)
+                          .whenComplete(() => _actionInProgress = false);
+                    }
+                  : null,
             ),
           );
         },
@@ -326,9 +350,8 @@ class _LetterCardState extends State<_LetterCard>
                             height: 1.4,
                           ),
                           maxLines: widget.expanded ? null : 1,
-                          overflow: widget.expanded
-                              ? null
-                              : TextOverflow.ellipsis,
+                          overflow:
+                              widget.expanded ? null : TextOverflow.ellipsis,
                         ),
 
                         SizedBox(height: 3),
@@ -386,7 +409,8 @@ class _LetterCardState extends State<_LetterCard>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Letter body preview
-                      if (widget.bodyText != null && widget.bodyText!.isNotEmpty) ...[
+                      if (widget.bodyText != null &&
+                          widget.bodyText!.isNotEmpty) ...[
                         Text(
                           _stripHtml(widget.bodyText!),
                           style: TextStyle(
@@ -511,8 +535,7 @@ class _LetterCardState extends State<_LetterCard>
           ),
           Expanded(
             child: Text(value,
-                style: TextStyle(
-                    fontSize: 11, color: AppColors.textSecondary)),
+                style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
           ),
         ],
       ),
@@ -545,9 +568,7 @@ class _LetterCardState extends State<_LetterCard>
             SizedBox(width: 5),
             Text(label,
                 style: TextStyle(
-                    fontSize: 12,
-                    color: color,
-                    fontWeight: FontWeight.w500)),
+                    fontSize: 12, color: color, fontWeight: FontWeight.w500)),
           ],
         ),
       ),

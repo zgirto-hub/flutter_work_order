@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/activity_log_entry.dart';
 import '../config.dart';
 
@@ -56,6 +57,23 @@ class ActivityLogService {
         Uri.parse('${AppConfig.baseUrl}/activity-log/update-check'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'user_email': email}),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> logShared({
+    required String documentType,
+    required String documentId,
+  }) async {
+    try {
+      await http.post(
+        Uri.parse('${AppConfig.baseUrl}/activity-log/shared'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_email': Supabase.instance.client.auth.currentUser?.email ?? '',
+          'document_type': documentType,
+          'document_id': documentId,
+        }),
       );
     } catch (_) {}
   }

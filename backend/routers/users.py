@@ -629,3 +629,31 @@ async def log_update_check(body: SignInBody):
         body.user_email, "app", "update_checked", target_label="Check for updates"
     )
     return {"status": "logged"}
+
+
+class SharedLogBody(BaseModel):
+    user_email: str
+    document_type: str
+    document_id: str
+
+
+@router.post("/activity-log/shared")
+async def log_shared(body: SharedLogBody):
+    if body.document_type not in ("letter", "work_order"):
+        raise HTTPException(
+            status_code=400,
+            detail="document_type must be 'letter' or 'work_order'",
+        )
+    category = "work_order" if body.document_type == "work_order" else "file"
+    # target_label carries the document type ("letter" | "work_order") because
+    # the log_activity helper does not have a dedicated target_type column —
+    # querying by {category, action='shared', target_label} reconstructs the
+    # document type without a schema change.
+    log_activity(
+        user_email=body.user_email,
+        category=category,
+        action="shared",
+        target_label=body.document_type,
+        target_id=body.document_id,
+    )
+    return {"status": "logged"}

@@ -51,6 +51,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-11
 - Dart 3.x / Flutter 3.x + Flutter Material, AppColors/AppShadows/AppTheme (centralized theme), shared widgets from `claude_widgets.dart` (EmptyState, SectionLabel) (035-letters-v2-ui-refactor)
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI (backend), Flutter Material (frontend) — no new dependencies (036-cleanup-dead-letters-v1)
 - N/A — no data model changes (036-cleanup-dead-letters-v1)
+- Dart 3.x / Flutter 3.x (frontend only, primarily web target); Python 3.10 + FastAPI (backend, minimal touch for audit endpoint) + `package:web` (existing — JS interop for `navigator.share`, `navigator.canShare`, `Blob`, `File`, anchor download), `package:printing` (existing — already used for `PdfPreview`; its `allowPrinting`/`allowSharing`/`actions` params control the built-in toolbar), `package:http` (existing — activity log POST), existing `download_helper_web.dart` to be extended (038-ios-pwa-share)
+- N/A — PDF bytes are transient (built → shared/downloaded → released). No database changes. No new file storage. (038-ios-pwa-share)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -73,9 +75,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 038-ios-pwa-share: Added Dart 3.x / Flutter 3.x (frontend only, primarily web target); Python 3.10 + FastAPI (backend, minimal touch for audit endpoint) + `package:web` (existing — JS interop for `navigator.share`, `navigator.canShare`, `Blob`, `File`, anchor download), `package:printing` (existing — already used for `PdfPreview`; its `allowPrinting`/`allowSharing`/`actions` params control the built-in toolbar), `package:http` (existing — activity log POST), existing `download_helper_web.dart` to be extended
 - 036-cleanup-dead-letters-v1: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI (backend), Flutter Material (frontend) — no new dependencies
 - 035-letters-v2-ui-refactor: Added Dart 3.x / Flutter 3.x + Flutter Material, AppColors/AppShadows/AppTheme (centralized theme), shared widgets from `claude_widgets.dart` (EmptyState, SectionLabel)
-- 034-editor-image-insert: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Pillow 12.1.1 (backend); http, file_picker, Flutter Material (frontend)
 
 
 <!-- MANUAL ADDITIONS START -->

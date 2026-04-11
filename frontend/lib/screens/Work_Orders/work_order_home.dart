@@ -1319,6 +1319,10 @@ class _WorkOrderHomeState extends State<WorkOrderHome>
                                   email: email,
                                   userRole: _userRole ?? 'reporter',
                                 ),
+                                shareFileName:
+                                    'WO-${wo.jobNo ?? "unknown"}.pdf',
+                                documentId: wo.id,
+                                documentType: 'work_order',
                               ),
                             ),
                           );

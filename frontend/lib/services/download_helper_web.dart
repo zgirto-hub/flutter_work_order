@@ -1,4 +1,5 @@
 import 'dart:js_interop';
+import 'dart:typed_data';
 import 'package:web/web.dart' as web;
 
 // ─── JS interop declarations ──────────────────────────────────────────────────
@@ -11,11 +12,72 @@ external JSPromise _share(JSObject shareData);
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
+/// Outcome of a [sharePdfBytes] invocation. Callers typically use this to
+/// decide whether to show a "Saved to Files" confirmation snackbar
+/// (`fallbackDownloaded`), show nothing (`sharedViaSheet` — the share sheet
+/// is its own confirmation), or show nothing (`cancelled` — user intent).
+enum ShareOutcome { sharedViaSheet, fallbackDownloaded, cancelled }
+
+Future<ShareOutcome> sharePdfBytes(
+  Uint8List bytes,
+  String fileName,
+  String title,
+) async {
+  if (bytes.isEmpty) {
+    throw StateError('empty PDF bytes');
+  }
+
+  String actualFileName = fileName;
+  if (!fileName.toLowerCase().endsWith('.pdf')) {
+    actualFileName = '$fileName.pdf';
+  }
+
+  final mime = 'application/pdf';
+  final blobParts = <JSAny>[bytes.toJS].toJS;
+  final blobOptions = web.BlobPropertyBag(type: mime);
+  final blob = web.Blob(blobParts, blobOptions);
+
+  final fileParts = <JSAny>[blob].toJS;
+  final fileOptions = web.FilePropertyBag(type: mime);
+  final file = web.File(fileParts, actualFileName, fileOptions);
+
+  final filesArray = <JSAny>[file].toJS;
+  final shareData = _buildShareData(filesArray, title);
+
+  bool canShare = false;
+  try {
+    canShare = _canShare(shareData);
+  } catch (_) {
+    canShare = false;
+  }
+
+  if (canShare) {
+    try {
+      await _share(shareData).toDart;
+      return ShareOutcome.sharedViaSheet;
+    } catch (e) {
+      final errStr = e.toString();
+      if (errStr.contains('AbortError') ||
+          errStr.contains('cancel') ||
+          errStr.contains('abort')) {
+        return ShareOutcome.cancelled;
+      }
+      // Any other share error → fall through to anchor-download fallback.
+    }
+  }
+
+  final blobUrl = web.URL.createObjectURL(blob);
+  _anchorDownload(blobUrl, actualFileName);
+  Future.delayed(const Duration(milliseconds: 150), () {
+    web.URL.revokeObjectURL(blobUrl);
+  });
+  return ShareOutcome.fallbackDownloaded;
+}
+
 Future<void> downloadFile(String url, String fileName) async {
   final ua = web.window.navigator.userAgent.toLowerCase();
-  final isIos = ua.contains('iphone') ||
-      ua.contains('ipad') ||
-      ua.contains('ipod');
+  final isIos =
+      ua.contains('iphone') || ua.contains('ipad') || ua.contains('ipod');
 
   if (isIos) {
     await _iosShare(url, fileName);
@@ -72,15 +134,15 @@ Future<void> _iosShare(String url, String fileName) async {
             errStr.contains('abort')) {
           return;
         }
-        // Other error — fall through to new-tab fallback
+        // Other error — fall through to anchor-download fallback
       }
     }
   } catch (_) {
-    // Fetch or File construction failed — fall through to new-tab
+    // Fetch or File construction failed — fall through to anchor-download
   }
 
-  // Fallback: open in new tab (iOS QuickLook preview)
-  _openInNewTab(url);
+  // Fallback: save to Files (iOS QuickLook preview)
+  _anchorDownload(url, fileName);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -124,4 +186,3 @@ String _mimeFromName(String fileName) {
   };
   return map[ext] ?? 'application/octet-stream';
 }
-

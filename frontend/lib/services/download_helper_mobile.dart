@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -10,13 +11,23 @@ bool get isIosWeb => false;
 
 void openInNewTab(String url) {} // no-op on native
 
+/// Mirror of the enum in `download_helper_web.dart`. Kept here so the
+/// conditional-import façade exposes a consistent type on both platforms.
+enum ShareOutcome { sharedViaSheet, fallbackDownloaded, cancelled }
+
+// Native mobile stub — this app is web-only in practice, but if it were ever
+// built for iOS/Android, callers would expect the same Future<ShareOutcome>
+// contract. Returns `cancelled` as a neutral no-op.
+Future<ShareOutcome> sharePdfBytes(
+        Uint8List bytes, String fileName, String title) async =>
+    ShareOutcome.cancelled;
+
 Future<void> downloadFile(String url, String fileName) async {
   // On iOS, launchUrl(externalApplication) leaves the app and breaks back
   // navigation. Download to a temp file and use the share sheet instead.
   if (!kIsWeb && Platform.isIOS) {
-    final response = await http
-        .get(Uri.parse(url))
-        .timeout(const Duration(seconds: 60));
+    final response =
+        await http.get(Uri.parse(url)).timeout(const Duration(seconds: 60));
 
     if (response.statusCode != 200) {
       throw 'Server returned ${response.statusCode}';
