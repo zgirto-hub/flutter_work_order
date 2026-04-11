@@ -6,6 +6,7 @@ class GeneratedLetter {
   final String alsayed;
   final String almawdoo;
   final String bodyText;
+  final String bodyPreview;
   final String signerTitle;
   final String alasm;
   final String? signatureBase64;
@@ -33,6 +34,7 @@ class GeneratedLetter {
     required this.alsayed,
     required this.almawdoo,
     required this.bodyText,
+    this.bodyPreview = '',
     this.signerTitle = '',
     required this.alasm,
     this.signatureBase64,
@@ -78,6 +80,7 @@ class GeneratedLetter {
       alsayed: json['alsayed'] ?? '',
       almawdoo: json['almawdoo'] ?? '',
       bodyText: json['body_text'] ?? '',
+      bodyPreview: json['body_preview'] ?? '',
       signerTitle: json['signer_title'] ?? '',
       alasm: json['alasm'] ?? '',
       signatureBase64: json['signature_base64'],

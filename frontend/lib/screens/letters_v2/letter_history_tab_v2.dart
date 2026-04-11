@@ -20,8 +20,6 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
   List<GeneratedLetter> _letters = [];
   bool _isLoading = true;
   int _expandedIndex = -1;
-  final Map<String, String> _bodyCache = {}; // letterId -> bodyText
-  bool _loadingBody = false;
   bool _actionInProgress = false;
 
   @override
@@ -134,30 +132,9 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
               letter: letter,
               expanded: expanded,
               onTap: () {
-                if (expanded) {
-                  setState(() => _expandedIndex = -1);
-                } else {
-                  setState(() {
-                    _expandedIndex = i;
-                    _loadingBody = true;
-                  });
-                  // Fetch body if not cached
-                  final lid = letter.id;
-                  if (lid != null && !_bodyCache.containsKey(lid)) {
-                    LetterService().fetchOneV2(lid).then((full) {
-                      if (mounted) {
-                        setState(() {
-                          _bodyCache[lid] = full.bodyText;
-                          _loadingBody = false;
-                        });
-                      }
-                    }).catchError((_) {
-                      if (mounted) setState(() => _loadingBody = false);
-                    });
-                  } else {
-                    _loadingBody = false;
-                  }
-                }
+                setState(() {
+                  _expandedIndex = expanded ? -1 : i;
+                });
               },
               onEdit: () async {
                 if (_actionInProgress) return;
@@ -192,8 +169,7 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
                   _actionInProgress = false;
                 }
               },
-              bodyText: letter.id != null ? _bodyCache[letter.id!] : null,
-              loadingBody: _loadingBody && expanded,
+              bodyText: letter.bodyPreview,
               onPdf: letter.id != null ? () {
                 if (_actionInProgress) return;
                 _actionInProgress = true;
@@ -218,7 +194,6 @@ class _LetterCard extends StatefulWidget {
   final GeneratedLetter letter;
   final bool expanded;
   final String? bodyText;
-  final bool loadingBody;
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onCopy;
@@ -229,7 +204,6 @@ class _LetterCard extends StatefulWidget {
     required this.letter,
     required this.expanded,
     this.bodyText,
-    this.loadingBody = false,
     required this.onTap,
     required this.onEdit,
     required this.onCopy,
@@ -276,7 +250,22 @@ class _LetterCardState extends State<_LetterCard>
   Widget build(BuildContext context) {
     final letter = widget.letter;
 
-    return GestureDetector(
+    final preview = widget.bodyText ?? '';
+
+    return Tooltip(
+      message: preview.length > 200 ? '${preview.substring(0, 200)}...' : preview,
+      waitDuration: const Duration(milliseconds: 400),
+      textStyle: TextStyle(
+        fontSize: 12,
+        color: Colors.white,
+        height: 1.4,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.grey[850],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: GestureDetector(
       onTap: widget.onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -419,19 +408,7 @@ class _LetterCardState extends State<_LetterCard>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Letter body preview
-                      if (widget.loadingBody) ...[
-                        SizedBox(
-                          height: 40,
-                          child: Center(
-                            child: SizedBox(
-                              width: 16, height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2, color: AppColors.textTertiary),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 10),
-                      ] else if (widget.bodyText != null && widget.bodyText!.isNotEmpty) ...[
+                      if (widget.bodyText != null && widget.bodyText!.isNotEmpty) ...[
                         Text(
                           _stripHtml(widget.bodyText!),
                           style: TextStyle(
@@ -527,6 +504,7 @@ class _LetterCardState extends State<_LetterCard>
           ],
         ),
       ),
+    ),
     );
   }
 

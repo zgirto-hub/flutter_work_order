@@ -519,7 +519,7 @@ async def get_letters_v2(email: str):
         supabase.table("generated_letters")
         .select(
             "id, created_at, ishara, tarikh, alsayed, almawdoo, alasm, signer_title,"
-            " reply_required, cc_list, created_by_email,"
+            " reply_required, cc_list, created_by_email, body_text,"
             " ref_font_size, ref_bold, ref_underline,"
             " tarikh_font_size, tarikh_bold, tarikh_underline,"
             " recipient_font_size, recipient_bold, recipient_underline,"
@@ -530,6 +530,12 @@ async def get_letters_v2(email: str):
         .execute()
     )
     letters = result.data or []
+
+    # Build a plain-text preview from body_text (strip HTML, truncate to 300 chars)
+    for letter in letters:
+        raw = letter.pop("body_text", "") or ""
+        plain = re.sub(r"<[^>]*>", "", raw).replace("&nbsp;", " ").replace("&amp;", "&").strip()
+        letter["body_preview"] = plain[:300]
 
     if letters:
         # Batch-fetch all payment certificates for these letters in one query
