@@ -250,22 +250,7 @@ class _LetterCardState extends State<_LetterCard>
   Widget build(BuildContext context) {
     final letter = widget.letter;
 
-    final preview = widget.bodyText ?? '';
-
-    return Tooltip(
-      message: preview.length > 200 ? '${preview.substring(0, 200)}...' : preview,
-      waitDuration: const Duration(milliseconds: 400),
-      textStyle: TextStyle(
-        fontSize: 12,
-        color: Colors.white,
-        height: 1.4,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.grey[850],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: GestureDetector(
+    return GestureDetector(
       onTap: widget.onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -504,7 +489,6 @@ class _LetterCardState extends State<_LetterCard>
           ],
         ),
       ),
-    ),
     );
   }
 
