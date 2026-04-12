@@ -234,10 +234,12 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None) -> dict:
         raise EmbedderUnavailableError()
 
     # Retrieve top-5 nearest chunks via the pgvector RPC.
+    # Convert embedding list to string format for PostgREST → pgvector cast.
+    embedding_str = "[" + ",".join(str(x) for x in question_embedding) + "]"
     rpc_response = supabase.rpc(
         "search_manual_chunks",
         {
-            "q_embedding": question_embedding,
+            "q_embedding": embedding_str,
             "manual_id_filter": str(manual_id_filter) if manual_id_filter else None,
             "match_count": 5,
         },
