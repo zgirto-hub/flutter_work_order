@@ -21,8 +21,9 @@ _si_cache: dict = {"value": "", "ts": 0.0}
 _SI_CACHE_TTL = 60.0  # seconds
 
 # Chunk reranking thresholds (spec 044)
-# MAX_CHUNK_DISTANCE: cosine distance ceiling; 0.30 distance = 0.70 similarity
-MAX_CHUNK_DISTANCE = 0.45
+# MAX_CHUNK_DISTANCE: cosine distance ceiling; 0.45 was too strict for technical
+# manuals with part-number queries — loosened to 0.55 (= 0.45 similarity minimum)
+MAX_CHUNK_DISTANCE = 0.55
 # MAX_PROMPT_CHUNKS: max chunks sent to LLM after filtering
 MAX_PROMPT_CHUNKS = 3
 
