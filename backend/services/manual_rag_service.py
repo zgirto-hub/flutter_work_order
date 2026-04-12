@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import uuid
@@ -9,6 +10,8 @@ from services.manual_parser import parse, NoExtractableTextError
 from services.manual_chunker import chunk_paragraphs, Chunk
 from services.ollama_embedder import embed_many, EmbedderTimeoutError
 from services.manual_storage_service import save, delete as delete_file
+
+logger = logging.getLogger(__name__)
 
 import time as _time
 
@@ -23,7 +26,12 @@ def _get_system_instructions() -> str:
     if now - _si_cache["ts"] < _SI_CACHE_TTL:
         return _si_cache["value"]
     try:
-        resp = supabase.table("manual_assistant_settings").select("system_instructions").eq("id", 1).execute()
+        resp = (
+            supabase.table("manual_assistant_settings")
+            .select("system_instructions")
+            .eq("id", 1)
+            .execute()
+        )
         val = resp.data[0]["system_instructions"] if resp.data else ""
     except Exception:
         val = ""
@@ -32,7 +40,9 @@ def _get_system_instructions() -> str:
     return val
 
 
-def _build_prompt(retrieved_chunks: str, user_question: str, history: list[dict] | None = None) -> str:
+def _build_prompt(
+    retrieved_chunks: str, user_question: str, history: list[dict] | None = None
+) -> str:
     """Assemble the 3-layer prompt: system instructions → chunks → history → question."""
     parts = []
 
@@ -59,6 +69,7 @@ def _build_prompt(retrieved_chunks: str, user_question: str, history: list[dict]
     parts.append(f"QUESTION: {user_question}\n\nANSWER:")
 
     return "\n\n".join(parts)
+
 
 _SENT_RE = re.compile(r"(?<=[.!?؟])\s+")
 
@@ -195,7 +206,9 @@ async def upload_manual(
         raise CorpusFullError(ceiling_mb)
 
     # Step 6.5: Resolve user UUID from email (uploaded_by is an email per repo convention)
-    user_row = supabase.table("users").select("id").eq("email", uploaded_by).limit(1).execute()
+    user_row = (
+        supabase.table("users").select("id").eq("email", uploaded_by).limit(1).execute()
+    )
     user_uuid = user_row.data[0]["id"] if user_row.data else None
 
     # Step 7: Save file to disk
@@ -246,7 +259,54 @@ async def upload_manual(
     }
 
 
-async def ask(question: str, manual_id_filter: Optional[UUID] = None, model: Optional[str] = None, history: list[dict] | None = None) -> dict:
+async def _rewrite_query(question: str, history: list[dict] | None) -> str:
+    """Rewrite a follow-up question into a self-contained search query using conversation context."""
+    from services.ollama_generator import generate
+
+    if not history:
+        return question
+
+    try:
+        conversation_block = "\n".join(
+            f"User: {turn['question']}\nAssistant: {turn['answer']}"
+            for turn in history[-3:]
+        )
+
+        rewrite_prompt = (
+            """You are a search query rewriter. Given a conversation history and a follow-up question, rewrite the follow-up question into a single self-contained search query. The rewritten query must:
+- Resolve all pronouns and references (e.g., "it", "that", "the second point") using the conversation context
+- Be a complete, standalone question that would make sense without any conversation history
+- Preserve the original language (Arabic or English)
+- Be concise (one sentence)
+
+Reply with ONLY the rewritten query. No explanation, no preamble.
+
+CONVERSATION:
+"""
+            + conversation_block
+            + """
+
+FOLLOW-UP QUESTION: """
+            + question
+        )
+
+        result = await generate(rewrite_prompt, timeout=10.0)
+        rewritten = result.strip().strip('"').strip("'").strip()
+        if not rewritten:
+            logger.warning("Query rewrite returned empty, using original query")
+            return question
+        return rewritten
+    except Exception as e:
+        logger.warning("Query rewrite failed, using original query: %s", e)
+        return question
+
+
+async def ask(
+    question: str,
+    manual_id_filter: Optional[UUID] = None,
+    model: Optional[str] = None,
+    history: list[dict] | None = None,
+) -> dict:
     from services.ollama_embedder import embed_single, EmbedderTimeoutError
     from services.ollama_generator import generate, GeneratorTimeoutError
 
@@ -264,9 +324,12 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None, model: Opt
             "sources": [],
         }
 
+    # Rewrite query for better retrieval (uses conversation context for follow-up questions)
+    search_query = await _rewrite_query(question, history)
+
     # Embed the question
     try:
-        question_embedding = await embed_single(question)
+        question_embedding = await embed_single(search_query)
     except EmbedderTimeoutError:
         raise EmbedderUnavailableError()
 
@@ -323,6 +386,7 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None, model: Opt
     prompt = _build_prompt(retrieved_chunks, question, history)
     # Generate answer
     import time
+
     gen_start = time.monotonic()
     try:
         answer = await generate(prompt, model=model)
@@ -339,6 +403,7 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None, model: Opt
     grounded = not any(phrase.lower() in answer.lower() for phrase in sentinel_phrases)
 
     from services.ollama_generator import get_default_model
+
     used_model = model or get_default_model()
     if not grounded:
         return {
@@ -352,7 +417,9 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None, model: Opt
     # Format sources for response with highlighting
     final_sources = []
     for src in sources:
-        preview = src["content_preview"]  # already truncated to 500 chars during assembly
+        preview = src[
+            "content_preview"
+        ]  # already truncated to 500 chars during assembly
         highlight_start, highlight_end = compute_highlight(preview, answer)
         final_sources.append(
             {
