@@ -46,18 +46,44 @@ class ManualAssistantService {
     }
   }
 
-  Future<String> getDefaultModel() async {
+  Future<Map<String, dynamic>> getSettings() async {
     try {
       final res = await http.get(
         Uri.parse('${AppConfig.baseUrl}/manuals/settings'),
       );
       if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        return data['default_model'] ?? '';
+        return jsonDecode(res.body) as Map<String, dynamic>;
       }
-      return '';
+      return {};
     } catch (e) {
-      return '';
+      return {};
+    }
+  }
+
+  Future<String> getDefaultModel() async {
+    final settings = await getSettings();
+    return settings['default_model'] as String? ?? '';
+  }
+
+  Future<String> getSystemInstructions() async {
+    final settings = await getSettings();
+    return settings['system_instructions'] as String? ?? '';
+  }
+
+  Future<String> updateSystemInstructions(String instructions) async {
+    try {
+      final res = await http.post(
+        Uri.parse('${AppConfig.baseUrl}/manuals/settings'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'system_instructions': instructions}),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['system_instructions'] ?? instructions;
+      }
+      return instructions;
+    } catch (e) {
+      return instructions;
     }
   }
 
@@ -184,7 +210,9 @@ class ManualAssistantService {
 
   Future<ManualQaAnswer> askQuestion(
       String question, String? manualIdFilter,
-      {required String userEmail, String? model}) async {
+      {required String userEmail,
+      String? model,
+      List<Map<String, String>>? history}) async {
     try {
       final body = <String, dynamic>{
         'question': question,
@@ -195,6 +223,9 @@ class ManualAssistantService {
       }
       if (model != null) {
         body['model'] = model;
+      }
+      if (history != null && history.isNotEmpty) {
+        body['history'] = history;
       }
 
       final session = Supabase.instance.client.auth;

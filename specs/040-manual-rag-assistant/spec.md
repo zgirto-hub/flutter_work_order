@@ -133,12 +133,27 @@ When reading an answer, the user can expand a "Sources" section to see the manua
 - **FR-021**: Questions submitted while a previous question is still being processed MUST be handled without corrupting the conversation (e.g., by disabling the send action or queuing cleanly) so the user cannot accidentally produce interleaved or lost responses.
 - **FR-022**: Deleting a manual MUST cascade so that no residual citations or retrievable content from that manual remain usable after deletion, AND the original file stored on disk under `backend/uploaded_files/manuals/` MUST be removed as part of the same operation. If the on-disk file is already missing or cannot be removed for an environmental reason, deletion of the database records MUST still proceed and the inconsistency MUST be surfaced to the operator (e.g., via server logs) so that orphaned files can be reconciled manually.
 
+### Layer 2 — Persistent System Instructions
+
+- **FR-023**: The system MUST allow an Admin user to define a persistent system instruction text that is prepended to every assistant prompt. This text describes the department's context, terminology, and behavioral rules for the assistant.
+- **FR-024**: System instructions MUST be stored persistently on the server so they survive backend restarts.
+- **FR-025**: The system instructions MUST be editable via a settings dialog accessible from the Manual Assistant screen AppBar, visible to Admin role only.
+- **FR-026**: If no system instructions are defined, the assistant MUST behave as if the field is empty — no error, no placeholder text injected.
+
+### Layer 3 — Conversation Memory (Session-Scoped)
+
+- **FR-027**: The Chat tab MUST maintain the full message history for the current session and send the last 10 exchanges (question + answer pairs) with every new question so the assistant can understand follow-up questions.
+- **FR-028**: Conversation history MUST NOT persist across sessions — each new visit to the Manual Assistant screen starts with a fresh thread.
+- **FR-029**: The assistant MUST use the conversation history to resolve follow-up questions (e.g. "what about the pressure limit?" after a prior question about hydraulics).
+
 ### Key Entities
 
 - **Manual**: A document uploaded by a user to serve as a knowledge source. Key attributes: title, original file name, uploader identity, upload timestamp, and a reference to the retained original file stored under the server's uploaded-files area (see FR-019). A manual has many Manual Sections.
 - **Manual Section**: A retrievable unit of text extracted from a manual, with enough granularity to be cited back to a specific location. Key attributes: the text content, an ordering index within the parent manual, and the source page number when available. Belongs to exactly one Manual.
 - **Question**: A natural-language query submitted by a user, optionally scoped to a single Manual. Not persisted across sessions in this version.
 - **Answer**: The assistant's grounded response to a Question. Includes the answer text and the list of Manual Sections used as sources (for display as citations). Not persisted across sessions in this version.
+- **System Instructions**: A single persistent text block authored by an Admin that defines the assistant's behavioral context (department name, terminology, standing rules). Stored server-side. Injected at the top of every prompt. May be empty.
+- **Conversation Turn**: A single question + answer pair in the current session's chat thread. Sent as history with subsequent questions. Not persisted between sessions.
 
 ## Success Criteria *(mandatory)*
 
@@ -180,3 +195,5 @@ When reading an answer, the user can expand a "Sources" section to see the manua
 - Cross-session persistence of chat history.
 - In-app viewer of the original uploaded document with in-place highlighting of cited regions. Deferred for scope-management reasons only — FR-019 retains the original file on disk, so this feature is no longer technically blocked; it remains out of this feature's scope and is captured as a follow-up spec so the core RAG loop can ship first.
 - Line numbers in citations (not meaningful for PDF/DOCX, where lines are a rendering artifact).
+- Cross-session conversation history persistence (each session starts fresh per FR-028).
+- Per-user system instructions (one shared instruction set for the whole department).

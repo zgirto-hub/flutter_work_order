@@ -30,6 +30,7 @@ class _ChatTabState extends State<ChatTab> {
   final ManualAssistantService _service = ManualAssistantService();
   final TextEditingController _questionController = TextEditingController();
   final List<ChatMessage> _messages = [];
+  final List<Map<String, String>> _history = [];  // conversation memory (Layer 3)
   List<Manual> _manuals = [];
   List<Map<String, dynamic>> _models = [];
   String? _selectedManualId;
@@ -81,8 +82,14 @@ class _ChatTabState extends State<ChatTab> {
     try {
       final email =
           Supabase.instance.client.auth.currentUser?.email ?? '';
+      // Send last 10 history turns with the question (Layer 3)
+      final historyToSend = _history.length > 10
+          ? _history.sublist(_history.length - 10)
+          : List<Map<String, String>>.from(_history);
       final answer = await _service.askQuestion(question, manualIdFilter,
-          userEmail: email, model: _selectedModel);
+          userEmail: email, model: _selectedModel, history: historyToSend);
+      // Append this exchange to conversation memory
+      _history.add({'question': question, 'answer': answer.answer});
       setState(() {
         _messages.removeLast();
         _messages.add(ChatMessage(question: question, answer: answer));

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Response, Query
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 import os
 import uuid
@@ -20,11 +20,17 @@ ALLOWED_MIME_TYPES = {
 MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
 
 
+class HistoryTurn(BaseModel):
+    question: str
+    answer: str
+
+
 class AskRequest(BaseModel):
     question: str
     manual_id: Optional[str] = None
     user_email: str
     model: Optional[str] = None
+    history: List[HistoryTurn] = []
 
 
 @router.get("/manuals/models")
@@ -37,16 +43,45 @@ async def get_models():
 @router.get("/manuals/settings")
 async def get_ai_settings():
     from services.ollama_generator import get_default_model
-    return {"default_model": get_default_model()}
+    # Read system instructions from DB
+    si_response = supabase.table("manual_assistant_settings").select("system_instructions").eq("id", 1).execute()
+    system_instructions = si_response.data[0]["system_instructions"] if si_response.data else ""
+    return {
+        "default_model": get_default_model(),
+        "system_instructions": system_instructions,
+    }
 
 
 @router.post("/manuals/settings")
 async def update_ai_settings(body: dict):
     from services.ollama_generator import set_default_model, get_default_model
+    # Update default model if provided
     model = body.get("default_model")
     if model:
         set_default_model(model)
-    return {"default_model": get_default_model()}
+    # Update system instructions if provided
+    if "system_instructions" in body:
+        supabase.table("manual_assistant_settings").update({
+            "system_instructions": body["system_instructions"],
+            "updated_at": "now()",
+        }).eq("id", 1).execute()
+        try:
+            log_activity(
+                body.get("user_email", ""),
+                "file",
+                "updated_manual_assistant_settings",
+                target_label="system_instructions",
+                detail=str(len(body["system_instructions"])) + " chars",
+            )
+        except Exception:
+            pass
+    # Read back current state
+    si_response = supabase.table("manual_assistant_settings").select("system_instructions").eq("id", 1).execute()
+    system_instructions = si_response.data[0]["system_instructions"] if si_response.data else ""
+    return {
+        "default_model": get_default_model(),
+        "system_instructions": system_instructions,
+    }
 
 
 @router.get("/manuals/")
@@ -252,7 +287,8 @@ async def ask_question(request: AskRequest):
             raise HTTPException(status_code=404, detail={"error": "manual_not_found"})
 
     try:
-        result = await manual_rag_service.ask(question, manual_id_filter, model=request.model)
+        history = [{"question": h.question, "answer": h.answer} for h in request.history]
+        result = await manual_rag_service.ask(question, manual_id_filter, model=request.model, history=history)
     except manual_rag_service.EmbedderUnavailableError:
         raise HTTPException(
             status_code=504,

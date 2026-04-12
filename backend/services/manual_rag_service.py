@@ -10,18 +10,55 @@ from services.manual_chunker import chunk_paragraphs, Chunk
 from services.ollama_embedder import embed_many, EmbedderTimeoutError
 from services.manual_storage_service import save, delete as delete_file
 
-PROMPT_TEMPLATE = """You are a technical assistant for a civil aviation maintenance department.
-Answer the technician's question using ONLY the manual sections provided below.
-If the answer is not found in the sections, say: "This information is not in the available manuals."
-Reply in the same language as the question (Arabic or English).
+import time as _time
 
-MANUAL SECTIONS:
-{retrieved_chunks}
+# System instructions cache (avoids DB round-trip on every question)
+_si_cache: dict = {"value": "", "ts": 0.0}
+_SI_CACHE_TTL = 60.0  # seconds
 
-QUESTION: {user_question}
 
-ANSWER:
-"""
+def _get_system_instructions() -> str:
+    """Read system instructions from DB, cached for 60 seconds."""
+    now = _time.monotonic()
+    if now - _si_cache["ts"] < _SI_CACHE_TTL:
+        return _si_cache["value"]
+    try:
+        resp = supabase.table("manual_assistant_settings").select("system_instructions").eq("id", 1).execute()
+        val = resp.data[0]["system_instructions"] if resp.data else ""
+    except Exception:
+        val = ""
+    _si_cache["value"] = val
+    _si_cache["ts"] = now
+    return val
+
+
+def _build_prompt(retrieved_chunks: str, user_question: str, history: list[dict] | None = None) -> str:
+    """Assemble the 3-layer prompt: system instructions → chunks → history → question."""
+    parts = []
+
+    si = _get_system_instructions()
+    if si.strip():
+        parts.append(si.strip())
+
+    parts.append(
+        "You are a technical assistant for a civil aviation maintenance department.\n"
+        "Answer the technician's question using ONLY the manual sections provided below.\n"
+        'If the answer is not found in the sections, say: "This information is not in the available manuals."\n'
+        "Reply in the same language as the question (Arabic or English)."
+    )
+
+    parts.append(f"MANUAL SECTIONS:\n{retrieved_chunks}")
+
+    if history:
+        history_block = "\n\n".join(
+            f"User: {turn['question']}\nAssistant: {turn['answer']}"
+            for turn in history[-10:]
+        )
+        parts.append(f"CONVERSATION HISTORY:\n{history_block}")
+
+    parts.append(f"QUESTION: {user_question}\n\nANSWER:")
+
+    return "\n\n".join(parts)
 
 _SENT_RE = re.compile(r"(?<=[.!?؟])\s+")
 
@@ -209,7 +246,7 @@ async def upload_manual(
     }
 
 
-async def ask(question: str, manual_id_filter: Optional[UUID] = None, model: Optional[str] = None) -> dict:
+async def ask(question: str, manual_id_filter: Optional[UUID] = None, model: Optional[str] = None, history: list[dict] | None = None) -> dict:
     from services.ollama_embedder import embed_single, EmbedderTimeoutError
     from services.ollama_generator import generate, GeneratorTimeoutError
 
@@ -283,10 +320,7 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None, model: Opt
                 }
             )
 
-    prompt = PROMPT_TEMPLATE.format(
-        retrieved_chunks=retrieved_chunks,
-        user_question=question,
-    )
+    prompt = _build_prompt(retrieved_chunks, question, history)
     # Generate answer
     import time
     gen_start = time.monotonic()

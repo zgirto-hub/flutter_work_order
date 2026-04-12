@@ -1485,6 +1485,59 @@ Finally, append an entry for feature 040 to [AGENT.md](../../AGENT.md) describin
 
 ---
 
+## F19 — Prompt assembly order for 3-layer context (Layer 2 + Layer 3)
+
+**Severity**: 🔴 CRITICAL (without this, system instructions and history are ignored)
+**Files**:
+- [backend/services/manual_rag_service.py](../../backend/services/manual_rag_service.py)
+- [backend/routers/manuals.py](../../backend/routers/manuals.py)
+
+**Depends on**: T067, T068, T069, T070 (Phase 8 tasks)
+
+### Problem
+
+After Phase 8 tasks are applied, the prompt assembly in `ask()` must follow the exact 3-layer order: system instructions → manual chunks → history → current question. If the order is wrong, Gemma deprioritizes the manual grounding constraint and may hallucinate.
+
+### Exact fix
+
+Verify the assembled prompt in `manual_rag_service.ask()` matches this structure exactly, in this order:
+
+```python
+parts = []
+
+if system_instructions.strip():
+    parts.append(system_instructions.strip())
+
+parts.append(
+    "You are a technical assistant for a civil aviation maintenance department.\n"
+    "Answer the technician's question using ONLY the manual sections provided below.\n"
+    'If the answer is not found in the sections, say: "This information is not in the available manuals."\n'
+    "Reply in the same language as the question (Arabic or English)."
+)
+
+parts.append(f"MANUAL SECTIONS:\n{retrieved_chunks}")
+
+if history:
+    history_block = "\n\n".join(
+        f"User: {turn['question']}\nAssistant: {turn['answer']}"
+        for turn in history[-10:]
+    )
+    parts.append(f"CONVERSATION HISTORY:\n{history_block}")
+
+parts.append(f"QUESTION: {user_question}\n\nANSWER:")
+
+prompt = "\n\n".join(parts)
+```
+
+### Verification
+
+1. With system instructions set to "Test context", print the assembled prompt before the Ollama call. Confirm the first line is "Test context".
+2. After two question/answer turns, send a third question. Confirm the CONVERSATION HISTORY block appears between MANUAL SECTIONS and QUESTION in the assembled prompt.
+3. With empty system instructions, confirm no blank line appears at the top of the prompt.
+4. `grep -n "PROMPT_TEMPLATE" backend/services/manual_rag_service.py` should return no matches — the hardcoded template constant must be replaced by the dynamic assembly above.
+
+---
+
 ## Final self-check before handing back for review
 
 After the full fix pass, run these greps and the full quickstart. If any of these produce unexpected matches, you missed a fix:

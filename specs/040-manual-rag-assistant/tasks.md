@@ -280,3 +280,103 @@ After the implementing LLM marks all tasks complete, the reviewer should:
 - If an FR conflicts with a task description, the spec wins and the task should be updated in place with a note.
 - The implementing LLM should treat `research.md` as authoritative for every non-obvious "why" — it records the decisions behind every choice that is not directly in the spec.
 - **Do not modify `backend/version.json`.** Do not modify `CLAUDE.md` by hand beyond what the agent-context script already produced.
+
+---
+
+## Phase 8: Layer 2 + Layer 3 — System Instructions and Conversation Memory
+
+**Purpose**: Make the assistant context-aware within a session and configurable by an Admin.
+
+**Prerequisites**: Phase 4 (US1 Ask) must be complete. These tasks extend the existing ask pipeline.
+
+### Backend
+
+- [ ] T067 Add a `manual_assistant_settings` table to the existing migration file [supabase/migrations/20260411000000_create_manuals.sql](../../supabase/migrations/20260411000000_create_manuals.sql):
+  ```sql
+  CREATE TABLE IF NOT EXISTS manual_assistant_settings (
+    id SMALLINT PRIMARY KEY CHECK (id = 1),
+    system_instructions TEXT NOT NULL DEFAULT '',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  INSERT INTO manual_assistant_settings (id, system_instructions) VALUES (1, '') ON CONFLICT DO NOTHING;
+  ALTER TABLE manual_assistant_settings ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY manual_assistant_settings_read ON manual_assistant_settings FOR SELECT TO authenticated USING (true);
+  ```
+  Apply via supabase db push or SQL editor. Verify via `SELECT * FROM manual_assistant_settings;`
+
+- [ ] T068 Add two new endpoints to [backend/routers/manuals.py](../../backend/routers/manuals.py):
+  - `GET /manuals/settings` — reads `system_instructions` from `manual_assistant_settings` where `id=1`. Returns `{"system_instructions": "..."}`. Accessible to all authenticated users (read-only).
+  - `PATCH /manuals/settings` — accepts JSON body `{"system_instructions": str}`. Upserts the row. Returns `{"system_instructions": "..."}`. Restrict to Admin role only (check the existing role-guard pattern in other routers — search `backend/routers/` for how admin-only is enforced). Audit log: `action="updated_manual_assistant_settings"`.
+
+- [ ] T069 Update the `PROMPT_TEMPLATE` constant and the `ask()` function in [backend/services/manual_rag_service.py](../../backend/services/manual_rag_service.py) to assemble the prompt in this exact order:
+  1. System instructions (fetched from DB at query time — read once per request, cache in memory for 60 seconds using a module-level dict with a timestamp to avoid per-request DB round trips)
+  2. Retrieved manual chunks (Layer 1 — already implemented)
+  3. Conversation history (Layer 3 — new, see T070)
+  4. Current question
+
+  Updated prompt structure:
+  ```
+  {system_instructions}
+
+  You are a technical assistant for a civil aviation maintenance department.
+  Answer the technician's question using ONLY the manual sections provided below.
+  If the answer is not found in the sections, say: "This information is not in the available manuals."
+  Reply in the same language as the question (Arabic or English).
+
+  MANUAL SECTIONS:
+  {retrieved_chunks}
+
+  CONVERSATION HISTORY:
+  {history_block}
+
+  QUESTION: {user_question}
+
+  ANSWER:
+  ```
+
+  If `system_instructions` is empty, omit that block entirely (do not inject a blank line).
+  If history is empty (first question in session), omit the `CONVERSATION HISTORY` block entirely.
+
+- [ ] T070 Update the `AskRequest` Pydantic model in [backend/routers/manuals.py](../../backend/routers/manuals.py) to accept an optional `history` field:
+  ```python
+  class HistoryTurn(BaseModel):
+      question: str
+      answer: str
+
+  class AskRequest(BaseModel):
+      question: str
+      manual_id: Optional[str] = None
+      user_email: str
+      model: Optional[str] = None
+      history: List[HistoryTurn] = []  # last N turns, oldest first
+  ```
+  In the `ask()` service function signature, add `history: list[dict] = []` parameter. Cap history at the last 10 turns server-side (`slice [-10:]`) before injecting into the prompt, even if the client sends more.
+  Format `history_block` as:
+  ```
+  User: {turn.question}
+  Assistant: {turn.answer}
+  ```
+  One blank line between turns.
+
+### Frontend
+
+- [ ] T071 Implement `getSystemInstructions()` and `updateSystemInstructions(String instructions)` in [frontend/lib/services/manual_assistant_service.dart](../../frontend/lib/services/manual_assistant_service.dart):
+  - `getSystemInstructions`: `GET /manuals/settings`, returns `String` (the `system_instructions` value)
+  - `updateSystemInstructions`: `PATCH /manuals/settings` with JSON body, returns updated `String`
+
+- [ ] T072 Add a settings `IconButton` to the AppBar of `ManualAssistantScreen` in [frontend/lib/screens/manual_assistant/manual_assistant_screen.dart](../../frontend/lib/screens/manual_assistant/manual_assistant_screen.dart). Visible only when the current user's role is admin (check how other screens detect admin role — search `frontend/lib/screens/` for role checks). On tap, open a dialog (`AlertDialog` or `showModalBottomSheet`) with:
+  - A multiline `TextField` pre-filled with the current system instructions (loaded via `getSystemInstructions()`)
+  - A loading indicator while loading
+  - Save and Cancel buttons
+  - On Save: calls `updateSystemInstructions()`, shows a SnackBar "Settings saved", closes dialog
+  - On error: shows error text inside the dialog
+
+- [ ] T073 Update `ChatTab` in [frontend/lib/screens/manual_assistant/chat_tab.dart](../../frontend/lib/screens/manual_assistant/chat_tab.dart) to:
+  - Maintain a `List<HistoryTurn>` (a simple local class with `question` and `answer` String fields) as part of the widget state
+  - After each successful answer, append a `HistoryTurn(question: submittedQuestion, answer: answer.answer)` to the list
+  - Pass the history list (capped to last 10) as the `history` field in every `askQuestion()` call
+  - Update `askQuestion()` in `manual_assistant_service.dart` to accept and serialize the `history` field in the JSON body
+
+- [ ] T074 Update the `ManualQaAnswer` model and `askQuestion()` service method to pass history. No changes to the response model — history only flows in the request direction.
+
+**Checkpoint**: An Admin can open Settings, type department context (e.g. "You are assisting technicians at the Kuwait DGCA. Our main systems are CADAS-IMS and AFTN."), save it, and all subsequent questions reflect that context. A follow-up question like "what is its pressure limit?" correctly resolves "its" from the prior exchange. A new session starts with no history.

@@ -145,7 +145,7 @@ class NavScreenRegistry {
 
   static Widget widgetForKey(String key, {required String userRole}) {
     return switch (key) {
-      'manual_assistant' => const ManualAssistantScreen(),
+      'manual_assistant' => ManualAssistantScreen(userRole: userRole),
       'files' => const FilesScreen(),
       'reports' => const WorkOrderReportScreen(),
       'calendar' => CalendarScreen(userRole: userRole),

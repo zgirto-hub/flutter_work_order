@@ -184,3 +184,13 @@ BEGIN
     RETURN QUERY SELECT v_ext, v_title;
 END;
 $$;
+
+-- 9. System instructions table (Layer 2)
+CREATE TABLE IF NOT EXISTS manual_assistant_settings (
+    id SMALLINT PRIMARY KEY CHECK (id = 1),
+    system_instructions TEXT NOT NULL DEFAULT '',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO manual_assistant_settings (id, system_instructions) VALUES (1, '') ON CONFLICT DO NOTHING;
+ALTER TABLE manual_assistant_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY manual_assistant_settings_read ON manual_assistant_settings FOR SELECT TO authenticated USING (true);

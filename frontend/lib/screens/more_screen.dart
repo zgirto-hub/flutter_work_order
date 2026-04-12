@@ -237,7 +237,7 @@ class _MoreScreenState extends State<MoreScreen> {
     add('approvals', () => Navigator.push(context,
         MaterialPageRoute(builder: (_) => const PendingApprovalsScreen())));
     add('manual_assistant', () => Navigator.push(context,
-        MaterialPageRoute(builder: (_) => const ManualAssistantScreen())));
+        MaterialPageRoute(builder: (_) => ManualAssistantScreen(userRole: widget.userRole))));
 
     return map;
   }
