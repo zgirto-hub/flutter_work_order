@@ -30,7 +30,9 @@ class _ChatTabState extends State<ChatTab> {
   final ManualAssistantService _service = ManualAssistantService();
   final TextEditingController _questionController = TextEditingController();
   final List<ChatMessage> _messages = [];
-  final List<Map<String, String>> _history = [];  // conversation memory (Layer 3)
+  final List<Map<String, String>> _history =
+      []; // conversation memory (Layer 3)
+  String? _sessionSummary;
   List<Manual> _manuals = [];
   List<Map<String, dynamic>> _models = [];
   String? _selectedManualId;
@@ -80,14 +82,17 @@ class _ChatTabState extends State<ChatTab> {
     });
 
     try {
-      final email =
-          Supabase.instance.client.auth.currentUser?.email ?? '';
-      // Send last 10 history turns with the question (Layer 3)
-      final historyToSend = _history.length > 10
-          ? _history.sublist(_history.length - 10)
-          : List<Map<String, String>>.from(_history);
+      final email = Supabase.instance.client.auth.currentUser?.email ?? '';
+      // Send full history (no truncation) with session summary for compression
       final answer = await _service.askQuestion(question, manualIdFilter,
-          userEmail: email, model: _selectedModel, history: historyToSend);
+          userEmail: email,
+          model: _selectedModel,
+          history: _history,
+          sessionSummary: _sessionSummary);
+      // Store session summary from response
+      if (answer.sessionSummary != null) {
+        _sessionSummary = answer.sessionSummary;
+      }
       // Append this exchange to conversation memory
       _history.add({'question': question, 'answer': answer.answer});
       setState(() {
@@ -131,9 +136,12 @@ class _ChatTabState extends State<ChatTab> {
                 Expanded(
                   child: DropdownButton<String?>(
                     value: _selectedManualId,
-                    hint: const Text('All manuals', style: TextStyle(fontSize: 13)),
+                    hint: const Text('All manuals',
+                        style: TextStyle(fontSize: 13)),
                     isExpanded: true,
-                    style: TextStyle(fontSize: 13, color: Theme.of(context).textTheme.bodyMedium?.color),
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).textTheme.bodyMedium?.color),
                     items: [
                       const DropdownMenuItem<String?>(
                         value: null,
@@ -141,7 +149,8 @@ class _ChatTabState extends State<ChatTab> {
                       ),
                       ..._manuals.map((m) => DropdownMenuItem<String?>(
                             value: m.id,
-                            child: Text(m.title, overflow: TextOverflow.ellipsis),
+                            child:
+                                Text(m.title, overflow: TextOverflow.ellipsis),
                           )),
                     ],
                     onChanged: (value) {
@@ -155,9 +164,12 @@ class _ChatTabState extends State<ChatTab> {
                     width: 160,
                     child: DropdownButton<String?>(
                       value: _selectedModel,
-                      hint: const Text('Default model', style: TextStyle(fontSize: 12)),
+                      hint: const Text('Default model',
+                          style: TextStyle(fontSize: 12)),
                       isExpanded: true,
-                      style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).textTheme.bodyMedium?.color),
                       items: [
                         const DropdownMenuItem<String?>(
                           value: null,
@@ -220,21 +232,28 @@ class _ChatTabState extends State<ChatTab> {
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: Container(
-                                      margin: const EdgeInsets.fromLTRB(48, 8, 8, 4),
-                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      margin: const EdgeInsets.fromLTRB(
+                                          48, 8, 8, 4),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 10),
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                                        color: Theme.of(context)
+                                            .primaryColor
+                                            .withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(16),
                                       ),
-                                      child: Text(msg.question, style: const TextStyle(fontSize: 13)),
+                                      child: Text(msg.question,
+                                          style: const TextStyle(fontSize: 13)),
                                     ),
                                   ),
                                   const ListTile(
-                                    title: Text('Thinking...', style: TextStyle(fontSize: 13)),
+                                    title: Text('Thinking...',
+                                        style: TextStyle(fontSize: 13)),
                                     leading: SizedBox(
                                       width: 18,
                                       height: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
                                     ),
                                   ),
                                 ],
@@ -263,10 +282,14 @@ class _ChatTabState extends State<ChatTab> {
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: Container(
-                                      margin: const EdgeInsets.fromLTRB(48, 8, 8, 4),
-                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      margin: const EdgeInsets.fromLTRB(
+                                          48, 8, 8, 4),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 10),
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                                        color: Theme.of(context)
+                                            .primaryColor
+                                            .withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(16),
                                       ),
                                       child: Text(

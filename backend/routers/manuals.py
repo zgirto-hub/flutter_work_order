@@ -31,11 +31,13 @@ class AskRequest(BaseModel):
     user_email: str
     model: Optional[str] = None
     history: List[HistoryTurn] = []
+    session_summary: Optional[str] = None
 
 
 @router.get("/manuals/models")
 async def get_models():
     from services.ollama_generator import list_models, get_default_model
+
     models = await list_models()
     return {"models": models, "default": get_default_model()}
 
@@ -43,9 +45,17 @@ async def get_models():
 @router.get("/manuals/settings")
 async def get_ai_settings():
     from services.ollama_generator import get_default_model
+
     # Read system instructions from DB
-    si_response = supabase.table("manual_assistant_settings").select("system_instructions").eq("id", 1).execute()
-    system_instructions = si_response.data[0]["system_instructions"] if si_response.data else ""
+    si_response = (
+        supabase.table("manual_assistant_settings")
+        .select("system_instructions")
+        .eq("id", 1)
+        .execute()
+    )
+    system_instructions = (
+        si_response.data[0]["system_instructions"] if si_response.data else ""
+    )
     return {
         "default_model": get_default_model(),
         "system_instructions": system_instructions,
@@ -55,16 +65,19 @@ async def get_ai_settings():
 @router.post("/manuals/settings")
 async def update_ai_settings(body: dict):
     from services.ollama_generator import set_default_model, get_default_model
+
     # Update default model if provided
     model = body.get("default_model")
     if model:
         set_default_model(model)
     # Update system instructions if provided
     if "system_instructions" in body:
-        supabase.table("manual_assistant_settings").update({
-            "system_instructions": body["system_instructions"],
-            "updated_at": "now()",
-        }).eq("id", 1).execute()
+        supabase.table("manual_assistant_settings").update(
+            {
+                "system_instructions": body["system_instructions"],
+                "updated_at": "now()",
+            }
+        ).eq("id", 1).execute()
         try:
             log_activity(
                 body.get("user_email", ""),
@@ -76,8 +89,15 @@ async def update_ai_settings(body: dict):
         except Exception:
             pass
     # Read back current state
-    si_response = supabase.table("manual_assistant_settings").select("system_instructions").eq("id", 1).execute()
-    system_instructions = si_response.data[0]["system_instructions"] if si_response.data else ""
+    si_response = (
+        supabase.table("manual_assistant_settings")
+        .select("system_instructions")
+        .eq("id", 1)
+        .execute()
+    )
+    system_instructions = (
+        si_response.data[0]["system_instructions"] if si_response.data else ""
+    )
     return {
         "default_model": get_default_model(),
         "system_instructions": system_instructions,
@@ -287,8 +307,16 @@ async def ask_question(request: AskRequest):
             raise HTTPException(status_code=404, detail={"error": "manual_not_found"})
 
     try:
-        history = [{"question": h.question, "answer": h.answer} for h in request.history]
-        result = await manual_rag_service.ask(question, manual_id_filter, model=request.model, history=history)
+        history = [
+            {"question": h.question, "answer": h.answer} for h in request.history
+        ]
+        result = await manual_rag_service.ask(
+            question,
+            manual_id_filter,
+            model=request.model,
+            history=history,
+            session_summary=request.session_summary,
+        )
     except manual_rag_service.EmbedderUnavailableError:
         raise HTTPException(
             status_code=504,
@@ -307,6 +335,7 @@ async def ask_question(request: AskRequest):
         )
     except Exception as e:
         from services.ollama_generator import GeneratorModelError
+
         if isinstance(e, GeneratorModelError):
             raise HTTPException(
                 status_code=503,
@@ -316,6 +345,7 @@ async def ask_question(request: AskRequest):
                 },
             )
         import traceback
+
         traceback.print_exc()
         raise HTTPException(
             status_code=500,

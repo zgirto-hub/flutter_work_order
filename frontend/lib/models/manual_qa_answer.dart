@@ -6,6 +6,7 @@ class ManualQaAnswer {
   final bool grounded;
   final String? model;
   final double? durationSeconds;
+  final String? sessionSummary;
 
   const ManualQaAnswer({
     required this.answer,
@@ -13,6 +14,7 @@ class ManualQaAnswer {
     required this.grounded,
     this.model,
     this.durationSeconds,
+    this.sessionSummary,
   });
 
   factory ManualQaAnswer.fromJson(Map<String, dynamic> json) {
@@ -28,6 +30,7 @@ class ManualQaAnswer {
       grounded: json['grounded'] ?? false,
       model: json['model'],
       durationSeconds: (json['duration_seconds'] as num?)?.toDouble(),
+      sessionSummary: json['session_summary'],
     );
   }
 

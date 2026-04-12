@@ -48,9 +48,12 @@ def _get_system_instructions() -> str:
 
 
 def _build_prompt(
-    retrieved_chunks: str, user_question: str, history: list[dict] | None = None
+    retrieved_chunks: str,
+    user_question: str,
+    history: list[dict] | None = None,
+    memory: str | None = None,
 ) -> str:
-    """Assemble the 3-layer prompt: system instructions → chunks → history → question."""
+    """Assemble the 3-layer prompt: system instructions → chunks → memory → history → question."""
     parts = []
 
     si = _get_system_instructions()
@@ -65,6 +68,9 @@ def _build_prompt(
     )
 
     parts.append(f"MANUAL SECTIONS:\n{retrieved_chunks}")
+
+    if memory:
+        parts.append(f"CONVERSATION MEMORY:\n{memory}")
 
     if history:
         history_block = "\n\n".join(
@@ -308,6 +314,70 @@ FOLLOW-UP QUESTION: """
         return question
 
 
+async def _compress_history(
+    history: list[dict],
+    existing_summary: str | None = None,
+    model: str | None = None,
+) -> str | None:
+    """Compress conversation history into a 3-4 sentence summary.
+
+    Args:
+        history: List of conversation turns (each with 'question' and 'answer' keys)
+        existing_summary: Optional existing summary to potentially reuse
+        model: Optional model override
+
+    Returns:
+        3-4 sentence summary string, or None on failure
+    """
+    from services.ollama_generator import generate, get_default_model
+
+    turns_to_compress = history[:-4] if len(history) > 4 else history
+
+    conversation_block = "\n".join(
+        f"User: {turn['question']}\nAssistant: {turn['answer']}"
+        for turn in turns_to_compress
+    )
+
+    if existing_summary:
+        compression_prompt = (
+            "You have a previous conversation summary and new conversation turns. "
+            "Produce an updated summary of exactly 3-4 sentences that incorporates both. "
+            "Preserve ALL technical facts: part numbers, specifications, procedures, "
+            "measurements, and component names. "
+            "Do not add information not present in the inputs.\n\n"
+            f"PREVIOUS SUMMARY:\n{existing_summary}\n\n"
+            f"NEW CONVERSATION:\n{conversation_block}\n\nUPDATED SUMMARY:"
+        )
+    else:
+        compression_prompt = (
+            "Summarize the following technical conversation between a user and an assistant. "
+            "Produce exactly 3-4 sentences. Preserve ALL technical facts: part numbers, "
+            "specifications, procedures, measurements, and component names. "
+            "Do not add information not present in the conversation.\n\n"
+            "CONVERSATION:\n" + conversation_block + "\n\nSUMMARY:"
+        )
+
+    try:
+        result = await generate(
+            compression_prompt,
+            model=model or get_default_model(),
+            timeout=30.0,
+        )
+        summary = result.strip()
+        if not summary:
+            logger.warning("Compression returned empty summary")
+            return None
+        logger.info(
+            "[COMPRESS] Compressed %d turns into summary (%d chars)",
+            len(turns_to_compress),
+            len(summary),
+        )
+        return summary
+    except Exception as e:
+        logger.warning("[COMPRESS] Compression failed: %s", e)
+        return None
+
+
 async def _generate_hypothetical_answer(query: str) -> str | None:
     """Generate a hypothetical document passage for better retrieval (HyDE)."""
     from services.ollama_generator import generate
@@ -344,6 +414,7 @@ async def ask(
     manual_id_filter: Optional[UUID] = None,
     model: Optional[str] = None,
     history: list[dict] | None = None,
+    session_summary: str | None = None,
 ) -> dict:
     from services.ollama_embedder import embed_single, EmbedderTimeoutError
     from services.ollama_generator import generate, GeneratorTimeoutError
@@ -360,6 +431,7 @@ async def ask(
             "answer": "This information is not in the available manuals.",
             "grounded": False,
             "sources": [],
+            "session_summary": None,
         }
 
     # Rewrite query for better retrieval (uses conversation context for follow-up questions)
@@ -400,6 +472,7 @@ async def ask(
             "answer": "This information is not in the available manuals.",
             "grounded": False,
             "sources": [],
+            "session_summary": None,
         }
 
     # --- Chunk reranking (spec 044) ---
@@ -426,7 +499,50 @@ async def ask(
             "sources": [],
             "model": None,
             "duration_seconds": 0,
+            "session_summary": None,
         }
+
+    # --- Compression logic (spec 045) ---
+    # Check if we need to compress: len(history) > 8
+    memory: str | None = None
+    effective_history = history
+    needs_compression = history and len(history) > 8
+
+    if needs_compression:
+        # Determine if we can reuse existing summary or need to recompress
+        # We compress all turns except the last 4
+        turns_to_preserve = 4
+        turns_already_compressed = len(history) - turns_to_preserve
+
+        if session_summary and turns_already_compressed <= 5:
+            # Reuse: threshold triggers at >8 turns (9+), preserving 4 → first
+            # compression covers 5 turns. Reuse while that count hasn't grown.
+            logger.info("[COMPRESS] Reusing existing summary")
+            memory = session_summary
+            effective_history = history[-turns_to_preserve:]
+        else:
+            # Need to compress - either no existing summary or too many new turns
+            # Include existing summary in compression if available
+            old_turns = (
+                history[:-turns_to_preserve]
+                if len(history) > turns_to_preserve
+                else history
+            )
+            summary_input = old_turns
+            new_summary = await _compress_history(summary_input, session_summary, model)
+            if new_summary:
+                memory = new_summary
+                effective_history = history[-turns_to_preserve:]
+                logger.info(
+                    "[COMPRESS] Created new summary from %d turns", len(old_turns)
+                )
+            else:
+                # Compression failed, fall back to last 10 turns
+                logger.warning(
+                    "[COMPRESS] Compression failed, falling back to last 10 turns"
+                )
+                effective_history = history[-10:] if history else None
+                memory = None
 
     # Build prompt from qualified chunks
     retrieved_chunks = ""
@@ -446,7 +562,7 @@ async def ask(
             }
         )
 
-    prompt = _build_prompt(retrieved_chunks, question, history)
+    prompt = _build_prompt(retrieved_chunks, question, effective_history, memory)
     # Generate answer
     import time
 
@@ -475,6 +591,7 @@ async def ask(
             "sources": [],
             "model": used_model,
             "duration_seconds": round(gen_elapsed, 1),
+            "session_summary": memory,
         }
 
     # Format sources for response with highlighting
@@ -502,6 +619,7 @@ async def ask(
         "sources": final_sources,
         "model": used_model,
         "duration_seconds": round(gen_elapsed, 1),
+        "session_summary": memory,
     }
 
 

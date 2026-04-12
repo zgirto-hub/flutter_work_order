@@ -1,6 +1,6 @@
 ﻿# flutter_work_order Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-12
+Auto-generated from all feature plans. Last updated: 2026-04-13
 
 ## Active Technologies
 - Dart 3.x / Flutter 3.x + `pdf` ^3.10.7 (existing), `printing` ^5.12.0 (existing), `htmltopdfwidgets` (NEW) (002-use-html-css)
@@ -62,6 +62,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-12
 - N/A — no data model changes; hypothetical answer is transient/in-memory (043-hyde-retrieval)
 - Python 3.10 + FastAPI, Supabase Python client, httpx (all existing) (044-chunk-rerank-scoring)
 - Supabase (PostgreSQL) with pgvector — no schema changes (044-chunk-rerank-scoring)
+- Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Ollama (gemma4:e2b) (backend); http package, Flutter Material (frontend) (045-rolling-session-summary)
+- N/A — no persistent data; summary is transient/in-memory per request (045-rolling-session-summary)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -84,9 +86,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 045-rolling-session-summary: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Ollama (gemma4:e2b) (backend); http package, Flutter Material (frontend)
 - 044-chunk-rerank-scoring: Added Python 3.10 + FastAPI, Supabase Python client, httpx (all existing)
 - 043-hyde-retrieval: Added Python 3.10 (backend only) + FastAPI, httpx, Supabase Python client, Ollama (gemma4:e2b for generation, nomic-embed-text for embedding) — all existing
-- 042-rag-query-rewrite: Added Python 3.10 (backend only) + FastAPI, httpx, Supabase Python client (all existing)
 
 
 <!-- MANUAL ADDITIONS START -->

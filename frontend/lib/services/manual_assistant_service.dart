@@ -208,11 +208,11 @@ class ManualAssistantService {
     }
   }
 
-  Future<ManualQaAnswer> askQuestion(
-      String question, String? manualIdFilter,
+  Future<ManualQaAnswer> askQuestion(String question, String? manualIdFilter,
       {required String userEmail,
       String? model,
-      List<Map<String, String>>? history}) async {
+      List<Map<String, String>>? history,
+      String? sessionSummary}) async {
     try {
       final body = <String, dynamic>{
         'question': question,
@@ -226,6 +226,9 @@ class ManualAssistantService {
       }
       if (history != null && history.isNotEmpty) {
         body['history'] = history;
+      }
+      if (sessionSummary != null) {
+        body['session_summary'] = sessionSummary;
       }
 
       final session = Supabase.instance.client.auth;

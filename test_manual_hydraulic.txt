@@ -1,0 +1,274 @@
+HYDRAULIC SYSTEM MAINTENANCE MANUAL
+Aircraft Type: Boeing 737-800
+ATA Chapter: 29 — Hydraulic Power
+Document No: HYD-MM-29-001
+Revision: 12
+Effective Date: 2025-09-15
+
+==========================================================
+SECTION 29-10: HYDRAULIC SYSTEM — GENERAL DESCRIPTION
+==========================================================
+
+The Boeing 737-800 utilizes two independent hydraulic systems designated System A and System B. Each system operates at a nominal pressure of 3000 PSI (20,684 kPa). A standby hydraulic system provides backup for critical flight controls.
+
+System A is powered by two engine-driven pumps (EDP) mounted on the No. 1 engine accessory gearbox, Part Number 65-37536-11. System B is powered by two EDPs mounted on the No. 2 engine accessory gearbox, Part Number 65-37536-12. Each EDP has a rated output of 26 GPM at 3000 PSI.
+
+Additionally, each system has one AC motor-driven pump (ACMP):
+- System A ACMP: Part Number 65-48710-5, powered by AC Bus 1
+- System B ACMP: Part Number 65-48710-6, powered by AC Bus 2
+
+The standby system uses a single electric pump, Part Number 65-48720-3, powered by the Standby Bus.
+
+Hydraulic fluid specification: MIL-PRF-83282 (fire-resistant synthetic hydrocarbon). Total system capacity is 22.7 liters (6.0 US gallons) per system.
+
+Reservoir pressurization is maintained by engine bleed air at 45 PSI through a pressure regulator, Part Number 10-60518-1.
+
+==========================================================
+SECTION 29-11: HYDRAULIC RESERVOIRS
+==========================================================
+
+Each hydraulic system has one reservoir located in the wheel well area.
+
+System A Reservoir:
+- Part Number: 65-37540-15
+- Capacity: 22.7 liters (6.0 US gallons)
+- Low-level warning: activates at 1.5 gallons remaining
+- Overheat warning: activates at 107°C (225°F)
+
+System B Reservoir:
+- Part Number: 65-37540-16
+- Capacity: 22.7 liters (6.0 US gallons)
+- Low-level warning: activates at 1.5 gallons remaining
+- Overheat warning: activates at 107°C (225°F)
+
+Standby Reservoir:
+- Part Number: 65-37540-20
+- Capacity: 4.7 liters (1.25 US gallons)
+- Integrated with the standby pump assembly
+
+RESERVOIR SERVICING PROCEDURE:
+1. Depressurize the hydraulic system (see Section 29-10-01)
+2. Connect servicing cart to the reservoir fill port (MS33656-6 fitting)
+3. Fill with MIL-PRF-83282 fluid to the FULL mark on the sight gauge
+4. Cycle flight controls three times to purge air
+5. Recheck fluid level and top off as needed
+6. Maximum allowable air content: 10% by volume after servicing
+
+==========================================================
+SECTION 29-12: HYDRAULIC PUMPS
+==========================================================
+
+ENGINE-DRIVEN PUMPS (EDP):
+
+System A EDP:
+- Part Number: 65-37536-11
+- Manufacturer: Parker Aerospace (formerly Vickers)
+- Type: Variable displacement axial piston
+- Output: 26 GPM at 3000 PSI
+- Case drain flow limit: 3.5 GPM maximum (condemn pump if exceeded)
+- Drive: Engine No. 1 accessory gearbox, spline engagement
+- Weight: 6.4 kg (14.1 lbs)
+
+System B EDP:
+- Part Number: 65-37536-12
+- Identical specifications to System A EDP
+- Drive: Engine No. 2 accessory gearbox
+
+EDP REMOVAL PROCEDURE (AMM Task 29-12-01-000-801):
+1. Depressurize the hydraulic system
+2. Position EDP shutoff valve to CLOSED
+3. Disconnect pressure line at fitting AN816-12
+4. Disconnect suction line at fitting AN816-16
+5. Disconnect case drain line at fitting AN816-6
+6. Remove four mounting bolts (NAS6204-22), torque value on installation: 50 in-lbs
+7. Remove pump from gearbox pad — note spline alignment marks
+8. Cap all open lines within 15 minutes to prevent contamination
+
+EDP INSTALLATION PROCEDURE (AMM Task 29-12-01-400-801):
+1. Verify new pump P/N matches removed unit
+2. Apply MIL-PRF-83282 to spline coupling
+3. Align spline marks and install pump onto gearbox pad
+4. Install four mounting bolts NAS6204-22, torque to 50 in-lbs ± 5 in-lbs
+5. Reconnect case drain, suction, and pressure lines
+6. Replace all O-rings with new (MS28775-214 for pressure, MS28775-218 for suction)
+7. Open EDP shutoff valve
+8. Perform ground run: verify 3000 ± 50 PSI on System pressure gauge
+9. Check for leaks — zero external leakage permitted at fittings
+10. Verify case drain flow ≤ 1.0 GPM on new pump
+
+AC MOTOR-DRIVEN PUMPS (ACMP):
+
+System A ACMP:
+- Part Number: 65-48710-5
+- Type: Fixed displacement gear pump
+- Output: 6.5 GPM at 3000 PSI
+- Motor: 115V AC, 400 Hz, 3-phase
+- Thermal protection: auto-shutdown at 121°C (250°F), auto-restart at 93°C (200°F)
+- Duty cycle: 5 minutes ON / 25 minutes OFF (ground operations)
+
+System B ACMP:
+- Part Number: 65-48710-6
+- Identical specifications to System A ACMP
+
+==========================================================
+SECTION 29-13: HYDRAULIC FILTERS
+==========================================================
+
+Each system has a pressure filter and a return filter.
+
+Pressure Filters:
+- Part Number: 65-38425-7
+- Element: PALL HC9600FKS8H (3-micron absolute)
+- Bypass: opens at 100 PSI differential (filter clogged indication)
+- Replacement interval: every 3000 flight hours or at C-Check
+- IMPORTANT: Do NOT clean and reuse elements — replace only
+
+Return Filters:
+- Part Number: 65-38425-9
+- Element: PALL HC9600FKS13H (15-micron absolute)
+- Bypass: opens at 50 PSI differential
+- Replacement interval: every 6000 flight hours or at D-Check
+
+Case Drain Filters (on each EDP):
+- Part Number: 65-38425-11
+- Element: PALL HC9600FKS4H (5-micron absolute)
+- Replacement interval: with every EDP replacement
+
+FILTER REPLACEMENT PROCEDURE (AMM Task 29-13-01-000-801):
+1. Depressurize the hydraulic system
+2. Place drip tray under filter housing
+3. Remove filter bowl (3/4" hex, 25 ft-lbs torque on reinstall)
+4. Remove old element — inspect for metal particles
+5. If metal particles found: perform fluid contamination analysis per NAS 1638 Class 6
+6. Install new element — verify correct P/N and flow direction arrow
+7. Replace bowl O-ring (MS28775-325)
+8. Install bowl, torque to 25 ft-lbs ± 3 ft-lbs
+9. Pressurize system and check for leaks
+10. Record filter element serial number in maintenance log
+
+==========================================================
+SECTION 29-14: HYDRAULIC LINES AND FITTINGS
+==========================================================
+
+Pressure lines: Stainless steel tubing, 1/2" OD, wall thickness 0.049"
+Return lines: Aluminum alloy 6061-T6, 3/4" OD, wall thickness 0.035"
+Flexible hoses: MIL-DTL-83798 Type I, fire-resistant Teflon core with stainless braid
+
+Torque values for AN fittings:
+- AN816-6 (3/8"): 135 in-lbs
+- AN816-8 (1/2"): 200 in-lbs
+- AN816-12 (3/4"): 300 in-lbs
+- AN816-16 (1"): 500 in-lbs
+
+LEAK CLASSIFICATION:
+- Class A (Seep): Wetness with no drip formation — monitor, service at next scheduled check
+- Class B (Drip): One drop per minute or less — repair within 100 flight hours
+- Class C (Running Leak): Continuous flow — aircraft grounded, repair before next flight
+
+==========================================================
+SECTION 29-15: HYDRAULIC ACTUATORS
+==========================================================
+
+Flight Control Actuators (powered by both Systems A and B):
+
+Elevator PCU (Power Control Unit):
+- Part Number: 65-44860-21
+- Type: Tandem actuator (dual chamber)
+- Stroke: 4.5 inches
+- Force output: 22,000 lbs per chamber
+- Stall pressure: 3100 PSI
+
+Aileron PCU:
+- Part Number: 65-44860-25
+- Type: Tandem actuator
+- Stroke: 3.2 inches
+- Force output: 15,000 lbs per chamber
+
+Rudder PCU:
+- Part Number: 65-44860-30
+- Type: Tandem actuator with standby input
+- Stroke: 5.0 inches
+- Force output: 28,000 lbs per chamber
+- CRITICAL: Rudder PCU valve replacement requires special tool ST-6215 and functional test per AD 2019-21-06
+
+Landing Gear Actuators:
+- Main gear retract actuator: Part Number 65-45100-5, System A only
+- Nose gear retract actuator: Part Number 65-45100-8, System A only
+- Main gear door actuator: Part Number 65-45100-12, System B only
+
+Brake System:
+- Normal braking: System B pressure, 3000 PSI
+- Alternate braking: Standby system, accumulator pre-charge 1000 PSI
+- Brake accumulator: Part Number 65-48900-3, capacity 96 cubic inches
+- Autobrake valve: Part Number 65-48910-1
+
+==========================================================
+SECTION 29-20: TROUBLESHOOTING
+==========================================================
+
+SYMPTOM: System A pressure low (below 2800 PSI)
+PROBABLE CAUSE:
+1. EDP worn — check case drain flow (condemn if > 3.5 GPM)
+2. Pressure relief valve set too low — adjust to 3050 ± 50 PSI
+3. Internal leak in actuator — perform flow check on each actuator circuit
+4. Reservoir low fluid — service per Section 29-11
+
+SYMPTOM: System pressure fluctuates rapidly (hunting)
+PROBABLE CAUSE:
+1. Air in system — bleed per Section 29-11 step 4
+2. EDP compensator malfunction — replace compensator piston, P/N 65-37536-11-001
+3. Reservoir pressurization loss — check bleed air regulator P/N 10-60518-1
+
+SYMPTOM: Hydraulic fluid overtemp (above 107°C / 225°F)
+PROBABLE CAUSE:
+1. Heat exchanger blocked — clean or replace, P/N 65-39100-4
+2. System operating in continuous high-demand — reduce ACMP duty cycle
+3. Fluid degradation — sample fluid, check acidity per MIL-PRF-83282 limits (TAN ≤ 1.0 mg KOH/g)
+
+SYMPTOM: Metal particles in filter element
+ACTION REQUIRED:
+1. Ground aircraft
+2. Sample fluid from System A and System B separately
+3. Perform particle count analysis per NAS 1638 — must be Class 6 or better
+4. If Class 7 or worse: flush system, replace all filters, inspect EDP and actuators
+5. Send filter element to laboratory for metallurgical analysis
+6. Do not return aircraft to service until contamination source is identified
+
+==========================================================
+SECTION 29-30: SCHEDULED MAINTENANCE
+==========================================================
+
+DAILY CHECK:
+- Verify reservoir fluid level (both systems) at FULL mark
+- Check for leaks in wheel well area (visual inspection)
+- Verify system pressure gauges read 3000 ± 100 PSI with engines running
+
+A-CHECK (every 500 flight hours):
+- Reservoir fluid level and condition
+- Filter differential pressure indicators (reset if tripped)
+- Flexible hose condition (cracking, bulging, chafing)
+- Actuator rod seal condition (visual)
+- Accumulator nitrogen pre-charge: 1000 ± 50 PSI at 70°F
+
+C-CHECK (every 7500 flight hours):
+- Replace pressure filter elements (P/N PALL HC9600FKS8H)
+- Fluid sample analysis (acidity, contamination, water content)
+- EDP case drain flow measurement
+- Actuator internal leak check (all flight control PCUs)
+- Reservoir internal inspection (borescope)
+- Replace all flexible hoses over 8 years old regardless of condition
+
+D-CHECK (every 30000 flight hours):
+- Replace return filter elements (P/N PALL HC9600FKS13H)
+- Complete system fluid replacement (drain, flush, refill)
+- NDT inspection of all rigid hydraulic tubing
+- Overhaul or replace EDPs if case drain exceeds 2.5 GPM
+- Actuator overhaul per component maintenance manual
+- Reservoir overhaul (reseal, pressure test to 67.5 PSI)
+
+==========================================================
+END OF DOCUMENT
+Document Control: Engineering Approved — J. Martinez, Chief Engineer
+Distribution: Maintenance, Engineering, Quality Assurance
+Classification: UNRESTRICTED
+==========================================================
