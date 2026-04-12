@@ -467,8 +467,9 @@ async def ask(
             )
 
     # --- Search pipeline (runs in parallel with compression) ---
-    # Rewrite query for better retrieval (uses conversation context for follow-up questions)
-    search_query = await _rewrite_query(question, history)
+    # Skip query rewrite — HyDE already improves retrieval and rewrite adds ~15s latency.
+    # Query rewrite is still available via _rewrite_query() if needed in the future.
+    search_query = question
 
     # HyDE: generate hypothetical answer for better embedding
     hyde_text = await _generate_hypothetical_answer(search_query)
