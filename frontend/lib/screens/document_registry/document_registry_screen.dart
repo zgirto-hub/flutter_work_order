@@ -80,9 +80,8 @@ class _DocumentRegistryScreenState extends State<DocumentRegistryScreen>
   }
 
   void _onEntrySaved() {
-    setState(() {
-      _historyKey = UniqueKey();
-    });
+    setState(() => _historyKey = UniqueKey());
+    _loadEntries();
   }
 
   void _openForm({RegistryEntry? entry}) {
@@ -887,7 +886,10 @@ class _RegistryFormScreenState extends State<_RegistryFormScreen> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () {
+                      widget.onEntrySaved();
+                      Navigator.pop(context);
+                    },
                     child: Container(
                       width: 34,
                       height: 34,
