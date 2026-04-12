@@ -26,7 +26,7 @@ class ManualAssistantScreen extends StatelessWidget {
           bottom: const TabBar(
             tabs: [
               Tab(text: 'Chat'),
-              Tab(text: 'Manuals'),
+              Tab(text: 'Knowledge'),
             ],
           ),
         ),
