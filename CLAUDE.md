@@ -60,6 +60,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-12
 - N/A — no persistent data changes (042-rag-query-rewrite)
 - Python 3.10 (backend only) + FastAPI, httpx, Supabase Python client, Ollama (gemma4:e2b for generation, nomic-embed-text for embedding) — all existing (043-hyde-retrieval)
 - N/A — no data model changes; hypothetical answer is transient/in-memory (043-hyde-retrieval)
+- Python 3.10 + FastAPI, Supabase Python client, httpx (all existing) (044-chunk-rerank-scoring)
+- Supabase (PostgreSQL) with pgvector — no schema changes (044-chunk-rerank-scoring)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -82,9 +84,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 044-chunk-rerank-scoring: Added Python 3.10 + FastAPI, Supabase Python client, httpx (all existing)
 - 043-hyde-retrieval: Added Python 3.10 (backend only) + FastAPI, httpx, Supabase Python client, Ollama (gemma4:e2b for generation, nomic-embed-text for embedding) — all existing
 - 042-rag-query-rewrite: Added Python 3.10 (backend only) + FastAPI, httpx, Supabase Python client (all existing)
-- 041-registry-v2-refactor: Added Dart 3.x / Flutter 3.x + Flutter Material, existing shared widgets (ClaudeFAB, EmptyState, ValidatedTextField, SectionLabel from `claude_widgets.dart`), existing DocumentRegistryService, existing RegistryEntry model
 
 
 <!-- MANUAL ADDITIONS START -->

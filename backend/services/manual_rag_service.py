@@ -19,6 +19,12 @@ import time as _time
 _si_cache: dict = {"value": "", "ts": 0.0}
 _SI_CACHE_TTL = 60.0  # seconds
 
+# Chunk reranking thresholds (spec 044)
+# MAX_CHUNK_DISTANCE: cosine distance ceiling; 0.30 distance = 0.70 similarity
+MAX_CHUNK_DISTANCE = 0.30
+# MAX_PROMPT_CHUNKS: max chunks sent to LLM after filtering
+MAX_PROMPT_CHUNKS = 3
+
 
 def _get_system_instructions() -> str:
     """Read system instructions from DB, cached for 60 seconds."""
@@ -316,7 +322,7 @@ MANUAL PASSAGE:
 """
 
     try:
-        result = await generate(hyde_prompt, timeout=15.0)
+        result = await generate(hyde_prompt, timeout=30.0)
         result = result.strip()
         if not result:
             logger.warning(
@@ -395,28 +401,49 @@ async def ask(
             "sources": [],
         }
 
-    # Build prompt
-    # All 5 chunks go into the prompt (more context = better answer),
-    # but only relevant ones (distance < 0.45) are shown as sources to the user.
-    MAX_SOURCE_DISTANCE = 0.45
+    # --- Chunk reranking (spec 044) ---
+    # Filter: keep only chunks within the distance threshold
+    qualified_chunks = [
+        c for c in chunks_data if c.get("distance", 1.0) <= MAX_CHUNK_DISTANCE
+    ]
+    passed_count = len(qualified_chunks)
+    # Slice: take at most MAX_PROMPT_CHUNKS (already sorted by distance ascending from RPC)
+    qualified_chunks = qualified_chunks[:MAX_PROMPT_CHUNKS]
+
+    logger.info(
+        "Chunk reranking: %d retrieved → %d passed threshold (≤%.2f) → %d sent to LLM",
+        len(chunks_data),
+        passed_count,
+        MAX_CHUNK_DISTANCE,
+        len(qualified_chunks),
+    )
+
+    if not qualified_chunks:
+        return {
+            "answer": "This information is not in the available manuals.",
+            "grounded": False,
+            "sources": [],
+            "model": None,
+            "duration_seconds": 0,
+        }
+
+    # Build prompt from qualified chunks
     retrieved_chunks = ""
     sources = []
-    for i, chunk in enumerate(chunks_data):
+    for i, chunk in enumerate(qualified_chunks):
         manual_title = chunk.get("manual_title", "Unknown")
         source_page = chunk.get("source_page")
         content = chunk.get("content", "")
-        distance = chunk.get("distance", 1.0)
         retrieved_chunks += f"[Source {i + 1}: {manual_title}, page {source_page or '—'}]\n{content}\n---\n"
-        if distance <= MAX_SOURCE_DISTANCE:
-            sources.append(
-                {
-                    "manual_id": chunk.get("manual_id"),
-                    "manual_title": manual_title,
-                    "chunk_index": chunk.get("chunk_index", 0),
-                    "source_page": source_page,
-                    "content_preview": content[:500],
-                }
-            )
+        sources.append(
+            {
+                "manual_id": chunk.get("manual_id"),
+                "manual_title": manual_title,
+                "chunk_index": chunk.get("chunk_index", 0),
+                "source_page": source_page,
+                "content_preview": content[:500],
+            }
+        )
 
     prompt = _build_prompt(retrieved_chunks, question, history)
     # Generate answer
