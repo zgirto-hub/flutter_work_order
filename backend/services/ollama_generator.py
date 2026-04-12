@@ -9,7 +9,7 @@ class GeneratorTimeoutError(Exception):
     pass
 
 
-async def generate(prompt: str, timeout: float = 90.0) -> str:
+async def generate(prompt: str, timeout: float = 180.0) -> str:
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             response = await client.post(
