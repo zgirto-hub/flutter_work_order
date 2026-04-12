@@ -261,22 +261,27 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None, model: Opt
         }
 
     # Build prompt
+    # All 5 chunks go into the prompt (more context = better answer),
+    # but only relevant ones (distance < 0.45) are shown as sources to the user.
+    MAX_SOURCE_DISTANCE = 0.45
     retrieved_chunks = ""
     sources = []
     for i, chunk in enumerate(chunks_data):
         manual_title = chunk.get("manual_title", "Unknown")
         source_page = chunk.get("source_page")
         content = chunk.get("content", "")
+        distance = chunk.get("distance", 1.0)
         retrieved_chunks += f"[Source {i + 1}: {manual_title}, page {source_page or '—'}]\n{content}\n---\n"
-        sources.append(
-            {
-                "manual_id": chunk.get("manual_id"),
-                "manual_title": manual_title,
-                "chunk_index": chunk.get("chunk_index", 0),
-                "source_page": source_page,
-                "content_preview": content[:500],
-            }
-        )
+        if distance <= MAX_SOURCE_DISTANCE:
+            sources.append(
+                {
+                    "manual_id": chunk.get("manual_id"),
+                    "manual_title": manual_title,
+                    "chunk_index": chunk.get("chunk_index", 0),
+                    "source_page": source_page,
+                    "content_preview": content[:500],
+                }
+            )
 
     prompt = PROMPT_TEMPLATE.format(
         retrieved_chunks=retrieved_chunks,
