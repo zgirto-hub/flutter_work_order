@@ -11,6 +11,7 @@ from services.manual_chunker import chunk_paragraphs, Chunk
 from services.ollama_embedder import embed_many, EmbedderTimeoutError
 from services.manual_storage_service import save, delete as delete_file
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 import time as _time
@@ -21,7 +22,7 @@ _SI_CACHE_TTL = 60.0  # seconds
 
 # Chunk reranking thresholds (spec 044)
 # MAX_CHUNK_DISTANCE: cosine distance ceiling; 0.30 distance = 0.70 similarity
-MAX_CHUNK_DISTANCE = 0.30
+MAX_CHUNK_DISTANCE = 0.45
 # MAX_PROMPT_CHUNKS: max chunks sent to LLM after filtering
 MAX_PROMPT_CHUNKS = 3
 
