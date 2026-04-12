@@ -468,6 +468,12 @@ async def ask(
     except Exception:
         raise
 
+    logger.info(
+        "Vector search returned %d chunks: %s",
+        len(chunks_data),
+        [(c.get("id", "?"), round(c.get("distance", -1), 4)) for c in chunks_data],
+    )
+
     if not chunks_data:
         return {
             "answer": "This information is not in the available manuals.",
