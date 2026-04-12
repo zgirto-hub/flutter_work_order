@@ -1,9 +1,29 @@
 import os
+import json
 import httpx
+from pathlib import Path
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_GEN_MODEL = os.environ.get("OLLAMA_GEN_MODEL", "gemma3:e2b")
 OLLAMA_KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "30m")
+
+_CONFIG_PATH = Path("ai_model_config.json")
+
+
+def get_default_model() -> str:
+    """Read the saved default model, falling back to env var."""
+    if _CONFIG_PATH.exists():
+        try:
+            data = json.loads(_CONFIG_PATH.read_text())
+            return data.get("default_model", OLLAMA_GEN_MODEL)
+        except Exception:
+            pass
+    return OLLAMA_GEN_MODEL
+
+
+def set_default_model(model_name: str) -> None:
+    """Save the default model to a config file."""
+    _CONFIG_PATH.write_text(json.dumps({"default_model": model_name}))
 
 
 class GeneratorTimeoutError(Exception):
@@ -11,7 +31,7 @@ class GeneratorTimeoutError(Exception):
 
 
 async def generate(prompt: str, model: str | None = None, timeout: float = 180.0) -> str:
-    use_model = model or OLLAMA_GEN_MODEL
+    use_model = model or get_default_model()
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             response = await client.post(

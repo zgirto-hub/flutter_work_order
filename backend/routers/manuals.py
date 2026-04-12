@@ -29,9 +29,24 @@ class AskRequest(BaseModel):
 
 @router.get("/manuals/models")
 async def get_models():
-    from services.ollama_generator import list_models, OLLAMA_GEN_MODEL
+    from services.ollama_generator import list_models, get_default_model
     models = await list_models()
-    return {"models": models, "default": OLLAMA_GEN_MODEL}
+    return {"models": models, "default": get_default_model()}
+
+
+@router.get("/manuals/settings")
+async def get_ai_settings():
+    from services.ollama_generator import get_default_model
+    return {"default_model": get_default_model()}
+
+
+@router.post("/manuals/settings")
+async def update_ai_settings(body: dict):
+    from services.ollama_generator import set_default_model, get_default_model
+    model = body.get("default_model")
+    if model:
+        set_default_model(model)
+    return {"default_model": get_default_model()}
 
 
 @router.get("/manuals/")

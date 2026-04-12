@@ -46,6 +46,38 @@ class ManualAssistantService {
     }
   }
 
+  Future<String> getDefaultModel() async {
+    try {
+      final res = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/manuals/settings'),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['default_model'] ?? '';
+      }
+      return '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  Future<String> setDefaultModel(String modelName) async {
+    try {
+      final res = await http.post(
+        Uri.parse('${AppConfig.baseUrl}/manuals/settings'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'default_model': modelName}),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['default_model'] ?? modelName;
+      }
+      return modelName;
+    } catch (e) {
+      return modelName;
+    }
+  }
+
   Future<Map<String, dynamic>> listManuals() async {
     try {
       final res = await http.get(

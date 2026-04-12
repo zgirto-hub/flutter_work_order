@@ -19,6 +19,7 @@ import 'admin/department_routes_screen.dart';
 import 'admin/departments_screen.dart';
 import '../widgets/nav_bar_customization_sheet.dart';
 import '../widgets/bottom_sheet_widgets.dart';
+import '../services/manual_assistant_service.dart';
 
 class SettingsPage extends StatefulWidget {
   final ThemeController themeController;
@@ -306,6 +307,9 @@ class _SettingsPageState extends State<SettingsPage> {
               NotificationSettingsSection(userRole: widget.userRole),
               SizedBox(height: 12),
               if (widget.userRole == 'admin') ...[
+                SectionLabel(text: 'AI Model'),
+                _AiModelSection(),
+                SizedBox(height: 12),
                 SectionLabel(text: 'Administration'),
                 SurfaceCard(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -851,6 +855,158 @@ class _NavBarRow extends StatelessWidget {
                 size: 16, color: AppColors.textTertiary),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── AI Model Section ────────────────────────────────────────────────────────
+
+class _AiModelSection extends StatefulWidget {
+  @override
+  State<_AiModelSection> createState() => _AiModelSectionState();
+}
+
+class _AiModelSectionState extends State<_AiModelSection> {
+  final _service = ManualAssistantService();
+  List<Map<String, dynamic>> _models = [];
+  String? _currentModel;
+  bool _loading = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final models = await _service.listModels();
+    final current = await _service.getDefaultModel();
+    if (mounted) {
+      setState(() {
+        _models = models;
+        _currentModel = current.isNotEmpty ? current : null;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _setModel(String model) async {
+    setState(() => _saving = true);
+    final saved = await _service.setDefaultModel(model);
+    if (mounted) {
+      setState(() {
+        _currentModel = saved;
+        _saving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Default AI model set to $saved'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return SurfaceCard(
+        padding: const EdgeInsets.all(14),
+        child: Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.textTertiary),
+          ),
+        ),
+      );
+    }
+
+    return SurfaceCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.bgSurface2,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.smart_toy_outlined, size: 15, color: AppColors.textSecondary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Default model',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                ),
+              ),
+              if (_saving)
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.textTertiary),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_models.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('No models available', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+            )
+          else
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _models.map((m) {
+                final name = m['name'] as String;
+                final sizeGb = m['size_gb'];
+                final isSelected = name == _currentModel;
+                return GestureDetector(
+                  onTap: _saving ? null : () => _setModel(name),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.accent : AppColors.bgSurface2,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(
+                        color: isSelected ? AppColors.accent : AppColors.border2,
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${sizeGb}G',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: isSelected ? Colors.white.withValues(alpha: 0.7) : AppColors.textTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          const SizedBox(height: 4),
+        ],
       ),
     );
   }
