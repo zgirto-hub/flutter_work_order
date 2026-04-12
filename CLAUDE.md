@@ -1,6 +1,6 @@
 ﻿# flutter_work_order Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-11
+Auto-generated from all feature plans. Last updated: 2026-04-12
 
 ## Active Technologies
 - Dart 3.x / Flutter 3.x + `pdf` ^3.10.7 (existing), `printing` ^5.12.0 (existing), `htmltopdfwidgets` (NEW) (002-use-html-css)
@@ -53,6 +53,9 @@ Auto-generated from all feature plans. Last updated: 2026-04-11
 - N/A — no data model changes (036-cleanup-dead-letters-v1)
 - Dart 3.x / Flutter 3.x (frontend only, primarily web target); Python 3.10 + FastAPI (backend, minimal touch for audit endpoint) + `package:web` (existing — JS interop for `navigator.share`, `navigator.canShare`, `Blob`, `File`, anchor download), `package:printing` (existing — already used for `PdfPreview`; its `allowPrinting`/`allowSharing`/`actions` params control the built-in toolbar), `package:http` (existing — activity log POST), existing `download_helper_web.dart` to be extended (038-ios-pwa-share)
 - N/A — PDF bytes are transient (built → shared/downloaded → released). No database changes. No new file storage. (038-ios-pwa-share)
+- Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, primarily web target via PWA) (040-manual-rag-assistant)
+- Dart 3.x / Flutter 3.x + Flutter Material, existing shared widgets (ClaudeFAB, EmptyState, ValidatedTextField, SectionLabel from `claude_widgets.dart`), existing DocumentRegistryService, existing RegistryEntry model (041-registry-v2-refactor)
+- N/A — no data model or backend changes (041-registry-v2-refactor)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -75,9 +78,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 041-registry-v2-refactor: Added Dart 3.x / Flutter 3.x + Flutter Material, existing shared widgets (ClaudeFAB, EmptyState, ValidatedTextField, SectionLabel from `claude_widgets.dart`), existing DocumentRegistryService, existing RegistryEntry model
+- 040-manual-rag-assistant: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, primarily web target via PWA)
 - 038-ios-pwa-share: Added Dart 3.x / Flutter 3.x (frontend only, primarily web target); Python 3.10 + FastAPI (backend, minimal touch for audit endpoint) + `package:web` (existing — JS interop for `navigator.share`, `navigator.canShare`, `Blob`, `File`, anchor download), `package:printing` (existing — already used for `PdfPreview`; its `allowPrinting`/`allowSharing`/`actions` params control the built-in toolbar), `package:http` (existing — activity log POST), existing `download_helper_web.dart` to be extended
-- 036-cleanup-dead-letters-v1: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI (backend), Flutter Material (frontend) — no new dependencies
-- 035-letters-v2-ui-refactor: Added Dart 3.x / Flutter 3.x + Flutter Material, AppColors/AppShadows/AppTheme (centralized theme), shared widgets from `claude_widgets.dart` (EmptyState, SectionLabel)
 
 
 <!-- MANUAL ADDITIONS START -->

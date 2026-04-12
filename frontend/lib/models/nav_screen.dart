@@ -9,6 +9,7 @@ import '../screens/notifications_screen.dart';
 import '../screens/settings/activity_log_screen.dart';
 import '../screens/approvals/pending_approvals_screen.dart';
 import '../screens/letters_v2/letter_generator_screen_v2.dart';
+import '../screens/manual_assistant/manual_assistant_screen.dart';
 
 class NavScreen {
   final String key;
@@ -34,6 +35,15 @@ class NavScreenRegistry {
   NavScreenRegistry._();
 
   static const List<NavScreen> all = [
+    NavScreen(
+      key: 'manual_assistant',
+      title: 'Manual Assistant',
+      subtitle: 'Technical manuals Q&A',
+      icon: Icons.menu_book_outlined,
+      selectedIcon: Icons.menu_book,
+      color: Color(0xFF7C3AED),
+      bgColor: Color(0xFFF3E0FF),
+    ),
     NavScreen(
       key: 'files',
       title: 'Files',
@@ -135,6 +145,7 @@ class NavScreenRegistry {
 
   static Widget widgetForKey(String key, {required String userRole}) {
     return switch (key) {
+      'manual_assistant' => const ManualAssistantScreen(),
       'files' => const FilesScreen(),
       'reports' => const WorkOrderReportScreen(),
       'calendar' => CalendarScreen(userRole: userRole),
