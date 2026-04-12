@@ -30,6 +30,14 @@ class GeneratorTimeoutError(Exception):
     pass
 
 
+class GeneratorModelError(Exception):
+    """Ollama couldn't load the model (RAM, not found, etc.)."""
+    def __init__(self, model: str, detail: str = ""):
+        self.model = model
+        self.detail = detail
+        super().__init__(f"Model '{model}' failed: {detail}")
+
+
 async def generate(prompt: str, model: str | None = None, timeout: float = 180.0) -> str:
     use_model = model or get_default_model()
     async with httpx.AsyncClient(timeout=timeout) as client:
@@ -38,11 +46,22 @@ async def generate(prompt: str, model: str | None = None, timeout: float = 180.0
                 f"{OLLAMA_URL}/api/generate",
                 json={"model": use_model, "prompt": prompt, "stream": False, "keep_alive": OLLAMA_KEEP_ALIVE},
             )
+            if response.status_code == 500:
+                # Ollama internal error — usually out of memory
+                try:
+                    err = response.json().get("error", "unknown error")
+                except Exception:
+                    err = response.text[:200]
+                raise GeneratorModelError(use_model, err)
+            if response.status_code == 404:
+                raise GeneratorModelError(use_model, "model not found")
             response.raise_for_status()
             data = response.json()
             return data.get("response", "")
         except httpx.TimeoutException:
             raise GeneratorTimeoutError("Generator timed out")
+        except GeneratorModelError:
+            raise  # re-raise, don't swallow
 
 
 async def list_models() -> list[dict]:

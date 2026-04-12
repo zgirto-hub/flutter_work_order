@@ -270,6 +270,15 @@ async def ask_question(request: AskRequest):
             },
         )
     except Exception as e:
+        from services.ollama_generator import GeneratorModelError
+        if isinstance(e, GeneratorModelError):
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error": "model_unavailable",
+                    "message": f"Model '{e.model}' could not be loaded (not enough memory or not installed). Try a smaller model.",
+                },
+            )
         import traceback
         traceback.print_exc()
         raise HTTPException(
