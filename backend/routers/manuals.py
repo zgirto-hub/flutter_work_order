@@ -246,9 +246,7 @@ async def ask_question(request: AskRequest):
                 "message": "The assistant is taking longer than usual to respond. Please try again.",
             },
         )
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail={
