@@ -167,8 +167,12 @@ class _ChatTabState extends State<ChatTab> {
                             final msg = _messages[index];
                             if (msg.loading) {
                               return const ListTile(
-                                title: Text('Thinking...'),
-                                leading: CircularProgressIndicator(),
+                                title: Text('Thinking...', style: TextStyle(fontSize: 13)),
+                                leading: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
                               );
                             }
                             if (msg.error != null) {

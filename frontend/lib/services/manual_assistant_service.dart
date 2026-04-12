@@ -49,7 +49,7 @@ class ManualAssistantService {
   Future<Map<String, dynamic>> listManuals() async {
     try {
       final res = await http.get(
-        Uri.parse('${AppConfig.baseUrl}/api/manuals/'),
+        Uri.parse('${AppConfig.baseUrl}/manuals/'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -79,7 +79,7 @@ class ManualAssistantService {
     try {
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('${AppConfig.baseUrl}/api/manuals/upload'),
+        Uri.parse('${AppConfig.baseUrl}/manuals/upload'),
       );
       request.fields['title'] = title;
       request.fields['uploaded_by'] = userEmail;
@@ -153,7 +153,7 @@ class ManualAssistantService {
       }
 
       final res = await http.post(
-        Uri.parse('${AppConfig.baseUrl}/api/manuals/ask'),
+        Uri.parse('${AppConfig.baseUrl}/manuals/ask'),
         headers: headers,
         body: jsonEncode(body),
       );
@@ -185,7 +185,7 @@ class ManualAssistantService {
     try {
       final res = await http.delete(
         Uri.parse(
-            '${AppConfig.baseUrl}/api/manuals/$manualId?user_email=${Uri.encodeComponent(userEmail)}'),
+            '${AppConfig.baseUrl}/manuals/$manualId?user_email=${Uri.encodeComponent(userEmail)}'),
       );
 
       if (res.statusCode == 204) {
