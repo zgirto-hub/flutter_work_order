@@ -213,6 +213,8 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None) -> dict:
     from services.ollama_embedder import embed_single, EmbedderTimeoutError
     from services.ollama_generator import generate, GeneratorTimeoutError
 
+    print(f"[ASK DEBUG] question='{question}', filter={manual_id_filter}")
+
     # Check corpus is not empty
     count_response = (
         supabase.table("manual_corpus_stats")
@@ -220,7 +222,9 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None) -> dict:
         .eq("id", 1)
         .execute()
     )
+    print(f"[ASK DEBUG] corpus stats: {count_response.data}")
     if not count_response.data or count_response.data[0]["manual_count"] == 0:
+        print("[ASK DEBUG] SHORT-CIRCUIT: manual_count is 0")
         return {
             "answer": "This information is not in the available manuals.",
             "grounded": False,
@@ -230,23 +234,32 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None) -> dict:
     # Embed the question
     try:
         question_embedding = await embed_single(question)
+        print(f"[ASK DEBUG] embedding length: {len(question_embedding)}, first 3: {question_embedding[:3]}")
     except EmbedderTimeoutError:
+        print("[ASK DEBUG] EMBEDDER TIMEOUT")
         raise EmbedderUnavailableError()
 
     # Retrieve top-5 nearest chunks via the pgvector RPC.
     # Convert embedding list to string format for PostgREST → pgvector cast.
     embedding_str = "[" + ",".join(str(x) for x in question_embedding) + "]"
-    rpc_response = supabase.rpc(
-        "search_manual_chunks",
-        {
-            "q_embedding": embedding_str,
-            "manual_id_filter": str(manual_id_filter) if manual_id_filter else None,
-            "match_count": 5,
-        },
-    ).execute()
-    chunks_data = rpc_response.data or []
+    print(f"[ASK DEBUG] calling search_manual_chunks RPC, filter={manual_id_filter}")
+    try:
+        rpc_response = supabase.rpc(
+            "search_manual_chunks",
+            {
+                "q_embedding": embedding_str,
+                "manual_id_filter": str(manual_id_filter) if manual_id_filter else None,
+                "match_count": 5,
+            },
+        ).execute()
+        chunks_data = rpc_response.data or []
+        print(f"[ASK DEBUG] RPC returned {len(chunks_data)} chunks")
+    except Exception as e:
+        print(f"[ASK DEBUG] RPC FAILED: {type(e).__name__}: {e}")
+        raise
 
     if not chunks_data:
+        print("[ASK DEBUG] NO CHUNKS FOUND — returning sentinel")
         return {
             "answer": "This information is not in the available manuals.",
             "grounded": False,
