@@ -467,13 +467,11 @@ async def ask(
             )
 
     # --- Search pipeline (runs in parallel with compression) ---
-    # Skip query rewrite — HyDE already improves retrieval and rewrite adds ~15s latency.
-    # Query rewrite is still available via _rewrite_query() if needed in the future.
-    search_query = question
-
-    # HyDE: generate hypothetical answer for better embedding
-    hyde_text = await _generate_hypothetical_answer(search_query)
-    embed_input = hyde_text if hyde_text else search_query
+    # Skip query rewrite and HyDE to minimize Ollama calls. On a single-GPU server
+    # Ollama serializes generate requests, so each extra call adds ~15s. Direct
+    # embedding produces good enough retrieval (distances 0.32-0.43 observed).
+    # Both _rewrite_query() and _generate_hypothetical_answer() are preserved if needed.
+    embed_input = question
 
     # Embed the question
     try:
