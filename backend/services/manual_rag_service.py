@@ -498,6 +498,9 @@ async def ask(
         MAX_CHUNK_DISTANCE,
         len(qualified_chunks),
     )
+    for i, c in enumerate(qualified_chunks):
+        snippet = (c.get("content") or c.get("chunk_text") or "?")[:150]
+        logger.info("  Chunk %d (dist=%.4f): %s...", i, c.get("distance", -1), snippet)
 
     if not qualified_chunks:
         return {
