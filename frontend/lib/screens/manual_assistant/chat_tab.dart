@@ -207,13 +207,30 @@ class _ChatTabState extends State<ChatTab> {
                           itemBuilder: (context, index) {
                             final msg = _messages[index];
                             if (msg.loading) {
-                              return const ListTile(
-                                title: Text('Thinking...', style: TextStyle(fontSize: 13)),
-                                leading: SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Container(
+                                      margin: const EdgeInsets.fromLTRB(48, 8, 8, 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Text(msg.question, style: const TextStyle(fontSize: 13)),
+                                    ),
+                                  ),
+                                  const ListTile(
+                                    title: Text('Thinking...', style: TextStyle(fontSize: 13)),
+                                    leading: SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    ),
+                                  ),
+                                ],
                               );
                             }
                             if (msg.error != null) {
@@ -232,12 +249,31 @@ class _ChatTabState extends State<ChatTab> {
                               );
                             }
                             if (msg.answer != null) {
-                              return AnswerCard(answer: msg.answer!);
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Question bubble
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Container(
+                                      margin: const EdgeInsets.fromLTRB(48, 8, 8, 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Text(
+                                        msg.question,
+                                        style: const TextStyle(fontSize: 13),
+                                      ),
+                                    ),
+                                  ),
+                                  // Answer card
+                                  AnswerCard(answer: msg.answer!),
+                                ],
+                              );
                             }
-                            return ListTile(
-                              title: Text(msg.question),
-                              subtitle: const Text('Question'),
-                            );
+                            return const SizedBox.shrink();
                           },
                         ),
         ),
