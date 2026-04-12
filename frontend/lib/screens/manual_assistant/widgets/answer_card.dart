@@ -20,6 +20,17 @@ class AnswerCard extends StatelessWidget {
               answer.answer,
               style: const TextStyle(fontSize: 14),
             ),
+            if (answer.model != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                '${answer.model} · ${answer.durationFormatted}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade500,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
             if (answer.sources.isNotEmpty) ...[
               const SizedBox(height: 12),
               ExpansionTile(

@@ -283,10 +283,13 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None) -> dict:
         user_question=question,
     )
     # Generate answer
+    import time
+    gen_start = time.monotonic()
     try:
         answer = await generate(prompt)
     except GeneratorTimeoutError:
         raise GeneratorUnavailableError()
+    gen_elapsed = time.monotonic() - gen_start
 
     # Check groundedness
     sentinel_phrases = [
@@ -296,11 +299,14 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None) -> dict:
 
     grounded = not any(phrase.lower() in answer.lower() for phrase in sentinel_phrases)
 
+    from services.ollama_generator import OLLAMA_GEN_MODEL
     if not grounded:
         return {
             "answer": "This information is not in the available manuals.",
             "grounded": False,
             "sources": [],
+            "model": OLLAMA_GEN_MODEL,
+            "duration_seconds": round(gen_elapsed, 1),
         }
 
     # Format sources for response with highlighting
@@ -324,6 +330,8 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None) -> dict:
         "answer": answer,
         "grounded": True,
         "sources": final_sources,
+        "model": OLLAMA_GEN_MODEL,
+        "duration_seconds": round(gen_elapsed, 1),
     }
 
 
