@@ -288,12 +288,18 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None) -> dict:
         retrieved_chunks=retrieved_chunks,
         user_question=question,
     )
+    print(f"[ASK DEBUG] prompt length: {len(prompt)} chars, calling Gemma...")
 
     # Generate answer
     try:
         answer = await generate(prompt)
+        print(f"[ASK DEBUG] Gemma returned {len(answer)} chars: {answer[:200]}")
     except GeneratorTimeoutError:
+        print("[ASK DEBUG] GEMMA TIMEOUT")
         raise GeneratorUnavailableError()
+    except Exception as e:
+        print(f"[ASK DEBUG] GEMMA ERROR: {type(e).__name__}: {e}")
+        raise
 
     # Check groundedness
     sentinel_phrases = [
