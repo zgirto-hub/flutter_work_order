@@ -31,7 +31,9 @@ class _ChatTabState extends State<ChatTab> {
   final TextEditingController _questionController = TextEditingController();
   final List<ChatMessage> _messages = [];
   List<Manual> _manuals = [];
+  List<Map<String, dynamic>> _models = [];
   String? _selectedManualId;
+  String? _selectedModel;
   bool _loading = false;
   bool _manualsLoading = true;
   String? _loadError;
@@ -40,6 +42,7 @@ class _ChatTabState extends State<ChatTab> {
   void initState() {
     super.initState();
     _loadManuals();
+    _loadModels();
   }
 
   Future<void> _loadManuals() async {
@@ -58,6 +61,11 @@ class _ChatTabState extends State<ChatTab> {
     }
   }
 
+  Future<void> _loadModels() async {
+    final models = await _service.listModels();
+    if (mounted) setState(() => _models = models);
+  }
+
   Future<void> _sendQuestion() async {
     final question = _questionController.text.trim();
     if (question.isEmpty) return;
@@ -74,7 +82,7 @@ class _ChatTabState extends State<ChatTab> {
       final email =
           Supabase.instance.client.auth.currentUser?.email ?? '';
       final answer = await _service.askQuestion(question, manualIdFilter,
-          userEmail: email);
+          userEmail: email, model: _selectedModel);
       setState(() {
         _messages.removeLast();
         _messages.add(ChatMessage(question: question, answer: answer));
@@ -107,29 +115,62 @@ class _ChatTabState extends State<ChatTab> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Filter dropdown
+        // Filter dropdowns
         if (_manuals.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: DropdownButton<String?>(
-              value: _selectedManualId,
-              hint: const Text('All manuals'),
-              isExpanded: true,
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('All manuals'),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: DropdownButton<String?>(
+                    value: _selectedManualId,
+                    hint: const Text('All manuals', style: TextStyle(fontSize: 13)),
+                    isExpanded: true,
+                    style: TextStyle(fontSize: 13, color: Theme.of(context).textTheme.bodyMedium?.color),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All manuals'),
+                      ),
+                      ..._manuals.map((m) => DropdownMenuItem<String?>(
+                            value: m.id,
+                            child: Text(m.title, overflow: TextOverflow.ellipsis),
+                          )),
+                    ],
+                    onChanged: (value) {
+                      setState(() => _selectedManualId = value);
+                    },
+                  ),
                 ),
-                ..._manuals.map((m) => DropdownMenuItem<String?>(
-                      value: m.id,
-                      child: Text(m.title),
-                    )),
+                const SizedBox(width: 8),
+                if (_models.isNotEmpty)
+                  SizedBox(
+                    width: 160,
+                    child: DropdownButton<String?>(
+                      value: _selectedModel,
+                      hint: const Text('Default model', style: TextStyle(fontSize: 12)),
+                      isExpanded: true,
+                      style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('Default model'),
+                        ),
+                        ..._models.map((m) => DropdownMenuItem<String?>(
+                              value: m['name'] as String,
+                              child: Text(
+                                '${m['name']} (${m['size_gb']}G)',
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            )),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _selectedModel = value);
+                      },
+                    ),
+                  ),
               ],
-              onChanged: (value) {
-                setState(() {
-                  _selectedManualId = value;
-                });
-              },
             ),
           ),
         // Messages

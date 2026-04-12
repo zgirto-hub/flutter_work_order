@@ -131,9 +131,28 @@ class ManualAssistantService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> listModels() async {
+    try {
+      final res = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/manuals/models'),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final models = (data['models'] as List?)
+                ?.map((m) => Map<String, dynamic>.from(m))
+                .toList() ??
+            [];
+        return models;
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
   Future<ManualQaAnswer> askQuestion(
       String question, String? manualIdFilter,
-      {required String userEmail}) async {
+      {required String userEmail, String? model}) async {
     try {
       final body = <String, dynamic>{
         'question': question,
@@ -141,6 +160,9 @@ class ManualAssistantService {
       };
       if (manualIdFilter != null) {
         body['manual_id'] = manualIdFilter;
+      }
+      if (model != null) {
+        body['model'] = model;
       }
 
       final session = Supabase.instance.client.auth;

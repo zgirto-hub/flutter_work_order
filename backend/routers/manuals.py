@@ -24,6 +24,14 @@ class AskRequest(BaseModel):
     question: str
     manual_id: Optional[str] = None
     user_email: str
+    model: Optional[str] = None
+
+
+@router.get("/manuals/models")
+async def get_models():
+    from services.ollama_generator import list_models, OLLAMA_GEN_MODEL
+    models = await list_models()
+    return {"models": models, "default": OLLAMA_GEN_MODEL}
 
 
 @router.get("/manuals/")
@@ -229,7 +237,7 @@ async def ask_question(request: AskRequest):
             raise HTTPException(status_code=404, detail={"error": "manual_not_found"})
 
     try:
-        result = await manual_rag_service.ask(question, manual_id_filter)
+        result = await manual_rag_service.ask(question, manual_id_filter, model=request.model)
     except manual_rag_service.EmbedderUnavailableError:
         raise HTTPException(
             status_code=504,

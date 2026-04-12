@@ -209,7 +209,7 @@ async def upload_manual(
     }
 
 
-async def ask(question: str, manual_id_filter: Optional[UUID] = None) -> dict:
+async def ask(question: str, manual_id_filter: Optional[UUID] = None, model: Optional[str] = None) -> dict:
     from services.ollama_embedder import embed_single, EmbedderTimeoutError
     from services.ollama_generator import generate, GeneratorTimeoutError
 
@@ -286,7 +286,7 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None) -> dict:
     import time
     gen_start = time.monotonic()
     try:
-        answer = await generate(prompt)
+        answer = await generate(prompt, model=model)
     except GeneratorTimeoutError:
         raise GeneratorUnavailableError()
     gen_elapsed = time.monotonic() - gen_start
@@ -300,12 +300,13 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None) -> dict:
     grounded = not any(phrase.lower() in answer.lower() for phrase in sentinel_phrases)
 
     from services.ollama_generator import OLLAMA_GEN_MODEL
+    used_model = model or OLLAMA_GEN_MODEL
     if not grounded:
         return {
             "answer": "This information is not in the available manuals.",
             "grounded": False,
             "sources": [],
-            "model": OLLAMA_GEN_MODEL,
+            "model": used_model,
             "duration_seconds": round(gen_elapsed, 1),
         }
 
@@ -330,7 +331,7 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None) -> dict:
         "answer": answer,
         "grounded": True,
         "sources": final_sources,
-        "model": OLLAMA_GEN_MODEL,
+        "model": used_model,
         "duration_seconds": round(gen_elapsed, 1),
     }
 
