@@ -56,6 +56,10 @@ Auto-generated from all feature plans. Last updated: 2026-04-12
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, primarily web target via PWA) (040-manual-rag-assistant)
 - Dart 3.x / Flutter 3.x + Flutter Material, existing shared widgets (ClaudeFAB, EmptyState, ValidatedTextField, SectionLabel from `claude_widgets.dart`), existing DocumentRegistryService, existing RegistryEntry model (041-registry-v2-refactor)
 - N/A — no data model or backend changes (041-registry-v2-refactor)
+- Python 3.10 (backend only) + FastAPI, httpx, Supabase Python client (all existing) (042-rag-query-rewrite)
+- N/A — no persistent data changes (042-rag-query-rewrite)
+- Python 3.10 (backend only) + FastAPI, httpx, Supabase Python client, Ollama (gemma4:e2b for generation, nomic-embed-text for embedding) — all existing (043-hyde-retrieval)
+- N/A — no data model changes; hypothetical answer is transient/in-memory (043-hyde-retrieval)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -78,9 +82,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 043-hyde-retrieval: Added Python 3.10 (backend only) + FastAPI, httpx, Supabase Python client, Ollama (gemma4:e2b for generation, nomic-embed-text for embedding) — all existing
+- 042-rag-query-rewrite: Added Python 3.10 (backend only) + FastAPI, httpx, Supabase Python client (all existing)
 - 041-registry-v2-refactor: Added Dart 3.x / Flutter 3.x + Flutter Material, existing shared widgets (ClaudeFAB, EmptyState, ValidatedTextField, SectionLabel from `claude_widgets.dart`), existing DocumentRegistryService, existing RegistryEntry model
-- 040-manual-rag-assistant: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, primarily web target via PWA)
-- 038-ios-pwa-share: Added Dart 3.x / Flutter 3.x (frontend only, primarily web target); Python 3.10 + FastAPI (backend, minimal touch for audit endpoint) + `package:web` (existing — JS interop for `navigator.share`, `navigator.canShare`, `Blob`, `File`, anchor download), `package:printing` (existing — already used for `PdfPreview`; its `allowPrinting`/`allowSharing`/`actions` params control the built-in toolbar), `package:http` (existing — activity log POST), existing `download_helper_web.dart` to be extended
 
 
 <!-- MANUAL ADDITIONS START -->

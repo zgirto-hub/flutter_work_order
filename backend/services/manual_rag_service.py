@@ -301,6 +301,37 @@ FOLLOW-UP QUESTION: """
         return question
 
 
+async def _generate_hypothetical_answer(query: str) -> str | None:
+    """Generate a hypothetical document passage for better retrieval (HyDE)."""
+    from services.ollama_generator import generate
+
+    hyde_prompt = f"""You are a technical writer for civil aviation maintenance manuals.
+Given the following question, write a short passage (1-2 paragraphs) that would appear in a civil aviation technical manual answering this question.
+Write in the same language as the question (Arabic or English).
+Do not add any preamble, disclaimer, or explanation. Write ONLY the manual passage.
+
+QUESTION: {query}
+
+MANUAL PASSAGE:
+"""
+
+    try:
+        result = await generate(hyde_prompt, timeout=15.0)
+        result = result.strip()
+        if not result:
+            logger.warning(
+                "HyDE generation returned empty, falling back to direct query embedding"
+            )
+            return None
+        logger.info("HyDE generated hypothetical answer (%d chars)", len(result))
+        return result
+    except Exception as e:
+        logger.warning(
+            "HyDE generation failed, falling back to direct query embedding: %s", e
+        )
+        return None
+
+
 async def ask(
     question: str,
     manual_id_filter: Optional[UUID] = None,
@@ -327,9 +358,13 @@ async def ask(
     # Rewrite query for better retrieval (uses conversation context for follow-up questions)
     search_query = await _rewrite_query(question, history)
 
+    # HyDE: generate hypothetical answer for better embedding
+    hyde_text = await _generate_hypothetical_answer(search_query)
+    embed_input = hyde_text if hyde_text else search_query
+
     # Embed the question
     try:
-        question_embedding = await embed_single(search_query)
+        question_embedding = await embed_single(embed_input)
     except EmbedderTimeoutError:
         raise EmbedderUnavailableError()
 
