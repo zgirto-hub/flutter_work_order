@@ -14,6 +14,7 @@ import '../screens/payment_certificate/payment_certificate_list_screen.dart';
 import '../screens/system_status_screen.dart';
 import '../screens/approvals/pending_approvals_screen.dart';
 import '../screens/letters_v2/letter_generator_screen_v2.dart';
+import '../screens/manual_assistant/manual_assistant_screen.dart';
 import '../models/nav_screen.dart';
 
 class _TileCategory {
@@ -24,7 +25,7 @@ class _TileCategory {
 
 const _categories = [
   _TileCategory('Documents & Files',
-      ['files', 'doc_registry', 'payment_cert', 'letters_v2']),
+      ['files', 'doc_registry', 'payment_cert', 'letters_v2', 'manual_assistant']),
   _TileCategory(
       'Reports & Monitoring', ['reports', 'system_status', 'activity_log']),
   _TileCategory(
@@ -235,6 +236,8 @@ class _MoreScreenState extends State<MoreScreen> {
         MaterialPageRoute(builder: (_) => const ActivityLogScreen())));
     add('approvals', () => Navigator.push(context,
         MaterialPageRoute(builder: (_) => const PendingApprovalsScreen())));
+    add('manual_assistant', () => Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const ManualAssistantScreen())));
 
     return map;
   }
