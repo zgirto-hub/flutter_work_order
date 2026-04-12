@@ -299,8 +299,8 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None, model: Opt
 
     grounded = not any(phrase.lower() in answer.lower() for phrase in sentinel_phrases)
 
-    from services.ollama_generator import OLLAMA_GEN_MODEL
-    used_model = model or OLLAMA_GEN_MODEL
+    from services.ollama_generator import get_default_model
+    used_model = model or get_default_model()
     if not grounded:
         return {
             "answer": "This information is not in the available manuals.",
