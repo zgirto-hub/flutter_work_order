@@ -435,6 +435,38 @@ async def ask(
             "session_summary": None,
         }
 
+    # --- Compression logic (spec 045) ---
+    # Determine compression early so it can run in parallel with search pipeline.
+    # Compression only needs history + session_summary, not search results.
+    import asyncio
+
+    memory: str | None = None
+    effective_history = history
+    needs_compression = history and len(history) > 8
+    compression_task: asyncio.Task | None = None
+    turns_to_preserve = 4
+
+    if needs_compression:
+        turns_already_compressed = len(history) - turns_to_preserve
+
+        if session_summary and turns_already_compressed <= 5:
+            # Reuse: threshold triggers at >8 turns (9+), preserving 4 → first
+            # compression covers 5 turns. Reuse while that count hasn't grown.
+            logger.info("[COMPRESS] Reusing existing summary")
+            memory = session_summary
+            effective_history = history[-turns_to_preserve:]
+        else:
+            # Launch compression in parallel with the search pipeline below
+            old_turns = (
+                history[:-turns_to_preserve]
+                if len(history) > turns_to_preserve
+                else history
+            )
+            compression_task = asyncio.create_task(
+                _compress_history(old_turns, session_summary, model)
+            )
+
+    # --- Search pipeline (runs in parallel with compression) ---
     # Rewrite query for better retrieval (uses conversation context for follow-up questions)
     search_query = await _rewrite_query(question, history)
 
@@ -469,6 +501,9 @@ async def ask(
         raise
 
     if not chunks_data:
+        # Cancel pending compression — we won't need it
+        if compression_task:
+            compression_task.cancel()
         return {
             "answer": "This information is not in the available manuals.",
             "grounded": False,
@@ -493,6 +528,8 @@ async def ask(
         len(qualified_chunks),
     )
     if not qualified_chunks:
+        if compression_task:
+            compression_task.cancel()
         return {
             "answer": "This information is not in the available manuals.",
             "grounded": False,
@@ -502,47 +539,23 @@ async def ask(
             "session_summary": None,
         }
 
-    # --- Compression logic (spec 045) ---
-    # Check if we need to compress: len(history) > 8
-    memory: str | None = None
-    effective_history = history
-    needs_compression = history and len(history) > 8
-
-    if needs_compression:
-        # Determine if we can reuse existing summary or need to recompress
-        # We compress all turns except the last 4
-        turns_to_preserve = 4
-        turns_already_compressed = len(history) - turns_to_preserve
-
-        if session_summary and turns_already_compressed <= 5:
-            # Reuse: threshold triggers at >8 turns (9+), preserving 4 → first
-            # compression covers 5 turns. Reuse while that count hasn't grown.
-            logger.info("[COMPRESS] Reusing existing summary")
-            memory = session_summary
+    # --- Await compression result (should already be done or nearly done) ---
+    if compression_task:
+        new_summary = await compression_task
+        if new_summary:
+            memory = new_summary
             effective_history = history[-turns_to_preserve:]
-        else:
-            # Need to compress - either no existing summary or too many new turns
-            # Include existing summary in compression if available
-            old_turns = (
-                history[:-turns_to_preserve]
-                if len(history) > turns_to_preserve
-                else history
+            old_count = len(history) - turns_to_preserve
+            logger.info(
+                "[COMPRESS] Created new summary from %d turns", old_count
             )
-            summary_input = old_turns
-            new_summary = await _compress_history(summary_input, session_summary, model)
-            if new_summary:
-                memory = new_summary
-                effective_history = history[-turns_to_preserve:]
-                logger.info(
-                    "[COMPRESS] Created new summary from %d turns", len(old_turns)
-                )
-            else:
-                # Compression failed, fall back to last 10 turns
-                logger.warning(
-                    "[COMPRESS] Compression failed, falling back to last 10 turns"
-                )
-                effective_history = history[-10:] if history else None
-                memory = None
+        else:
+            # Compression failed, fall back to last 10 turns
+            logger.warning(
+                "[COMPRESS] Compression failed, falling back to last 10 turns"
+            )
+            effective_history = history[-10:] if history else None
+            memory = None
 
     # Build prompt from qualified chunks
     retrieved_chunks = ""
