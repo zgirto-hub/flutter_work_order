@@ -242,15 +242,19 @@ async def ask(question: str, manual_id_filter: Optional[UUID] = None) -> dict:
     # Retrieve top-5 nearest chunks via the pgvector RPC.
     # Convert embedding list to string format for PostgREST → pgvector cast.
     embedding_str = "[" + ",".join(str(x) for x in question_embedding) + "]"
-    print(f"[ASK DEBUG] calling search_manual_chunks RPC, filter={manual_id_filter}")
+    rpc_params = {
+        "q_embedding": embedding_str,
+        "match_count": 5,
+    }
+    # Only include manual_id_filter if set — omitting it lets the SQL DEFAULT NULL
+    # pass all manuals. Sending None via PostgREST can cause casting issues.
+    if manual_id_filter:
+        rpc_params["manual_id_filter"] = str(manual_id_filter)
+    print(f"[ASK DEBUG] calling search_manual_chunks RPC, params keys={list(rpc_params.keys())}")
     try:
         rpc_response = supabase.rpc(
             "search_manual_chunks",
-            {
-                "q_embedding": embedding_str,
-                "manual_id_filter": str(manual_id_filter) if manual_id_filter else None,
-                "match_count": 5,
-            },
+            rpc_params,
         ).execute()
         chunks_data = rpc_response.data or []
         print(f"[ASK DEBUG] RPC returned {len(chunks_data)} chunks")
