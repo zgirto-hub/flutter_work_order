@@ -37,10 +37,10 @@ class NavScreenRegistry {
   static const List<NavScreen> all = [
     NavScreen(
       key: 'manual_assistant',
-      title: 'Manual Assistant',
+      title: 'Ask the AI',
       subtitle: 'Technical manuals Q&A',
-      icon: Icons.menu_book_outlined,
-      selectedIcon: Icons.menu_book,
+      icon: Icons.smart_toy_outlined,
+      selectedIcon: Icons.smart_toy,
       color: Color(0xFF7C3AED),
       bgColor: Color(0xFFF3E0FF),
     ),

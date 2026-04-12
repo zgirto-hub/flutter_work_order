@@ -14,7 +14,7 @@ class ManualAssistantScreen extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Manual Assistant'),
+          title: const Text('Ask the AI'),
           actions: [
             if (isAdmin)
               IconButton(
