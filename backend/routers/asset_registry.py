@@ -25,12 +25,11 @@ def _admin_check(user_email: str):
             supabase.table("users")
             .select("user_type")
             .eq("email", user_email)
-            .maybe_single()
             .execute()
         )
     except Exception:
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
-    if not user_resp.data or user_resp.data.get("user_type") != "admin":
+    if not user_resp.data or user_resp.data[0].get("user_type") != "admin":
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
 
 
@@ -56,7 +55,7 @@ class CreateLinkBody(BaseModel):
 def _fetch_asset_with_links(asset_id: str) -> Optional[dict]:
     """Fetch asset with its system links."""
     asset_resp = (
-        supabase.table("assets").select("*").eq("id", asset_id).maybe_single().execute()
+        supabase.table("assets").select("*").eq("id", asset_id).execute()
     )
     if not asset_resp.data:
         return None
@@ -68,7 +67,7 @@ def _fetch_asset_with_links(asset_id: str) -> Optional[dict]:
         .execute()
     )
 
-    asset = asset_resp.data
+    asset = asset_resp.data[0]
     asset["system_links"] = links_resp.data or []
     return asset
 
@@ -150,7 +149,6 @@ async def create_asset(body: CreateAssetBody, user_email: str = Query(...)):
         supabase.table("assets")
         .select("id")
         .eq("name", body.name)
-        .maybe_single()
         .execute()
     )
     if existing.data:
@@ -194,7 +192,6 @@ async def update_asset(
         supabase.table("assets")
         .select("id")
         .eq("id", asset_id)
-        .maybe_single()
         .execute()
     )
     if not existing.data:
@@ -209,7 +206,6 @@ async def update_asset(
             .select("id")
             .eq("name", body.name)
             .neq("id", asset_id)
-            .maybe_single()
             .execute()
         )
         if dup_check.data:
@@ -254,19 +250,18 @@ async def delete_asset(asset_id: str, user_email: str = Query(...)):
     """Delete an asset."""
     _admin_check(user_email)
 
-    asset = (
+    asset_resp = (
         supabase.table("assets")
         .select("name")
         .eq("id", asset_id)
-        .maybe_single()
         .execute()
     )
-    if not asset.data:
+    if not asset_resp.data:
         raise HTTPException(
             status_code=404, detail={"error": "not_found", "detail": "Asset not found"}
         )
 
-    asset_name = asset.data["name"]
+    asset_name = asset_resp.data[0]["name"]
     supabase.table("assets").delete().eq("id", asset_id).execute()
 
     log_activity(user_email, "asset", "deleted_asset", asset_name)
@@ -281,14 +276,13 @@ async def add_system_link(
     """Add a system link to an asset."""
     _admin_check(user_email)
 
-    asset = (
+    asset_resp = (
         supabase.table("assets")
         .select("id")
         .eq("id", asset_id)
-        .maybe_single()
         .execute()
     )
-    if not asset.data:
+    if not asset_resp.data:
         raise HTTPException(
             status_code=404, detail={"error": "not_found", "detail": "Asset not found"}
         )
@@ -308,7 +302,6 @@ async def add_system_link(
         .eq("asset_id", asset_id)
         .eq("system", body.system)
         .eq("role", body.role)
-        .maybe_single()
         .execute()
     )
     if dup_check.data:
@@ -321,16 +314,22 @@ async def add_system_link(
         )
 
     if body.role in ["primary", "standby"]:
-        role_holder = (
+        role_check = (
             supabase.table("asset_system_links")
-            .select("asset_id, assets!asset_system_links_asset_id_fkey(name)")
+            .select("asset_id")
             .eq("system", body.system)
             .eq("role", body.role)
             .execute()
         )
-        if role_holder.data:
-            asset_data = role_holder.data[0].get("assets") or {}
-            holder_name = asset_data.get("name") or "another asset"
+        if role_check.data:
+            holder_id = role_check.data[0]["asset_id"]
+            holder_resp = (
+                supabase.table("assets")
+                .select("name")
+                .eq("id", holder_id)
+                .execute()
+            )
+            holder_name = holder_resp.data[0]["name"] if holder_resp.data else "another asset"
             raise HTTPException(
                 status_code=409,
                 detail={
@@ -356,14 +355,13 @@ async def delete_system_link(link_id: str, user_email: str = Query(...)):
     """Delete a system link."""
     _admin_check(user_email)
 
-    link = (
+    link_resp = (
         supabase.table("asset_system_links")
         .select("system, role")
         .eq("id", link_id)
-        .maybe_single()
         .execute()
     )
-    if not link.data:
+    if not link_resp.data:
         raise HTTPException(
             status_code=404, detail={"error": "not_found", "detail": "Link not found"}
         )
@@ -374,7 +372,7 @@ async def delete_system_link(link_id: str, user_email: str = Query(...)):
         user_email,
         "asset",
         "removed_system_link",
-        f"{link.data['system']}/{link.data['role']}",
+        f"{link_resp.data[0]['system']}/{link_resp.data[0]['role']}",
     )
 
     return {"deleted": True}
