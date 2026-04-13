@@ -117,24 +117,24 @@ async def review_answer(
         supabase.table("validated_qa")
         .select("*")
         .eq("id", rating_id)
-        .maybe_single()
         .execute()
     )
+    vqa_data = vqa_resp.data[0] if vqa_resp.data else None
 
-    if vqa_resp.data and vqa_resp.data.get("is_reflagged"):
+    if vqa_data and vqa_data.get("is_reflagged"):
         # Re-flagged validated_qa entry - update in place
         if action not in ("approve", "correct"):
             raise ValueError(f"Invalid action: {action}")
 
         if action == "approve":
-            new_answer = vqa_resp.data["validated_answer"]
+            new_answer = vqa_data["validated_answer"]
         else:
             if not corrected_answer:
                 raise ValueError("corrected_answer required for 'correct' action")
             new_answer = corrected_answer
 
         # Re-generate embedding in case context changed
-        new_embedding = await embed_single(vqa_resp.data["question_text"])
+        new_embedding = await embed_single(vqa_data["question_text"])
         embedding_str = "[" + ",".join(str(x) for x in new_embedding) + "]"
 
         now = datetime.now(timezone.utc).isoformat()
@@ -155,7 +155,7 @@ async def review_answer(
             reviewer_email,
             "manual",
             "reviewed_answer",
-            target_label=vqa_resp.data["question_text"][:80],
+            target_label=vqa_data["question_text"][:80],
             detail=f"re-reviewed {action} -> is_reflagged=FALSE",
         )
 
