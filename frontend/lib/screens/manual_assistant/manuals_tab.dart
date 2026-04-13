@@ -7,7 +7,8 @@ import 'widgets/upload_dialog.dart';
 import 'chunk_editor_screen.dart';
 
 class ManualsTab extends StatefulWidget {
-  const ManualsTab({super.key});
+  final bool isAdmin;
+  const ManualsTab({super.key, this.isAdmin = false});
 
   @override
   State<ManualsTab> createState() => _ManualsTabState();
@@ -60,10 +61,12 @@ class _ManualsTabState extends State<ManualsTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _buildBody(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openUploadDialog,
-        child: const Icon(Icons.upload_file),
-      ),
+      floatingActionButton: widget.isAdmin
+          ? FloatingActionButton(
+              onPressed: _openUploadDialog,
+              child: const Icon(Icons.upload_file),
+            )
+          : null,
     );
   }
 
@@ -122,15 +125,20 @@ class _ManualsTabState extends State<ManualsTab> {
           return ListTile(
             title: Text(manual.title),
             subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => _showDeleteDialog(manual),
-            ),
+            trailing: widget.isAdmin
+                ? IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => _showDeleteDialog(manual),
+                  )
+                : null,
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ChunkEditorScreen(manual: manual),
+                  builder: (context) => ChunkEditorScreen(
+                    manual: manual,
+                    isAdmin: widget.isAdmin,
+                  ),
                 ),
               );
             },

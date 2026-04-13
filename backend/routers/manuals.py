@@ -644,11 +644,10 @@ async def bulk_delete_chunks(manual_id: str, request: BulkDeleteRequest):
 @router.get("/manuals/{manual_id}/chunks")
 async def list_chunks(
     manual_id: str,
-    user_email: str = Query(...),
+    user_email: str = Query(""),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ):
-    _admin_check(user_email)
 
     manual_check = (
         supabase.table("manuals")
@@ -788,8 +787,7 @@ async def add_chunk(manual_id: str, request: AddChunkRequest):
 
 
 @router.get("/manuals/{manual_id}/chunks/{chunk_id}")
-async def get_chunk(manual_id: str, chunk_id: str, user_email: str = Query(...)):
-    _admin_check(user_email)
+async def get_chunk(manual_id: str, chunk_id: str, user_email: str = Query("")):
 
     chunk_resp = (
         supabase.table("manual_chunks")

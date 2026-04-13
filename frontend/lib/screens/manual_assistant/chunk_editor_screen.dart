@@ -8,8 +8,9 @@ import 'widgets/chunk_card.dart';
 
 class ChunkEditorScreen extends StatefulWidget {
   final Manual manual;
+  final bool isAdmin;
 
-  const ChunkEditorScreen({super.key, required this.manual});
+  const ChunkEditorScreen({super.key, required this.manual, this.isAdmin = false});
 
   @override
   State<ChunkEditorScreen> createState() => _ChunkEditorScreenState();
@@ -316,21 +317,24 @@ class _ChunkEditorScreenState extends State<ChunkEditorScreen> {
       appBar: AppBar(
         title: Text(widget.manual.title),
         actions: [
-          IconButton(
-            icon: Icon(_selectionMode ? Icons.close : Icons.checklist),
-            onPressed: _toggleSelectionMode,
-            tooltip: _selectionMode ? 'Cancel selection' : 'Select multiple',
-          ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _navigateToAdd,
-            tooltip: 'Add chunk',
-          ),
-          IconButton(
-            icon: const Icon(Icons.sync),
-            onPressed: _reEmbedAll,
-            tooltip: 'Re-embed all',
-          ),
+          if (widget.isAdmin)
+            IconButton(
+              icon: Icon(_selectionMode ? Icons.close : Icons.checklist),
+              onPressed: _toggleSelectionMode,
+              tooltip: _selectionMode ? 'Cancel selection' : 'Select multiple',
+            ),
+          if (widget.isAdmin)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: _navigateToAdd,
+              tooltip: 'Add chunk',
+            ),
+          if (widget.isAdmin)
+            IconButton(
+              icon: const Icon(Icons.sync),
+              onPressed: _reEmbedAll,
+              tooltip: 'Re-embed all',
+            ),
         ],
       ),
       body: Column(
@@ -452,6 +456,7 @@ class _ChunkEditorScreenState extends State<ChunkEditorScreen> {
 
           return ChunkCard(
             chunk: chunk,
+            isAdmin: widget.isAdmin,
             selectionMode: _selectionMode,
             selected: _selectedIds.contains(chunk['id']),
             isLast: isLast,
@@ -464,12 +469,12 @@ class _ChunkEditorScreenState extends State<ChunkEditorScreen> {
                     _selectedIds.add(chunk['id'] as String);
                   }
                 });
-              } else {
+              } else if (widget.isAdmin) {
                 _navigateToEdit(chunk);
               }
             },
             onLongPress: () {
-              if (!_selectionMode) {
+              if (!_selectionMode && widget.isAdmin) {
                 setState(() {
                   _selectionMode = true;
                   _selectedIds.add(chunk['id'] as String);

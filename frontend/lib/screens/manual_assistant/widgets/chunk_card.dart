@@ -3,6 +3,7 @@ import '../../../theme/app_theme.dart';
 
 class ChunkCard extends StatelessWidget {
   final Map<String, dynamic> chunk;
+  final bool isAdmin;
   final bool selectionMode;
   final bool selected;
   final bool isLast;
@@ -17,6 +18,7 @@ class ChunkCard extends StatelessWidget {
   const ChunkCard({
     super.key,
     required this.chunk,
+    this.isAdmin = false,
     required this.selectionMode,
     required this.selected,
     required this.isLast,
@@ -83,7 +85,7 @@ class ChunkCard extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
-                        PopupMenuButton<String>(
+                        if (isAdmin) PopupMenuButton<String>(
                           icon: Icon(Icons.more_vert,
                               color: AppColors.textSecondary, size: 20),
                           itemBuilder: (context) => [

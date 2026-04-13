@@ -4,6 +4,8 @@ import '../../services/manual_assistant_service.dart';
 import 'chat_tab.dart';
 import 'manuals_tab.dart';
 import 'review_queue_tab.dart';
+import 'rules_tab.dart';
+import 'alerts_tab.dart';
 
 class ManualAssistantScreen extends StatefulWidget {
   final String userRole;
@@ -28,7 +30,7 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
     super.initState();
     _isAdmin = widget.userRole == 'admin';
     _userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
-    _tabController = TabController(length: _isAdmin ? 3 : 2, vsync: this);
+    _tabController = TabController(length: _isAdmin ? 5 : 2, vsync: this);
 
     if (_isAdmin) {
       _loadFlaggedCount();
@@ -98,6 +100,28 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
                   ],
                 ),
               ),
+            if (_isAdmin)
+              Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.rule, size: 18),
+                    SizedBox(width: 4),
+                    Text('Rules'),
+                  ],
+                ),
+              ),
+            if (_isAdmin)
+              Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.notifications_active, size: 18),
+                    SizedBox(width: 4),
+                    Text('Alerts'),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -105,13 +129,15 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
         controller: _tabController,
         children: [
           const ChatTab(),
-          const ManualsTab(),
+          ManualsTab(isAdmin: _isAdmin),
           if (_isAdmin)
             ReviewQueueTab(
               key: _reviewQueueKey,
               userEmail: _userEmail,
               onCountChanged: _onReviewCountChanged,
             ),
+          if (_isAdmin) RulesTab(userEmail: _userEmail),
+          if (_isAdmin) AlertsTab(userEmail: _userEmail),
         ],
       ),
     );
