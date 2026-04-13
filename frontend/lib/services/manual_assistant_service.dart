@@ -396,4 +396,160 @@ class ManualAssistantService {
       rethrow;
     }
   }
+
+  Future<Map<String, dynamic>> listChunks(String manualId,
+      {int page = 1, int pageSize = 20, required String userEmail}) async {
+    try {
+      final res = await http.get(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/$manualId/chunks?page=$page&page_size=$pageSize&user_email=${Uri.encodeComponent(userEmail)}'),
+      );
+      if (res.statusCode == 200) return jsonDecode(res.body);
+      if (res.statusCode == 403) throw Exception('Admin access required');
+      throw Exception('Failed to load chunks');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getChunk(String manualId, String chunkId,
+      {required String userEmail}) async {
+    try {
+      final res = await http.get(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/$manualId/chunks/$chunkId?user_email=${Uri.encodeComponent(userEmail)}'),
+      );
+      if (res.statusCode == 200) return jsonDecode(res.body);
+      if (res.statusCode == 403) throw Exception('Admin access required');
+      throw Exception('Failed to load chunk');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> updateChunk(
+      String manualId, String chunkId, String content,
+      {required String userEmail}) async {
+    try {
+      final res = await http.put(
+        Uri.parse('${AppConfig.baseUrl}/manuals/$manualId/chunks/$chunkId'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'content': content, 'user_email': userEmail}),
+      );
+      if (res.statusCode == 200) return jsonDecode(res.body);
+      if (res.statusCode == 403) throw Exception('Admin access required');
+      throw Exception('Failed to update chunk');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteChunk(String manualId, String chunkId,
+      {required String userEmail}) async {
+    try {
+      final res = await http.delete(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/$manualId/chunks/$chunkId?user_email=${Uri.encodeComponent(userEmail)}'),
+      );
+      if (res.statusCode == 204) return;
+      if (res.statusCode == 403) throw Exception('Admin access required');
+      throw Exception('Failed to delete chunk');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> addChunk(String manualId, String content,
+      {int insertAfter = -1, required String userEmail}) async {
+    try {
+      final res = await http.post(
+        Uri.parse('${AppConfig.baseUrl}/manuals/$manualId/chunks'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'content': content,
+          'insert_after': insertAfter,
+          'user_email': userEmail
+        }),
+      );
+      if (res.statusCode == 200) return jsonDecode(res.body);
+      if (res.statusCode == 403) throw Exception('Admin access required');
+      throw Exception('Failed to add chunk');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> splitChunk(
+      String manualId, String chunkId, int splitPosition,
+      {required String userEmail}) async {
+    try {
+      final res = await http.post(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/$manualId/chunks/$chunkId/split'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(
+            {'split_position': splitPosition, 'user_email': userEmail}),
+      );
+      if (res.statusCode == 200) return jsonDecode(res.body);
+      if (res.statusCode == 403) throw Exception('Admin access required');
+      throw Exception('Failed to split chunk');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> mergeChunk(String manualId, String chunkId,
+      {required String userEmail}) async {
+    try {
+      final res = await http.post(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/$manualId/chunks/$chunkId/merge'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_email': userEmail}),
+      );
+      if (res.statusCode == 200) return jsonDecode(res.body);
+      if (res.statusCode == 403) throw Exception('Admin access required');
+      throw Exception('Failed to merge chunk');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> reEmbedAll(String manualId,
+      {required String userEmail}) async {
+    try {
+      final res = await http.post(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/$manualId/chunks/re-embed?user_email=${Uri.encodeComponent(userEmail)}'),
+      );
+      if (res.statusCode == 200) return jsonDecode(res.body);
+      if (res.statusCode == 403) throw Exception('Admin access required');
+      throw Exception('Failed to start re-embed');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> bulkDeleteChunks(
+      String manualId, List<String> chunkIds,
+      {required String userEmail}) async {
+    try {
+      final request = http.Request(
+        'DELETE',
+        Uri.parse('${AppConfig.baseUrl}/manuals/$manualId/chunks/bulk-delete'),
+      );
+      request.headers['Content-Type'] = 'application/json';
+      request.body =
+          jsonEncode({'chunk_ids': chunkIds, 'user_email': userEmail});
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) return jsonDecode(response.body);
+      if (response.statusCode == 403) throw Exception('Admin access required');
+      throw Exception('Failed to bulk delete chunks');
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

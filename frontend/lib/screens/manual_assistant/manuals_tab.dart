@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/manual.dart';
 import '../../services/manual_assistant_service.dart';
 import 'widgets/upload_dialog.dart';
+import 'chunk_editor_screen.dart';
 
 class ManualsTab extends StatefulWidget {
   const ManualsTab({super.key});
@@ -121,8 +122,18 @@ class _ManualsTabState extends State<ManualsTab> {
           return ListTile(
             title: Text(manual.title),
             subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-            trailing: const Icon(Icons.delete_outline),
-            onLongPress: () => _showDeleteDialog(manual),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () => _showDeleteDialog(manual),
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChunkEditorScreen(manual: manual),
+                ),
+              );
+            },
           );
         },
       ),
@@ -151,8 +162,7 @@ class _ManualsTabState extends State<ManualsTab> {
 
     if (confirmed == true) {
       try {
-        final email =
-            Supabase.instance.client.auth.currentUser?.email ?? '';
+        final email = Supabase.instance.client.auth.currentUser?.email ?? '';
         await _service.deleteManual(manual.id, userEmail: email);
         _loadManuals();
         if (mounted) {
