@@ -161,8 +161,14 @@ class _ReviewEntryCardState extends State<ReviewEntryCard> {
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton.icon(
-                  onPressed: () =>
-                      setState(() => _showCorrection = !_showCorrection),
+                  onPressed: () {
+                    setState(() {
+                      _showCorrection = !_showCorrection;
+                      if (_showCorrection && _correctController.text.isEmpty) {
+                        _correctController.text = answerText;
+                      }
+                    });
+                  },
                   icon: const Icon(Icons.edit, size: 18),
                   label: Text(_showCorrection ? 'Cancel' : 'Correct'),
                   style: OutlinedButton.styleFrom(
