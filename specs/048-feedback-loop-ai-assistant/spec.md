@@ -70,7 +70,7 @@ As technicians continue to rate answers and senior engineers continue to review 
 **Acceptance Scenarios**:
 
 1. **Given** a validated answer has been served 5 times and received 4 thumbs-up and 1 thumbs-down, **When** an admin views this entry in the review queue or validated answers list, **Then** they see the cumulative rating counts (4 up, 1 down).
-2. **Given** a validated answer receives a new thumbs-down after being previously approved, **When** the thumbs-down count exceeds a threshold relative to total ratings, **Then** the answer is re-flagged for review so a senior engineer can reassess it.
+2. **Given** a validated answer receives a new thumbs-down after being previously approved, **When** the thumbs-down count exceeds 30% of total ratings (with a minimum of 3 total ratings), **Then** the answer is re-flagged for review so a senior engineer can reassess it.
 
 ---
 
@@ -83,6 +83,7 @@ As technicians continue to rate answers and senior engineers continue to review 
 - What happens when the validated_qa table is empty (no validated answers yet)? The similarity check returns no matches and the system proceeds through the normal pipeline with zero additional latency.
 - What happens when a technician asks a question that matches a validated answer at exactly 0.90 similarity? The system treats 0.90 as the lower bound for direct return (inclusive), returning the validated answer directly.
 - What happens when a corrected answer is very long? The text input for corrections should support multi-line entry but enforce a reasonable character limit consistent with typical manual procedures.
+- What happens when a validated answer is re-flagged and re-reviewed? The existing validated_qa row is updated in place with the new or corrected answer, updated validator identity, and new timestamp. Rating counts are reset to zero to measure fresh performance.
 
 ## Requirements *(mandatory)*
 
@@ -96,7 +97,7 @@ As technicians continue to rate answers and senior engineers continue to review 
 - **FR-006**: Admin users MUST be able to approve an AI answer as correct from the review queue, storing it as a validated answer.
 - **FR-007**: Admin users MUST be able to write a corrected answer to replace the AI answer, storing the correction as the validated answer.
 - **FR-008**: Validated answers MUST be stored with the following metadata: question text, validated answer text, equipment type (extracted from question), fault code (if present in question), procedure referenced, manual IDs used as sources, validated-by user identifier, validation timestamp, cumulative thumbs-up count, cumulative thumbs-down count.
-- **FR-009**: System MUST embed the question text of each validated answer for semantic similarity search.
+- **FR-009**: System MUST embed the question text of each validated answer synchronously at validation time (when the admin saves), making the validated answer immediately available for similarity matching.
 - **FR-010**: When a new question arrives, the system MUST check for semantically similar validated questions before running query rewriting or hypothetical answer generation.
 - **FR-011**: If a validated answer match is found with similarity at or above 0.90, the system MUST return the validated answer directly without invoking the AI generation model.
 - **FR-012**: If a validated answer match is found with similarity between 0.75 (inclusive) and 0.90 (exclusive), the system MUST include the validated answer as a high-priority context chunk that ranks above all retrieved manual chunks.
@@ -110,8 +111,8 @@ As technicians continue to rate answers and senior engineers continue to review 
 
 ### Key Entities
 
-- **Answer Rating**: A technician's evaluation of a single AI-generated answer. Contains the question text, the AI answer text, the source chunks used, the rating (positive or negative), the rater's identity, and the timestamp. A negative rating creates a review flag.
-- **Flagged Answer**: A question-answer pair that received a negative rating and is awaiting senior engineer review. Contains all information from the rating plus review status (pending, approved, corrected). Removed from the queue once reviewed.
+- **Answer Rating**: A technician's evaluation of a single AI-generated answer, stored in a dedicated `answer_ratings` table. Contains the question text, the AI answer text, the source chunks used, the rating (positive or negative), the rater's identity, and the timestamp. All ratings (both positive and negative) are persisted. A negative rating additionally flags the question-answer pair for senior engineer review.
+- **Flagged Answer**: A question-answer pair that received a negative rating and is awaiting senior engineer review. Derived from `answer_ratings` rows with a negative rating. Contains all information from the rating plus review status (pending, approved, corrected). Removed from the queue once reviewed.
 - **Validated QA Pair**: An expert-approved question-answer pair stored for future reuse. Contains the question text, the validated answer (either the original AI answer or a corrected version), an embedding of the question for similarity search, extracted metadata (equipment type, fault code, procedure, manual references), validation provenance (who validated, when), and cumulative rating counts. This is the core knowledge asset that makes the system smarter over time.
 
 ## Success Criteria *(mandatory)*
@@ -125,6 +126,15 @@ As technicians continue to rate answers and senior engineers continue to review 
 - **SC-005**: 100% of thumbs-down rated answers appear in the admin review queue within 5 seconds of rating submission.
 - **SC-006**: Validated answers served directly maintain a thumbs-up rate of 85% or higher, confirming expert-validated quality.
 - **SC-007**: The review queue is accessible only to admin-role users; non-admin users see no indication of its existence.
+
+## Clarifications
+
+### Session 2026-04-13
+
+- Q: Where are individual ratings stored — fire-and-forget, dedicated table, or inline on chat messages? → A: Dedicated `answer_ratings` table stores every rating (thumbs-up and thumbs-down); thumbs-down also flags for review.
+- Q: What re-flagging threshold triggers re-review of a validated answer? → A: Re-flag when thumbs-down exceeds 30% of total ratings, with a minimum of 3 total ratings.
+- Q: When a validated answer is re-flagged and re-reviewed, what happens to the existing record? → A: Update in place — overwrite the validated_qa row with new answer, validator, and timestamp; reset rating counts to zero.
+- Q: Should question embeddings for validated_qa be generated synchronously or asynchronously? → A: Synchronously at save time — validated answer is instantly searchable.
 
 ## Assumptions
 

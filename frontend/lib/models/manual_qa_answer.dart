@@ -14,6 +14,31 @@ class ManualConsulted {
   }
 }
 
+class VerifiedSource {
+  final String validatedQaId;
+  final String validatedBy;
+  final DateTime validatedAt;
+  final double similarity;
+
+  const VerifiedSource({
+    required this.validatedQaId,
+    required this.validatedBy,
+    required this.validatedAt,
+    required this.similarity,
+  });
+
+  factory VerifiedSource.fromJson(Map<String, dynamic> json) {
+    return VerifiedSource(
+      validatedQaId: json['validated_qa_id'] ?? '',
+      validatedBy: json['validated_by'] ?? '',
+      validatedAt: json['validated_at'] != null
+          ? DateTime.parse(json['validated_at'])
+          : DateTime.now(),
+      similarity: (json['similarity'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
+
 class ManualQaAnswer {
   final String answer;
   final List<ManualSource> sources;
@@ -23,6 +48,8 @@ class ManualQaAnswer {
   final String? sessionSummary;
   final List<ManualConsulted> manualsConsulted;
   final bool hasConflicts;
+  final bool isVerified;
+  final VerifiedSource? verifiedSource;
 
   const ManualQaAnswer({
     required this.answer,
@@ -33,6 +60,8 @@ class ManualQaAnswer {
     this.sessionSummary,
     this.manualsConsulted = const [],
     this.hasConflicts = false,
+    this.isVerified = false,
+    this.verifiedSource,
   });
 
   factory ManualQaAnswer.fromJson(Map<String, dynamic> json) {
@@ -48,6 +77,10 @@ class ManualQaAnswer {
         consultedList.add(ManualConsulted.fromJson(mc));
       }
     }
+    VerifiedSource? verifiedSource;
+    if (json['verified_source'] != null) {
+      verifiedSource = VerifiedSource.fromJson(json['verified_source']);
+    }
     return ManualQaAnswer(
       answer: json['answer'] ?? '',
       sources: sourcesList,
@@ -57,6 +90,8 @@ class ManualQaAnswer {
       sessionSummary: json['session_summary'],
       manualsConsulted: consultedList,
       hasConflicts: json['has_conflicts'] ?? false,
+      isVerified: json['is_verified'] ?? false,
+      verifiedSource: verifiedSource,
     );
   }
 

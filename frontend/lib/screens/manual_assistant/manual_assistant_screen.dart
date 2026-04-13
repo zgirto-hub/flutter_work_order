@@ -1,41 +1,118 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/manual_assistant_service.dart';
 import 'chat_tab.dart';
 import 'manuals_tab.dart';
+import 'review_queue_tab.dart';
 
-class ManualAssistantScreen extends StatelessWidget {
+class ManualAssistantScreen extends StatefulWidget {
   final String userRole;
   const ManualAssistantScreen({super.key, this.userRole = ''});
 
   @override
+  State<ManualAssistantScreen> createState() => _ManualAssistantScreenState();
+}
+
+class _ManualAssistantScreenState extends State<ManualAssistantScreen>
+    with TickerProviderStateMixin {
+  late final bool _isAdmin;
+  late final String _userEmail;
+  late final TabController _tabController;
+  final ManualAssistantService _service = ManualAssistantService();
+  int _flaggedCount = 0;
+  final GlobalKey<ReviewQueueTabState> _reviewQueueKey =
+      GlobalKey<ReviewQueueTabState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _isAdmin = widget.userRole == 'admin';
+    _userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
+    _tabController = TabController(length: _isAdmin ? 3 : 2, vsync: this);
+
+    if (_isAdmin) {
+      _loadFlaggedCount();
+      _tabController.addListener(_onTabChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging && _tabController.index == 2) {
+      // Switched to Review Queue tab — reload entries
+      _reviewQueueKey.currentState?.reload();
+    }
+  }
+
+  Future<void> _loadFlaggedCount() async {
+    try {
+      final entries = await _service.getFlaggedAnswers(userEmail: _userEmail);
+      if (mounted) {
+        setState(() => _flaggedCount = entries.length);
+      }
+    } catch (_) {}
+  }
+
+  void _onReviewCountChanged(int newCount) {
+    if (mounted) {
+      setState(() => _flaggedCount = newCount);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isAdmin = userRole == 'admin';
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Ask the AI'),
-          actions: [
-            if (isAdmin)
-              IconButton(
-                icon: const Icon(Icons.tune_outlined, size: 20),
-                tooltip: 'System Instructions',
-                onPressed: () => _showInstructionsDialog(context),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ask the AI'),
+        actions: [
+          if (_isAdmin)
+            IconButton(
+              icon: const Icon(Icons.tune_outlined, size: 20),
+              tooltip: 'System Instructions',
+              onPressed: () => _showInstructionsDialog(context),
+            ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            const Tab(text: 'Chat'),
+            const Tab(text: 'Knowledge'),
+            if (_isAdmin)
+              Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Badge(
+                      isLabelVisible: _flaggedCount > 0,
+                      label: Text('$_flaggedCount'),
+                      child: const Icon(Icons.rate_review, size: 18),
+                    ),
+                    const SizedBox(width: 4),
+                    const Text('Review Queue'),
+                  ],
+                ),
               ),
           ],
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Chat'),
-              Tab(text: 'Knowledge'),
-            ],
-          ),
         ),
-        body: const TabBarView(
-          children: [
-            ChatTab(),
-            ManualsTab(),
-          ],
-        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          const ChatTab(),
+          const ManualsTab(),
+          if (_isAdmin)
+            ReviewQueueTab(
+              key: _reviewQueueKey,
+              userEmail: _userEmail,
+              onCountChanged: _onReviewCountChanged,
+            ),
+        ],
       ),
     );
   }

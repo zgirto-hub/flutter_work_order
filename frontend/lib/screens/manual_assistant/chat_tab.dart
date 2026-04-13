@@ -123,6 +123,40 @@ class _ChatTabState extends State<ChatTab> {
 
   bool get _canSend => !_loading && _manuals.isNotEmpty;
 
+  Future<void> _handleRate(
+      String questionText, ManualQaAnswer answer, String rating) async {
+    final email = Supabase.instance.client.auth.currentUser?.email ?? '';
+    final sourceChunks = answer.sources
+        .map((s) => {
+              'manual_title': s.manualTitle,
+              'source_page': s.sourcePage,
+              'content': s.contentPreview,
+            })
+        .toList();
+
+    try {
+      await _service.rateAnswer(
+        questionText: questionText,
+        answerText: answer.answer,
+        sourceChunks: sourceChunks,
+        rating: rating,
+        raterEmail: email,
+        manualId: _selectedManualId,
+        modelUsed: answer.model,
+        validatedQaId: answer.verifiedSource?.validatedQaId,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not submit rating'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -299,7 +333,15 @@ class _ChatTabState extends State<ChatTab> {
                                     ),
                                   ),
                                   // Answer card
-                                  AnswerCard(answer: msg.answer!),
+                                  AnswerCard(
+                                    answer: msg.answer!,
+                                    questionText: msg.question,
+                                    onRate: (rating) => _handleRate(
+                                      msg.question,
+                                      msg.answer!,
+                                      rating,
+                                    ),
+                                  ),
                                 ],
                               );
                             }
