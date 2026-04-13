@@ -453,7 +453,38 @@ async def _create_alert(
     message: str,
     dedup_key: Optional[str],
 ) -> None:
-    """Create a new pattern alert."""
+    """Create a new pattern alert with optional asset context enrichment."""
+    asset_context = None
+
+    if equipment_id:
+        try:
+            asset_resp = (
+                supabase.table("assets")
+                .select("id, name, type, location")
+                .eq("name", equipment_id)
+                .execute()
+            )
+            if asset_resp.data:
+                asset = asset_resp.data[0]
+                links_resp = (
+                    supabase.table("asset_system_links")
+                    .select("system, role")
+                    .eq("asset_id", asset["id"])
+                    .execute()
+                )
+                systems = [
+                    {"system": l["system"], "role": l["role"]}
+                    for l in (links_resp.data or [])
+                ]
+                asset_context = {
+                    "name": asset["name"],
+                    "type": asset["type"],
+                    "location": asset["location"],
+                    "systems": systems,
+                }
+        except Exception as e:
+            logger.warning(f"[pattern_engine] Failed to enrich asset context: {e}")
+
     try:
         supabase.table("pattern_alerts").insert(
             {
@@ -467,6 +498,7 @@ async def _create_alert(
                 "status": "new",
                 "message": message,
                 "dedup_key": dedup_key,
+                "asset_context": asset_context,
             }
         ).execute()
     except Exception as e:

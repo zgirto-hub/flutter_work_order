@@ -12,6 +12,7 @@ class PatternAlert {
   final String message;
   final DateTime detectedAt;
   final DateTime updatedAt;
+  final Map<String, dynamic>? assetContext;
 
   PatternAlert({
     required this.id,
@@ -27,6 +28,7 @@ class PatternAlert {
     required this.message,
     required this.detectedAt,
     required this.updatedAt,
+    this.assetContext,
   });
 
   factory PatternAlert.fromJson(Map<String, dynamic> json) {
@@ -47,6 +49,7 @@ class PatternAlert {
       message: json['message'] as String,
       detectedAt: DateTime.parse(json['detected_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      assetContext: json['asset_context'] as Map<String, dynamic>?,
     );
   }
 
@@ -65,6 +68,7 @@ class PatternAlert {
       'message': message,
       'detected_at': detectedAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'asset_context': assetContext,
     };
   }
 
@@ -82,6 +86,7 @@ class PatternAlert {
     String? message,
     DateTime? detectedAt,
     DateTime? updatedAt,
+    Map<String, dynamic>? assetContext,
   }) {
     return PatternAlert(
       id: id ?? this.id,
@@ -97,6 +102,7 @@ class PatternAlert {
       message: message ?? this.message,
       detectedAt: detectedAt ?? this.detectedAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      assetContext: assetContext ?? this.assetContext,
     );
   }
 }

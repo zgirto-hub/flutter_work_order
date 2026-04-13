@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../models/pattern_alert.dart';
+import '../../../theme/app_theme.dart';
 
 class AlertCard extends StatelessWidget {
   final PatternAlert alert;
@@ -169,6 +170,54 @@ class AlertCard extends StatelessWidget {
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                 ],
+              ),
+            ],
+            if (alert.assetContext != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.bgSurface2,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.inventory_2_outlined,
+                            size: 14, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Asset Context',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Location: ${alert.assetContext!['location'] ?? 'N/A'}',
+                      style:
+                          TextStyle(fontSize: 11, color: AppColors.textPrimary),
+                    ),
+                    Text(
+                      'Type: ${alert.assetContext!['type'] ?? 'N/A'}',
+                      style:
+                          TextStyle(fontSize: 11, color: AppColors.textPrimary),
+                    ),
+                    if (alert.assetContext!['systems'] != null &&
+                        (alert.assetContext!['systems'] as List).isNotEmpty)
+                      Text(
+                        'Systems: ${(alert.assetContext!['systems'] as List).map((s) => '${s['system']} [${s['role']}]').join(', ')}',
+                        style: TextStyle(
+                            fontSize: 11, color: AppColors.textPrimary),
+                      ),
+                  ],
+                ),
               ),
             ],
             const SizedBox(height: 8),

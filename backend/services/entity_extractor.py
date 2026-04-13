@@ -14,19 +14,11 @@ from services.pattern_engine import evaluate_patterns
 from services.ai_queue import PRIORITY_LOW
 
 
-EXTRACTION_PROMPT = """You are an expert at extracting structured information from work order descriptions at Kuwait DGCA (Civil Aviation).
+EXTRACTION_PROMPT_TEMPLATE = """You are an expert at extracting structured information from work order descriptions at Kuwait DGCA (Civil Aviation).
 
 The input text may be in Arabic, English, or mixed. You MUST output all field values in English regardless of input language.
 
-DOMAIN KNOWLEDGE — Known systems and their components:
-- CADAS-ATS: Air Traffic Services system. Components: workstations, servers, switches.
-- CADAS-IMS: Information Management System. Components: workstations, servers, switches.
-- AIDA-NG: Aeronautical Information system. Components: workstations, servers, switches, international circuits.
-- INDRA CCTV: Surveillance system. Components: workstations, Bosch cameras, media converters (fiber to LAN), power adapters, switches.
-- MUX: Multiplexer / AFTN messaging system.
-- AFTN: Aeronautical Fixed Telecommunication Network.
-
-When a work order mentions any of these systems or their components, use the system name for the "system" field and identify the specific component as "equipment_id". For example, "CADAS-ATS mailbox" -> system="CADAS-ATS", equipment_id="CADAS-ATS mailbox server". "Camera 3 media converter" -> system="INDRA CCTV", equipment_id="Camera 3 media converter".
+{{domain_knowledge}}
 
 Extract the following fields from the work order text below. Return a JSON object with these exact field names:
 - system (optional string — the parent system name: "CADAS-ATS", "CADAS-IMS", "AIDA-NG", "INDRA CCTV", "MUX", "AFTN", or other system if identifiable)
@@ -117,6 +109,20 @@ def _log_extraction_failure(
         )
 
 
+def _get_domain_knowledge_block() -> str:
+    """Get formatted domain knowledge from asset registry for extraction prompt."""
+    try:
+        from routers.asset_registry import get_domain_knowledge_block as get_block
+
+        return get_block()
+    except Exception as e:
+        print(
+            f"[entity_extractor] Failed to get domain knowledge from registry: {e}",
+            file=sys.stderr,
+        )
+        return "No assets registered in the asset registry."
+
+
 async def extract_entities(work_order_id: str) -> Optional[dict]:
     try:
         result = (
@@ -142,7 +148,11 @@ async def extract_entities(work_order_id: str) -> Optional[dict]:
             )
             return None
 
-        prompt = EXTRACTION_PROMPT.replace("{{work_order_text}}", combined)
+        domain_knowledge = _get_domain_knowledge_block()
+        prompt = EXTRACTION_PROMPT_TEMPLATE.replace(
+            "{{domain_knowledge}}", domain_knowledge
+        )
+        prompt = prompt.replace("{{work_order_text}}", combined)
 
         raw_response: Optional[str] = None
         parsed_data: Optional[dict] = None
