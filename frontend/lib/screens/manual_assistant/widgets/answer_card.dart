@@ -20,6 +20,56 @@ class AnswerCard extends StatelessWidget {
               answer.answer,
               style: const TextStyle(fontSize: 14),
             ),
+            if (answer.manualsConsulted.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.blueGrey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.auto_awesome,
+                        size: 14, color: Colors.blueGrey.shade700),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Synthesized from ${answer.manualsConsulted.length} manuals: ${answer.manualsConsulted.map((m) => m.title).join(", ")}',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.blueGrey.shade700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (answer.hasConflicts) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        size: 14, color: Colors.amber.shade800),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'This answer contains conflicting information between manuals',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.amber.shade900),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (answer.model != null) ...[
               const SizedBox(height: 8),
               Text(
