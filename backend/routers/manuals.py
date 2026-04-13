@@ -438,13 +438,16 @@ async def rate_answer(request: RateAnswerRequest):
 
 @router.get("/manuals/flagged-answers")
 async def get_flagged_answers(user_email: str = Query(...)):
-    user_resp = (
-        supabase.table("users")
-        .select("role")
-        .eq("email", user_email)
-        .single()
-        .execute()
-    )
+    try:
+        user_resp = (
+            supabase.table("users")
+            .select("role")
+            .eq("email", user_email)
+            .maybe_single()
+            .execute()
+        )
+    except Exception:
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
     if not user_resp.data or user_resp.data.get("role") != "admin":
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
 
@@ -459,13 +462,16 @@ async def get_flagged_answers(user_email: str = Query(...)):
 
 @router.post("/manuals/review-answer")
 async def review_answer(request: ReviewAnswerRequest):
-    user_resp = (
-        supabase.table("users")
-        .select("role")
-        .eq("email", request.reviewer_email)
-        .single()
-        .execute()
-    )
+    try:
+        user_resp = (
+            supabase.table("users")
+            .select("role")
+            .eq("email", request.reviewer_email)
+            .maybe_single()
+            .execute()
+        )
+    except Exception:
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
     if not user_resp.data or user_resp.data.get("role") != "admin":
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
 
