@@ -1,6 +1,6 @@
 # Feature Specification: Feedback Loop AI Assistant
 
-**Feature Branch**: `047-feedback-loop-ai-assistant`  
+**Feature Branch**: `048-feedback-loop-ai-assistant`  
 **Created**: 2026-04-13  
 **Status**: Draft  
 **Input**: User description: "Feedback loop system for the manual assistant AI pipeline. After every answer the assistant gives, the technician can rate it (thumbs up / thumbs down) directly in the Flutter chat interface. Thumbs down answers are flagged for review. A senior engineer (admin role) sees a review queue in the Manual Assistant screen showing all flagged answers with the original question, the AI answer, and the source chunks used. The senior engineer can either write a corrected answer or approve the AI answer as correct. Validated answers (both approved and corrected) are stored in Supabase as a validated_qa table with metadata. When a new question arrives, check the validated_qa table for a semantically similar question using pgvector cosine similarity. If a match is found with similarity above 0.90, return the validated answer directly. If similarity is between 0.75 and 0.90, include the validated answer as a high-priority context chunk."
