@@ -82,6 +82,8 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: [
             const Tab(text: 'Chat'),
             const Tab(text: 'Knowledge'),
@@ -96,7 +98,7 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
                       child: const Icon(Icons.rate_review, size: 18),
                     ),
                     const SizedBox(width: 4),
-                    const Text('Review Queue'),
+                    const Text('Review'),
                   ],
                 ),
               ),
