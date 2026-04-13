@@ -80,8 +80,7 @@ async def seed_built_in_rules() -> None:
             return
 
         rules_to_insert = [
-            {**rule, "is_built_in": True, "enabled": True}
-            for rule in BUILT_IN_RULES
+            {**rule, "is_built_in": True, "enabled": True} for rule in BUILT_IN_RULES
         ]
 
         supabase.table("pattern_rules").insert(rules_to_insert).execute()
@@ -130,6 +129,7 @@ async def evaluate_patterns(work_order_id: str) -> None:
                 await _create_alert(
                     rule_id=rule["id"],
                     work_order_ids=[work_order_id],
+                    system=entity.get("system"),
                     equipment_id=entity.get("equipment_id"),
                     fault_type=entity.get("fault_type"),
                     technician_id=entity.get("technician_id"),
@@ -185,7 +185,7 @@ async def full_scan() -> dict[str, Any]:
                 continue
 
             if match["matched"]:
-                dedup_key = f"{rule_id}:{entity.get('equipment_id')}:{entity.get('fault_type')}:{_get_year_month(entity_date)}"
+                dedup_key = f"{rule_id}:{entity.get('system')}:{entity.get('equipment_id')}:{entity.get('fault_type')}:{_get_year_month(entity_date)}"
                 existing = (
                     supabase.table("pattern_alerts")
                     .select("id")
@@ -199,6 +199,7 @@ async def full_scan() -> dict[str, Any]:
                 await _create_alert(
                     rule_id=rule_id,
                     work_order_ids=[entity["work_order_id"]],
+                    system=entity.get("system"),
                     equipment_id=entity.get("equipment_id"),
                     fault_type=entity.get("fault_type"),
                     technician_id=entity.get("technician_id"),
@@ -444,6 +445,7 @@ async def _check_parts_replaced_recurrence(entity: dict, rule: dict) -> dict:
 async def _create_alert(
     rule_id: str,
     work_order_ids: list[str],
+    system: Optional[str],
     equipment_id: Optional[str],
     fault_type: Optional[str],
     technician_id: Optional[str],
@@ -457,6 +459,7 @@ async def _create_alert(
             {
                 "rule_id": rule_id,
                 "work_order_ids": work_order_ids,
+                "system": system,
                 "equipment_id": equipment_id,
                 "fault_type": fault_type,
                 "technician_id": technician_id,
