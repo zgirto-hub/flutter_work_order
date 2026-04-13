@@ -484,7 +484,7 @@ async def ask(
     embedding_str = "[" + ",".join(str(x) for x in question_embedding) + "]"
     rpc_params = {
         "q_embedding": embedding_str,
-        "match_count": 5,
+        "match_count": 10,
     }
     # Only include manual_id_filter if set — omitting it lets the SQL DEFAULT NULL
     # pass all manuals. Sending None via PostgREST can cause casting issues.
