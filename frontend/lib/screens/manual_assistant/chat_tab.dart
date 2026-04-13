@@ -26,7 +26,11 @@ class ChatTab extends StatefulWidget {
   State<ChatTab> createState() => _ChatTabState();
 }
 
-class _ChatTabState extends State<ChatTab> {
+class _ChatTabState extends State<ChatTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   final ManualAssistantService _service = ManualAssistantService();
   final TextEditingController _questionController = TextEditingController();
   final List<ChatMessage> _messages = [];
@@ -159,6 +163,7 @@ class _ChatTabState extends State<ChatTab> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Column(
       children: [
         // Filter dropdowns
