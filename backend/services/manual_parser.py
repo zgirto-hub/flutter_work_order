@@ -54,6 +54,8 @@ def parse_docx(file_bytes: bytes) -> List[Tuple[int | None, str]]:
 
 
 def parse_txt(file_bytes: bytes) -> List[Tuple[int | None, str]]:
+    import re
+
     try:
         text = file_bytes.decode("utf-8")
     except UnicodeDecodeError:
@@ -63,8 +65,16 @@ def parse_txt(file_bytes: bytes) -> List[Tuple[int | None, str]]:
     if not text:
         raise NoExtractableTextError("The file contains no extractable text.")
 
+    # Split on section-style delimiters (===, ---, ***) or double newlines.
+    # This ensures structured manuals get section-level splits, not just
+    # paragraph splits, producing cleaner chunks for vector search.
+    section_pattern = re.compile(
+        r"\n\s*[=\-\*]{3,}\s*\n"  # lines of ===, ---, or ***
+        r"|\n{2,}"                 # or double+ newlines
+    )
+
     paragraphs = []
-    for para in text.split("\n\n"):
+    for para in section_pattern.split(text):
         para = para.strip()
         if para:
             paragraphs.append((None, para))
