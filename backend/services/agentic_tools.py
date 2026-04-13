@@ -15,7 +15,7 @@ TOOL_MANIFEST = """You have access to the following tools to help answer user qu
    Description: Query work order records from the database. Use this when the user asks about specific work orders, their status, or details.
    Parameters:
    - work_order_number (str, optional): Filter by work order job number (e.g., "WO260413-HYD01")
-   - status (str, optional): Filter by work order status (e.g., "open", "closed", "pending")
+   - status (str, optional): Filter by work order status. Valid values: "Pending", "In Progress", "Resolved", "Closed"
    - equipment_type (str, optional): Filter by equipment type (e.g., "generator", "pump")
    - date_from (str, optional): Filter work orders created on or after this date (YYYY-MM-DD)
    - date_to (str, optional): Filter work orders created on or before this date (YYYY-MM-DD)
@@ -127,7 +127,18 @@ async def execute_work_orders_tool(params: dict) -> dict:
             query = query.eq("job_no", str(wo_num))
 
         if "status" in params:
-            query = query.eq("status", params["status"])
+            # Normalize status to title case to match DB values
+            # (Pending, In Progress, Resolved, Closed)
+            raw_status = params["status"].strip()
+            status_map = {
+                "pending": "Pending",
+                "in progress": "In Progress",
+                "resolved": "Resolved",
+                "closed": "Closed",
+                "open": "In Progress",  # common alias
+            }
+            normalized = status_map.get(raw_status.lower(), raw_status)
+            query = query.eq("status", normalized)
 
         if "equipment_type" in params:
             query = query.ilike("type", f"%{params['equipment_type']}%")
