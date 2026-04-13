@@ -14,7 +14,7 @@ TOOL_MANIFEST = """You have access to the following tools to help answer user qu
 1. work_orders
    Description: Query work order records from the database. Use this when the user asks about specific work orders, their status, or details.
    Parameters:
-   - work_order_number (int, optional): Filter by work order job number
+   - work_order_number (str, optional): Filter by work order job number (e.g., "WO260413-HYD01")
    - status (str, optional): Filter by work order status (e.g., "open", "closed", "pending")
    - equipment_type (str, optional): Filter by equipment type (e.g., "generator", "pump")
    - technician_name (str, optional): Filter by assigned technician name
@@ -52,6 +52,19 @@ Instructions:
 """
 
 VALID_TOOLS = {"work_orders", "manuals", "compare"}
+
+# Keywords that signal the question may need tools (work order data)
+_WO_KEYWORDS = re.compile(
+    r"work\s*order|wo\d|wo-|wo\s*#|job\s*(no|number)|status\s*of\s*(wo|work)|"
+    r"pending\s*work|open\s*work|closed\s*work|in\s*progress\s*work|"
+    r"compare.*procedure|follow.*procedure|match.*manual|comply|compliance|discrepancy",
+    re.IGNORECASE,
+)
+
+
+def _needs_tools(question: str) -> bool:
+    """Quick keyword check — does the question likely need agentic tools?"""
+    return bool(_WO_KEYWORDS.search(question))
 
 
 def parse_tool_call(response_text: str) -> tuple[str | None, dict | None]:
@@ -109,8 +122,9 @@ async def execute_work_orders_tool(params: dict) -> dict:
             "departments(name), users!work_orders_assigned_technician_id_fkey(full_name)"
         )
 
-        if "work_order_number" in params:
-            query = query.eq("job_no", params["work_order_number"])
+        wo_num = params.get("work_order_number") or params.get("job_no")
+        if wo_num:
+            query = query.eq("job_no", str(wo_num))
 
         if "status" in params:
             query = query.eq("status", params["status"])
@@ -315,6 +329,23 @@ async def run_agentic_loop(
         Dict with answer, tools_used, agentic flag, and other metadata
     """
     start_time = time.time()
+
+    # Fast path: if the question doesn't reference work orders or comparisons,
+    # skip the agentic loop entirely and use the existing RAG pipeline.
+    if not _needs_tools(question):
+        logger.info("No tool keywords detected, using direct RAG pipeline")
+        result = await manual_rag_ask(
+            question=question,
+            manual_id_filter=manual_id_filter,
+            model=model,
+            history=history,
+            session_summary=session_summary,
+        )
+        result["agentic"] = False
+        result["tools_used"] = []
+        result["duration_seconds"] = time.time() - start_time
+        return result
+
     tool_calls_log = []
     call_count = 0
     MAX_CALLS = 3
@@ -332,6 +363,16 @@ async def run_agentic_loop(
     )
 
     prompt = f"""System: {TOOL_MANIFEST}
+
+IMPORTANT: The user's question references work orders or asks to compare data against procedures.
+You MUST use the appropriate tool(s) to answer. Do NOT answer from memory — call a tool first.
+If the question mentions a work order number, status, or technician, call the work_orders tool.
+If the question asks about a procedure, call the manuals tool.
+If the question asks to compare or check compliance, call work_orders, then manuals, then compare.
+
+Output your tool call NOW in this exact format:
+TOOL_CALL: <tool_name>
+PARAMS: <json>
 
 {history_context}{session_context}
 User: {question}"""
