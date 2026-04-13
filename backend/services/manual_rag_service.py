@@ -21,11 +21,20 @@ _si_cache: dict = {"value": "", "ts": 0.0}
 _SI_CACHE_TTL = 60.0  # seconds
 
 # Chunk reranking thresholds (spec 044)
-# MAX_CHUNK_DISTANCE: cosine distance ceiling; 0.45 was too strict for technical
-# manuals with part-number queries — loosened to 0.55 (= 0.45 similarity minimum)
-MAX_CHUNK_DISTANCE = 0.55
+# MAX_CHUNK_DISTANCE: cosine distance ceiling; 0.30 distance = 0.70 similarity
+MAX_CHUNK_DISTANCE = 0.45
 # MAX_PROMPT_CHUNKS: max chunks sent to LLM after filtering
 MAX_PROMPT_CHUNKS = 3
+
+# Cross-manual synthesis limits (spec 046)
+MAX_CHUNKS_PER_MANUAL = 3
+MAX_MANUALS_FOR_SYNTHESIS = 8
+
+# Sentinel phrases indicating an ungrounded answer (shared by single- and cross-manual paths)
+_SENTINEL_PHRASES = [
+    "this information is not in the available manuals",
+    "المعلومات المطلوبة غير موجودة في الأدلة المتاحة",
+]
 
 
 def _get_system_instructions() -> str:
@@ -410,6 +419,203 @@ MANUAL PASSAGE:
         return None
 
 
+async def _retrieve_chunks_per_manual(embedding_str: str) -> dict[str, list[dict]]:
+    """Retrieve top qualifying chunks grouped by manual ID (spec 046)."""
+    # Get all manual IDs
+    manuals_resp = supabase.table("manuals").select("id, title").execute()
+    if not manuals_resp.data:
+        return {}
+
+    chunks_by_manual: dict[str, list[dict]] = {}
+    for manual in manuals_resp.data:
+        mid = manual["id"]
+        try:
+            rpc_response = supabase.rpc(
+                "search_manual_chunks",
+                {
+                    "q_embedding": embedding_str,
+                    "match_count": 10,
+                    "manual_id_filter": str(mid),
+                },
+            ).execute()
+            raw_chunks = rpc_response.data or []
+        except Exception as e:
+            logger.warning("Per-manual retrieval failed for %s: %s", mid, e)
+            continue
+
+        # Apply reranking: distance threshold + cap
+        qualified = [
+            c for c in raw_chunks if c.get("distance", 1.0) <= MAX_CHUNK_DISTANCE
+        ][:MAX_CHUNKS_PER_MANUAL]
+
+        if qualified:
+            chunks_by_manual[str(mid)] = qualified
+
+    # If more than MAX_MANUALS_FOR_SYNTHESIS manuals qualified, keep the most relevant
+    if len(chunks_by_manual) > MAX_MANUALS_FOR_SYNTHESIS:
+        ranked = sorted(
+            chunks_by_manual.items(),
+            key=lambda item: sum(c.get("distance", 1.0) for c in item[1]) / len(item[1]),
+        )
+        chunks_by_manual = dict(ranked[:MAX_MANUALS_FOR_SYNTHESIS])
+
+    logger.info(
+        "Per-manual retrieval: %d manuals with qualifying chunks",
+        len(chunks_by_manual),
+    )
+    return chunks_by_manual
+
+
+async def _generate_sub_answers(
+    chunks_by_manual: dict[str, list[dict]],
+    question: str,
+    history: list[dict] | None,
+    memory: str | None,
+    model: str | None,
+) -> list[dict]:
+    """Generate a sub-answer for each manual's chunks (spec 046)."""
+    from services.ollama_generator import generate
+
+    sub_answers = []
+    last_error = None
+    for manual_id, chunks in chunks_by_manual.items():
+        manual_title = chunks[0].get("manual_title", "Unknown")
+
+        # Build prompt from this manual's chunks only
+        retrieved_text = ""
+        manual_sources = []
+        for i, chunk in enumerate(chunks):
+            source_page = chunk.get("source_page")
+            content = chunk.get("content", "")
+            retrieved_text += f"[Source {i + 1}: {manual_title}, page {source_page or '—'}]\n{content}\n---\n"
+            manual_sources.append(
+                {
+                    "manual_id": chunk.get("manual_id"),
+                    "manual_title": manual_title,
+                    "chunk_index": chunk.get("chunk_index", 0),
+                    "source_page": source_page,
+                    "content_preview": content[:500],
+                }
+            )
+
+        prompt = _build_prompt(retrieved_text, question, history, memory)
+
+        try:
+            answer_text = await generate(prompt, model=model)
+        except Exception as e:
+            logger.warning(
+                "Sub-answer generation failed for manual '%s': %s", manual_title, e
+            )
+            last_error = e
+            continue
+
+        # Check if grounded
+        grounded = not any(
+            sentinel in answer_text.lower() for sentinel in _SENTINEL_PHRASES
+        )
+
+        sub_answers.append(
+            {
+                "manual_id": manual_id,
+                "manual_title": manual_title,
+                "answer": answer_text.strip(),
+                "chunks": manual_sources,
+                "grounded": grounded,
+            }
+        )
+
+    # If all generations failed, re-raise the last error
+    if not sub_answers and last_error is not None:
+        raise last_error
+
+    logger.info(
+        "Sub-answers: %d generated, %d grounded",
+        len(sub_answers),
+        sum(1 for s in sub_answers if s["grounded"]),
+    )
+    return sub_answers
+
+
+async def _synthesize_answers(
+    sub_answers: list[dict],
+    question: str,
+    model: str | None,
+) -> dict:
+    """Combine grounded sub-answers into one synthesized answer (spec 046)."""
+    from services.ollama_generator import generate
+
+    grounded = [s for s in sub_answers if s["grounded"]]
+
+    # No grounded answers
+    if not grounded:
+        return {
+            "answer": "This information is not in the available manuals.",
+            "synthesized": False,
+            "manuals_consulted": [],
+            "has_conflicts": False,
+            "grounded": False,
+        }
+
+    # Single grounded answer — skip synthesis, no extra LLM call
+    if len(grounded) == 1:
+        sa = grounded[0]
+        return {
+            "answer": sa["answer"],
+            "synthesized": False,
+            "manuals_consulted": [{"id": sa["manual_id"], "title": sa["manual_title"]}],
+            "has_conflicts": False,
+            "grounded": True,
+        }
+
+    # Multiple grounded answers — synthesize
+    manual_answers_block = "\n\n".join(
+        f"[Manual: {sa['manual_title']}]\n{sa['answer']}" for sa in grounded
+    )
+
+    synthesis_prompt = (
+        "You are a technical synthesis expert for civil aviation maintenance.\n"
+        "You have received answers from multiple technical manuals to the same question.\n\n"
+        "Produce ONE coherent answer that:\n"
+        "1. Combines information from all manuals into a unified response\n"
+        '2. Names each manual when attributing information (e.g., "According to [Manual Title], ...")\n'
+        "3. If manuals AGREE on a point, state it once and cite all agreeing manuals\n"
+        "4. If manuals CONTRADICT each other, explicitly flag the conflict:\n"
+        '   "⚠ CONFLICT: [Manual A] states X, while [Manual B] states Y"\n'
+        "5. Reply in the same language as the question (Arabic or English)\n\n"
+        f"QUESTION: {question}\n\n"
+        f"MANUAL ANSWERS:\n{manual_answers_block}\n\n"
+        "SYNTHESIZED ANSWER:"
+    )
+
+    try:
+        synthesized = await generate(synthesis_prompt, model=model)
+    except Exception as e:
+        logger.warning("Synthesis failed, returning first sub-answer: %s", e)
+        first = grounded[0]
+        return {
+            "answer": first["answer"],
+            "synthesized": False,
+            "manuals_consulted": [
+                {"id": first["manual_id"], "title": first["manual_title"]}
+            ],
+            "has_conflicts": False,
+            "grounded": True,
+        }
+
+    answer_text = synthesized.strip()
+    has_conflicts = "⚠ CONFLICT:" in answer_text or "⚠ تعارض:" in answer_text
+
+    return {
+        "answer": answer_text,
+        "synthesized": True,
+        "manuals_consulted": [
+            {"id": sa["manual_id"], "title": sa["manual_title"]} for sa in grounded
+        ],
+        "has_conflicts": has_conflicts,
+        "grounded": True,
+    }
+
+
 async def ask(
     question: str,
     manual_id_filter: Optional[UUID] = None,
@@ -435,43 +641,12 @@ async def ask(
             "session_summary": None,
         }
 
-    # --- Compression logic (spec 045) ---
-    # Determine compression early so it can run in parallel with search pipeline.
-    # Compression only needs history + session_summary, not search results.
-    import asyncio
+    # Rewrite query for better retrieval (uses conversation context for follow-up questions)
+    search_query = await _rewrite_query(question, history)
 
-    memory: str | None = None
-    effective_history = history
-    needs_compression = history and len(history) > 8
-    compression_task: asyncio.Task | None = None
-    turns_to_preserve = 4
-
-    if needs_compression:
-        turns_already_compressed = len(history) - turns_to_preserve
-
-        if session_summary and turns_already_compressed <= 5:
-            # Reuse: threshold triggers at >8 turns (9+), preserving 4 → first
-            # compression covers 5 turns. Reuse while that count hasn't grown.
-            logger.info("[COMPRESS] Reusing existing summary")
-            memory = session_summary
-            effective_history = history[-turns_to_preserve:]
-        else:
-            # Launch compression in parallel with the search pipeline below
-            old_turns = (
-                history[:-turns_to_preserve]
-                if len(history) > turns_to_preserve
-                else history
-            )
-            compression_task = asyncio.create_task(
-                _compress_history(old_turns, session_summary, model)
-            )
-
-    # --- Search pipeline (runs in parallel with compression) ---
-    # Skip query rewrite and HyDE to minimize Ollama calls. On a single-GPU server
-    # Ollama serializes generate requests, so each extra call adds ~15s. Direct
-    # embedding produces good enough retrieval (distances 0.32-0.43 observed).
-    # Both _rewrite_query() and _generate_hypothetical_answer() are preserved if needed.
-    embed_input = question
+    # HyDE: generate hypothetical answer for better embedding
+    hyde_text = await _generate_hypothetical_answer(search_query)
+    embed_input = hyde_text if hyde_text else search_query
 
     # Embed the question
     try:
@@ -479,160 +654,255 @@ async def ask(
     except EmbedderTimeoutError:
         raise EmbedderUnavailableError()
 
-    # Retrieve top-5 nearest chunks via the pgvector RPC.
     # Convert embedding list to string format for PostgREST → pgvector cast.
     embedding_str = "[" + ",".join(str(x) for x in question_embedding) + "]"
-    rpc_params = {
-        "q_embedding": embedding_str,
-        "match_count": 10,
-    }
-    # Only include manual_id_filter if set — omitting it lets the SQL DEFAULT NULL
-    # pass all manuals. Sending None via PostgREST can cause casting issues.
-    if manual_id_filter:
-        rpc_params["manual_id_filter"] = str(manual_id_filter)
-    try:
-        rpc_response = supabase.rpc(
-            "search_manual_chunks",
-            rpc_params,
-        ).execute()
-        chunks_data = rpc_response.data or []
-    except Exception:
-        raise
 
-    if not chunks_data:
-        # Cancel pending compression — we won't need it
-        if compression_task:
-            compression_task.cancel()
-        return {
-            "answer": "This information is not in the available manuals.",
-            "grounded": False,
-            "sources": [],
-            "session_summary": None,
-        }
+    # --- Compression logic (spec 045) — shared by both paths ---
+    memory: str | None = None
+    effective_history = history
+    needs_compression = history and len(history) > 8
 
-    # --- Chunk reranking (spec 044) ---
-    # Filter: keep only chunks within the distance threshold
-    qualified_chunks = [
-        c for c in chunks_data if c.get("distance", 1.0) <= MAX_CHUNK_DISTANCE
-    ]
-    passed_count = len(qualified_chunks)
-    # Slice: take at most MAX_PROMPT_CHUNKS (already sorted by distance ascending from RPC)
-    qualified_chunks = qualified_chunks[:MAX_PROMPT_CHUNKS]
+    if needs_compression:
+        turns_to_preserve = 4
+        turns_already_compressed = len(history) - turns_to_preserve
 
-    logger.info(
-        "Chunk reranking: %d retrieved → %d passed threshold (≤%.2f) → %d sent to LLM",
-        len(chunks_data),
-        passed_count,
-        MAX_CHUNK_DISTANCE,
-        len(qualified_chunks),
-    )
-    if not qualified_chunks:
-        if compression_task:
-            compression_task.cancel()
-        return {
-            "answer": "This information is not in the available manuals.",
-            "grounded": False,
-            "sources": [],
-            "model": None,
-            "duration_seconds": 0,
-            "session_summary": None,
-        }
-
-    # --- Await compression result (should already be done or nearly done) ---
-    if compression_task:
-        new_summary = await compression_task
-        if new_summary:
-            memory = new_summary
+        if session_summary and turns_already_compressed <= 5:
+            logger.info("[COMPRESS] Reusing existing summary")
+            memory = session_summary
             effective_history = history[-turns_to_preserve:]
-            old_count = len(history) - turns_to_preserve
-            logger.info(
-                "[COMPRESS] Created new summary from %d turns", old_count
-            )
         else:
-            # Compression failed, fall back to last 10 turns
-            logger.warning(
-                "[COMPRESS] Compression failed, falling back to last 10 turns"
+            old_turns = (
+                history[:-turns_to_preserve]
+                if len(history) > turns_to_preserve
+                else history
             )
-            effective_history = history[-10:] if history else None
-            memory = None
+            new_summary = await _compress_history(old_turns, session_summary, model)
+            if new_summary:
+                memory = new_summary
+                effective_history = history[-turns_to_preserve:]
+                logger.info(
+                    "[COMPRESS] Created new summary from %d turns", len(old_turns)
+                )
+            else:
+                logger.warning(
+                    "[COMPRESS] Compression failed, falling back to last 10 turns"
+                )
+                effective_history = history[-10:] if history else None
+                memory = None
 
-    # Build prompt from qualified chunks
-    retrieved_chunks = ""
-    sources = []
-    for i, chunk in enumerate(qualified_chunks):
-        manual_title = chunk.get("manual_title", "Unknown")
-        source_page = chunk.get("source_page")
-        content = chunk.get("content", "")
-        retrieved_chunks += f"[Source {i + 1}: {manual_title}, page {source_page or '—'}]\n{content}\n---\n"
-        sources.append(
-            {
-                "manual_id": chunk.get("manual_id"),
-                "manual_title": manual_title,
-                "chunk_index": chunk.get("chunk_index", 0),
-                "source_page": source_page,
-                "content_preview": content[:500],
-            }
-        )
-
-    prompt = _build_prompt(retrieved_chunks, question, effective_history, memory)
-    # Generate answer
     import time
-
-    gen_start = time.monotonic()
-    try:
-        answer = await generate(prompt, model=model)
-    except GeneratorTimeoutError:
-        raise GeneratorUnavailableError()
-    gen_elapsed = time.monotonic() - gen_start
-
-    # Check groundedness
-    sentinel_phrases = [
-        "This information is not in the available manuals.",
-        "المعلومات المطلوبة غير موجودة في الأدلة المتاحة",
-    ]
-
-    grounded = not any(phrase.lower() in answer.lower() for phrase in sentinel_phrases)
-
     from services.ollama_generator import get_default_model
 
     used_model = model or get_default_model()
-    if not grounded:
+
+    # ================================================================
+    # BRANCH: single-manual vs cross-manual synthesis (spec 046)
+    # ================================================================
+    if manual_id_filter:
+        # === EXISTING SINGLE-MANUAL PATH (unchanged) ===
+        rpc_params = {
+            "q_embedding": embedding_str,
+            "match_count": 5,
+            "manual_id_filter": str(manual_id_filter),
+        }
+        try:
+            rpc_response = supabase.rpc("search_manual_chunks", rpc_params).execute()
+            chunks_data = rpc_response.data or []
+        except Exception:
+            raise
+
+        if not chunks_data:
+            return {
+                "answer": "This information is not in the available manuals.",
+                "grounded": False,
+                "sources": [],
+                "session_summary": memory,
+            }
+
+        # Chunk reranking (spec 044)
+        qualified_chunks = [
+            c for c in chunks_data if c.get("distance", 1.0) <= MAX_CHUNK_DISTANCE
+        ]
+        passed_count = len(qualified_chunks)
+        qualified_chunks = qualified_chunks[:MAX_PROMPT_CHUNKS]
+
+        logger.info(
+            "Chunk reranking: %d retrieved → %d passed threshold (≤%.2f) → %d sent to LLM",
+            len(chunks_data),
+            passed_count,
+            MAX_CHUNK_DISTANCE,
+            len(qualified_chunks),
+        )
+
+        if not qualified_chunks:
+            return {
+                "answer": "This information is not in the available manuals.",
+                "grounded": False,
+                "sources": [],
+                "model": used_model,
+                "duration_seconds": 0,
+                "session_summary": memory,
+            }
+
+        # Build prompt from qualified chunks
+        retrieved_chunks = ""
+        sources = []
+        for i, chunk in enumerate(qualified_chunks):
+            manual_title = chunk.get("manual_title", "Unknown")
+            source_page = chunk.get("source_page")
+            content = chunk.get("content", "")
+            retrieved_chunks += f"[Source {i + 1}: {manual_title}, page {source_page or '—'}]\n{content}\n---\n"
+            sources.append(
+                {
+                    "manual_id": chunk.get("manual_id"),
+                    "manual_title": manual_title,
+                    "chunk_index": chunk.get("chunk_index", 0),
+                    "source_page": source_page,
+                    "content_preview": content[:500],
+                }
+            )
+
+        prompt = _build_prompt(retrieved_chunks, question, effective_history, memory)
+
+        gen_start = time.monotonic()
+        try:
+            answer = await generate(prompt, model=model)
+        except GeneratorTimeoutError:
+            raise GeneratorUnavailableError()
+        gen_elapsed = time.monotonic() - gen_start
+
+        # Check groundedness
+        grounded = not any(
+            phrase in answer.lower() for phrase in _SENTINEL_PHRASES
+        )
+
+        if not grounded:
+            return {
+                "answer": "This information is not in the available manuals.",
+                "grounded": False,
+                "sources": [],
+                "model": used_model,
+                "duration_seconds": round(gen_elapsed, 1),
+                "session_summary": memory,
+            }
+
+        # Highlight sources
+        final_sources = []
+        for src in sources:
+            preview = src["content_preview"]
+            highlight_start, highlight_end = compute_highlight(preview, answer)
+            final_sources.append(
+                {
+                    "manual_id": src["manual_id"],
+                    "manual_title": src["manual_title"],
+                    "chunk_index": src["chunk_index"],
+                    "source_page": src["source_page"],
+                    "content_preview": preview,
+                    "highlight_start": highlight_start,
+                    "highlight_end": highlight_end,
+                }
+            )
+
         return {
-            "answer": "This information is not in the available manuals.",
-            "grounded": False,
-            "sources": [],
+            "answer": answer,
+            "grounded": True,
+            "sources": final_sources,
             "model": used_model,
             "duration_seconds": round(gen_elapsed, 1),
             "session_summary": memory,
         }
 
-    # Format sources for response with highlighting
-    final_sources = []
-    for src in sources:
-        preview = src[
-            "content_preview"
-        ]  # already truncated to 500 chars during assembly
-        highlight_start, highlight_end = compute_highlight(preview, answer)
-        final_sources.append(
-            {
-                "manual_id": src["manual_id"],
-                "manual_title": src["manual_title"],
-                "chunk_index": src["chunk_index"],
-                "source_page": src["source_page"],
-                "content_preview": preview,
-                "highlight_start": highlight_start,
-                "highlight_end": highlight_end,
+    else:
+        # === CROSS-MANUAL SYNTHESIS PATH (spec 046) ===
+        gen_start = time.monotonic()
+
+        # Step 1: Per-manual chunk retrieval
+        retrieval_start = time.monotonic()
+        chunks_by_manual = await _retrieve_chunks_per_manual(embedding_str)
+        retrieval_elapsed = time.monotonic() - retrieval_start
+
+        if not chunks_by_manual:
+            logger.info("Cross-manual synthesis: no qualifying chunks found")
+            return {
+                "answer": "This information is not in the available manuals.",
+                "grounded": False,
+                "sources": [],
+                "model": used_model,
+                "duration_seconds": 0,
+                "session_summary": memory,
             }
+
+        logger.info(
+            "Cross-manual retrieval took %.1fs for %d manuals",
+            retrieval_elapsed,
+            len(chunks_by_manual),
         )
 
-    return {
-        "answer": answer,
-        "grounded": True,
-        "sources": final_sources,
-        "model": used_model,
-        "duration_seconds": round(gen_elapsed, 1),
-        "session_summary": memory,
-    }
+        # Step 2: Generate sub-answers per manual
+        sub_answer_start = time.monotonic()
+        sub_answers = await _generate_sub_answers(
+            chunks_by_manual, question, effective_history, memory, model
+        )
+        sub_answer_elapsed = time.monotonic() - sub_answer_start
+
+        grounded_count = sum(1 for s in sub_answers if s["grounded"])
+        logger.info(
+            "Sub-answer generation took %.1fs for %d manuals, %d grounded",
+            sub_answer_elapsed,
+            len(chunks_by_manual),
+            grounded_count,
+        )
+
+        # Step 3: Synthesize
+        synthesis_start = time.monotonic()
+        synthesis_result = await _synthesize_answers(sub_answers, question, model)
+        synthesis_elapsed = time.monotonic() - synthesis_start
+
+        logger.info("Synthesis took %.1fs", synthesis_elapsed)
+
+        gen_elapsed = time.monotonic() - gen_start
+
+        if not synthesis_result["grounded"]:
+            return {
+                "answer": "This information is not in the available manuals.",
+                "grounded": False,
+                "sources": [],
+                "model": used_model,
+                "duration_seconds": round(gen_elapsed, 1),
+                "session_summary": memory,
+            }
+
+        # Collect all sources from contributing manuals and compute highlights
+        all_sources = []
+        for sa in sub_answers:
+            if sa["grounded"]:
+                for src in sa["chunks"]:
+                    preview = src["content_preview"]
+                    highlight_start, highlight_end = compute_highlight(
+                        preview, synthesis_result["answer"]
+                    )
+                    all_sources.append(
+                        {
+                            "manual_id": src["manual_id"],
+                            "manual_title": src["manual_title"],
+                            "chunk_index": src["chunk_index"],
+                            "source_page": src["source_page"],
+                            "content_preview": preview,
+                            "highlight_start": highlight_start,
+                            "highlight_end": highlight_end,
+                        }
+                    )
+
+        return {
+            "answer": synthesis_result["answer"],
+            "grounded": True,
+            "sources": all_sources,
+            "model": used_model,
+            "duration_seconds": round(gen_elapsed, 1),
+            "session_summary": memory,
+            "manuals_consulted": synthesis_result["manuals_consulted"],
+            "has_conflicts": synthesis_result["has_conflicts"],
+        }
 
 
 async def delete_manual(manual_id: UUID) -> dict:
