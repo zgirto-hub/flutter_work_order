@@ -255,7 +255,8 @@ class _ChatTabState extends State<ChatTab> {
                             ),
                           ),
                         )
-                      : ListView.builder(
+                      : SelectionArea(
+                          child: ListView.builder(
                           itemCount: _messages.length,
                           itemBuilder: (context, index) {
                             final msg = _messages[index];
@@ -347,6 +348,7 @@ class _ChatTabState extends State<ChatTab> {
                             }
                             return const SizedBox.shrink();
                           },
+                        ),
                         ),
         ),
         // Input
