@@ -17,7 +17,6 @@ TOOL_MANIFEST = """You have access to the following tools to help answer user qu
    - work_order_number (str, optional): Filter by work order job number (e.g., "WO260413-HYD01")
    - status (str, optional): Filter by work order status (e.g., "open", "closed", "pending")
    - equipment_type (str, optional): Filter by equipment type (e.g., "generator", "pump")
-   - technician_name (str, optional): Filter by assigned technician name
    - date_from (str, optional): Filter work orders created on or after this date (YYYY-MM-DD)
    - date_to (str, optional): Filter work orders created on or before this date (YYYY-MM-DD)
 
@@ -118,8 +117,9 @@ async def execute_work_orders_tool(params: dict) -> dict:
     """
     try:
         query = supabase.table("work_orders").select(
-            "job_no, status, description, type, created_at, closed_at, signature_status, "
-            "departments(name), users!work_orders_assigned_technician_id_fkey(full_name)"
+            "job_no, status, title, description, type, location, "
+            "created_at, closed_at, signature_status, tech_notes, "
+            "departments(name)"
         )
 
         wo_num = params.get("work_order_number") or params.get("job_no")
@@ -131,12 +131,6 @@ async def execute_work_orders_tool(params: dict) -> dict:
 
         if "equipment_type" in params:
             query = query.ilike("type", f"%{params['equipment_type']}%")
-
-        if "technician_name" in params:
-            query = query.ilike(
-                "users!work_orders_assigned_technician_id_fkey.full_name",
-                f"%{params['technician_name']}%",
-            )
 
         if "date_from" in params:
             query = query.gte("created_at", params["date_from"])
@@ -151,25 +145,20 @@ async def execute_work_orders_tool(params: dict) -> dict:
 
         formatted_wo = []
         for row in result.data:
+            dept = row.get("departments")
             formatted_wo.append(
                 {
                     "job_no": row.get("job_no"),
+                    "title": row.get("title"),
                     "status": row.get("status"),
                     "description": row.get("description"),
                     "type": row.get("type"),
-                    "department": row.get("departments", {}).get("name")
-                    if row.get("departments")
-                    else None,
-                    "technician": row.get("users")
-                    if isinstance(row.get("users"), str)
-                    else (
-                        row.get("users", {}).get("full_name")
-                        if isinstance(row.get("users"), dict)
-                        else None
-                    ),
+                    "location": row.get("location"),
+                    "department": dept.get("name") if isinstance(dept, dict) else None,
                     "created_at": row.get("created_at"),
                     "closed_at": row.get("closed_at"),
                     "signature_status": row.get("signature_status"),
+                    "tech_notes": row.get("tech_notes"),
                 }
             )
 
@@ -508,6 +497,27 @@ User: {question}"""
             final_answer = await generate(prompt, model=model, timeout=10.0)
         except Exception as e:
             final_answer = "I was unable to complete the analysis."
+
+    # Clean up the final answer — strip FINAL_ANSWER: prefix and any stray TOOL_CALL blocks
+    final_answer = final_answer.strip()
+    if final_answer.upper().startswith("FINAL_ANSWER:"):
+        final_answer = final_answer[len("FINAL_ANSWER:"):].strip()
+    # Remove any accidental TOOL_CALL block at the start (model confusion)
+    if "TOOL_CALL:" in final_answer and "PARAMS:" in final_answer:
+        # Keep only text after the last PARAMS: line
+        lines = final_answer.split("\n")
+        clean_lines = []
+        skip = False
+        for line in lines:
+            if line.strip().startswith("TOOL_CALL:"):
+                skip = True
+                continue
+            if skip and line.strip().startswith("PARAMS:"):
+                skip = False
+                continue
+            skip = False
+            clean_lines.append(line)
+        final_answer = "\n".join(clean_lines).strip()
 
     resolved_model = model or get_default_model()
 
