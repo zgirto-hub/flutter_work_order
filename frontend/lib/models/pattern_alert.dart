@@ -6,6 +6,7 @@ class PatternAlert {
   final String? equipmentId;
   final String? faultType;
   final String? technicianId;
+  final String? system;
   final String severity;
   final String status;
   final String message;
@@ -20,6 +21,7 @@ class PatternAlert {
     this.equipmentId,
     this.faultType,
     this.technicianId,
+    this.system,
     required this.severity,
     required this.status,
     required this.message,
@@ -39,6 +41,7 @@ class PatternAlert {
       equipmentId: json['equipment_id'] as String?,
       faultType: json['fault_type'] as String?,
       technicianId: json['technician_id'] as String?,
+      system: json['system'] as String?,
       severity: json['severity'] as String,
       status: json['status'] as String,
       message: json['message'] as String,
@@ -56,6 +59,7 @@ class PatternAlert {
       'equipment_id': equipmentId,
       'fault_type': faultType,
       'technician_id': technicianId,
+      'system': system,
       'severity': severity,
       'status': status,
       'message': message,
@@ -72,6 +76,7 @@ class PatternAlert {
     String? equipmentId,
     String? faultType,
     String? technicianId,
+    String? system,
     String? severity,
     String? status,
     String? message,
@@ -86,6 +91,7 @@ class PatternAlert {
       equipmentId: equipmentId ?? this.equipmentId,
       faultType: faultType ?? this.faultType,
       technicianId: technicianId ?? this.technicianId,
+      system: system ?? this.system,
       severity: severity ?? this.severity,
       status: status ?? this.status,
       message: message ?? this.message,

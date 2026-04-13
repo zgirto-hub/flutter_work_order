@@ -132,12 +132,24 @@ class AlertCard extends StatelessWidget {
                 color: textColor,
               ),
             ),
-            if (alert.equipmentId != null || alert.faultType != null) ...[
+            if (alert.equipmentId != null ||
+                alert.faultType != null ||
+                alert.system != null) ...[
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 4,
                 children: [
+                  if (alert.system != null)
+                    Chip(
+                      avatar: const Icon(Icons.dns, size: 14),
+                      label: Text(
+                        alert.system!,
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                      padding: EdgeInsets.zero,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                   if (alert.equipmentId != null)
                     Chip(
                       label: Text(

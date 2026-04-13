@@ -3,6 +3,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE work_order_entities (
   work_order_id uuid PRIMARY KEY REFERENCES work_orders(id) ON DELETE CASCADE,
   equipment_id text NOT NULL,
+  system text,
   equipment_type text,
   fault_type text,
   fault_code text,
