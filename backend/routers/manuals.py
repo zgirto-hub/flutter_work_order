@@ -441,14 +441,14 @@ async def get_flagged_answers(user_email: str = Query(...)):
     try:
         user_resp = (
             supabase.table("users")
-            .select("role")
+            .select("user_type")
             .eq("email", user_email)
             .maybe_single()
             .execute()
         )
     except Exception:
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
-    if not user_resp.data or user_resp.data.get("role") != "admin":
+    if not user_resp.data or user_resp.data.get("user_type") != "admin":
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
 
     try:
@@ -465,14 +465,14 @@ async def review_answer(request: ReviewAnswerRequest):
     try:
         user_resp = (
             supabase.table("users")
-            .select("role")
+            .select("user_type")
             .eq("email", request.reviewer_email)
             .maybe_single()
             .execute()
         )
     except Exception:
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
-    if not user_resp.data or user_resp.data.get("role") != "admin":
+    if not user_resp.data or user_resp.data.get("user_type") != "admin":
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
 
     if request.action not in ("approve", "correct"):
