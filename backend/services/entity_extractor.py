@@ -14,25 +14,40 @@ from services.pattern_engine import evaluate_patterns
 from services.ai_queue import PRIORITY_LOW
 
 
-EXTRACTION_PROMPT = """You are an expert at extracting structured information from work order descriptions.
+EXTRACTION_PROMPT_TEMPLATE = """You are an expert at extracting structured information from work order descriptions at Kuwait DGCA (Civil Aviation).
 
 The input text may be in Arabic, English, or mixed. You MUST output all field values in English regardless of input language.
 
+{{domain_knowledge}}
+
 Extract the following fields from the work order text below. Return a JSON object with these exact field names:
-- equipment_id (required, non-empty string — the equipment identifier, asset tag, or equipment name)
-- equipment_type (optional string — type/class of equipment like "HVAC", "generator", "pump", etc.)
-- fault_type (optional string — the category of fault like "mechanical", "electrical", "plumbing", "structural", etc.)
+- system (optional string — the parent system name: "CADAS-ATS", "CADAS-IMS", "AIDA-NG", "INDRA CCTV", "MUX", "AFTN", or other system if identifiable)
+- equipment_id (required, non-empty string — the specific equipment, component, asset tag, or device name)
+- equipment_type (optional string — type of component: "workstation", "server", "switch", "camera", "media converter", "power adapter", "generator", "pump", etc.)
+- fault_type (optional string — the category of fault: "mechanical", "electrical", "network", "software", "performance", "malfunction", "plumbing", "structural", etc.)
 - fault_code (optional string — any fault/error code mentioned in the text)
 - action_taken (optional string — what was done to address the issue)
 - procedure_followed (optional string — any standard procedure or reference followed)
 - parts_replaced (optional JSON array of strings — list of parts that were replaced)
-- outcome (optional string — result of the work like "resolved", "pending parts", "escalated", etc.)
+- outcome (optional string — result of the work: "resolved", "pending parts", "escalated", "monitoring", etc.)
 - technician_id (optional string — ID or name of the technician who performed the work)
 - date (optional string — date of the work or service)
 
-Example:
+Example 1:
 Input: "صيانة مولد كهربائي رقم G-102. تم تغيير بلف الضغط. الفني: أحمد. النتيجة: تم الإصلاح."
-Output: {{"equipment_id": "G-102", "equipment_type": "generator", "fault_type": "mechanical", "fault_code": "", "action_taken": "replaced pressure valve", "procedure_followed": "", "parts_replaced": ["pressure valve"], "outcome": "repaired", "technician_id": "Ahmed", "date": ""}}
+Output: {{"system": "", "equipment_id": "G-102", "equipment_type": "generator", "fault_type": "mechanical", "fault_code": "", "action_taken": "replaced pressure valve", "procedure_followed": "", "parts_replaced": ["pressure valve"], "outcome": "resolved", "technician_id": "Ahmed", "date": ""}}
+
+Example 2:
+Input: "CADAS-ATS workstation in room S-65 not responding. Restarted the workstation and verified connectivity."
+Output: {{"system": "CADAS-ATS", "equipment_id": "CADAS-ATS workstation S-65", "equipment_type": "workstation", "fault_type": "software", "fault_code": "", "action_taken": "restarted workstation and verified connectivity", "procedure_followed": "", "parts_replaced": [], "outcome": "resolved", "technician_id": "", "date": ""}}
+
+Example 3:
+Input: "Camera 5 offline. Replaced media converter and power adapter. Camera back online."
+Output: {{"system": "INDRA CCTV", "equipment_id": "Camera 5", "equipment_type": "camera", "fault_type": "network", "fault_code": "", "action_taken": "replaced media converter and power adapter", "procedure_followed": "", "parts_replaced": ["media converter", "power adapter"], "outcome": "resolved", "technician_id": "", "date": ""}}
+
+Example 4:
+Input: "Daily routine for clearing CADAS-ATS mailboxes at KCMC."
+Output: {{"system": "CADAS-ATS", "equipment_id": "CADAS-ATS mailbox server", "equipment_type": "server", "fault_type": "", "fault_code": "", "action_taken": "cleared mailboxes", "procedure_followed": "daily routine", "parts_replaced": [], "outcome": "resolved", "technician_id": "", "date": ""}}
 
 Input: {{work_order_text}}
 Output ONLY the JSON object. No other text."""
@@ -94,6 +109,20 @@ def _log_extraction_failure(
         )
 
 
+def _get_domain_knowledge_block() -> str:
+    """Get formatted domain knowledge from asset registry for extraction prompt."""
+    try:
+        from routers.asset_registry import get_domain_knowledge_block as get_block
+
+        return get_block()
+    except Exception as e:
+        print(
+            f"[entity_extractor] Failed to get domain knowledge from registry: {e}",
+            file=sys.stderr,
+        )
+        return "No assets registered in the asset registry."
+
+
 async def extract_entities(work_order_id: str) -> Optional[dict]:
     try:
         result = (
@@ -119,7 +148,11 @@ async def extract_entities(work_order_id: str) -> Optional[dict]:
             )
             return None
 
-        prompt = EXTRACTION_PROMPT.replace("{{work_order_text}}", combined)
+        domain_knowledge = _get_domain_knowledge_block()
+        prompt = EXTRACTION_PROMPT_TEMPLATE.replace(
+            "{{domain_knowledge}}", domain_knowledge
+        )
+        prompt = prompt.replace("{{work_order_text}}", combined)
 
         raw_response: Optional[str] = None
         parsed_data: Optional[dict] = None
@@ -161,6 +194,7 @@ async def extract_entities(work_order_id: str) -> Optional[dict]:
 
         payload = {
             "work_order_id": work_order_id,
+            "system": parsed_data.get("system") or None,
             "equipment_id": parsed_data.get("equipment_id", ""),
             "equipment_type": parsed_data.get("equipment_type") or None,
             "fault_type": parsed_data.get("fault_type") or None,

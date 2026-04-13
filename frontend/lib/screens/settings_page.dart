@@ -18,6 +18,7 @@ import 'admin/user_management_screen.dart';
 import 'admin/department_routes_screen.dart';
 import 'admin/departments_screen.dart';
 import 'admin/settings_screen.dart';
+import 'admin/asset_registry_screen.dart';
 import '../widgets/nav_bar_customization_sheet.dart';
 import '../widgets/bottom_sheet_widgets.dart';
 import '../services/manual_assistant_service.dart';
@@ -349,6 +350,18 @@ class _SettingsPageState extends State<SettingsPage> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const DepartmentsScreen(),
+                          ),
+                        ),
+                      ),
+                      SettingsRow(
+                        icon: Icons.inventory_2_outlined,
+                        label: 'Asset Registry',
+                        subtitle: 'Manage assets and system associations',
+                        showDivider: true,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AssetRegistryScreen(),
                           ),
                         ),
                       ),

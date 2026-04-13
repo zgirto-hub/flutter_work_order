@@ -31,13 +31,18 @@ from routers import (
     manuals,
     patterns,
     settings,
+    asset_registry,
 )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from services.pattern_engine import seed_built_in_rules
-    from services.ai_queue import worker as ai_worker, initialize as ai_queue_init, shutdown as ai_queue_shutdown
+    from services.ai_queue import (
+        worker as ai_worker,
+        initialize as ai_queue_init,
+        shutdown as ai_queue_shutdown,
+    )
 
     await seed_built_in_rules()
     ai_queue_init()
@@ -113,6 +118,7 @@ app.include_router(letters_v2.router, prefix="/api")
 app.include_router(manuals.router, prefix="/api")
 app.include_router(patterns.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
+app.include_router(asset_registry.router, prefix="/api")
 
 
 @app.get("/api/reset-password")
