@@ -11,8 +11,8 @@ class Chunk:
 
 def chunk_paragraphs(
     paragraphs: List[Tuple[Optional[int], str]],
-    max_words: int = 500,
-    overlap_words: int = 50,
+    max_words: int = 250,
+    overlap_words: int = 30,
 ) -> List[Chunk]:
     if not paragraphs:
         return []

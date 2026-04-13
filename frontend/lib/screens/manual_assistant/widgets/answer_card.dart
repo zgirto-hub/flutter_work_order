@@ -81,6 +81,40 @@ class AnswerCard extends StatelessWidget {
                 ),
               ),
             ],
+            if (answer.toolsUsed.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: answer.toolsUsed.map((tool) {
+                  final toolName = tool['tool_name'] ?? '';
+                  final success = tool['success'] ?? false;
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color:
+                          success ? Colors.green.shade50 : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: success
+                            ? Colors.green.shade200
+                            : Colors.red.shade200,
+                      ),
+                    ),
+                    child: Text(
+                      toolName,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: success
+                            ? Colors.green.shade700
+                            : Colors.red.shade700,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
             if (answer.sources.isNotEmpty) ...[
               const SizedBox(height: 12),
               ExpansionTile(

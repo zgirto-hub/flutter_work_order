@@ -23,6 +23,8 @@ class ManualQaAnswer {
   final String? sessionSummary;
   final List<ManualConsulted> manualsConsulted;
   final bool hasConflicts;
+  final bool agentic;
+  final List<Map<String, dynamic>> toolsUsed;
 
   const ManualQaAnswer({
     required this.answer,
@@ -33,6 +35,8 @@ class ManualQaAnswer {
     this.sessionSummary,
     this.manualsConsulted = const [],
     this.hasConflicts = false,
+    this.agentic = false,
+    this.toolsUsed = const [],
   });
 
   factory ManualQaAnswer.fromJson(Map<String, dynamic> json) {
@@ -57,6 +61,11 @@ class ManualQaAnswer {
       sessionSummary: json['session_summary'],
       manualsConsulted: consultedList,
       hasConflicts: json['has_conflicts'] ?? false,
+      agentic: json['agentic'] ?? false,
+      toolsUsed: (json['tools_used'] as List<dynamic>?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          [],
     );
   }
 
