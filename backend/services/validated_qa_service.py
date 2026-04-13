@@ -117,7 +117,7 @@ async def review_answer(
         supabase.table("validated_qa")
         .select("*")
         .eq("id", rating_id)
-        .single()
+        .maybe_single()
         .execute()
     )
 
