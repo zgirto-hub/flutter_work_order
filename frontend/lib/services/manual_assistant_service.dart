@@ -288,4 +288,112 @@ class ManualAssistantService {
       throw Exception('Failed to delete manual');
     }
   }
+
+  Future<String> rateAnswer({
+    required String questionText,
+    required String answerText,
+    required List<Map<String, dynamic>> sourceChunks,
+    required String rating,
+    required String raterEmail,
+    String? manualId,
+    String? modelUsed,
+    String? validatedQaId,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'question_text': questionText,
+        'answer_text': answerText,
+        'source_chunks': sourceChunks,
+        'rating': rating,
+        'rater_email': raterEmail,
+      };
+      if (manualId != null) body['manual_id'] = manualId;
+      if (modelUsed != null) body['model_used'] = modelUsed;
+      if (validatedQaId != null) body['validated_qa_id'] = validatedQaId;
+
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.post(
+        Uri.parse('${AppConfig.baseUrl}/manuals/rate-answer'),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['id'] as String;
+      } else {
+        throw Exception('Failed to rate answer');
+      }
+    } catch (e) {
+      throw Exception('Failed to rate answer: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getFlaggedAnswers(
+      {required String userEmail}) async {
+    try {
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.get(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/flagged-answers?user_email=${Uri.encodeComponent(userEmail)}'),
+        headers: headers,
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return List<Map<String, dynamic>>.from(data['items'] ?? []);
+      } else if (res.statusCode == 403) {
+        throw Exception('Admin access required');
+      } else {
+        throw Exception('Failed to get flagged answers');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> reviewAnswer({
+    required String ratingId,
+    required String action,
+    String? correctedAnswer,
+    required String reviewerEmail,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'rating_id': ratingId,
+        'action': action,
+        'reviewer_email': reviewerEmail,
+      };
+      if (correctedAnswer != null) body['corrected_answer'] = correctedAnswer;
+
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.post(
+        Uri.parse('${AppConfig.baseUrl}/manuals/review-answer'),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      } else if (res.statusCode == 403) {
+        throw Exception('Admin access required');
+      } else {
+        throw Exception('Failed to review answer');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

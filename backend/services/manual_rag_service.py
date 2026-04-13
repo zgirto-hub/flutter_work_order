@@ -10,6 +10,7 @@ from services.manual_parser import parse, NoExtractableTextError
 from services.manual_chunker import chunk_paragraphs, Chunk
 from services.ollama_embedder import embed_many, EmbedderTimeoutError
 from services.manual_storage_service import save, delete as delete_file
+import services.validated_qa_service as validated_qa_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,6 +63,7 @@ def _build_prompt(
     user_question: str,
     history: list[dict] | None = None,
     memory: str | None = None,
+    validated_context: str | None = None,
 ) -> str:
     """Assemble the 3-layer prompt: system instructions → chunks → memory → history → question."""
     parts = []
@@ -76,6 +78,12 @@ def _build_prompt(
         'If the answer is not found in the sections, say: "This information is not in the available manuals."\n'
         "Reply in the same language as the question (Arabic or English)."
     )
+
+    if validated_context:
+        parts.append(
+            "[VERIFIED REFERENCE — Expert-validated answer to a similar question]\n"
+            f"{validated_context}\n\n"
+        )
 
     parts.append(f"MANUAL SECTIONS:\n{retrieved_chunks}")
 
@@ -455,7 +463,9 @@ async def _retrieve_chunks_per_manual(embedding_str: str) -> dict[str, list[dict
     if len(chunks_by_manual) > MAX_MANUALS_FOR_SYNTHESIS:
         ranked = sorted(
             chunks_by_manual.items(),
-            key=lambda item: sum(c.get("distance", 1.0) for c in item[1]) / len(item[1]),
+            key=lambda item: (
+                sum(c.get("distance", 1.0) for c in item[1]) / len(item[1])
+            ),
         )
         chunks_by_manual = dict(ranked[:MAX_MANUALS_FOR_SYNTHESIS])
 
@@ -472,6 +482,7 @@ async def _generate_sub_answers(
     history: list[dict] | None,
     memory: str | None,
     model: str | None,
+    validated_context: str | None = None,
 ) -> list[dict]:
     """Generate a sub-answer for each manual's chunks (spec 046)."""
     from services.ollama_generator import generate
@@ -498,7 +509,9 @@ async def _generate_sub_answers(
                 }
             )
 
-        prompt = _build_prompt(retrieved_text, question, history, memory)
+        prompt = _build_prompt(
+            retrieved_text, question, history, memory, validated_context
+        )
 
         try:
             answer_text = await generate(prompt, model=model)
@@ -641,6 +654,41 @@ async def ask(
             "session_summary": None,
         }
 
+    # Check for validated QA match first (spec 048)
+    import time as _time
+
+    _vqa_start = _time.monotonic()
+    try:
+        match_result = await validated_qa_service.check_validated_match(question)
+        if match_result["match_type"] == "direct":
+            vqa = match_result["validated_qa"]
+            elapsed = round(_time.monotonic() - _vqa_start, 1)
+            return {
+                "answer": vqa["validated_answer"],
+                "grounded": True,
+                "sources": [],
+                "model": "validated_qa",
+                "duration_seconds": elapsed,
+                "is_verified": True,
+                "verified_source": {
+                    "validated_qa_id": str(vqa["id"]),
+                    "validated_by": vqa["validated_by"],
+                    "validated_at": vqa["validated_at"].isoformat()
+                    if hasattr(vqa["validated_at"], "isoformat")
+                    else str(vqa["validated_at"]),
+                    "similarity": 1.0 - vqa.get("distance", 0.0),
+                },
+            }
+        elif match_result["match_type"] == "context":
+            validated_context = match_result["validated_qa"]["validated_answer"]
+        else:
+            validated_context = None
+    except Exception as e:
+        logger.warning(
+            "Validated QA check failed, falling back to normal pipeline: %s", e
+        )
+        validated_context = None
+
     # Rewrite query for better retrieval (uses conversation context for follow-up questions)
     search_query = await _rewrite_query(question, history)
 
@@ -762,7 +810,9 @@ async def ask(
                 }
             )
 
-        prompt = _build_prompt(retrieved_chunks, question, effective_history, memory)
+        prompt = _build_prompt(
+            retrieved_chunks, question, effective_history, memory, validated_context
+        )
 
         gen_start = time.monotonic()
         try:
@@ -772,9 +822,7 @@ async def ask(
         gen_elapsed = time.monotonic() - gen_start
 
         # Check groundedness
-        grounded = not any(
-            phrase in answer.lower() for phrase in _SENTINEL_PHRASES
-        )
+        grounded = not any(phrase in answer.lower() for phrase in _SENTINEL_PHRASES)
 
         if not grounded:
             return {
@@ -841,7 +889,12 @@ async def ask(
         # Step 2: Generate sub-answers per manual
         sub_answer_start = time.monotonic()
         sub_answers = await _generate_sub_answers(
-            chunks_by_manual, question, effective_history, memory, model
+            chunks_by_manual,
+            question,
+            effective_history,
+            memory,
+            model,
+            validated_context,
         )
         sub_answer_elapsed = time.monotonic() - sub_answer_start
 

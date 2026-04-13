@@ -8,6 +8,7 @@ from db import supabase
 from utils.activity import log_activity
 import services.manual_rag_service as manual_rag_service
 import services.agentic_tools as agentic_tools
+import services.validated_qa_service as validated_qa_service
 
 router = APIRouter(tags=["manuals"])
 
@@ -369,3 +370,134 @@ async def ask_question(request: AskRequest):
         pass
 
     return result
+
+
+class RateAnswerRequest(BaseModel):
+    question_text: str
+    answer_text: str
+    source_chunks: List[dict] = []
+    rating: str
+    rater_email: str
+    manual_id: Optional[str] = None
+    model_used: Optional[str] = None
+    session_summary: Optional[str] = None
+    validated_qa_id: Optional[str] = None
+
+
+class ReviewAnswerRequest(BaseModel):
+    rating_id: str
+    action: str
+    corrected_answer: Optional[str] = None
+    reviewer_email: str
+
+
+@router.post("/manuals/rate-answer")
+async def rate_answer(request: RateAnswerRequest):
+    if request.rating not in ("positive", "negative"):
+        raise HTTPException(status_code=400, detail={"error": "invalid_rating"})
+    if not request.rater_email:
+        raise HTTPException(status_code=400, detail={"error": "rater_email_required"})
+    if not request.question_text or not request.answer_text:
+        raise HTTPException(
+            status_code=400, detail={"error": "question_and_answer_required"}
+        )
+
+    try:
+        rating_id = validated_qa_service.save_rating(
+            question_text=request.question_text,
+            answer_text=request.answer_text,
+            source_chunks=request.source_chunks,
+            rating=request.rating,
+            rater_email=request.rater_email,
+            manual_id=request.manual_id,
+            model_used=request.model_used,
+            session_summary=request.session_summary,
+        )
+
+        if request.validated_qa_id:
+            validated_qa_service.update_validated_rating(
+                request.validated_qa_id, request.rating
+            )
+
+        try:
+            log_activity(
+                request.rater_email,
+                "manual",
+                "rated_answer",
+                target_label=request.question_text[:80],
+                detail=request.rating,
+            )
+        except Exception:
+            pass
+
+        return {"id": rating_id, "status": "saved"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail={"error": "save_failed", "message": str(e)}
+        )
+
+
+@router.get("/manuals/flagged-answers")
+async def get_flagged_answers(user_email: str = Query(...)):
+    try:
+        user_resp = (
+            supabase.table("users")
+            .select("user_type")
+            .eq("email", user_email)
+            .maybe_single()
+            .execute()
+        )
+    except Exception:
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+    if not user_resp.data or user_resp.data.get("user_type") != "admin":
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+
+    try:
+        items = validated_qa_service.get_flagged_answers()
+        return {"items": items, "count": len(items)}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail={"error": "fetch_failed", "message": str(e)}
+        )
+
+
+@router.post("/manuals/review-answer")
+async def review_answer(request: ReviewAnswerRequest):
+    try:
+        user_resp = (
+            supabase.table("users")
+            .select("user_type")
+            .eq("email", request.reviewer_email)
+            .maybe_single()
+            .execute()
+        )
+    except Exception:
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+    if not user_resp.data or user_resp.data.get("user_type") != "admin":
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+
+    if request.action not in ("approve", "correct"):
+        raise HTTPException(status_code=400, detail={"error": "invalid_action"})
+    if request.action == "correct" and not request.corrected_answer:
+        raise HTTPException(
+            status_code=400, detail={"error": "corrected_answer_required"}
+        )
+
+    try:
+        validated_qa_id = await validated_qa_service.review_answer(
+            rating_id=request.rating_id,
+            action=request.action,
+            corrected_answer=request.corrected_answer,
+            reviewer_email=request.reviewer_email,
+        )
+        return {
+            "validated_qa_id": validated_qa_id,
+            "action": request.action,
+            "status": "saved",
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail={"error": str(e)})
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail={"error": "review_failed", "message": str(e)}
+        )

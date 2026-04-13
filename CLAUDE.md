@@ -66,6 +66,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-13
 - N/A — no persistent data; summary is transient/in-memory per request (045-rolling-session-summary)
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Supabase Python client (backend); http, Flutter Material (frontend) (046-cross-manual-synthesis)
 - Supabase (PostgreSQL) — existing `work_orders`, `users`, `departments` tables; pgvector for manual chunks (047-agentic-tool-use)
+- Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Supabase Python client, ollama_embedder (backend); http, Flutter Material (frontend) (048-feedback-loop-ai-assistant)
+- Supabase (PostgreSQL) with pgvector — new `answer_ratings` and `validated_qa` tables; existing `work_orders`, `users`, `manual_chunks` tables (048-feedback-loop-ai-assistant)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -88,6 +90,7 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 048-feedback-loop-ai-assistant: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Supabase Python client, ollama_embedder (backend); http, Flutter Material (frontend)
 - 047-agentic-tool-use: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Supabase Python client (backend); http, Flutter Material (frontend)
 - 046-cross-manual-synthesis: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Supabase Python client (backend); http, Flutter Material (frontend)
 - 045-rolling-session-summary: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Ollama (gemma4:e2b) (backend); http package, Flutter Material (frontend)
