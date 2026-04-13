@@ -72,6 +72,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-13
 - Supabase (PostgreSQL) with pgvector — new `work_order_entities` and `extraction_failures` tables (049-wo-entity-extraction)
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend) (051-pattern-rules-engine)
 - Supabase (PostgreSQL) — new `pattern_rules` and `pattern_alerts` tables; existing `work_order_entities`, `work_orders` tables (051-pattern-rules-engine)
+- Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend) (052-extraction-toggle-queue)
+- Supabase (PostgreSQL) — new `system_settings` table (052-extraction-toggle-queue)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -94,9 +96,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 052-extraction-toggle-queue: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
 - 051-pattern-rules-engine: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
 - 049-wo-entity-extraction: Added Python 3.10 + FastAPI, httpx, Supabase Python client, existing `ollama_generator.py`
-- 048-feedback-loop-ai-assistant: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Supabase Python client, ollama_embedder (backend); http, Flutter Material (frontend)
 
 
 <!-- MANUAL ADDITIONS START -->

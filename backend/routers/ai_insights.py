@@ -2,16 +2,18 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta
-import httpx
 
 from db import supabase
 from utils.activity import log_activity
+from services.ollama_generator import (
+    generate,
+    GeneratorTimeoutError,
+    GeneratorModelError,
+)
 
 router = APIRouter()
 
 OLLAMA_MODEL = "gemma4:e2b"
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_TIMEOUT = 60
 
 ALLOWED_SYSTEMS = [
     "AIDA-NG",
@@ -134,7 +136,9 @@ def _aggregate_work_order_stats(days: int) -> dict:
     for wo in data:
         if wo.get("created_at") and wo.get("closed_at"):
             try:
-                created = datetime.fromisoformat(wo["created_at"].replace("Z", "+00:00"))
+                created = datetime.fromisoformat(
+                    wo["created_at"].replace("Z", "+00:00")
+                )
                 closed = datetime.fromisoformat(wo["closed_at"].replace("Z", "+00:00"))
                 hours = (closed - created).total_seconds() / 3600
                 if hours >= 0:
@@ -271,21 +275,15 @@ def _build_overview_prompt(wo_stats: dict, sys_stats: dict, language: str) -> st
     busiest_dept = (
         wo_stats["by_department"][0]["name"] if wo_stats["by_department"] else "N/A"
     )
-    top_locs = ", ".join(
-        loc["location"] for loc in wo_stats["top_locations"]
-    ) or "N/A"
-    down_systems = [
-        item["system_name"] for item in sys_stats["currently_unresolved"]
-    ]
+    top_locs = ", ".join(loc["location"] for loc in wo_stats["top_locations"]) or "N/A"
+    down_systems = [item["system_name"] for item in sys_stats["currently_unresolved"]]
     down_names = ", ".join(down_systems) if down_systems else "None"
     worst_system = (
         sys_stats["worst_systems"][0]["system_name"]
         if sys_stats["worst_systems"]
         else "N/A"
     )
-    total_issues = sum(
-        item["count"] for item in sys_stats["issues_per_system"]
-    )
+    total_issues = sum(item["count"] for item in sys_stats["issues_per_system"])
 
     prompt = (
         "You are an operations analyst for a civil aviation technical department.\n\n"
@@ -317,14 +315,22 @@ def _build_system_status_prompt(sys_stats: dict, language: str) -> str:
         "SYSTEMS WITH ISSUES:",
     ]
     for item in sys_stats["issues_per_system"]:
-        avg_hrs = sys_stats["avg_resolution_hours_per_system"].get(item["system_name"], "N/A")
-        lines.append(f"- {item['system_name']}: {item['count']} issues, avg resolution {avg_hrs}h")
+        avg_hrs = sys_stats["avg_resolution_hours_per_system"].get(
+            item["system_name"], "N/A"
+        )
+        lines.append(
+            f"- {item['system_name']}: {item['count']} issues, avg resolution {avg_hrs}h"
+        )
 
     lines.append("\nCURRENTLY UNRESOLVED:")
     for item in sys_stats["currently_unresolved"]:
-        lines.append(f"- {item['system_name']} (reported {item['report_date']}): {item.get('notes', '')}")
+        lines.append(
+            f"- {item['system_name']} (reported {item['report_date']}): {item.get('notes', '')}"
+        )
 
-    clean_joined = ", ".join(sys_stats["clean_systems"]) if sys_stats["clean_systems"] else "None"
+    clean_joined = (
+        ", ".join(sys_stats["clean_systems"]) if sys_stats["clean_systems"] else "None"
+    )
     lines.append(f"\nSYSTEMS WITH ZERO ISSUES: {clean_joined}")
 
     lines.append(
@@ -356,7 +362,11 @@ def _build_trends_prompt(wo_stats: dict, sys_stats: dict, language: str) -> str:
     for item in wo_stats["by_department"]:
         lines.append(f"- {item['name']}: {item['count']}")
 
-    avg_res = wo_stats["avg_resolution_hours"] if wo_stats["avg_resolution_hours"] is not None else "N/A"
+    avg_res = (
+        wo_stats["avg_resolution_hours"]
+        if wo_stats["avg_resolution_hours"] is not None
+        else "N/A"
+    )
     lines.append(f"\nRESOLUTION TIMES: Average: {avg_res}h")
 
     lines.append(
@@ -377,7 +387,9 @@ async def get_insights(
     user_role: str = Query(...),
 ):
     if user_role not in ("admin", "supervisor"):
-        raise HTTPException(status_code=403, detail="Admin or supervisor access required")
+        raise HTTPException(
+            status_code=403, detail="Admin or supervisor access required"
+        )
 
     if request.insight_type not in ("overview", "system_status", "trends"):
         raise HTTPException(
@@ -403,24 +415,9 @@ async def get_insights(
         prompt = _build_trends_prompt(wo_stats, sys_stats, request.language)
 
     try:
-        async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
-            res = await client.post(
-                OLLAMA_URL,
-                json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
-            )
-    except (httpx.ConnectError, httpx.ConnectTimeout):
-        raise HTTPException(
-            status_code=503, detail="AI service is currently unavailable"
-        )
-    except httpx.ReadTimeout:
+        response_text = await generate(prompt, model=OLLAMA_MODEL, timeout=60.0)
+    except (GeneratorTimeoutError, GeneratorModelError):
         raise HTTPException(status_code=503, detail="AI service timed out")
-
-    if res.status_code != 200:
-        raise HTTPException(status_code=502, detail="AI model error")
-
-    try:
-        data = res.json()
-        response_text = data.get("response", "")
     except Exception:
         raise HTTPException(status_code=502, detail="AI model error")
 

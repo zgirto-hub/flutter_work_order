@@ -2,17 +2,19 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
 import os
-import httpx
 import json
 from datetime import date
 from db import supabase
 from utils.activity import log_activity
+from services.ollama_generator import (
+    generate,
+    GeneratorTimeoutError,
+    GeneratorModelError,
+)
 
 router = APIRouter(tags=["search"])
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:e2b")
-OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "60.0"))
 
 VALID_STATUSES = ["Pending", "In Progress", "Resolved", "Closed"]
 VALID_TYPES = ["Technical", "Inspection", "Other"]
@@ -83,16 +85,8 @@ async def _parse_query_with_ai(query: str, departments: List[str]) -> Optional[d
     prompt = _build_nl_prompt(query, departments, today)
 
     try:
-        async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
-            res = await client.post(
-                OLLAMA_URL,
-                json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
-            )
-        if res.status_code != 200:
-            return None
-        data = res.json()
-        response_text = data.get("response", "")
-    except Exception:
+        response_text = await generate(prompt, model=OLLAMA_MODEL, timeout=60.0)
+    except (GeneratorTimeoutError, GeneratorModelError):
         return None
 
     stripped = _strip_preamble(response_text)
@@ -218,12 +212,16 @@ def _apply_role_filter(query_db, email: str, user_role: str):
         if tech_user and tech_user.get("department_id"):
             query_db = query_db.eq("department_id", tech_user["department_id"])
         else:
-            query_db = query_db.eq("department_id", "00000000-0000-0000-0000-000000000000")
+            query_db = query_db.eq(
+                "department_id", "00000000-0000-0000-0000-000000000000"
+            )
     return query_db
 
 
 def _base_wo_query():
-    return supabase.table("work_orders").select("""
+    return (
+        supabase.table("work_orders")
+        .select("""
         *,
         creator:users!work_orders_created_by_fkey!left (
             full_name,
@@ -244,7 +242,9 @@ def _base_wo_query():
                 full_name
             )
         )
-    """).order("created_at", desc=True)
+    """)
+        .order("created_at", desc=True)
+    )
 
 
 def _keyword_search(
@@ -321,8 +321,12 @@ def _filtered_search(
         for wo in work_orders:
             if wo.get("closed_at") and wo.get("created_at"):
                 try:
-                    closed = datetime.fromisoformat(wo["closed_at"].replace("Z", "+00:00"))
-                    created = datetime.fromisoformat(wo["created_at"].replace("Z", "+00:00"))
+                    closed = datetime.fromisoformat(
+                        wo["closed_at"].replace("Z", "+00:00")
+                    )
+                    created = datetime.fromisoformat(
+                        wo["created_at"].replace("Z", "+00:00")
+                    )
                     if (closed - created).days >= min_days:
                         filtered.append(wo)
                 except Exception:

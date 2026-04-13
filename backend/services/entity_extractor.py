@@ -11,6 +11,7 @@ from db import supabase
 from services.ollama_generator import generate
 from services.ollama_embedder import embed_single
 from services.pattern_engine import evaluate_patterns
+from services.ai_queue import PRIORITY_LOW
 
 
 EXTRACTION_PROMPT = """You are an expert at extracting structured information from work order descriptions.
@@ -61,7 +62,7 @@ def _validate_entities(data: dict) -> bool:
 
 async def _embed_text(text: str) -> Optional[list[float]]:
     try:
-        return await embed_single(text)
+        return await embed_single(text, priority=PRIORITY_LOW)
     except Exception as e:
         print(f"[entity_extractor] Embedding failed: {e}", file=sys.stderr)
         return None
@@ -125,7 +126,9 @@ async def extract_entities(work_order_id: str) -> Optional[dict]:
 
         for attempt in range(1, 3):
             try:
-                raw_response = await generate(prompt, model="gemma4:e2b", timeout=120.0)
+                raw_response = await generate(
+                    prompt, model="gemma4:e2b", timeout=120.0, priority=PRIORITY_LOW
+                )
                 cleaned = _clean_json_response(raw_response)
                 parsed_data = json.loads(cleaned)
                 if _validate_entities(parsed_data):

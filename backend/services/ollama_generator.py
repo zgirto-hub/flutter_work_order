@@ -3,6 +3,8 @@ import json
 import httpx
 from pathlib import Path
 
+from services.ai_queue import submit, PRIORITY_HIGH, is_initialized
+
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_GEN_MODEL = os.environ.get("OLLAMA_GEN_MODEL", "gemma3:e2b")
 OLLAMA_KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "30m")
@@ -32,22 +34,29 @@ class GeneratorTimeoutError(Exception):
 
 class GeneratorModelError(Exception):
     """Ollama couldn't load the model (RAM, not found, etc.)."""
+
     def __init__(self, model: str, detail: str = ""):
         self.model = model
         self.detail = detail
         super().__init__(f"Model '{model}' failed: {detail}")
 
 
-async def generate(prompt: str, model: str | None = None, timeout: float = 180.0) -> str:
+async def _generate_direct(
+    prompt: str, model: str | None = None, timeout: float = 180.0
+) -> str:
     use_model = model or get_default_model()
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             response = await client.post(
                 f"{OLLAMA_URL}/api/generate",
-                json={"model": use_model, "prompt": prompt, "stream": False, "keep_alive": OLLAMA_KEEP_ALIVE},
+                json={
+                    "model": use_model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "keep_alive": OLLAMA_KEEP_ALIVE,
+                },
             )
             if response.status_code == 500:
-                # Ollama internal error — usually out of memory
                 try:
                     err = response.json().get("error", "unknown error")
                 except Exception:
@@ -61,7 +70,24 @@ async def generate(prompt: str, model: str | None = None, timeout: float = 180.0
         except httpx.TimeoutException:
             raise GeneratorTimeoutError("Generator timed out")
         except GeneratorModelError:
-            raise  # re-raise, don't swallow
+            raise
+
+
+async def generate(
+    prompt: str,
+    model: str | None = None,
+    timeout: float = 180.0,
+    priority: int = PRIORITY_HIGH,
+) -> str:
+    if is_initialized():
+        return await submit(
+            _generate_direct,
+            prompt,
+            model=model,
+            timeout=timeout,
+            priority=priority,
+        )
+    return await _generate_direct(prompt, model=model, timeout=timeout)
 
 
 async def list_models() -> list[dict]:
@@ -77,10 +103,12 @@ async def list_models() -> list[dict]:
                 # Skip embedding-only models
                 if "embed" in name.lower():
                     continue
-                models.append({
-                    "name": name,
-                    "size_gb": round(m.get("size", 0) / (1024**3), 1),
-                })
+                models.append(
+                    {
+                        "name": name,
+                        "size_gb": round(m.get("size", 0) / (1024**3), 1),
+                    }
+                )
             return models
         except Exception:
             return []

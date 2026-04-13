@@ -5,11 +5,15 @@ import httpx
 import json
 from enum import Enum
 
+from services.ollama_generator import (
+    generate,
+    GeneratorTimeoutError,
+    GeneratorModelError,
+)
+
 router = APIRouter()
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "gemma4:e2b"
-OLLAMA_TIMEOUT = 120.0
 
 
 class DocumentExpertAction(str, Enum):
@@ -87,6 +91,7 @@ def _build_document_expert_prompt(
 def _strip_code_fences(text: str) -> str:
     """Remove ```html ... ``` or ``` ... ``` markdown code fences."""
     import re
+
     stripped = text.strip()
     # Match ```html\n...\n``` or ```\n...\n```
     fence_pattern = re.compile(
@@ -106,6 +111,7 @@ def _unwrap_outer_container(html: str) -> str:
     """If the entire HTML is wrapped in a single <div>/<blockquote>/<section>,
     unwrap it. Leaves content as inline <p> tags."""
     import re
+
     s = html.strip()
     # Match <div ...>...</div> as the sole outer element
     for tag in ("div", "blockquote", "section", "article"):
@@ -232,24 +238,9 @@ async def suggest_description(request: AiSuggestRequest):
     prompt = _build_prompt(title, request.location, request.type)
 
     try:
-        async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
-            res = await client.post(
-                OLLAMA_URL,
-                json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
-            )
-    except (httpx.ConnectError, httpx.ConnectTimeout):
-        raise HTTPException(
-            status_code=503, detail="AI service is currently unavailable"
-        )
-    except httpx.ReadTimeout:
+        response_text = await generate(prompt, model=OLLAMA_MODEL, timeout=120.0)
+    except (GeneratorTimeoutError, GeneratorModelError):
         raise HTTPException(status_code=503, detail="AI service timed out")
-
-    if res.status_code != 200:
-        raise HTTPException(status_code=502, detail="AI model error")
-
-    try:
-        data = res.json()
-        response_text = data.get("response", "")
     except Exception:
         raise HTTPException(status_code=502, detail="AI model error")
 
@@ -277,24 +268,9 @@ async def parse_work_order(request: AiParseWorkOrderRequest):
     )
 
     try:
-        async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
-            res = await client.post(
-                OLLAMA_URL,
-                json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
-            )
-    except (httpx.ConnectError, httpx.ConnectTimeout):
-        raise HTTPException(
-            status_code=503, detail="AI service is currently unavailable"
-        )
-    except httpx.ReadTimeout:
+        response_text = await generate(prompt, model=OLLAMA_MODEL, timeout=120.0)
+    except (GeneratorTimeoutError, GeneratorModelError):
         raise HTTPException(status_code=503, detail="AI service timed out")
-
-    if res.status_code != 200:
-        raise HTTPException(status_code=502, detail="AI model error")
-
-    try:
-        data = res.json()
-        response_text = data.get("response", "")
     except Exception:
         raise HTTPException(status_code=502, detail="AI model error")
 
@@ -312,7 +288,11 @@ async def parse_work_order(request: AiParseWorkOrderRequest):
 
 @router.post("/ai/document-expert")
 async def document_expert(request: DocumentExpertRequest):
-    action = request.action.value if isinstance(request.action, DocumentExpertAction) else request.action
+    action = (
+        request.action.value
+        if isinstance(request.action, DocumentExpertAction)
+        else request.action
+    )
 
     if action == "custom":
         if not request.instructions or not request.instructions.strip():
@@ -333,24 +313,9 @@ async def document_expert(request: DocumentExpertRequest):
     )
 
     try:
-        async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
-            res = await client.post(
-                OLLAMA_URL,
-                json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
-            )
-    except (httpx.ConnectError, httpx.ConnectTimeout):
-        raise HTTPException(
-            status_code=503, detail="AI service is currently unavailable"
-        )
-    except httpx.ReadTimeout:
+        response_text = await generate(prompt, model=OLLAMA_MODEL, timeout=120.0)
+    except (GeneratorTimeoutError, GeneratorModelError):
         raise HTTPException(status_code=503, detail="AI service timed out")
-
-    if res.status_code != 200:
-        raise HTTPException(status_code=502, detail="AI model error")
-
-    try:
-        data = res.json()
-        response_text = data.get("response", "")
     except Exception:
         raise HTTPException(status_code=502, detail="AI model error")
 

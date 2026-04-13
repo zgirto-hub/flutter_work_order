@@ -1,5 +1,6 @@
 print("=== THIS MAIN.PY IS RUNNING v1.10.0 ===")
 
+import asyncio
 import json
 import os
 from contextlib import asynccontextmanager
@@ -29,15 +30,27 @@ from routers import (
     letters_v2,
     manuals,
     patterns,
+    settings,
 )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from services.pattern_engine import seed_built_in_rules
+    from services.ai_queue import worker as ai_worker, initialize as ai_queue_init, shutdown as ai_queue_shutdown
 
     await seed_built_in_rules()
+    ai_queue_init()
+    worker_task = asyncio.create_task(ai_worker())
+    print("[ai_queue] Worker started")
     yield
+    worker_task.cancel()
+    try:
+        await worker_task
+    except asyncio.CancelledError:
+        pass
+    ai_queue_shutdown()
+    print("[ai_queue] Worker stopped")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -99,6 +112,7 @@ app.include_router(ai_search.router, prefix="/api")
 app.include_router(letters_v2.router, prefix="/api")
 app.include_router(manuals.router, prefix="/api")
 app.include_router(patterns.router, prefix="/api")
+app.include_router(settings.router, prefix="/api")
 
 
 @app.get("/api/reset-password")

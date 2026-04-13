@@ -17,6 +17,7 @@ import 'settings/signature_management_screen.dart';
 import 'admin/user_management_screen.dart';
 import 'admin/department_routes_screen.dart';
 import 'admin/departments_screen.dart';
+import 'admin/settings_screen.dart';
 import '../widgets/nav_bar_customization_sheet.dart';
 import '../widgets/bottom_sheet_widgets.dart';
 import '../services/manual_assistant_service.dart';
@@ -355,11 +356,23 @@ class _SettingsPageState extends State<SettingsPage> {
                         icon: Icons.alt_route_outlined,
                         label: 'Department Routing',
                         subtitle: 'Configure WO routing between departments',
-                        showDivider: false,
+                        showDivider: true,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => const DepartmentRoutesScreen(),
+                          ),
+                        ),
+                      ),
+                      SettingsRow(
+                        icon: Icons.settings_outlined,
+                        label: 'Settings',
+                        subtitle: 'System settings',
+                        showDivider: false,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
                           ),
                         ),
                       ),
@@ -918,7 +931,8 @@ class _AiModelSectionState extends State<_AiModelSection> {
           child: SizedBox(
             width: 16,
             height: 16,
-            child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.textTertiary),
+            child: CircularProgressIndicator(
+                strokeWidth: 1.5, color: AppColors.textTertiary),
           ),
         ),
       );
@@ -937,20 +951,25 @@ class _AiModelSectionState extends State<_AiModelSection> {
                   color: AppColors.bgSurface2,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.smart_toy_outlined, size: 15, color: AppColors.textSecondary),
+                child: Icon(Icons.smart_toy_outlined,
+                    size: 15, color: AppColors.textSecondary),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Default model',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary),
                 ),
               ),
               if (_saving)
                 SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.textTertiary),
+                  child: CircularProgressIndicator(
+                      strokeWidth: 1.5, color: AppColors.textTertiary),
                 ),
             ],
           ),
@@ -958,7 +977,9 @@ class _AiModelSectionState extends State<_AiModelSection> {
           if (_models.isEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text('No models available', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+              child: Text('No models available',
+                  style:
+                      TextStyle(fontSize: 12, color: AppColors.textTertiary)),
             )
           else
             Wrap(
@@ -972,12 +993,15 @@ class _AiModelSectionState extends State<_AiModelSection> {
                   onTap: _saving ? null : () => _setModel(name),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.accent : AppColors.bgSurface2,
+                      color:
+                          isSelected ? AppColors.accent : AppColors.bgSurface2,
                       borderRadius: BorderRadius.circular(9),
                       border: Border.all(
-                        color: isSelected ? AppColors.accent : AppColors.border2,
+                        color:
+                            isSelected ? AppColors.accent : AppColors.border2,
                         width: 0.5,
                       ),
                     ),
@@ -987,8 +1011,11 @@ class _AiModelSectionState extends State<_AiModelSection> {
                           name,
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.w500,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -996,7 +1023,9 @@ class _AiModelSectionState extends State<_AiModelSection> {
                           '${sizeGb}G',
                           style: TextStyle(
                             fontSize: 9,
-                            color: isSelected ? Colors.white.withValues(alpha: 0.7) : AppColors.textTertiary,
+                            color: isSelected
+                                ? Colors.white.withValues(alpha: 0.7)
+                                : AppColors.textTertiary,
                           ),
                         ),
                       ],

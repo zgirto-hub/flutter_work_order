@@ -328,6 +328,19 @@ def _log_status_change(
 
 
 async def extract_entities_background(work_order_id: str) -> None:
+    from db import supabase
+
+    result = (
+        supabase.table("system_settings")
+        .select("value")
+        .eq("key", "entity_extraction_enabled")
+        .maybe_single()
+        .execute()
+    )
+    if result.data is None or result.data.get("value") != "true":
+        print(f"[entity_extraction] Skipping WO {work_order_id} — extraction disabled")
+        return
+
     try:
         await extract_entities(work_order_id)
     except Exception as e:

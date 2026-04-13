@@ -208,7 +208,7 @@ async def upload_manual(
     # Step 3: Embed via ollama_embedder
     try:
         texts = [chunk.content for chunk in chunks]
-        embeddings = await embed_many(texts, concurrency=4)
+        embeddings = await embed_many(texts)
     except EmbedderTimeoutError as e:
         raise EmbedderUnavailableError() from e
 

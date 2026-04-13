@@ -12,3 +12,9 @@ from . import payment_certificates
 from . import system_status
 from . import signatures
 from . import ai_assist
+from . import ai_insights
+from . import ai_search
+from . import letters_v2
+from . import manuals
+from . import patterns
+from . import settings
