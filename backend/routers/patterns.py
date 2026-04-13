@@ -342,19 +342,19 @@ async def update_alert_status(
             },
         )
 
-    existing = (
+    existing_resp = (
         supabase.table("pattern_alerts")
         .select("*")
         .eq("id", alert_id)
-        .maybe_single()
         .execute()
     )
-    if not existing.data:
+    if not existing_resp.data:
         raise HTTPException(
             status_code=404, detail={"error": "not_found", "detail": "Alert not found"}
         )
+    existing_alert = existing_resp.data[0]
 
-    current_status = existing.data.get("status", "new")
+    current_status = existing_alert.get("status", "new")
 
     if current_status == "new" and body.status != "acknowledged":
         raise HTTPException(
