@@ -1,4 +1,12 @@
-from fastapi import APIRouter, Query, HTTPException, UploadFile, File, Form
+from fastapi import (
+    APIRouter,
+    Query,
+    HTTPException,
+    UploadFile,
+    File,
+    Form,
+    BackgroundTasks,
+)
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional, List
@@ -7,11 +15,14 @@ import os
 import uuid
 import io
 import traceback
+import sys
 
 from PIL import Image, ImageOps
 from db import supabase
 from utils.activity import log_activity
 from utils.notification_service import dispatch_work_order_comment_notification
+from services.entity_extractor import extract_entities
+import asyncio
 
 router = APIRouter()
 
@@ -316,6 +327,50 @@ def _log_status_change(
         print(f"[_log_status_change] Failed to insert comment: {e}")
 
 
+async def extract_entities_background(work_order_id: str) -> None:
+    try:
+        await extract_entities(work_order_id)
+    except Exception as e:
+        print(
+            f"[extract_entities_background] WO {work_order_id} failed: {e}",
+            file=sys.stderr,
+        )
+
+
+async def backfill_entities(pending_ids: list[str], user_email: str) -> None:
+    try:
+        success = 0
+        failed = 0
+        total = len(pending_ids)
+        for i in range(0, len(pending_ids), 10):
+            batch = pending_ids[i : i + 10]
+            for wo_id in batch:
+                try:
+                    result = await extract_entities(wo_id)
+                    if result is not None:
+                        success += 1
+                    else:
+                        failed += 1
+                except Exception:
+                    failed += 1
+            await asyncio.sleep(2)
+        print(
+            f"[backfill] Complete: {success} extracted, {failed} failed out of {total}",
+            file=sys.stderr,
+        )
+        try:
+            log_activity(
+                user_email,
+                "work_order",
+                "entities_backfill_completed",
+                detail=f"{success} extracted, {failed} failed",
+            )
+        except Exception:
+            pass
+    except Exception as e:
+        print(f"[backfill_entities] Unexpected error: {e}", file=sys.stderr)
+
+
 # --------------------
 # Endpoints
 # --------------------
@@ -614,7 +669,9 @@ async def get_work_order(
 
 
 @router.post("/work-orders")
-async def create_work_order(body: CreateWorkOrderBody):
+async def create_work_order(
+    body: CreateWorkOrderBody, background_tasks: BackgroundTasks
+):
     _validate_type(body.type)
     _validate_status(body.status)
 
@@ -706,6 +763,8 @@ async def create_work_order(body: CreateWorkOrderBody):
         target_label=body.title,
         target_id=work_order_id,
     )
+
+    background_tasks.add_task(extract_entities_background, work_order_id)
 
     # Insert system comment so Activity tab shows "Work order created"
     user_name = created_user_email.split("@")[0]
@@ -974,6 +1033,7 @@ async def update_work_order(
 async def close_work_order(
     work_order_id: str,
     body: CloseWorkOrderBody,
+    background_tasks: BackgroundTasks,
     user_email: str = Query(...),
 ):
     _ensure_not_reporter(user_email)
@@ -1026,6 +1086,8 @@ async def close_work_order(
         target_label=work_order_id,
         target_id=work_order_id,
     )
+
+    background_tasks.add_task(extract_entities_background, work_order_id)
 
     return {"status": "closed"}
 
@@ -1178,6 +1240,73 @@ async def add_comment(work_order_id: str, body: AddCommentBody):
             print(f"Notification dispatch failed: {e}")
 
     return {"comment": comment}
+
+
+# --------------------
+# Entity Extraction Endpoints
+# --------------------
+
+
+@router.post("/work-orders/extract-entities/backfill")
+async def trigger_entity_backfill(
+    background_tasks: BackgroundTasks,
+    user_email: str = Query(...),
+):
+    caller = _get_user_by_email(user_email)
+    if not caller or caller.get("user_type") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    all_wo = supabase.table("work_orders").select("id").execute()
+    existing = supabase.table("work_order_entities").select("work_order_id").execute()
+    existing_ids = {r["work_order_id"] for r in (existing.data or [])}
+    pending_ids = [r["id"] for r in (all_wo.data or []) if r["id"] not in existing_ids]
+
+    if not pending_ids:
+        return {
+            "status": "no_pending",
+            "total_pending": 0,
+            "message": "All work orders already have entities",
+        }
+
+    background_tasks.add_task(backfill_entities, pending_ids, user_email)
+    return {
+        "status": "backfill_started",
+        "total_pending": len(pending_ids),
+        "batch_size": 10,
+        "message": f"Processing {len(pending_ids)} work orders in batches of 10",
+    }
+
+
+@router.post("/work-orders/extract-entities/{work_order_id}")
+async def trigger_entity_extraction(
+    work_order_id: str,
+    user_email: str = Query(...),
+):
+    caller = _get_user_by_email(user_email)
+    if not caller or caller.get("user_type") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    wo_check = (
+        supabase.table("work_orders").select("id").eq("id", work_order_id).execute()
+    )
+    if not wo_check.data:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    result = await extract_entities(work_order_id)
+    if result is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Extraction failed — check extraction_failures table",
+        )
+
+    log_activity(
+        user_email,
+        "work_order",
+        "entities_extracted",
+        target_label=work_order_id,
+        target_id=work_order_id,
+    )
+    return {"status": "extracted", "work_order_id": work_order_id, "entities": result}
 
 
 # --------------------
