@@ -2,6 +2,7 @@ print("=== THIS MAIN.PY IS RUNNING v1.10.0 ===")
 
 import json
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -27,9 +28,19 @@ from routers import (
     ai_search,
     letters_v2,
     manuals,
+    patterns,
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from services.pattern_engine import seed_built_in_rules
+
+    await seed_built_in_rules()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.exception_handler(RequestValidationError)
@@ -87,6 +98,7 @@ app.include_router(ai_insights.router, prefix="/api")
 app.include_router(ai_search.router, prefix="/api")
 app.include_router(letters_v2.router, prefix="/api")
 app.include_router(manuals.router, prefix="/api")
+app.include_router(patterns.router, prefix="/api")
 
 
 @app.get("/api/reset-password")

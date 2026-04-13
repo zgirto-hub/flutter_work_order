@@ -1,12 +1,16 @@
 import json
+import logging
 import re
 import sys
 from datetime import datetime
 from typing import Optional
 
+logger = logging.getLogger(__name__)
+
 from db import supabase
 from services.ollama_generator import generate
 from services.ollama_embedder import embed_single
+from services.pattern_engine import evaluate_patterns
 
 
 EXTRACTION_PROMPT = """You are an expert at extracting structured information from work order descriptions.
@@ -177,6 +181,11 @@ async def extract_entities(work_order_id: str) -> Optional[dict]:
                 f"[entity_extractor] Upsert failed for WO {work_order_id}: {e}",
                 file=sys.stderr,
             )
+
+        try:
+            await evaluate_patterns(work_order_id)
+        except Exception as e:
+            logger.warning(f"Pattern evaluation failed for {work_order_id}: {e}")
 
         return parsed_data
     except Exception as e:
