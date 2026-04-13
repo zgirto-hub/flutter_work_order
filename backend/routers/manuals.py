@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from db import supabase
 from utils.activity import log_activity
 import services.manual_rag_service as manual_rag_service
+import services.agentic_tools as agentic_tools
 
 router = APIRouter(tags=["manuals"])
 
@@ -310,7 +311,7 @@ async def ask_question(request: AskRequest):
         history = [
             {"question": h.question, "answer": h.answer} for h in request.history
         ]
-        result = await manual_rag_service.ask(
+        result = await agentic_tools.run_agentic_loop(
             question,
             manual_id_filter,
             model=request.model,
@@ -362,7 +363,7 @@ async def ask_question(request: AskRequest):
             "asked_manual",
             target_label=question[:200],
             target_id=str(manual_id_filter) if manual_id_filter else "all",
-            detail=f"grounded={result.get('grounded', False)}, sources={len(result.get('sources', []))}",
+            detail=f"grounded={result.get('grounded', False)}, sources={len(result.get('sources', []))}, agentic={result.get('agentic', False)}, tools={[t['tool_name'] for t in result.get('tools_used', [])]}",
         )
     except Exception:
         pass
