@@ -68,25 +68,28 @@ class _AssetEditScreenState extends State<AssetEditScreen> {
 
     setState(() => _loading = true);
     try {
-      Asset saved;
       if (isEditMode && _currentAsset != null) {
-        saved = await _service.updateAsset(
+        await _service.updateAsset(
           _currentAsset!.id,
           name: _nameController.text.trim(),
           type: _selectedType,
           location: _locationController.text.trim(),
           notes: _notesController.text.trim(),
         );
+        if (mounted) Navigator.pop(context, true);
       } else {
-        saved = await _service.createAsset(
+        final saved = await _service.createAsset(
           name: _nameController.text.trim(),
           type: _selectedType!,
           location: _locationController.text.trim(),
           notes: _notesController.text.trim(),
         );
-      }
-      if (mounted) {
-        setState(() => _currentAsset = saved);
+        if (mounted) {
+          setState(() => _currentAsset = saved);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Asset created. You can now add system associations.')),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -194,7 +197,7 @@ class _AssetEditScreenState extends State<AssetEditScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: selectedRole,
+                initialValue: selectedRole,
                 decoration: const InputDecoration(
                   labelText: 'Role *',
                   border: OutlineInputBorder(),
@@ -329,13 +332,13 @@ class _AssetEditScreenState extends State<AssetEditScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedType,
+              initialValue: _selectedType,
               decoration: const InputDecoration(
                 labelText: 'Type *',
                 border: OutlineInputBorder(),
               ),
               items: Asset.assetTypes
-                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                  .map((t) => DropdownMenuItem(value: t, child: Text(Asset.displayType(t))))
                   .toList(),
               onChanged: (v) => setState(() => _selectedType = v),
               validator: (v) => v == null ? 'Type is required' : null,

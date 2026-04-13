@@ -175,7 +175,7 @@ class _AssetRegistryScreenState extends State<AssetRegistryScreen> {
               items: [
                 const DropdownMenuItem(value: null, child: Text('All Types')),
                 ...Asset.assetTypes
-                    .map((t) => DropdownMenuItem(value: t, child: Text(t))),
+                    .map((t) => DropdownMenuItem(value: t, child: Text(Asset.displayType(t)))),
               ],
               onChanged: _onTypeFilterChanged,
             ),
@@ -263,7 +263,7 @@ class _AssetRegistryScreenState extends State<AssetRegistryScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      asset.type,
+                      Asset.displayType(asset.type),
                       style: TextStyle(
                         color: AppColors.accent,
                         fontSize: 12,

@@ -68,6 +68,9 @@ class Asset {
     'INDRA CCTV',
   ];
 
+  static String displayType(String type) =>
+      type.replaceAll('_', ' ');
+
   static const List<String> linkRoles = [
     'primary',
     'standby',

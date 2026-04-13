@@ -1,6 +1,10 @@
 -- Asset Registry: assets and asset_system_links tables
 -- Created: 2026-04-14
 
+-- Add system column to existing tables (moved here because original migrations already applied)
+ALTER TABLE work_order_entities ADD COLUMN IF NOT EXISTS system text;
+ALTER TABLE pattern_alerts ADD COLUMN IF NOT EXISTS system text;
+
 -- assets: physical devices at DGCA
 CREATE TABLE IF NOT EXISTS assets (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

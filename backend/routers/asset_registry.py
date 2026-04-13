@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List
 from pydantic import BaseModel
@@ -84,16 +85,18 @@ def get_domain_knowledge_block() -> str:
     if not assets_resp.data:
         return "No assets registered in the asset registry."
 
+    all_links_resp = (
+        supabase.table("asset_system_links")
+        .select("asset_id, system, role")
+        .execute()
+    )
+    links_by_asset = {}
+    for link in (all_links_resp.data or []):
+        links_by_asset.setdefault(link["asset_id"], []).append(link)
+
     lines = []
     for asset in assets_resp.data:
-        links_resp = (
-            supabase.table("asset_system_links")
-            .select("system, role")
-            .eq("asset_id", asset["id"])
-            .execute()
-        )
-        links = links_resp.data or []
-
+        links = links_by_asset.get(asset["id"], [])
         if links:
             roles_str = ", ".join([f"{l['system']} [{l['role']}]" for l in links])
             lines.append(
@@ -117,18 +120,19 @@ async def list_assets(user_email: str = Query(...)):
     assets_resp = supabase.table("assets").select("*").order("name").execute()
     assets = assets_resp.data or []
 
-    result = []
-    for asset in assets:
-        links_resp = (
-            supabase.table("asset_system_links")
-            .select("id, system, role, created_at")
-            .eq("asset_id", asset["id"])
-            .execute()
-        )
-        asset["system_links"] = links_resp.data or []
-        result.append(asset)
+    all_links_resp = (
+        supabase.table("asset_system_links")
+        .select("id, asset_id, system, role, created_at")
+        .execute()
+    )
+    links_by_asset = {}
+    for link in (all_links_resp.data or []):
+        links_by_asset.setdefault(link["asset_id"], []).append(link)
 
-    return {"assets": result}
+    for asset in assets:
+        asset["system_links"] = links_by_asset.get(asset["id"], [])
+
+    return {"assets": assets}
 
 
 @router.post("/asset-registry/assets")
@@ -236,7 +240,7 @@ async def update_asset(
         update_data["notes"] = body.notes
 
     if update_data:
-        update_data["updated_at"] = "now()"
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
         supabase.table("assets").update(update_data).eq("id", asset_id).execute()
 
     asset = _fetch_asset_with_links(asset_id)
@@ -285,6 +289,15 @@ async def add_system_link(
     if not asset_resp.data:
         raise HTTPException(
             status_code=404, detail={"error": "not_found", "detail": "Asset not found"}
+        )
+
+    if not body.system.strip():
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "invalid_system",
+                "detail": "System name is required",
+            },
         )
 
     if body.role not in VALID_ROLES:

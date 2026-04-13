@@ -18,3 +18,4 @@ from . import letters_v2
 from . import manuals
 from . import patterns
 from . import settings
+from . import asset_registry

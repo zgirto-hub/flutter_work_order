@@ -24,7 +24,6 @@ CREATE TABLE IF NOT EXISTS pattern_alerts (
     rule_id uuid NOT NULL REFERENCES pattern_rules(id) ON DELETE CASCADE,
     work_order_ids uuid[] NOT NULL,
     equipment_id text,
-    system text,
     fault_type text,
     technician_id text,
     severity text NOT NULL CHECK (severity IN ('low', 'medium', 'high')),
