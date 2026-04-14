@@ -15,11 +15,16 @@ REFLAG_MIN_TOTAL = 3
 
 # Simple patterns for equipment type and fault code extraction (FR-019)
 _EQUIPMENT_PATTERNS = [
-    re.compile(r"\b(Boeing|Airbus|Bombardier|Embraer|Cessna|ATR)\s*(\d{2,4}[A-Z]?(?:-\d{1,4})?)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(Boeing|Airbus|Bombardier|Embraer|Cessna|ATR)\s*(\d{2,4}[A-Z]?(?:-\d{1,4})?)\b",
+        re.IGNORECASE,
+    ),
     re.compile(r"\b(B7[0-9]{2}|A3[0-9]{2}|A2[0-9]{2}|CRJ|ERJ|DHC-\d)\b", re.IGNORECASE),
 ]
 _FAULT_CODE_PATTERNS = [
-    re.compile(r"\bATA\s*(?:chapter\s*)?(\d{2}(?:-\d{2}(?:-\d{2})?)?)\b", re.IGNORECASE),
+    re.compile(
+        r"\bATA\s*(?:chapter\s*)?(\d{2}(?:-\d{2}(?:-\d{2})?)?)\b", re.IGNORECASE
+    ),
     re.compile(r"\b(\d{2}-\d{2}-\d{2})\b"),  # ATA format: XX-XX-XX
 ]
 
@@ -95,12 +100,14 @@ def get_flagged_answers() -> List[dict]:
     for row in pending.data:
         items.append({**row, "is_reflagged": False, "source": "rating"})
     for row in reflagged.data:
-        items.append({
-            **row,
-            "answer_text": row["validated_answer"],
-            "created_at": row["validated_at"],
-            "source": "validated_qa",
-        })
+        items.append(
+            {
+                **row,
+                "answer_text": row["validated_answer"],
+                "created_at": row["validated_at"],
+                "source": "validated_qa",
+            }
+        )
 
     items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     return items
@@ -113,12 +120,7 @@ async def review_answer(
     reviewer_email: str,
 ) -> str:
     # Check if this is a re-flagged validated_qa entry or a fresh answer_ratings entry
-    vqa_resp = (
-        supabase.table("validated_qa")
-        .select("*")
-        .eq("id", rating_id)
-        .execute()
-    )
+    vqa_resp = supabase.table("validated_qa").select("*").eq("id", rating_id).execute()
     vqa_data = vqa_resp.data[0] if vqa_resp.data else None
 
     if vqa_data and vqa_data.get("is_reflagged"):
@@ -272,3 +274,91 @@ def update_validated_rating(validated_qa_id: str, rating: str) -> None:
             logger.info(
                 f"Validated QA {validated_qa_id} re-flagged: {ratio:.2%} thumbs-down"
             )
+
+
+def get_all_verified_answers(
+    search: Optional[str] = None, limit: int = 50, offset: int = 0
+) -> dict:
+    columns = (
+        "id, question_text, validated_answer, equipment_type, fault_code, "
+        "validated_by, validated_at, thumbs_up_count, thumbs_down_count, "
+        "is_reflagged, updated_at"
+    )
+    query = supabase.table("validated_qa").select(columns)
+
+    if search:
+        query = query.ilike("question_text", f"%{search}%")
+
+    query = query.order("updated_at", desc=True).range(offset, offset + limit - 1)
+    data = query.execute().data
+
+    count_query = supabase.table("validated_qa").select("id", count="exact")
+    if search:
+        count_query = count_query.ilike("question_text", f"%{search}%")
+    count = count_query.execute().count
+
+    return {"items": data, "count": count}
+
+
+async def update_verified_answer(
+    qa_id: str,
+    question_text: Optional[str],
+    validated_answer: Optional[str],
+    editor_email: str,
+) -> dict:
+    existing_resp = (
+        supabase.table("validated_qa").select("*").eq("id", qa_id).single().execute()
+    )
+    if not existing_resp.data:
+        raise ValueError("not found")
+
+    existing = existing_resp.data
+    update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
+
+    if question_text is not None and question_text != existing.get("question_text"):
+        embedding = await embed_single(question_text)
+        embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
+        update_data["question_embedding"] = embedding_str
+        update_data["question_text"] = question_text
+        update_data["equipment_type"] = _extract_equipment_type(question_text)
+        update_data["fault_code"] = _extract_fault_code(question_text)
+
+    if validated_answer is not None:
+        update_data["validated_answer"] = validated_answer
+
+    columns = (
+        "id, question_text, validated_answer, equipment_type, fault_code, "
+        "validated_by, validated_at, thumbs_up_count, thumbs_down_count, "
+        "is_reflagged, updated_at"
+    )
+    result = (
+        supabase.table("validated_qa")
+        .update(update_data)
+        .eq("id", qa_id)
+        .select(columns)
+        .execute()
+    )
+
+    return result.data[0]
+
+
+def delete_verified_answer(qa_id: str) -> str:
+    existing_resp = (
+        supabase.table("validated_qa")
+        .select("id, rating_id")
+        .eq("id", qa_id)
+        .single()
+        .execute()
+    )
+    if not existing_resp.data:
+        raise ValueError("not found")
+
+    rating_id = existing_resp.data["rating_id"]
+
+    supabase.table("validated_qa").delete().eq("id", qa_id).execute()
+
+    supabase.table("answer_ratings").update({"review_status": "pending"}).eq(
+        "id", rating_id
+    ).execute()
+
+    return qa_id

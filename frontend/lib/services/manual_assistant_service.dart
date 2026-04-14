@@ -552,4 +552,107 @@ class ManualAssistantService {
       rethrow;
     }
   }
+
+  Future<Map<String, dynamic>> getVerifiedAnswers({
+    required String userEmail,
+    String? search,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    try {
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      var url =
+          '${AppConfig.baseUrl}/manuals/verified-answers?user_email=${Uri.encodeComponent(userEmail)}&limit=$limit&offset=$offset';
+      if (search != null && search.isNotEmpty) {
+        url += '&search=${Uri.encodeComponent(search)}';
+      }
+
+      final res = await http.get(
+        Uri.parse(url),
+        headers: headers,
+      );
+
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      } else if (res.statusCode == 403) {
+        throw Exception('Admin access required');
+      } else {
+        throw Exception('Failed to get verified answers');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> updateVerifiedAnswer({
+    required String qaId,
+    String? questionText,
+    String? validatedAnswer,
+    required String editorEmail,
+  }) async {
+    try {
+      final body = <String, dynamic>{'editor_email': editorEmail};
+      if (questionText != null) body['question_text'] = questionText;
+      if (validatedAnswer != null) body['validated_answer'] = validatedAnswer;
+
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.put(
+        Uri.parse('${AppConfig.baseUrl}/manuals/verified-answers/$qaId'),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      } else if (res.statusCode == 403) {
+        throw Exception('Admin access required');
+      } else if (res.statusCode == 404) {
+        throw Exception('Answer not found');
+      } else if (res.statusCode == 504) {
+        throw Exception('Embedding timed out — please try again');
+      } else {
+        throw Exception('Failed to update verified answer');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteVerifiedAnswer({
+    required String qaId,
+    required String editorEmail,
+  }) async {
+    try {
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.delete(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/verified-answers/$qaId?editor_email=${Uri.encodeComponent(editorEmail)}'),
+        headers: headers,
+      );
+
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      } else if (res.statusCode == 403) {
+        throw Exception('Admin access required');
+      } else if (res.statusCode == 404) {
+        throw Exception('Answer not found');
+      } else {
+        throw Exception('Failed to delete verified answer');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

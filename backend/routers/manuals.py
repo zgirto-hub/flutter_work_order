@@ -514,6 +514,93 @@ async def review_answer(request: ReviewAnswerRequest):
         )
 
 
+class UpdateVerifiedAnswerRequest(BaseModel):
+    question_text: Optional[str] = None
+    validated_answer: Optional[str] = None
+    editor_email: str
+
+
+@router.get("/manuals/verified-answers")
+async def get_verified_answers(
+    user_email: str = Query(...),
+    search: Optional[str] = Query(None),
+    limit: int = Query(50),
+    offset: int = Query(0),
+):
+    _admin_check(user_email)
+
+    try:
+        result = validated_qa_service.get_all_verified_answers(
+            search=search, limit=limit, offset=offset
+        )
+        return result
+    except Exception:
+        raise HTTPException(status_code=500, detail={"error": "fetch_failed"})
+
+
+@router.put("/manuals/verified-answers/{qa_id}")
+async def update_verified_answer(
+    qa_id: str,
+    request: UpdateVerifiedAnswerRequest,
+):
+    try:
+        _admin_check(request.editor_email)
+    except Exception:
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+
+    try:
+        result = await validated_qa_service.update_verified_answer(
+            qa_id=qa_id,
+            question_text=request.question_text,
+            validated_answer=request.validated_answer,
+            editor_email=request.editor_email,
+        )
+        try:
+            log_activity(
+                request.editor_email,
+                "manual",
+                "edited_verified_answer",
+                target_id=qa_id,
+            )
+        except Exception:
+            pass
+        return result
+    except ValueError:
+        raise HTTPException(status_code=404, detail={"error": "not found"})
+    except EmbedderTimeoutError:
+        raise HTTPException(status_code=504, detail={"error": "embedding_timeout"})
+    except Exception:
+        raise HTTPException(status_code=500, detail={"error": "update_failed"})
+
+
+@router.delete("/manuals/verified-answers/{qa_id}")
+async def delete_verified_answer(
+    qa_id: str,
+    editor_email: str = Query(...),
+):
+    try:
+        _admin_check(editor_email)
+    except Exception:
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+
+    try:
+        validated_qa_service.delete_verified_answer(qa_id)
+        try:
+            log_activity(
+                editor_email,
+                "manual",
+                "deleted_verified_answer",
+                target_id=qa_id,
+            )
+        except Exception:
+            pass
+        return {"status": "deleted", "id": qa_id}
+    except ValueError:
+        raise HTTPException(status_code=404, detail={"error": "not found"})
+    except Exception:
+        raise HTTPException(status_code=500, detail={"error": "delete_failed"})
+
+
 def _admin_check(user_email: str):
     """Shared admin check pattern."""
     try:
