@@ -1828,37 +1828,35 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               ),
 
             // Structured view for existing work orders with structured descriptions
-            if (widget.workOrder != null && !canEdit) ...[
-              Builder(builder: (context) {
-                final parsed =
-                    _parseStructuredDescription(widget.workOrder!.description);
-                if (parsed != null) {
-                  return Card(
-                    margin: EdgeInsets.only(bottom: 16),
-                    child: Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (parsed['Asset'] != null)
-                            _buildDetailRow('Asset Name', parsed['Asset']!),
-                          if (parsed['Fault'] != null)
-                            _buildDetailRow(
-                                'Fault Description', parsed['Fault']!),
-                          if (parsed['Action'] != null)
-                            _buildDetailRow('Action Taken', parsed['Action']!),
-                          if (parsed['Outcome'] != null)
-                            _buildDetailRow('Outcome', parsed['Outcome']!),
-                          if (parsed['Notes'] != null)
-                            _buildDetailRow('Notes', parsed['Notes']!),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-                return SizedBox.shrink();
-              }),
-            ],
+            // Shows for ALL users (not just read-only) when description is structured
+            if (widget.workOrder != null &&
+                _parseStructuredDescription(widget.workOrder!.description) != null)
+              Card(
+                margin: EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Builder(builder: (context) {
+                    final parsed =
+                        _parseStructuredDescription(widget.workOrder!.description)!;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (parsed['Asset'] != null)
+                          _buildDetailRow('Asset Name', parsed['Asset']!),
+                        if (parsed['Fault'] != null)
+                          _buildDetailRow(
+                              'Fault Description', parsed['Fault']!),
+                        if (parsed['Action'] != null)
+                          _buildDetailRow('Action Taken', parsed['Action']!),
+                        if (parsed['Outcome'] != null)
+                          _buildDetailRow('Outcome', parsed['Outcome']!),
+                        if (parsed['Notes'] != null)
+                          _buildDetailRow('Notes', parsed['Notes']!),
+                      ],
+                    );
+                  }),
+                ),
+              ),
 
             // Show legacy description field ONLY for existing work orders with non-structured descriptions
             if (widget.workOrder != null &&
