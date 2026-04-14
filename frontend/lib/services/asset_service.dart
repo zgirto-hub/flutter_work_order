@@ -4,6 +4,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config.dart';
 import '../models/asset.dart';
 
+class AssetServiceException implements Exception {
+  final String message;
+  final String? code;
+  final String? conflictWithLinkId;
+
+  AssetServiceException(this.message, {this.code, this.conflictWithLinkId});
+
+  @override
+  String toString() => message;
+}
+
 class AssetService {
   Map<String, String> _headers() {
     final session = Supabase.instance.client.auth;
@@ -25,7 +36,7 @@ class AssetService {
       headers: _headers(),
     );
 
-    if (res.statusCode == 200) {
+    if (res.statusCode == 200 || res.statusCode == 201) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       final assets = data['assets'] as List<dynamic>? ?? [];
       return assets.map((e) => Asset.fromJson(e)).toList();
@@ -148,8 +159,10 @@ class AssetService {
 
   Future<AssetSystemLink> addLink(
     String assetId, {
-    required String system,
+    String? system,
+    String? systemId,
     required String role,
+    required String site,
   }) async {
     final userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
     final res = await http.post(
@@ -157,12 +170,14 @@ class AssetService {
           '${AppConfig.baseUrl}/asset-registry/assets/$assetId/links?user_email=${Uri.encodeComponent(userEmail)}'),
       headers: _headers(),
       body: jsonEncode({
-        'system': system,
+        if (system != null) 'system': system,
+        if (systemId != null) 'system_id': systemId,
         'role': role,
+        'site': site,
       }),
     );
 
-    if (res.statusCode == 200) {
+    if (res.statusCode == 200 || res.statusCode == 201) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return AssetSystemLink.fromJson(data['link']);
     } else if (res.statusCode == 403) {
@@ -170,17 +185,45 @@ class AssetService {
     } else if (res.statusCode == 404) {
       throw Exception('Asset not found');
     } else if (res.statusCode == 409) {
-      final err = jsonDecode(res.body);
-      throw Exception(err['detail'] ?? 'Link already exists');
+      throw _parseAssetError(res, fallback: 'Link already exists');
     } else if (res.statusCode == 400) {
-      final err = jsonDecode(res.body);
-      throw Exception(err['detail'] ?? 'Invalid request');
+      throw _parseAssetError(res, fallback: 'Invalid request');
     } else {
       throw Exception('Failed to add link');
     }
   }
 
-  Future<void> removeLink(String linkId) async {
+  Future<AssetSystemLink> updateLink(
+    String linkId, {
+    String? role,
+    String? site,
+  }) async {
+    final userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
+    final res = await http.patch(
+      Uri.parse(
+          '${AppConfig.baseUrl}/asset-registry/links/$linkId?user_email=${Uri.encodeComponent(userEmail)}'),
+      headers: _headers(),
+      body: jsonEncode({
+        if (role != null) 'role': role,
+        if (site != null) 'site': site,
+      }),
+    );
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      return AssetSystemLink.fromJson(data['link']);
+    } else if (res.statusCode == 403) {
+      throw AssetServiceException('Admin access required');
+    } else if (res.statusCode == 404) {
+      throw AssetServiceException('Link not found');
+    } else if (res.statusCode == 409 || res.statusCode == 400) {
+      throw _parseAssetError(res, fallback: 'Failed to update link');
+    } else {
+      throw AssetServiceException('Failed to update link');
+    }
+  }
+
+  Future<void> deleteLink(String linkId) async {
     final userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
     final res = await http.delete(
       Uri.parse(
@@ -198,6 +241,8 @@ class AssetService {
       throw Exception('Failed to remove link');
     }
   }
+
+  Future<void> removeLink(String linkId) => deleteLink(linkId);
 
   Future<List<Map<String, dynamic>>> fetchSuggestions() async {
     try {
@@ -240,5 +285,22 @@ class AssetService {
     } else {
       throw Exception('Failed to dismiss suggestion');
     }
+  }
+
+  AssetServiceException _parseAssetError(http.Response res,
+      {required String fallback}) {
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final detail = data['detail'];
+    if (detail is Map<String, dynamic>) {
+      return AssetServiceException(
+        detail['detail'] as String? ?? (detail['error'] as String? ?? fallback),
+        code: detail['error'] as String?,
+        conflictWithLinkId: detail['conflict_with_link_id'] as String?,
+      );
+    }
+    if (detail is String) {
+      return AssetServiceException(detail);
+    }
+    return AssetServiceException(fallback);
   }
 }
