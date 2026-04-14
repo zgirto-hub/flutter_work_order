@@ -25,6 +25,7 @@ import '../../services/signature_service.dart';
 import '../../services/report_service.dart';
 import '../../services/ai_assist_service.dart';
 import '../../services/dictation_service.dart';
+import '../../services/asset_service.dart';
 import '../../widgets/dictation_button.dart';
 import '../../widgets/nl_input_card.dart';
 import '../../widgets/pdf_preview_screen.dart';
@@ -77,6 +78,22 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   final _descriptionFocusNode = FocusNode();
   final _locationFocusNode = FocusNode();
   final _mobileFocusNode = FocusNode();
+
+  // Structured fields controllers
+  final TextEditingController assetNameController = TextEditingController();
+  final TextEditingController faultController = TextEditingController();
+  final TextEditingController actionController = TextEditingController();
+  final TextEditingController notesController = TextEditingController();
+  String? selectedOutcome;
+
+  // Structured fields focus nodes
+  final _assetNameFocusNode = FocusNode();
+  final _faultFocusNode = FocusNode();
+  final _actionFocusNode = FocusNode();
+  final _notesFocusNode = FocusNode();
+
+  // Asset autocomplete
+  List<String> _assetNames = [];
 
   List<AppUser> _employees = [];
   List<String> _selectedEmployeeIds = [];
@@ -159,6 +176,30 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     "Closed",
   ];
 
+  static const List<String> _allowedOutcomes = [
+    "Resolved",
+    "Pending Parts",
+    "Escalated",
+    "Monitoring",
+  ];
+
+  static Map<String, String>? _parseStructuredDescription(String description) {
+    if (!description.startsWith('[Asset] ')) return null;
+    // Split on bracket labels, capturing multi-line values between labels.
+    final labelPattern = RegExp(r'^\[(\w+)\]\s*', multiLine: true);
+    final labelMatches = labelPattern.allMatches(description).toList();
+    if (labelMatches.isEmpty) return null;
+    final result = <String, String>{};
+    for (var i = 0; i < labelMatches.length; i++) {
+      final key = labelMatches[i].group(1)!;
+      final valueStart = labelMatches[i].end;
+      final valueEnd =
+          i + 1 < labelMatches.length ? labelMatches[i + 1].start : description.length;
+      result[key] = description.substring(valueStart, valueEnd).trim();
+    }
+    return result.isNotEmpty ? result : null;
+  }
+
   bool get _isReporter => _roleLoaded && _userRole == 'reporter';
 
   /// Track focus & scroll the focused field into view (iOS PWA keyboard fix).
@@ -203,6 +244,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     DictationService().initialize().then((available) {
       if (mounted) setState(() => _speechAvailable = available);
     });
+    AssetService().fetchAssetNames().then((names) {
+      if (mounted) setState(() => _assetNames = names);
+    }).catchError((_) {});
     if (widget.workOrder != null) {
       jobNoController.text = widget.workOrder!.jobNo;
       clientController.text = widget.workOrder!.title;
@@ -232,7 +276,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         clientController.text = widget.prefillTitle!;
       }
       if (widget.prefillDescription != null) {
-        descriptionController.text = widget.prefillDescription!;
+        faultController.text = widget.prefillDescription!;
       }
       if (widget.prefillLocation != null) {
         locationController.text = widget.prefillLocation!;
@@ -459,15 +503,27 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     descriptionController.removeListener(_onFormFieldChanged);
     locationController.removeListener(_onFormFieldChanged);
     mobileController.removeListener(_onFormFieldChanged);
+    assetNameController.removeListener(_onFormFieldChanged);
+    faultController.removeListener(_onFormFieldChanged);
+    actionController.removeListener(_onFormFieldChanged);
+    notesController.removeListener(_onFormFieldChanged);
     _titleFocusNode.dispose();
     _descriptionFocusNode.dispose();
     _locationFocusNode.dispose();
     _mobileFocusNode.dispose();
+    _assetNameFocusNode.dispose();
+    _faultFocusNode.dispose();
+    _actionFocusNode.dispose();
+    _notesFocusNode.dispose();
     jobNoController.dispose();
     clientController.dispose();
     descriptionController.dispose();
     locationController.dispose();
     mobileController.dispose();
+    assetNameController.dispose();
+    faultController.dispose();
+    actionController.dispose();
+    notesController.dispose();
     _commentCtrl.dispose();
     _commentFocusNode.dispose();
     _activityScrollCtrl.dispose();
@@ -634,8 +690,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
           highlighted.add('title');
         }
         if (response['description'] != null) {
-          descriptionController.text = response['description'];
-          highlighted.add('description');
+          faultController.text = response['description'];
+          highlighted.add('fault_description');
         }
         if (response['location'] != null) {
           locationController.text = response['location'];
@@ -696,6 +752,30 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderSide: BorderSide(color: AppColors.accent, width: 2),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(fontSize: 15, color: AppColors.textPrimary),
+          ),
+        ],
       ),
     );
   }
@@ -1116,7 +1196,14 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
       if (widget.workOrder == null) {
         try {
-          final createdOrder = await _service.addWorkOrder(newWorkOrder);
+          final createdOrder = await _service.addWorkOrder(
+            newWorkOrder,
+            assetName: assetNameController.text.trim(),
+            faultDescription: faultController.text.trim(),
+            actionTaken: actionController.text.trim(),
+            outcome: selectedOutcome,
+            notes: notesController.text.trim(),
+          );
           if (!mounted) return;
           Navigator.pop(context, createdOrder);
         } catch (e) {
@@ -1740,26 +1827,192 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                 ),
               ),
 
-            TextFormField(
-              controller: descriptionController,
-              focusNode: _descriptionFocusNode,
-              readOnly: !canEdit,
-              decoration: _highlightDecoration(
-                InputDecoration(
-                  labelText: "Description",
-                  suffixIcon: canEdit
-                      ? DictationButton(
-                          controller: descriptionController,
-                          language: _dictationLanguage,
-                          enabled: canEdit,
-                        )
-                      : null,
+            // Structured view for existing work orders with structured descriptions
+            if (widget.workOrder != null && !canEdit) ...[
+              Builder(builder: (context) {
+                final parsed =
+                    _parseStructuredDescription(widget.workOrder!.description);
+                if (parsed != null) {
+                  return Card(
+                    margin: EdgeInsets.only(bottom: 16),
+                    child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (parsed['Asset'] != null)
+                            _buildDetailRow('Asset Name', parsed['Asset']!),
+                          if (parsed['Fault'] != null)
+                            _buildDetailRow(
+                                'Fault Description', parsed['Fault']!),
+                          if (parsed['Action'] != null)
+                            _buildDetailRow('Action Taken', parsed['Action']!),
+                          if (parsed['Outcome'] != null)
+                            _buildDetailRow('Outcome', parsed['Outcome']!),
+                          if (parsed['Notes'] != null)
+                            _buildDetailRow('Notes', parsed['Notes']!),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                return SizedBox.shrink();
+              }),
+            ],
+
+            // Show legacy description field ONLY for existing work orders with non-structured descriptions
+            if (widget.workOrder != null &&
+                _parseStructuredDescription(widget.workOrder!.description) == null)
+              TextFormField(
+                controller: descriptionController,
+                focusNode: _descriptionFocusNode,
+                readOnly: !canEdit,
+                decoration: _highlightDecoration(
+                  InputDecoration(
+                    labelText: "Description",
+                    suffixIcon: canEdit
+                        ? DictationButton(
+                            controller: descriptionController,
+                            language: _dictationLanguage,
+                            enabled: canEdit,
+                          )
+                        : null,
+                  ),
+                  "description",
                 ),
-                "description",
+                maxLines: 3,
+                textInputAction: TextInputAction.done,
               ),
-              maxLines: 3,
-              textInputAction: TextInputAction.done,
-            ),
+            SizedBox(height: 10),
+            // Structured fields for new work orders
+            if (widget.workOrder == null && canEdit) ...[
+              SizedBox(height: 16),
+              // Asset Name with Autocomplete (uses assetNameController directly)
+              RawAutocomplete<String>(
+                textEditingController: assetNameController,
+                focusNode: _assetNameFocusNode,
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text.length < 2) {
+                    return const Iterable<String>.empty();
+                  }
+                  final query = textEditingValue.text.toLowerCase();
+                  return _assetNames
+                      .where((name) => name.toLowerCase().contains(query))
+                      .take(15);
+                },
+                onSelected: (String selection) {
+                  assetNameController.text = selection;
+                },
+                fieldViewBuilder:
+                    (context, controller, focusNode, onSubmitted) {
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: InputDecoration(
+                      labelText: "Asset Name",
+                    ),
+                    maxLines: 1,
+                    validator: (v) => v!.isEmpty ? "Enter Asset Name" : null,
+                    onFieldSubmitted: (_) {
+                      FocusScope.of(context).requestFocus(_faultFocusNode);
+                    },
+                  );
+                },
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxHeight: 200),
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          itemCount: options.length,
+                          itemBuilder: (context, index) {
+                            final option = options.elementAt(index);
+                            return ListTile(
+                              title: Text(option),
+                              onTap: () => onSelected(option),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              SizedBox(height: 16),
+              // Fault Description
+              TextFormField(
+                controller: faultController,
+                focusNode: _faultFocusNode,
+                decoration: _highlightDecoration(
+                  InputDecoration(
+                    labelText: "Fault Description",
+                    suffixIcon: DictationButton(
+                      controller: faultController,
+                      language: _dictationLanguage,
+                      enabled: canEdit,
+                    ),
+                  ),
+                  "fault_description",
+                ),
+                maxLines: 3,
+                validator: (v) => v!.isEmpty ? "Enter Fault Description" : null,
+                onFieldSubmitted: (_) {
+                  FocusScope.of(context).requestFocus(_actionFocusNode);
+                },
+              ),
+              SizedBox(height: 16),
+              // Action Taken
+              TextFormField(
+                controller: actionController,
+                focusNode: _actionFocusNode,
+                decoration: InputDecoration(
+                  labelText: "Action Taken",
+                ),
+                maxLines: 2,
+                validator: (v) => v!.isEmpty ? "Enter Action Taken" : null,
+                onFieldSubmitted: (_) {
+                  FocusScope.of(context).requestFocus(_notesFocusNode);
+                },
+              ),
+              SizedBox(height: 16),
+              // Outcome dropdown
+              DropdownButtonFormField<String>(
+                value: selectedOutcome,
+                items: _allowedOutcomes
+                    .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+                    .toList(),
+                onChanged: canEdit
+                    ? (v) {
+                        setState(() => selectedOutcome = v);
+                      }
+                    : null,
+                decoration: InputDecoration(
+                  labelText: "Outcome",
+                ),
+                validator: (v) => v == null ? "Select Outcome" : null,
+              ),
+              SizedBox(height: 16),
+              // Notes (optional, Arabic or English)
+              TextFormField(
+                controller: notesController,
+                focusNode: _notesFocusNode,
+                decoration: InputDecoration(
+                  labelText: "Notes (optional)",
+                  hintText: "ملاحظات إضافية... / Additional notes...",
+                ),
+                maxLines: 2,
+                textDirection: notesController.text.isNotEmpty &&
+                        RegExp(r'[\u0600-\u06FF]').hasMatch(notesController.text[0])
+                    ? TextDirection.rtl
+                    : TextDirection.ltr,
+                onChanged: (_) => setState(() {}),
+              ),
+              SizedBox(height: 16),
+            ],
             SizedBox(height: 25),
             // Only show Assign Employees for admin/tech (not for reporters)
             if (!_isReporter) ...[
@@ -2077,8 +2330,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                   style:
                       TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             Text(_formatDateTime(signature.signedAt),
-                style:
-                    TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
           ],
           if (signature == null && canSign) ...[
             SizedBox(height: 8),

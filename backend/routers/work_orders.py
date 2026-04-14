@@ -35,6 +35,7 @@ IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif"}
 
 ALLOWED_TYPES = {"Technical", "Inspection", "Other"}
 ALLOWED_STATUSES = {"Pending", "In Progress", "Resolved", "Closed"}
+VALID_OUTCOMES = ("Resolved", "Pending Parts", "Escalated", "Monitoring")
 
 # --------------------
 # Pydantic Models
@@ -53,6 +54,11 @@ class CreateWorkOrderBody(BaseModel):
     created_by: str
     created_by_email: Optional[str] = ""
     assigned_technician_id: Optional[str] = None
+    asset_name: Optional[str] = None
+    fault_description: Optional[str] = None
+    action_taken: Optional[str] = None
+    outcome: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class UpdateWorkOrderBody(BaseModel):
@@ -738,11 +744,34 @@ async def create_work_order(
             detail="Unable to resolve user identity. Work order could not be saved.",
         )
 
+    # Structured field stitching
+    final_description = body.description or ""
+    if (
+        body.asset_name
+        and body.fault_description
+        and body.action_taken
+        and body.outcome
+    ):
+        if body.outcome not in VALID_OUTCOMES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid outcome. Must be one of: {', '.join(VALID_OUTCOMES)}",
+            )
+        parts = [
+            f"[Asset] {body.asset_name}",
+            f"[Fault] {body.fault_description}",
+            f"[Action] {body.action_taken}",
+            f"[Outcome] {body.outcome}",
+        ]
+        if body.notes:
+            parts.append(f"[Notes] {body.notes}")
+        final_description = "\n".join(parts)
+
     now = datetime.utcnow().isoformat()
     payload = {
         "job_no": body.job_no,
         "title": body.title,
-        "description": body.description or "",
+        "description": final_description,
         "location": body.location or "",
         "mobile_number": body.mobile_number or "",
         "department_id": body.department_id,

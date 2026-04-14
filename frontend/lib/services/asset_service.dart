@@ -71,6 +71,23 @@ class AssetService {
     }
   }
 
+  Future<List<String>> fetchAssetNames() async {
+    try {
+      final res = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/asset-registry/asset-names'),
+        headers: _headers(),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final names = data['names'] as List<dynamic>? ?? [];
+        return names.map((e) => e.toString()).toList();
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
   Future<Asset> updateAsset(
     String assetId, {
     String? name,

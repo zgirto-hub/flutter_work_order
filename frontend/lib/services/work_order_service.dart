@@ -65,23 +65,35 @@ class WorkOrderService {
     return (items: items, total: total);
   }
 
-  Future<WorkOrder> addWorkOrder(WorkOrder workOrder) async {
+  Future<WorkOrder> addWorkOrder(WorkOrder workOrder,
+      {String? assetName,
+      String? faultDescription,
+      String? actionTaken,
+      String? outcome,
+      String? notes}) async {
+    final body = <String, dynamic>{
+      'job_no': workOrder.jobNo,
+      'title': workOrder.title,
+      'description': workOrder.description,
+      'location': workOrder.location,
+      'mobile_number': workOrder.mobileNumber,
+      'department_id': workOrder.departmentId,
+      'type': workOrder.type,
+      'status': workOrder.status,
+      'created_by': _userId,
+      'created_by_email': _email,
+      'assigned_technician_id': workOrder.assignedTechnician?.id,
+    };
+    if (assetName != null) body['asset_name'] = assetName;
+    if (faultDescription != null) body['fault_description'] = faultDescription;
+    if (actionTaken != null) body['action_taken'] = actionTaken;
+    if (outcome != null) body['outcome'] = outcome;
+    if (notes != null) body['notes'] = notes;
+
     final res = await http.post(
       Uri.parse('${AppConfig.baseUrl}/work-orders'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'job_no': workOrder.jobNo,
-        'title': workOrder.title,
-        'description': workOrder.description,
-        'location': workOrder.location,
-        'mobile_number': workOrder.mobileNumber,
-        'department_id': workOrder.departmentId,
-        'type': workOrder.type,
-        'status': workOrder.status,
-        'created_by': _userId,
-        'created_by_email': _email,
-        'assigned_technician_id': workOrder.assignedTechnician?.id,
-      }),
+      body: jsonEncode(body),
     );
 
     if (res.statusCode != 200) {

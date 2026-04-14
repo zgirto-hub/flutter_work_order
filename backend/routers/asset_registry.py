@@ -135,6 +135,14 @@ async def list_assets(user_email: str = Query(...)):
     return {"assets": assets}
 
 
+@router.get("/asset-registry/asset-names")
+async def list_asset_names():
+    """List all asset names (alphabetically) - no admin required."""
+    assets_resp = supabase.table("assets").select("name").order("name").execute()
+    names = [a["name"] for a in (assets_resp.data or [])]
+    return {"names": names}
+
+
 @router.post("/asset-registry/assets")
 async def create_asset(body: CreateAssetBody, user_email: str = Query(...)):
     """Create a new asset."""
