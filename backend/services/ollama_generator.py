@@ -6,7 +6,7 @@ from pathlib import Path
 from services.ai_queue import submit, PRIORITY_HIGH, is_initialized
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_GEN_MODEL = os.environ.get("OLLAMA_GEN_MODEL", "gemma4:e4b")
+OLLAMA_GEN_MODEL = os.environ.get("OLLAMA_GEN_MODEL", "gemma4:e2b")
 OLLAMA_KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "30m")
 
 _CONFIG_PATH = Path("ai_model_config.json")

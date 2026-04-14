@@ -13,7 +13,7 @@ from services.ollama_generator import (
 
 router = APIRouter()
 
-OLLAMA_MODEL = "gemma4:e4b"
+OLLAMA_MODEL = "gemma4:e2b"
 
 
 class DocumentExpertAction(str, Enum):
