@@ -229,12 +229,23 @@ def _get_year_month(date_str: str) -> str:
 
 def _parse_date(date_str: str) -> Optional[datetime]:
     """Parse date string to datetime object. Returns None if invalid."""
-    if not date_str:
+    if not date_str or date_str == "None":
         return None
-    try:
-        return datetime.strptime(date_str, "%Y-%m-%d")
-    except (ValueError, TypeError):
-        return None
+    formats = [
+        "%Y-%m-%d",
+        "%d %B %Y",
+        "%d %b %Y",
+        "%B %d, %Y",
+        "%b %d, %Y",
+        "%d/%m/%Y",
+        "%m/%d/%Y",
+    ]
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str.strip(), fmt)
+        except (ValueError, TypeError):
+            continue
+    return None
 
 
 async def _check_recurring_fault(entity: dict, rule: dict) -> dict:

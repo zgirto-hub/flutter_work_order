@@ -31,7 +31,7 @@ Extract the following fields from the work order text below. Return a JSON objec
 - parts_replaced (optional JSON array of strings — list of parts that were replaced)
 - outcome (optional string — result of the work: "resolved", "pending parts", "escalated", "monitoring", etc.)
 - technician_id (optional string — ID or name of the technician who performed the work)
-- date (optional string — date of the work or service)
+- date (optional string — date of the work or service, in YYYY-MM-DD format)
 
 Example 1:
 Input: "صيانة مولد كهربائي رقم G-102. تم تغيير بلف الضغط. الفني: أحمد. النتيجة: تم الإصلاح."
@@ -127,7 +127,7 @@ async def extract_entities(work_order_id: str) -> Optional[dict]:
     try:
         result = (
             supabase.table("work_orders")
-            .select("id, description, tech_notes")
+            .select("id, description, tech_notes, created_at")
             .eq("id", work_order_id)
             .execute()
         )
@@ -204,7 +204,7 @@ async def extract_entities(work_order_id: str) -> Optional[dict]:
             "parts_replaced": parsed_data.get("parts_replaced") or [],
             "outcome": parsed_data.get("outcome") or None,
             "technician_id": parsed_data.get("technician_id") or None,
-            "date": parsed_data.get("date") or None,
+            "date": parsed_data.get("date") or (wo.get("created_at", "")[:10] if wo.get("created_at") else None),
             "embedding": embedding,
             "updated_at": datetime.utcnow().isoformat(),
         }
