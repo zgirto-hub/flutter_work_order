@@ -326,18 +326,15 @@ async def update_verified_answer(
     if validated_answer is not None:
         update_data["validated_answer"] = validated_answer
 
-    columns = (
-        "id, question_text, validated_answer, equipment_type, fault_code, "
-        "validated_by, validated_at, thumbs_up_count, thumbs_down_count, "
-        "is_reflagged, updated_at"
-    )
     result = (
         supabase.table("validated_qa")
         .update(update_data)
         .eq("id", qa_id)
-        .select(columns)
         .execute()
     )
+
+    if not result.data:
+        raise ValueError("not found")
 
     return result.data[0]
 
