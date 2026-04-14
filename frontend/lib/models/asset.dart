@@ -2,12 +2,14 @@ class AssetSystemLink {
   final String id;
   final String system;
   final String role;
+  final String site;
   final String createdAt;
 
   AssetSystemLink({
     required this.id,
     required this.system,
     required this.role,
+    required this.site,
     required this.createdAt,
   });
 
@@ -16,6 +18,7 @@ class AssetSystemLink {
       id: json['id'] as String,
       system: json['system'] as String,
       role: json['role'] as String,
+      site: json['site'] as String? ?? 'production',
       createdAt: json['created_at'] as String,
     );
   }
@@ -25,6 +28,7 @@ class AssetSystemLink {
       'id': id,
       'system': system,
       'role': role,
+      'site': site,
       'created_at': createdAt,
     };
   }
