@@ -220,11 +220,8 @@ async def full_scan() -> dict[str, Any]:
 
 def _get_year_month(date_str: str) -> str:
     """Parse YYYY-MM from date string."""
-    try:
-        dt = datetime.strptime(date_str, "%Y-%m-%d")
-        return dt.strftime("%Y-%m")
-    except (ValueError, TypeError):
-        return ""
+    dt = _parse_date(date_str)
+    return dt.strftime("%Y-%m") if dt else ""
 
 
 def _parse_date(date_str: str) -> Optional[datetime]:
