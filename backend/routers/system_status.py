@@ -7,7 +7,7 @@ from db import supabase
 router = APIRouter()
 
 
-def _get_active_systems():
+async def _get_active_systems():
     """Query systems table for active systems ordered by sort_order."""
     result = (
         supabase.table("systems")

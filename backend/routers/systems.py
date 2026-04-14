@@ -70,8 +70,8 @@ async def list_systems(
 async def create_system(body: SystemCreate, user_email: Optional[str] = None):
     _admin_check(user_email)
 
-    existing = supabase.table("systems").select("id").ilike("name", body.name).execute()
-    if existing.data:
+    all_systems = supabase.table("systems").select("id, name").execute()
+    if any(s["name"].lower() == body.name.lower() for s in (all_systems.data or [])):
         raise HTTPException(status_code=409, detail="System name already exists")
 
     if body.sort_order is None:
@@ -114,14 +114,8 @@ async def update_system(
     update_data = {}
 
     if body.name is not None and body.name != current["name"]:
-        dup_check = (
-            supabase.table("systems")
-            .select("id")
-            .ilike("name", body.name)
-            .neq("id", system_id)
-            .execute()
-        )
-        if dup_check.data:
+        all_systems = supabase.table("systems").select("id, name").neq("id", system_id).execute()
+        if any(s["name"].lower() == body.name.lower() for s in (all_systems.data or [])):
             raise HTTPException(status_code=409, detail="System name already exists")
         update_data["name"] = body.name
 
