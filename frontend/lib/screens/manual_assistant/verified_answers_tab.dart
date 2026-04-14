@@ -261,6 +261,82 @@ class _VerifiedAnswersTabState extends State<VerifiedAnswersTab>
     }
   }
 
+  void _showAddDialog() {
+    final questionCtrl = TextEditingController();
+    final answerCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Verified Answer'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: questionCtrl,
+                decoration: const InputDecoration(labelText: 'Question'),
+                maxLines: 5,
+                autofocus: true,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: answerCtrl,
+                decoration: const InputDecoration(labelText: 'Answer'),
+                maxLines: 5,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (questionCtrl.text.trim().isEmpty ||
+                  answerCtrl.text.trim().isEmpty) return;
+              Navigator.pop(context);
+              await _saveNewEntry(
+                  questionCtrl.text.trim(), answerCtrl.text.trim());
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveNewEntry(String questionText, String answerText) async {
+    try {
+      final result = await _service.createVerifiedAnswer(
+        questionText: questionText,
+        validatedAnswer: answerText,
+        editorEmail: widget.userEmail,
+      );
+
+      if (mounted) {
+        setState(() {
+          _entries.insert(0, result);
+          _totalCount++;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Verified answer added')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final message = e.toString().contains('timed out')
+            ? 'Embedding timed out — please try again'
+            : 'Failed to add: $e';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -285,145 +361,158 @@ class _VerifiedAnswersTabState extends State<VerifiedAnswersTab>
       );
     }
 
-    return Column(
+    return Stack(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search questions...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        _onSearchChanged('');
-                      },
-                    )
-                  : null,
-              border: const OutlineInputBorder(),
-            ),
-            onChanged: _onSearchChanged,
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          color: Theme.of(context)
-              .colorScheme
-              .primaryContainer
-              .withValues(alpha: 0.3),
-          child: Row(
-            children: [
-              Text(
-                '$_totalCount verified answers',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
+        Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search questions...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            _onSearchChanged('');
+                          },
+                        )
+                      : null,
+                  border: const OutlineInputBorder(),
                 ),
+                onChanged: _onSearchChanged,
               ),
-              const Spacer(),
-              IconButton(
-                onPressed: _refresh,
-                icon: const Icon(Icons.refresh, size: 18),
-                tooltip: 'Refresh',
-              ),
-            ],
-          ),
-        ),
-        if (_entries.isEmpty)
-          Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              color: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer
+                  .withValues(alpha: 0.3),
+              child: Row(
                 children: [
-                  Icon(Icons.verified_outlined,
-                      size: 64, color: Colors.green.shade300),
-                  const SizedBox(height: 16),
                   Text(
-                    _searchController.text.isNotEmpty
-                        ? 'No matching answers found.'
-                        : 'No verified answers yet.',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
+                    '$_totalCount verified answers',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    tooltip: 'Refresh',
                   ),
                 ],
               ),
             ),
-          )
-        else
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _refresh,
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: _entries.length + (_hasMore ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _entries.length && _hasMore) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: OutlinedButton(
-                        onPressed: _loadingMore ? null : _loadMore,
-                        child: _loadingMore
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text('Load More'),
+            if (_entries.isEmpty)
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.verified_outlined,
+                          size: 64, color: Colors.green.shade300),
+                      const SizedBox(height: 16),
+                      Text(
+                        _searchController.text.isNotEmpty
+                            ? 'No matching answers found.'
+                            : 'No verified answers yet.',
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                    ),
-                  );
-                }
-
-                final entry = _entries[index];
-                return Card(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: ListTile(
-                    title: Text(
-                      entry['question_text'] as String? ?? '',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          entry['validated_answer'] as String? ?? '',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.thumb_up, size: 14),
-                            const SizedBox(width: 2),
-                            Text(
-                              '${entry['thumbs_up_count'] ?? 0}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.thumb_down, size: 14),
-                            const SizedBox(width: 2),
-                            Text(
-                              '${entry['thumbs_down_count'] ?? 0}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    onTap: () => _showEditDialog(entry),
+                    ],
                   ),
-                );
-              },
-            ),
+                ),
+              )
+            else
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: _entries.length + (_hasMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == _entries.length && _hasMore) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: OutlinedButton(
+                              onPressed: _loadingMore ? null : _loadMore,
+                              child: _loadingMore
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text('Load More'),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final entry = _entries[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        child: ListTile(
+                          title: Text(
+                            entry['question_text'] as String? ?? '',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                entry['validated_answer'] as String? ?? '',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.thumb_up, size: 14),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '${entry['thumbs_up_count'] ?? 0}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.thumb_down, size: 14),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '${entry['thumbs_down_count'] ?? 0}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          onTap: () => _showEditDialog(entry),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+          ],
+        ),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: FloatingActionButton(
+            onPressed: _showAddDialog,
+            tooltip: 'Add verified answer',
+            child: const Icon(Icons.add),
           ),
         ),
       ],

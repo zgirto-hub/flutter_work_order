@@ -573,6 +573,54 @@ async def update_verified_answer(
         raise HTTPException(status_code=500, detail={"error": "update_failed"})
 
 
+class CreateVerifiedAnswerRequest(BaseModel):
+    question_text: str
+    validated_answer: str
+    editor_email: str
+
+
+@router.post("/manuals/verified-answers")
+async def create_verified_answer(
+    request: CreateVerifiedAnswerRequest,
+    background_tasks: BackgroundTasks,
+):
+    try:
+        _admin_check(request.editor_email)
+    except Exception:
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+
+    if not request.question_text.strip() or not request.validated_answer.strip():
+        raise HTTPException(
+            status_code=422, detail={"error": "question and answer required"}
+        )
+
+    try:
+        result = await validated_qa_service.create_verified_answer(
+            question_text=request.question_text.strip(),
+            validated_answer=request.validated_answer.strip(),
+            editor_email=request.editor_email,
+        )
+        background_tasks.add_task(
+            log_activity,
+            user_email=request.editor_email,
+            category="manual_assistant",
+            action="created_verified_answer",
+            details={
+                "qa_id": result.get("id"),
+                "question_preview": request.question_text[:100],
+            },
+        )
+        return result
+    except ValueError:
+        raise HTTPException(
+            status_code=422, detail={"error": "question and answer required"}
+        )
+    except EmbedderTimeoutError:
+        raise HTTPException(status_code=504, detail={"error": "embedding_timeout"})
+    except Exception:
+        raise HTTPException(status_code=500, detail={"error": "create_failed"})
+
+
 @router.delete("/manuals/verified-answers/{qa_id}")
 async def delete_verified_answer(
     qa_id: str,

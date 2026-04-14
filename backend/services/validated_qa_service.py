@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional, List
 from uuid import UUID
 from db import supabase
-from services.ollama_embedder import embed_single
+from services.ollama_embedder import embed_single, EmbedderTimeoutError
 from utils.activity import log_activity
 
 logging.basicConfig(level=logging.INFO)
@@ -336,6 +336,38 @@ async def update_verified_answer(
         .update(update_data)
         .eq("id", qa_id)
         .select(columns)
+        .execute()
+    )
+
+    return result.data[0]
+
+
+async def create_verified_answer(
+    question_text: str, validated_answer: str, editor_email: str
+) -> dict:
+    if not question_text.strip() or not validated_answer.strip():
+        raise ValueError("question and answer required")
+
+    embedding = await embed_single(question_text)
+    embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
+
+    equipment_type = _extract_equipment_type(question_text)
+    fault_code = _extract_fault_code(question_text)
+
+    result = (
+        supabase.table("validated_qa")
+        .insert(
+            {
+                "question_text": question_text,
+                "validated_answer": validated_answer,
+                "question_embedding": embedding_str,
+                "validated_by": editor_email,
+                "equipment_type": equipment_type,
+                "fault_code": fault_code,
+                "source_chunks": [],
+                "manual_ids": [],
+            }
+        )
         .execute()
     )
 

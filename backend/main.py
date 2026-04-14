@@ -94,8 +94,7 @@ app.add_middleware(
 @app.middleware("http")
 async def private_network_access_header(request: Request, call_next):
     response = await call_next(request)
-    if request.method == "OPTIONS":
-        response.headers["Access-Control-Allow-Private-Network"] = "true"
+    response.headers["Access-Control-Allow-Private-Network"] = "true"
     return response
 
 

@@ -626,6 +626,43 @@ class ManualAssistantService {
     }
   }
 
+  Future<Map<String, dynamic>> createVerifiedAnswer({
+    required String questionText,
+    required String validatedAnswer,
+    required String editorEmail,
+  }) async {
+    try {
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.post(
+        Uri.parse('${AppConfig.baseUrl}/manuals/verified-answers'),
+        headers: headers,
+        body: jsonEncode({
+          'question_text': questionText,
+          'validated_answer': validatedAnswer,
+          'editor_email': editorEmail,
+        }),
+      );
+
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      } else if (res.statusCode == 403) {
+        throw Exception('Admin access required');
+      } else if (res.statusCode == 422) {
+        throw Exception('Question and answer are required');
+      } else if (res.statusCode == 504) {
+        throw Exception('Embedding timed out — please try again');
+      } else {
+        throw Exception('Failed to create verified answer');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> deleteVerifiedAnswer({
     required String qaId,
     required String editorEmail,
