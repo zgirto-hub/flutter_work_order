@@ -1,5 +1,31 @@
 import 'manual_source.dart';
 
+class RetrievalInfo {
+  final String? detectedSystem;
+  final List<String> filteredManualIds;
+  final bool filterApplied;
+  final String? fallbackReason;
+
+  const RetrievalInfo({
+    this.detectedSystem,
+    this.filteredManualIds = const [],
+    this.filterApplied = false,
+    this.fallbackReason,
+  });
+
+  factory RetrievalInfo.fromJson(Map<String, dynamic> json) {
+    return RetrievalInfo(
+      detectedSystem: json['detected_system'] as String?,
+      filteredManualIds: (json['filtered_manual_ids'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      filterApplied: json['filter_applied'] as bool? ?? false,
+      fallbackReason: json['fallback_reason'] as String?,
+    );
+  }
+}
+
 class ManualConsulted {
   final String id;
   final String title;
@@ -52,6 +78,7 @@ class ManualQaAnswer {
   final List<Map<String, dynamic>> toolsUsed;
   final bool isVerified;
   final VerifiedSource? verifiedSource;
+  final RetrievalInfo? retrievalInfo;
 
   const ManualQaAnswer({
     required this.answer,
@@ -66,6 +93,7 @@ class ManualQaAnswer {
     this.toolsUsed = const [],
     this.isVerified = false,
     this.verifiedSource,
+    this.retrievalInfo,
   });
 
   factory ManualQaAnswer.fromJson(Map<String, dynamic> json) {
@@ -85,6 +113,12 @@ class ManualQaAnswer {
     if (json['verified_source'] != null) {
       verifiedSource = VerifiedSource.fromJson(json['verified_source']);
     }
+    RetrievalInfo? retrievalInfo;
+    if (json['retrieval_info'] != null) {
+      retrievalInfo = RetrievalInfo.fromJson(
+        Map<String, dynamic>.from(json['retrieval_info'] as Map),
+      );
+    }
     return ManualQaAnswer(
       answer: json['answer'] ?? '',
       sources: sourcesList,
@@ -101,6 +135,7 @@ class ManualQaAnswer {
           [],
       isVerified: json['is_verified'] ?? false,
       verifiedSource: verifiedSource,
+      retrievalInfo: retrievalInfo,
     );
   }
 
