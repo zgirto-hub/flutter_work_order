@@ -716,6 +716,20 @@ async def ask(
     # Rewrite query for better retrieval (uses conversation context for follow-up questions)
     search_query = await _rewrite_query(question, history)
 
+    # Follow-up detection: if the original question had no system keyword but the
+    # history-aware rewrite surfaced one (e.g. turn-1 "how to restart CADAS-ATS"
+    # → turn-2 "any other steps?" → rewritten to "any other steps for CADAS-ATS?"),
+    # re-run detection on the rewrite so multi-turn conversations stay scoped.
+    if detected_system is None and search_query and search_query != question:
+        followup_system = detect_system(search_query)
+        if followup_system:
+            detected_system = followup_system
+            retrieval_info["detected_system"] = followup_system
+            logger.info(
+                "[hybrid-retrieval] detected_system=%s via-rewrite (original question had no keyword)",
+                followup_system,
+            )
+
     # HyDE: generate hypothetical answer for better embedding
     hyde_text = await _generate_hypothetical_answer(search_query)
     embed_input = hyde_text if hyde_text else search_query
