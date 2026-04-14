@@ -11,6 +11,7 @@ from fastapi import (
 from typing import Optional, List
 from uuid import UUID
 import os
+import re
 import uuid
 import math
 from pydantic import BaseModel
@@ -31,6 +32,29 @@ ALLOWED_MIME_TYPES = {
 }
 
 MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+
+# Trivial inputs (greetings, acknowledgements) bypass the RAG pipeline — answering
+# them via retrieval produces nonsense ("Manual X greets you...") and burns ~60s of
+# Ollama time for zero value.
+TRIVIAL_INPUT_PATTERN = re.compile(
+    r"^\s*("
+    r"hi+|hello+|hey+|yo|howdy|"
+    r"thanks?|thank\s*you|thx|ty|"
+    r"ok(ay)?|k|cool|nice|great|"
+    r"bye|goodbye|cya|see\s*you|"
+    r"salam|salaam|"
+    r"سلام|السلام\s*عليكم|مرحبا|مرحبًا|أهلا|أهلاً|"
+    r"شكرا|شكراً|شكرًا|"
+    r"مع\s*السلامة|وداعا|وداعاً"
+    r")[\s!.?،]*$",
+    re.IGNORECASE,
+)
+
+TRIVIAL_INPUT_REPLY = (
+    "Hi! Ask me a technical question about the manuals — "
+    "for example: \"how do I reset the X400 after a fault?\" or "
+    "\"what are the APU start procedures?\""
+)
 
 
 class HistoryTurn(BaseModel):
@@ -306,6 +330,27 @@ async def ask_question(request: AskRequest):
         raise HTTPException(
             status_code=400, detail={"error": "question_too_long", "limit": 2000}
         )
+
+    if TRIVIAL_INPUT_PATTERN.match(question):
+        try:
+            log_activity(
+                request.user_email,
+                "file",
+                "asked_manual",
+                target_label=question[:200],
+                target_id=request.manual_id or "all",
+                detail="bypass=greeting",
+            )
+        except Exception:
+            pass
+        return {
+            "answer": TRIVIAL_INPUT_REPLY,
+            "sources": [],
+            "grounded": False,
+            "agentic": False,
+            "tools_used": [],
+            "bypass": "greeting",
+        }
 
     manual_id_filter = None
     if request.manual_id:
