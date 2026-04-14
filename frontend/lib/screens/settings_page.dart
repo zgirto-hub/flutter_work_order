@@ -17,9 +17,8 @@ import 'settings/signature_management_screen.dart';
 import 'admin/user_management_screen.dart';
 import 'admin/department_routes_screen.dart';
 import 'admin/departments_screen.dart';
+import 'admin/infrastructure_screen.dart';
 import 'admin/settings_screen.dart';
-import 'admin/asset_registry_screen.dart';
-import 'admin/systems_screen.dart';
 import '../widgets/nav_bar_customization_sheet.dart';
 import '../widgets/bottom_sheet_widgets.dart';
 import '../services/manual_assistant_service.dart';
@@ -355,26 +354,14 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ),
                       SettingsRow(
-                        icon: Icons.inventory_2_outlined,
-                        label: 'Asset Registry',
-                        subtitle: 'Manage assets and system associations',
+                        icon: Icons.hub_outlined,
+                        label: 'Infrastructure',
+                        subtitle: 'Manage systems, sites, and linked assets',
                         showDivider: true,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const AssetRegistryScreen(),
-                          ),
-                        ),
-                      ),
-                      SettingsRow(
-                        icon: Icons.dns_outlined,
-                        label: 'Systems',
-                        subtitle: 'Manage infrastructure systems',
-                        showDivider: true,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SystemsScreen(),
+                            builder: (_) => const InfrastructureScreen(),
                           ),
                         ),
                       ),
