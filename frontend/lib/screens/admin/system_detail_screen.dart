@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../models/asset.dart';
 import '../../services/asset_service.dart';
 import '../../services/systems_service.dart';
 import '../../theme/app_theme.dart';
@@ -313,6 +314,15 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
                     ),
                   ],
                   const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('Edit Asset'),
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      await _showEditAssetDialog(link);
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
@@ -418,6 +428,101 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
         );
         return;
     }
+  }
+
+  Future<void> _showEditAssetDialog(SystemDetailLink link) async {
+    final nameCtrl = TextEditingController(text: link.name);
+    final locationCtrl = TextEditingController(text: link.location);
+    String type = link.type;
+    String? error;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Edit ${link.name}'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Name',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: type,
+                      decoration: const InputDecoration(
+                        labelText: 'Type',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: Asset.assetTypes
+                          .map((t) => DropdownMenuItem(
+                              value: t, child: Text(Asset.displayType(t))))
+                          .toList(),
+                      onChanged: (value) =>
+                          setDialogState(() => type = value ?? type),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: locationCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Location',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        error!,
+                        style: TextStyle(
+                            color: AppColors.dangerText, fontSize: 12),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final newName = nameCtrl.text.trim();
+                    if (newName.isEmpty) {
+                      setDialogState(() => error = 'Name is required');
+                      return;
+                    }
+                    try {
+                      await _assetService.updateAsset(
+                        link.id,
+                        name: newName != link.name ? newName : null,
+                        type: type != link.type ? type : null,
+                        location: locationCtrl.text.trim() != link.location
+                            ? locationCtrl.text.trim()
+                            : null,
+                      );
+                      if (!mounted) return;
+                      Navigator.pop(context);
+                      _load();
+                    } catch (e) {
+                      setDialogState(() => error = e.toString());
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _showEditDialog() async {
