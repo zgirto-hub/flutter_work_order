@@ -24,8 +24,8 @@
 
 **Purpose**: Create branch-local scaffolding and confirm workspace.
 
-- [ ] T001 Verify you are on branch `061-infrastructure-screen` (run `git branch --show-current`); if not, check it out.
-- [ ] T002 Read every file under `specs/061-infrastructure-screen/` (spec.md, plan.md, research.md, data-model.md, contracts/api.md, quickstart.md) so the design is fully in context before you start.
+- [x] T001 Verify you are on branch `061-infrastructure-screen` (run `git branch --show-current`); if not, check it out.
+- [x] T002 Read every file under `specs/061-infrastructure-screen/` (spec.md, plan.md, research.md, data-model.md, contracts/api.md, quickstart.md) so the design is fully in context before you start.
 
 ---
 
@@ -35,7 +35,7 @@
 
 **⚠️ CRITICAL**: Phase 2 MUST complete before any user story phase begins.
 
-- [ ] T003 Create new migration file `supabase/migrations/20260414150000_infrastructure_refactor.sql` implementing every step in [data-model.md § Migration Data Transformations](./data-model.md) and [§ Tables & Columns](./data-model.md):
+- [x] T003 Create new migration file `supabase/migrations/20260414150000_infrastructure_refactor.sql` implementing every step in [data-model.md § Migration Data Transformations](./data-model.md) and [§ Tables & Columns](./data-model.md):
   - Add `systems.has_contingency` (boolean, not null, default false) — use `ADD COLUMN IF NOT EXISTS`.
   - Add `asset_system_links.site` (text, not null, default 'production', with CHECK constraint `IN ('production','contingency')`) — use `ADD COLUMN IF NOT EXISTS`.
   - Drop old unique indexes `idx_asset_system_links_unique` and `idx_asset_system_links_primary_standby`; create new site-aware versions exactly as specified in data-model.md.
@@ -44,8 +44,8 @@
   - Transformation C (`has_contingency` backfill): set true for AIDA-NG, CADAS-ATS, CADAS-IMS, IRTOS; leave the others default false.
   - Entire migration MUST be idempotent (re-runnable without error).
   - Wrap the data transformations in a single `DO $$ ... END $$` block or use explicit transaction control so partial state is impossible.
-- [ ] T004 [P] Update `frontend/lib/models/system.dart`: add `hasContingency` field (bool, default false), update `fromJson`/`toJson` with key `has_contingency`. Preserve existing fields and constructor order.
-- [ ] T005 [P] Update `frontend/lib/models/asset.dart`: add `site` field to `AssetSystemLink` (String, default `'production'`), update `fromJson`/`toJson` with key `site`. Do not modify `Asset` class.
+- [x] T004 [P] Update `frontend/lib/models/system.dart`: add `hasContingency` field (bool, default false), update `fromJson`/`toJson` with key `has_contingency`. Preserve existing fields and constructor order.
+- [x] T005 [P] Update `frontend/lib/models/asset.dart`: add `site` field to `AssetSystemLink` (String, default `'production'`), update `fromJson`/`toJson` with key `site`. Do not modify `Asset` class.
 - [ ] T006 Apply T003 migration to the local/dev Supabase instance (run via Supabase SQL editor or `supabase db push`). Verify with the SQL checks from [quickstart.md § 1](./quickstart.md) (7 systems, 10 camera assets, zero orphan links, correct `has_contingency`).
 
 **Checkpoint**: Schema and base models ready. User story phases can now begin.
@@ -60,7 +60,7 @@
 
 ### Backend
 
-- [ ] T007 [US1] Add `GET /api/systems/{id}/detail` endpoint in `backend/routers/systems.py` exactly matching the response schema in [contracts/api.md § GET /api/systems/{id}/detail](./contracts/api.md):
+- [x] T007 [US1] Add `GET /api/systems/{id}/detail` endpoint in `backend/routers/systems.py` exactly matching the response schema in [contracts/api.md § GET /api/systems/{id}/detail](./contracts/api.md):
   - Query the `systems` row by id; 404 if missing.
   - Query all `asset_system_links` for this system with a join to `assets` to get `name`, `type`, `location`.
   - Group in Python by site then by role; return only the fields listed in the contract (`id`, `name`, `type`, `location` per asset; `link_id` for the link).
@@ -69,12 +69,12 @@
 
 ### Frontend models and services
 
-- [ ] T008 [P] [US1] Extend `frontend/lib/services/systems_service.dart`: add method `Future<SystemDetail> fetchSystemDetail(String id)` returning a new `SystemDetail` data class. Define `SystemDetail`, `SystemDetailSite`, and `SystemDetailLink` in the same file (or a new file under `frontend/lib/models/` if cleaner — at your discretion, but keep the feature self-contained). The shape must match the contract.
-- [ ] T009 [P] [US1] Extend `frontend/lib/services/systems_service.dart` with `Future<System> updateSystem(...)` capable of passing `has_contingency` in the PATCH body (if the existing `updateSystem` doesn't already). Keep backward compat for other fields.
+- [x] T008 [P] [US1] Extend `frontend/lib/services/systems_service.dart`: add method `Future<SystemDetail> fetchSystemDetail(String id)` returning a new `SystemDetail` data class. Define `SystemDetail`, `SystemDetailSite`, and `SystemDetailLink` in the same file (or a new file under `frontend/lib/models/` if cleaner — at your discretion, but keep the feature self-contained). The shape must match the contract.
+- [x] T009 [P] [US1] Extend `frontend/lib/services/systems_service.dart` with `Future<System> updateSystem(...)` capable of passing `has_contingency` in the PATCH body (if the existing `updateSystem` doesn't already). Keep backward compat for other fields.
 
 ### Frontend UI
 
-- [ ] T010 [US1] Create `frontend/lib/screens/admin/infrastructure_screen.dart` — the overview screen, replacing `systems_screen.dart`:
+- [x] T010 [US1] Create `frontend/lib/screens/admin/infrastructure_screen.dart` — the overview screen, replacing `systems_screen.dart`:
   - Reuse the visual style of the existing `systems_screen.dart` (header, filter chips, FAB, card layout, AppColors). Pull the existing widget structure as a starting point to keep visual consistency.
   - Data source: existing `SystemsService.fetchSystems(...)`.
   - Each card shows: name, status badge (Active/Retired), category badge (if any), review left-border (if `needs_review`), asset count, and a site indicator ("Prod + Cont" if `has_contingency` else "Prod only").
@@ -82,7 +82,7 @@
   - FAB opens the existing create-system dialog (port it from `systems_screen.dart`).
   - Filter chips: Show Retired, Needs Review (client-side filtering on the loaded list).
   - Tap a card → push `SystemDetailScreen(systemId: ...)`.
-- [ ] T011 [US1] Create `frontend/lib/screens/admin/system_detail_screen.dart`:
+- [x] T011 [US1] Create `frontend/lib/screens/admin/system_detail_screen.dart`:
   - On mount, call `SystemsService.fetchSystemDetail(id)`.
   - Header: back button, system name, "{N} assets · Active/Retired" subtitle, overflow menu (⋮).
   - Info bar: Active/Retired chip, category (if any), sort order.
@@ -92,7 +92,7 @@
   - "+ Add" button on each site section is a stub that does nothing in this phase (US2 wires it). Make sure it is visually present.
   - Overflow menu items (non-functional stubs in this phase, wired in US3): Edit System, Toggle Has Contingency, Retire/Activate, View Status Reports. Each must show a `SnackBar("Coming in US3")` on tap to prove the menu is wired.
   - Use `AppColors` and existing shared widgets (EmptyState, etc.) where appropriate.
-- [ ] T012 [US1] Update `frontend/lib/screens/settings_page.dart`: replace the two separate "Systems" and "Asset Registry" entries with a single **Infrastructure** entry that pushes `InfrastructureScreen`. Remove the old entries entirely. Remove any now-unused imports.
+- [x] T012 [US1] Update `frontend/lib/screens/settings_page.dart`: replace the two separate "Systems" and "Asset Registry" entries with a single **Infrastructure** entry that pushes `InfrastructureScreen`. Remove the old entries entirely. Remove any now-unused imports.
 
 **Checkpoint**: Admin can browse Infrastructure and open detail views. Story 1 is complete.
 
@@ -106,12 +106,12 @@
 
 ### Backend
 
-- [ ] T013 [US2] Update `POST /api/asset-registry/assets/{asset_id}/links` in `backend/routers/asset_registry.py` to accept a required `site` field per [contracts/api.md](./contracts/api.md):
+- [x] T013 [US2] Update `POST /api/asset-registry/assets/{asset_id}/links` in `backend/routers/asset_registry.py` to accept a required `site` field per [contracts/api.md](./contracts/api.md):
   - Validate `site in ('production','contingency')`.
   - Reject with 400 `{"error":"system_has_no_contingency"}` if `site='contingency'` and the target system's `has_contingency` is false.
   - Enforce the three uniqueness rules from spec FR-009 (primary per site, standby per site, one role per (asset, system, site)); on violation return 409 with an error body distinguishing the three cases (`"duplicate_primary"`, `"duplicate_standby"`, `"duplicate_link"`).
   - Persist `site` on the insert.
-- [ ] T014 [US2] Add `PATCH /api/asset-registry/links/{link_id}` in `backend/routers/asset_registry.py` per contract:
+- [x] T014 [US2] Add `PATCH /api/asset-registry/links/{link_id}` in `backend/routers/asset_registry.py` per contract:
   - Accept optional `role` and/or `site` in body; at least one required.
   - Validate both against their enum and against the target system's `has_contingency` if `site` is changing to `contingency`.
   - Re-check uniqueness after the update; on conflict return 409 `{"error":"duplicate_link","conflict_with_link_id":"..."}` (or the appropriate duplicate_* error for primary/standby).
@@ -119,20 +119,20 @@
 
 ### Frontend services
 
-- [ ] T015 [P] [US2] Extend `frontend/lib/services/asset_service.dart`:
+- [x] T015 [P] [US2] Extend `frontend/lib/services/asset_service.dart`:
   - Add `site` parameter (required) to the existing `addLink` method and pass it in the body.
   - Add `updateLink(String linkId, {String? role, String? site})` calling `PATCH /api/asset-registry/links/{link_id}`.
   - Map backend 400/409 errors to Dart exceptions carrying the `error` code so the UI can match on it for inline messages.
 
 ### Frontend UI
 
-- [ ] T016 [US2] Create `frontend/lib/screens/admin/widgets/add_asset_to_system_sheet.dart` — a modal bottom sheet invoked from "+ Add":
+- [x] T016 [US2] Create `frontend/lib/screens/admin/widgets/add_asset_to_system_sheet.dart` — a modal bottom sheet invoked from "+ Add":
   - Inputs: site (pre-filled from the calling section, read-only), mode toggle (Pick Existing / Create New), role dropdown.
   - Pick Existing mode: dropdown/search of `AssetService.fetchAssets()` results, excluding assets already linked to this system at this site.
   - Create New mode: inline form with name, type, location (same fields as the old AssetEditScreen form), plus the role dropdown. On save: first POST new asset, then POST link.
   - On 409/400 from the backend, display an inline error matching the error code text.
-- [ ] T017 [US2] Wire `+ Add` buttons in `system_detail_screen.dart` to open the new sheet with the correct site. On successful add, refresh the detail via `fetchSystemDetail`.
-- [ ] T018 [US2] In `system_detail_screen.dart`, make each asset row tappable; tapping opens a simple action sheet with three actions:
+- [x] T017 [US2] Wire `+ Add` buttons in `system_detail_screen.dart` to open the new sheet with the correct site. On successful add, refresh the detail via `fetchSystemDetail`.
+- [x] T018 [US2] In `system_detail_screen.dart`, make each asset row tappable; tapping opens a simple action sheet with three actions:
   - **Change Role** → dropdown of roles, saves via `AssetService.updateLink(linkId, role: newRole)`.
   - **Change Site** (only shown if `has_contingency=true`) → dropdown of sites, saves via `AssetService.updateLink(linkId, site: newSite)`. On 409 show inline error explaining the target already has this link.
   - **Unlink** → confirmation dialog, then `AssetService.deleteLink(linkId)`.
@@ -150,11 +150,11 @@
 
 ### Backend
 
-- [ ] T019 [US3] Modify `PATCH /api/systems/{id}` in `backend/routers/systems.py`:
+- [x] T019 [US3] Modify `PATCH /api/systems/{id}` in `backend/routers/systems.py`:
   - Accept optional `has_contingency` in body.
   - If `has_contingency` is being set from true → false, reject with 409 `{"error":"contingency_assets_exist","count":N}` where N is the count of existing contingency links. (Do not perform the move; the client must call the new `disable-contingency` endpoint.)
   - Otherwise pass through.
-- [ ] T020 [US3] Add `POST /api/systems/{id}/disable-contingency` in `backend/routers/systems.py`:
+- [x] T020 [US3] Add `POST /api/systems/{id}/disable-contingency` in `backend/routers/systems.py`:
   - Admin-only, in a single transaction:
     1. For each `asset_system_links` row of this system with `site='contingency'`, attempt to set `site='production'` preserving role.
     2. If that insert/update would violate the uniqueness rules from FR-009, demote role to `client` and retry.
@@ -165,12 +165,12 @@
 
 ### Frontend services
 
-- [ ] T021 [P] [US3] Extend `systems_service.dart` with `disableContingency(systemId)` calling the new endpoint and returning `{system, moved, demoted}`.
+- [x] T021 [P] [US3] Extend `systems_service.dart` with `disableContingency(systemId)` calling the new endpoint and returning `{system, moved, demoted}`.
 
 ### Frontend UI
 
-- [ ] T022 [US3] Wire the FAB on `infrastructure_screen.dart`: port the "create system" dialog from the old `systems_screen.dart`, add a `has_contingency` toggle to it.
-- [ ] T023 [US3] Replace the overflow menu stubs in `system_detail_screen.dart` with real actions:
+- [x] T022 [US3] Wire the FAB on `infrastructure_screen.dart`: port the "create system" dialog from the old `systems_screen.dart`, add a `has_contingency` toggle to it.
+- [x] T023 [US3] Replace the overflow menu stubs in `system_detail_screen.dart` with real actions:
   - **Edit System** — opens a dialog with name, category, sort_order, has_contingency; calls `updateSystem`. For setting `has_contingency` false, see next bullet.
   - **Toggle Has Contingency (off)** when current = true: if the detail response shows any contingency links, open a confirmation dialog reading "Move N contingency assets to production? (M may be demoted to client due to conflicts with existing primary/standby.)" On confirm, call `disableContingency`; after success, show a SnackBar summarizing "Moved X, demoted Y". On cancel, abort.
   - **Toggle Has Contingency (on)** when current = false: a single PATCH with `has_contingency=true`; refresh.
@@ -186,10 +186,10 @@
 
 **Purpose**: Remove the old screens, remove dead code, update docs.
 
-- [ ] T024 Delete `frontend/lib/screens/admin/systems_screen.dart`, `frontend/lib/screens/admin/asset_registry_screen.dart`, and `frontend/lib/screens/admin/asset_edit_screen.dart`. Search the codebase for any remaining imports or route references to these files and remove them (this should mostly be settings_page.dart which you already updated).
-- [ ] T025 [P] Update `CLAUDE.md` "Active Technologies" and "Recent Changes" sections to mention spec 061. Follow the format used for prior specs (one line summarizing stack changes).
+- [x] T024 Delete `frontend/lib/screens/admin/systems_screen.dart`, `frontend/lib/screens/admin/asset_registry_screen.dart`, and `frontend/lib/screens/admin/asset_edit_screen.dart`. Search the codebase for any remaining imports or route references to these files and remove them (this should mostly be settings_page.dart which you already updated).
+- [x] T025 [P] Update `CLAUDE.md` "Active Technologies" and "Recent Changes" sections to mention spec 061. Follow the format used for prior specs (one line summarizing stack changes).
 - [ ] T026 Run through every step in [quickstart.md](./quickstart.md) §§ 1-6. Fix any surface bugs you discover (missing error handling, typos, etc.) but do NOT redesign. Commit fixes as a single `fix(spec-061): quickstart pass` commit.
-- [ ] T027 Final sanity: run `flutter analyze` (frontend) and `python -m py_compile backend/main.py backend/routers/systems.py backend/routers/asset_registry.py` (backend). Resolve any warnings introduced by this feature. Pre-existing warnings in unrelated files are NOT your concern.
+- [x] T027 Final sanity: run `flutter analyze` (frontend) and `python -m py_compile backend/main.py backend/routers/systems.py backend/routers/asset_registry.py` (backend). Resolve any warnings introduced by this feature. Pre-existing warnings in unrelated files are NOT your concern.
 
 ---
 

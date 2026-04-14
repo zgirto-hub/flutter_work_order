@@ -83,6 +83,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-14
 - Supabase (PostgreSQL) — existing `validated_qa` table; one migration to make `rating_id` nullable (059-add-verified-answer)
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); `http`, `supabase_flutter`, Flutter Material (frontend) (061-infrastructure-screen)
 - Supabase (PostgreSQL) — existing `systems`, `assets`, `asset_system_links`, `system_status_reports` tables; no new tables (061-infrastructure-screen)
+- Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx, existing `ollama_embedder`/`ollama_generator` (backend); Flutter Material, existing answer-card widgets (frontend). **No new dependencies.** (062-hybrid-retrieval-filter)
+- Supabase (PostgreSQL) — existing `manuals`, `manual_chunks` tables. No schema changes. No migrations. (062-hybrid-retrieval-filter)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -105,9 +107,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 062-hybrid-retrieval-filter: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx, existing `ollama_embedder`/`ollama_generator` (backend); Flutter Material, existing answer-card widgets (frontend). **No new dependencies.**
 - 061-infrastructure-screen: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); `http`, `supabase_flutter`, Flutter Material (frontend)
 - 059-add-verified-answer: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
-- main: Added [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
 
 
 <!-- MANUAL ADDITIONS START -->
