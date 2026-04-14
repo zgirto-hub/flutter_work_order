@@ -160,7 +160,7 @@ async def extract_entities(work_order_id: str) -> Optional[dict]:
         for attempt in range(1, 3):
             try:
                 raw_response = await generate(
-                    prompt, model="gemma4:e2b", timeout=120.0, priority=PRIORITY_LOW
+                    prompt, model="gemma4:e4b", timeout=120.0, priority=PRIORITY_LOW
                 )
                 cleaned = _clean_json_response(raw_response)
                 parsed_data = json.loads(cleaned)

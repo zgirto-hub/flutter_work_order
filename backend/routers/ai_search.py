@@ -14,7 +14,7 @@ from services.ollama_generator import (
 
 router = APIRouter(tags=["search"])
 
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:e2b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:e4b")
 
 VALID_STATUSES = ["Pending", "In Progress", "Resolved", "Closed"]
 VALID_TYPES = ["Technical", "Inspection", "Other"]
