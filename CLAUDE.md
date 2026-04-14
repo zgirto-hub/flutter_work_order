@@ -75,6 +75,9 @@ Auto-generated from all feature plans. Last updated: 2026-04-14
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend) (052-extraction-toggle-queue)
 - Supabase (PostgreSQL) — new `system_settings` table (052-extraction-toggle-queue)
 - Supabase (PostgreSQL) — new `assets` and `asset_system_links` tables (053-asset-registry)
+- Supabase (PostgreSQL) — existing `work_orders` table, existing `assets` table; no schema changes (054-structured-wo-description)
+- Supabase (PostgreSQL) — existing `pattern_alerts`, `assets`, `work_order_entities`, `system_settings` tables. No new tables. (055-asset-auto-suggest)
+- Supabase (PostgreSQL) — new `systems` table; modified `asset_system_links`, `system_status_reports` (056-shared-systems-table)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -97,9 +100,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
-- 053-asset-registry: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
-- 052-extraction-toggle-queue: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, httpx, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
-- 051-pattern-rules-engine: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
+- 056-shared-systems-table: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
+- 055-asset-auto-suggest: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
+- 054-structured-wo-description: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
 
 
 <!-- MANUAL ADDITIONS START -->

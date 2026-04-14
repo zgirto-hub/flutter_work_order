@@ -15,32 +15,6 @@ router = APIRouter()
 
 OLLAMA_MODEL = "gemma4:e2b"
 
-ALLOWED_SYSTEMS = [
-    "AIDA-NG",
-    "CADAS-ATS",
-    "CADAS-IMS",
-    "Billing System",
-    "UPS",
-    "Permissions",
-    "IRTOS",
-    "International Circuits - Beirut",
-    "International Circuits - Damascus",
-    "International Circuits - Karachi",
-    "International Circuits - Tehran",
-    "International Circuits - Baghdad",
-    "International Circuits - Bahrain",
-    "INDRA CCTV - Camera 1",
-    "INDRA CCTV - Camera 2",
-    "INDRA CCTV - Camera 3",
-    "INDRA CCTV - Camera 4",
-    "INDRA CCTV - Camera 5",
-    "INDRA CCTV - Camera 6",
-    "INDRA CCTV - Camera 7",
-    "INDRA CCTV - Camera 8",
-    "INDRA CCTV - Camera 9",
-    "INDRA CCTV - Camera 10",
-]
-
 
 class AiInsightRequest(BaseModel):
     insight_type: str
@@ -190,12 +164,26 @@ def _aggregate_work_order_stats(days: int) -> dict:
     }
 
 
+def _get_active_system_names() -> list[str]:
+    """Query systems table for active system names."""
+    result = (
+        supabase.table("systems")
+        .select("name")
+        .eq("is_active", True)
+        .order("sort_order", desc=False)
+        .execute()
+    )
+    return [s["name"] for s in (result.data or [])]
+
+
 def _aggregate_system_status_stats(days: int) -> dict:
     cutoff_date = datetime.now() - timedelta(days=days)
 
     reports_result = (
         supabase.table("system_status_reports")
-        .select("system_name, report_date, notes, resolved_at, resolved_notes")
+        .select(
+            "system_id, report_date, notes, resolved_at, resolved_notes, systems(name)"
+        )
         .gte("report_date", cutoff_date.isoformat())
         .execute()
     )
@@ -203,7 +191,7 @@ def _aggregate_system_status_stats(days: int) -> dict:
 
     unresolved_result = (
         supabase.table("system_status_reports")
-        .select("system_name, report_date, notes")
+        .select("system_id, report_date, notes, systems(name)")
         .is_("resolved_at", "null")
         .execute()
     )
@@ -211,25 +199,24 @@ def _aggregate_system_status_stats(days: int) -> dict:
 
     currently_unresolved = [
         {
-            "system_name": r["system_name"],
+            "system_name": r.get("systems", {}).get("name", ""),
             "report_date": r["report_date"],
             "notes": r.get("notes", ""),
         }
         for r in unresolved
     ]
 
-    # Issues per system
     system_counts = {}
     for r in reports:
-        sn = r["system_name"]
-        system_counts[sn] = system_counts.get(sn, 0) + 1
+        sn = r.get("systems", {}).get("name", "") if r.get("systems") else ""
+        if sn:
+            system_counts[sn] = system_counts.get(sn, 0) + 1
     issues_per_system = sorted(
         [{"system_name": k, "count": v} for k, v in system_counts.items()],
         key=lambda x: x["count"],
         reverse=True,
     )
 
-    # Average resolution hours per system
     resolution_by_system: dict[str, list[float]] = {}
     for r in reports:
         if r.get("resolved_at") and r.get("report_date"):
@@ -238,15 +225,17 @@ def _aggregate_system_status_stats(days: int) -> dict:
                 resolved_dt = datetime.fromisoformat(
                     r["resolved_at"].replace("Z", "+00:00")
                 )
-                # report_date may be date-only (YYYY-MM-DD), make it timezone-naive
                 if report_dt.tzinfo is None and resolved_dt.tzinfo is not None:
                     resolved_dt = resolved_dt.replace(tzinfo=None)
                 hours = (resolved_dt - report_dt).total_seconds() / 3600
                 if hours >= 0:
-                    sn = r["system_name"]
-                    if sn not in resolution_by_system:
+                    sn = (
+                        r.get("systems", {}).get("name", "") if r.get("systems") else ""
+                    )
+                    if sn and sn not in resolution_by_system:
                         resolution_by_system[sn] = []
-                    resolution_by_system[sn].append(hours)
+                    if sn:
+                        resolution_by_system[sn].append(hours)
             except (ValueError, TypeError):
                 continue
     avg_resolution_hours_per_system = {
@@ -255,11 +244,10 @@ def _aggregate_system_status_stats(days: int) -> dict:
         if hrs
     }
 
-    # Clean systems (zero issues in the period)
     systems_with_issues = set(system_counts.keys())
-    clean_systems = [s for s in ALLOWED_SYSTEMS if s not in systems_with_issues]
+    active_systems = _get_active_system_names()
+    clean_systems = [s for s in active_systems if s not in systems_with_issues]
 
-    # Worst systems (top 5 by issue count)
     worst_systems = issues_per_system[:5]
 
     return {

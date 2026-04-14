@@ -32,6 +32,7 @@ from routers import (
     patterns,
     settings,
     asset_registry,
+    systems,
 )
 
 
@@ -119,6 +120,7 @@ app.include_router(manuals.router, prefix="/api")
 app.include_router(patterns.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(asset_registry.router, prefix="/api")
+app.include_router(systems.router, prefix="/api", tags=["systems"])
 
 
 @app.get("/api/reset-password")

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/asset_service.dart';
+import '../../services/systems_service.dart';
 import '../../models/asset.dart';
+import '../../models/system.dart';
 import '../../theme/app_theme.dart';
 
 class AssetEditScreen extends StatefulWidget {
@@ -163,100 +165,108 @@ class _AssetEditScreenState extends State<AssetEditScreen> {
 
     String? selectedSystem;
     String? selectedRole;
+    List<System> systemsList = [];
+    bool systemsLoading = true;
+
+    final systemsService = SystemsService();
+    try {
+      systemsList = await systemsService.fetchSystems(activeOnly: true);
+    } catch (e) {
+      // ignore errors loading systems
+    }
+    systemsLoading = false;
 
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            left: 16,
-            right: 16,
-            top: 16,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Add System Link',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary)),
-              const SizedBox(height: 16),
-              Autocomplete<String>(
-                optionsBuilder: (textEditingValue) {
-                  if (textEditingValue.text.isEmpty) {
-                    return Asset.systemSuggestions;
-                  }
-                  return Asset.systemSuggestions.where(
-                    (s) => s
-                        .toLowerCase()
-                        .contains(textEditingValue.text.toLowerCase()),
-                  );
-                },
-                onSelected: (value) => selectedSystem = value,
-                fieldViewBuilder:
-                    (context, controller, focusNode, onFieldSubmitted) {
-                  return TextField(
-                    controller: controller,
-                    focusNode: focusNode,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) => Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              left: 16,
+              right: 16,
+              top: 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Add System Link',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary)),
+                const SizedBox(height: 16),
+                if (systemsLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (systemsList.isEmpty)
+                  const Text('No active systems available')
+                else
+                  DropdownButtonFormField<String>(
                     decoration: const InputDecoration(
                       labelText: 'System *',
                       border: OutlineInputBorder(),
                     ),
-                    onChanged: (v) => selectedSystem = v,
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: selectedRole,
-                decoration: const InputDecoration(
-                  labelText: 'Role *',
-                  border: OutlineInputBorder(),
+                    items: systemsList
+                        .map((s) => DropdownMenuItem(
+                              value: s.name,
+                              child: Text(s.name),
+                            ))
+                        .toList(),
+                    onChanged: (v) {
+                      setSheetState(() => selectedSystem = v);
+                    },
+                  ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    labelText: 'Role *',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: Asset.linkRoles
+                      .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                      .toList(),
+                  onChanged: (v) {
+                    setSheetState(() => selectedRole = v);
+                  },
                 ),
-                items: Asset.linkRoles
-                    .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                    .toList(),
-                onChanged: (v) => setSheetState(() => selectedRole = v),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel'),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (selectedSystem == null || selectedRole == null) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(
-                                content: Text('Please fill all fields')),
-                          );
-                          return;
-                        }
-                        Navigator.pop(ctx, true);
-                      },
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accent,
-                          foregroundColor: Colors.white),
-                      child: const Text('Add'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (selectedSystem == null || selectedRole == null) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Please fill all fields')),
+                            );
+                            return;
+                          }
+                          Navigator.pop(ctx, true);
+                        },
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                            foregroundColor: Colors.white),
+                        child: const Text('Add'),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
 
     if (result != true) return;

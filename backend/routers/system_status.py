@@ -6,31 +6,17 @@ from db import supabase
 
 router = APIRouter()
 
-ALLOWED_SYSTEMS = [
-    "AIDA-NG",
-    "CADAS-ATS",
-    "CADAS-IMS",
-    "Billing System",
-    "UPS",
-    "Permissions",
-    "IRTOS",
-    "International Circuits - Beirut",
-    "International Circuits - Damascus",
-    "International Circuits - Karachi",
-    "International Circuits - Tehran",
-    "International Circuits - Baghdad",
-    "International Circuits - Bahrain",
-    "INDRA CCTV - Camera 1",
-    "INDRA CCTV - Camera 2",
-    "INDRA CCTV - Camera 3",
-    "INDRA CCTV - Camera 4",
-    "INDRA CCTV - Camera 5",
-    "INDRA CCTV - Camera 6",
-    "INDRA CCTV - Camera 7",
-    "INDRA CCTV - Camera 8",
-    "INDRA CCTV - Camera 9",
-    "INDRA CCTV - Camera 10",
-]
+
+def _get_active_systems():
+    """Query systems table for active systems ordered by sort_order."""
+    result = (
+        supabase.table("systems")
+        .select("id, name, category")
+        .eq("is_active", True)
+        .order("sort_order", desc=False)
+        .execute()
+    )
+    return result.data or []
 
 
 class ReportIssueBody(BaseModel):
@@ -58,20 +44,29 @@ async def get_today_status(target_date: Optional[str] = Query(None)):
     """Get status of all systems for a given date (defaults to today)."""
     d = target_date or date.today().isoformat()
 
+    systems_list = await _get_active_systems()
+
+    if not systems_list:
+        return {"date": d, "systems": []}
+
+    system_ids = [s["id"] for s in systems_list]
+    system_names = {s["id"]: s["name"] for s in systems_list}
+
     result = (
         supabase.table("system_status_reports")
         .select("*")
+        .in_("system_id", system_ids)
         .is_("resolved_at", "null")
         .execute()
     )
-    active_reports = {r["system_name"]: r for r in (result.data or [])}
+    active_reports = {r["system_id"]: r for r in (result.data or [])}
 
     systems = []
-    for name in ALLOWED_SYSTEMS:
-        report = active_reports.get(name)
+    for sys in systems_list:
+        report = active_reports.get(sys["id"])
         systems.append(
             {
-                "system_name": name,
+                "system_name": sys["name"],
                 "status": "issue" if report else "operational",
                 "active_report": report,
             }
@@ -88,34 +83,50 @@ async def get_history(
     """Get issue history, optionally filtered by system."""
     query = (
         supabase.table("system_status_reports")
-        .select("*")
+        .select("*, systems(name)")
         .order("created_at", desc=True)
         .limit(limit)
     )
+
     if system_name:
-        if system_name not in ALLOWED_SYSTEMS:
+        sys_lookup = (
+            supabase.table("systems").select("id").ilike("name", system_name).execute()
+        )
+        if not sys_lookup.data:
             raise HTTPException(
                 status_code=400, detail=f"Unknown system: {system_name}"
             )
-        query = query.eq("system_name", system_name)
+        system_id = sys_lookup.data[0]["id"]
+        query = query.eq("system_id", system_id)
 
     result = query.execute()
-    return {"reports": result.data or []}
+    reports = result.data or []
+
+    for r in reports:
+        if "systems" in r and r["systems"]:
+            r["system_name"] = r["systems"]["name"]
+        if "systems" in r:
+            del r["systems"]
+
+    return {"reports": reports}
 
 
 @router.post("/system-status/report")
 async def report_issue(body: ReportIssueBody):
     """Report an issue for a system on a specific date."""
-    if body.system_name not in ALLOWED_SYSTEMS:
+    sys_lookup = (
+        supabase.table("systems").select("id").ilike("name", body.system_name).execute()
+    )
+    if not sys_lookup.data:
         raise HTTPException(
             status_code=400, detail=f"Unknown system: {body.system_name}"
         )
+    system_id = sys_lookup.data[0]["id"]
 
-    # Check for duplicate unresolved report on same system + date
     existing = (
         supabase.table("system_status_reports")
         .select("id")
-        .eq("system_name", body.system_name)
+        .eq("system_id", system_id)
         .eq("report_date", body.report_date)
         .is_("resolved_at", "null")
         .execute()
@@ -130,7 +141,7 @@ async def report_issue(body: ReportIssueBody):
         supabase.table("system_status_reports")
         .insert(
             {
-                "system_name": body.system_name,
+                "system_id": system_id,
                 "report_date": body.report_date,
                 "notes": body.notes or "",
                 "reported_by": body.reported_by,
@@ -143,13 +154,13 @@ async def report_issue(body: ReportIssueBody):
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create report")
 
+    result.data[0]["system_name"] = body.system_name
     return {"report": result.data[0]}
 
 
 @router.patch("/system-status/{report_id}/resolve")
 async def resolve_issue(report_id: str, body: ResolveIssueBody):
     """Mark an issue as resolved."""
-    # Verify it exists and is not already resolved
     existing = (
         supabase.table("system_status_reports")
         .select("id, resolved_at, report_date")
@@ -199,7 +210,7 @@ async def update_issue(report_id: str, body: UpdateIssueBody):
     """Update an issue's notes and/or date."""
     existing = (
         supabase.table("system_status_reports")
-        .select("*")
+        .select("*, systems(name)")
         .eq("id", report_id)
         .execute()
     )
@@ -207,16 +218,22 @@ async def update_issue(report_id: str, body: UpdateIssueBody):
         raise HTTPException(status_code=404, detail="Report not found")
 
     old_report = existing.data[0]
+    system_name = (
+        old_report.get("systems", {}).get("name", "")
+        if old_report.get("systems")
+        else ""
+    )
+    system_id = old_report.get("system_id")
+
     updates = {}
     if body.notes is not None:
         updates["notes"] = body.notes
     if body.report_date is not None:
-        # Check for duplicate if date is changing
         if body.report_date != old_report["report_date"]:
             dup = (
                 supabase.table("system_status_reports")
                 .select("id")
-                .eq("system_name", old_report["system_name"])
+                .eq("system_id", system_id)
                 .eq("report_date", body.report_date)
                 .is_("resolved_at", "null")
                 .neq("id", report_id)
@@ -225,7 +242,7 @@ async def update_issue(report_id: str, body: UpdateIssueBody):
             if dup.data:
                 raise HTTPException(
                     status_code=409,
-                    detail=f"An unresolved issue already exists for {old_report['system_name']} on {body.report_date}",
+                    detail=f"An unresolved issue already exists for {system_name} on {body.report_date}",
                 )
         updates["report_date"] = body.report_date
     if body.resolved_at is not None:
@@ -258,7 +275,11 @@ async def update_issue(report_id: str, body: UpdateIssueBody):
         .eq("id", report_id)
         .execute()
     )
-    return {"report": result.data[0] if result.data else None}
+
+    updated = result.data[0] if result.data else None
+    if updated and system_name:
+        updated["system_name"] = system_name
+    return {"report": updated}
 
 
 @router.delete("/system-status/{report_id}")
@@ -297,31 +318,42 @@ async def get_uptime_report(
 
     total_days = (ed - sd).days + 1
 
-    systems_to_check = (
-        [system_name]
-        if system_name and system_name in ALLOWED_SYSTEMS
-        else ALLOWED_SYSTEMS
-    )
+    systems_list = await _get_active_systems()
+    systems_to_check = [s["name"] for s in systems_list]
+    system_ids = {s["name"]: s["id"] for s in systems_list}
 
-    # Fetch all reports whose downtime span overlaps the date range
+    if system_name:
+        sys_lookup = (
+            supabase.table("systems").select("id").ilike("name", system_name).execute()
+        )
+        if not sys_lookup.data:
+            raise HTTPException(
+                status_code=400, detail=f"Unknown system: {system_name}"
+            )
+        systems_to_check = [system_name]
+        system_ids = {system_name: sys_lookup.data[0]["id"]}
+
     query = (
         supabase.table("system_status_reports")
-        .select("system_name, report_date, resolved_at")
+        .select("system_id, report_date, resolved_at")
         .lte("report_date", end_date)
         .or_(f"resolved_at.gte.{start_date},resolved_at.is.null")
     )
-    if system_name and system_name in ALLOWED_SYSTEMS:
-        query = query.eq("system_name", system_name)
+    if system_name and system_name in system_ids:
+        query = query.eq("system_id", system_ids[system_name])
 
     result = query.execute()
     reports = result.data or []
 
-    # Count distinct downtime days per system, spreading each issue
-    # from report_date to resolved_at (or today), clamped to [sd, ed]
-    today = date.today()
     issues_by_system: dict[str, set[date]] = {}
     for r in reports:
-        sn = r["system_name"]
+        sn = None
+        for name, sid in system_ids.items():
+            if sid == r["system_id"]:
+                sn = name
+                break
+        if not sn:
+            continue
         if sn not in issues_by_system:
             issues_by_system[sn] = set()
 
@@ -330,7 +362,7 @@ async def get_uptime_report(
             resolved_date = date.fromisoformat(r["resolved_at"][:10])
             issue_end = min(resolved_date, ed)
         else:
-            issue_end = min(today, ed)
+            issue_end = min(date.today(), ed)
 
         d = issue_start
         while d <= issue_end:

@@ -61,21 +61,27 @@ class DismissSuggestionBody(BaseModel):
 
 def _fetch_asset_with_links(asset_id: str) -> Optional[dict]:
     """Fetch asset with its system links."""
-    asset_resp = (
-        supabase.table("assets").select("*").eq("id", asset_id).execute()
-    )
+    asset_resp = supabase.table("assets").select("*").eq("id", asset_id).execute()
     if not asset_resp.data:
         return None
 
     links_resp = (
         supabase.table("asset_system_links")
-        .select("id, system, role, created_at")
+        .select("id, system_id, role, created_at, systems(name)")
         .eq("asset_id", asset_id)
         .execute()
     )
 
     asset = asset_resp.data[0]
-    asset["system_links"] = links_resp.data or []
+    links = []
+    for link in links_resp.data or []:
+        link["system"] = (
+            link.get("systems", {}).get("name", "") if link.get("systems") else ""
+        )
+        if "systems" in link:
+            del link["systems"]
+        links.append(link)
+    asset["system_links"] = links
     return asset
 
 
@@ -93,11 +99,16 @@ def get_domain_knowledge_block() -> str:
 
     all_links_resp = (
         supabase.table("asset_system_links")
-        .select("asset_id, system, role")
+        .select("asset_id, system_id, role, systems(name)")
         .execute()
     )
     links_by_asset = {}
-    for link in (all_links_resp.data or []):
+    for link in all_links_resp.data or []:
+        link["system"] = (
+            link.get("systems", {}).get("name", "") if link.get("systems") else ""
+        )
+        if "systems" in link:
+            del link["systems"]
         links_by_asset.setdefault(link["asset_id"], []).append(link)
 
     lines = []
@@ -128,11 +139,16 @@ async def list_assets(user_email: str = Query(...)):
 
     all_links_resp = (
         supabase.table("asset_system_links")
-        .select("id, asset_id, system, role, created_at")
+        .select("id, asset_id, system_id, role, created_at, systems(name)")
         .execute()
     )
     links_by_asset = {}
-    for link in (all_links_resp.data or []):
+    for link in all_links_resp.data or []:
+        link["system"] = (
+            link.get("systems", {}).get("name", "") if link.get("systems") else ""
+        )
+        if "systems" in link:
+            del link["systems"]
         links_by_asset.setdefault(link["asset_id"], []).append(link)
 
     for asset in assets:
@@ -163,12 +179,7 @@ async def create_asset(body: CreateAssetBody, user_email: str = Query(...)):
             },
         )
 
-    existing = (
-        supabase.table("assets")
-        .select("id")
-        .eq("name", body.name)
-        .execute()
-    )
+    existing = supabase.table("assets").select("id").eq("name", body.name).execute()
     if existing.data:
         raise HTTPException(
             status_code=409,
@@ -206,12 +217,7 @@ async def update_asset(
     """Update an asset."""
     _admin_check(user_email)
 
-    existing = (
-        supabase.table("assets")
-        .select("id")
-        .eq("id", asset_id)
-        .execute()
-    )
+    existing = supabase.table("assets").select("id").eq("id", asset_id).execute()
     if not existing.data:
         raise HTTPException(
             status_code=404, detail={"error": "not_found", "detail": "Asset not found"}
@@ -268,12 +274,7 @@ async def delete_asset(asset_id: str, user_email: str = Query(...)):
     """Delete an asset."""
     _admin_check(user_email)
 
-    asset_resp = (
-        supabase.table("assets")
-        .select("name")
-        .eq("id", asset_id)
-        .execute()
-    )
+    asset_resp = supabase.table("assets").select("name").eq("id", asset_id).execute()
     if not asset_resp.data:
         raise HTTPException(
             status_code=404, detail={"error": "not_found", "detail": "Asset not found"}
@@ -294,12 +295,7 @@ async def add_system_link(
     """Add a system link to an asset."""
     _admin_check(user_email)
 
-    asset_resp = (
-        supabase.table("assets")
-        .select("id")
-        .eq("id", asset_id)
-        .execute()
-    )
+    asset_resp = supabase.table("assets").select("id").eq("id", asset_id).execute()
     if not asset_resp.data:
         raise HTTPException(
             status_code=404, detail={"error": "not_found", "detail": "Asset not found"}
@@ -314,6 +310,19 @@ async def add_system_link(
             },
         )
 
+    sys_lookup = (
+        supabase.table("systems").select("id").ilike("name", body.system).execute()
+    )
+    if not sys_lookup.data:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "invalid_system",
+                "detail": f"Unknown system: {body.system}",
+            },
+        )
+    system_id = sys_lookup.data[0]["id"]
+
     if body.role not in VALID_ROLES:
         raise HTTPException(
             status_code=400,
@@ -327,7 +336,7 @@ async def add_system_link(
         supabase.table("asset_system_links")
         .select("id")
         .eq("asset_id", asset_id)
-        .eq("system", body.system)
+        .eq("system_id", system_id)
         .eq("role", body.role)
         .execute()
     )
@@ -344,19 +353,18 @@ async def add_system_link(
         role_check = (
             supabase.table("asset_system_links")
             .select("asset_id")
-            .eq("system", body.system)
+            .eq("system_id", system_id)
             .eq("role", body.role)
             .execute()
         )
         if role_check.data:
             holder_id = role_check.data[0]["asset_id"]
             holder_resp = (
-                supabase.table("assets")
-                .select("name")
-                .eq("id", holder_id)
-                .execute()
+                supabase.table("assets").select("name").eq("id", holder_id).execute()
             )
-            holder_name = holder_resp.data[0]["name"] if holder_resp.data else "another asset"
+            holder_name = (
+                holder_resp.data[0]["name"] if holder_resp.data else "another asset"
+            )
             raise HTTPException(
                 status_code=409,
                 detail={
@@ -367,11 +375,12 @@ async def add_system_link(
 
     result = (
         supabase.table("asset_system_links")
-        .insert({"asset_id": asset_id, "system": body.system, "role": body.role})
+        .insert({"asset_id": asset_id, "system_id": system_id, "role": body.role})
         .execute()
     )
 
     link = result.data[0]
+    link["system"] = body.system
     log_activity(user_email, "asset", "added_system_link", f"{body.system}/{body.role}")
 
     return {"link": link}
@@ -384,7 +393,7 @@ async def delete_system_link(link_id: str, user_email: str = Query(...)):
 
     link_resp = (
         supabase.table("asset_system_links")
-        .select("system, role")
+        .select("system_id, role, systems(name)")
         .eq("id", link_id)
         .execute()
     )
@@ -393,13 +402,16 @@ async def delete_system_link(link_id: str, user_email: str = Query(...)):
             status_code=404, detail={"error": "not_found", "detail": "Link not found"}
         )
 
+    link = link_resp.data[0]
+    system_name = link.get("systems", {}).get("name", "") if link.get("systems") else ""
+
     supabase.table("asset_system_links").delete().eq("id", link_id).execute()
 
     log_activity(
         user_email,
         "asset",
         "removed_system_link",
-        f"{link_resp.data[0]['system']}/{link_resp.data[0]['role']}",
+        f"{system_name}/{link['role']}",
     )
 
     return {"deleted": True}

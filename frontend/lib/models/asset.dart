@@ -61,15 +61,7 @@ class Asset {
     'power_adapter',
   ];
 
-  static const List<String> systemSuggestions = [
-    'CADAS-ATS',
-    'CADAS-IMS',
-    'AIDA-NG',
-    'INDRA CCTV',
-  ];
-
-  static String displayType(String type) =>
-      type.replaceAll('_', ' ');
+  static String displayType(String type) => type.replaceAll('_', ' ');
 
   static const List<String> linkRoles = [
     'primary',
