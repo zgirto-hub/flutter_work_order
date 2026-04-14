@@ -10,6 +10,7 @@ from services.manual_parser import parse, NoExtractableTextError
 from services.manual_chunker import chunk_paragraphs, Chunk
 from services.ollama_embedder import embed_many, EmbedderTimeoutError
 from services.manual_storage_service import save, delete as delete_file
+from services.system_registry import detect_system, get_manual_ids_for_system
 import services.validated_qa_service as validated_qa_service
 
 logging.basicConfig(level=logging.INFO)
@@ -427,10 +428,18 @@ MANUAL PASSAGE:
         return None
 
 
-async def _retrieve_chunks_per_manual(embedding_str: str) -> dict[str, list[dict]]:
+async def _retrieve_chunks_per_manual(
+    embedding_str: str, allowed_manual_ids: set[str] | None = None
+) -> dict[str, list[dict]]:
     """Retrieve top qualifying chunks grouped by manual ID (spec 046)."""
     # Get all manual IDs
     manuals_resp = supabase.table("manuals").select("id, title").execute()
+    if allowed_manual_ids is not None:
+        manuals_resp.data = [
+            manual
+            for manual in (manuals_resp.data or [])
+            if manual["id"] in allowed_manual_ids
+        ]
     if not manuals_resp.data:
         return {}
 
@@ -483,6 +492,7 @@ async def _generate_sub_answers(
     memory: str | None,
     model: str | None,
     validated_context: str | None = None,
+    extra_prefix: str | None = None,
 ) -> list[dict]:
     """Generate a sub-answer for each manual's chunks (spec 046)."""
     from services.ollama_generator import generate
@@ -512,6 +522,8 @@ async def _generate_sub_answers(
         prompt = _build_prompt(
             retrieved_text, question, history, memory, validated_context
         )
+        if extra_prefix:
+            prompt = f"{extra_prefix}\n\n{prompt}"
 
         try:
             answer_text = await generate(prompt, model=model)
@@ -639,6 +651,16 @@ async def ask(
     from services.ollama_embedder import embed_single, EmbedderTimeoutError
     from services.ollama_generator import generate, GeneratorTimeoutError
 
+    detected_system = detect_system(question)
+    retrieval_info: dict = {
+        "detected_system": detected_system,
+        "filtered_manual_ids": [],
+        "filter_applied": False,
+        "fallback_reason": None,
+    }
+    system_manual_ids: list[str] = []
+    no_manuals_directive: str | None = None
+
     # Check corpus is not empty
     count_response = (
         supabase.table("manual_corpus_stats")
@@ -652,6 +674,7 @@ async def ask(
             "grounded": False,
             "sources": [],
             "session_summary": None,
+            "retrieval_info": retrieval_info,
         }
 
     # Check for validated QA match first (spec 048)
@@ -678,6 +701,7 @@ async def ask(
                     else str(vqa["validated_at"]),
                     "similarity": 1.0 - vqa.get("distance", 0.0),
                 },
+                "retrieval_info": retrieval_info,
             }
         elif match_result["match_type"] == "context":
             validated_context = match_result["validated_qa"]["validated_answer"]
@@ -743,6 +767,34 @@ async def ask(
 
     used_model = model or get_default_model()
 
+    if detected_system and manual_id_filter is None:
+        system_manual_ids = await get_manual_ids_for_system(detected_system, supabase)
+        if system_manual_ids:
+            retrieval_info["filtered_manual_ids"] = system_manual_ids
+            retrieval_info["filter_applied"] = True
+            logger.info(
+                "[hybrid-retrieval] detected_system=%s filter_applied=true matched_manuals=%d",
+                detected_system,
+                len(system_manual_ids),
+            )
+        else:
+            retrieval_info["fallback_reason"] = "no_manuals_for_system"
+            no_manuals_directive = (
+                f"IMPORTANT: The user asked specifically about {detected_system}. "
+                f"No manuals for {detected_system} are currently uploaded to the system. "
+                "Do NOT substitute content from other similar-sounding systems. "
+                f"Respond that specific information about {detected_system} is not available in the uploaded manuals."
+            )
+            logger.warning(
+                "[hybrid-retrieval] System '%s' detected but no manuals found, falling back to all",
+                detected_system,
+            )
+    elif manual_id_filter is not None and detected_system:
+        logger.info(
+            "[hybrid-retrieval] User selected manual - skipping filter (detected=%s)",
+            detected_system,
+        )
+
     # ================================================================
     # BRANCH: single-manual vs cross-manual synthesis (spec 046)
     # ================================================================
@@ -765,6 +817,7 @@ async def ask(
                 "grounded": False,
                 "sources": [],
                 "session_summary": memory,
+                "retrieval_info": retrieval_info,
             }
 
         # Chunk reranking (spec 044)
@@ -790,6 +843,7 @@ async def ask(
                 "model": used_model,
                 "duration_seconds": 0,
                 "session_summary": memory,
+                "retrieval_info": retrieval_info,
             }
 
         # Build prompt from qualified chunks
@@ -832,6 +886,7 @@ async def ask(
                 "model": used_model,
                 "duration_seconds": round(gen_elapsed, 1),
                 "session_summary": memory,
+                "retrieval_info": retrieval_info,
             }
 
         # Highlight sources
@@ -858,6 +913,7 @@ async def ask(
             "model": used_model,
             "duration_seconds": round(gen_elapsed, 1),
             "session_summary": memory,
+            "retrieval_info": retrieval_info,
         }
 
     else:
@@ -866,7 +922,12 @@ async def ask(
 
         # Step 1: Per-manual chunk retrieval
         retrieval_start = time.monotonic()
-        chunks_by_manual = await _retrieve_chunks_per_manual(embedding_str)
+        chunks_by_manual = await _retrieve_chunks_per_manual(
+            embedding_str,
+            allowed_manual_ids=set(system_manual_ids)
+            if retrieval_info["filter_applied"]
+            else None,
+        )
         retrieval_elapsed = time.monotonic() - retrieval_start
 
         if not chunks_by_manual:
@@ -878,6 +939,7 @@ async def ask(
                 "model": used_model,
                 "duration_seconds": 0,
                 "session_summary": memory,
+                "retrieval_info": retrieval_info,
             }
 
         logger.info(
@@ -895,6 +957,7 @@ async def ask(
             memory,
             model,
             validated_context,
+            no_manuals_directive,
         )
         sub_answer_elapsed = time.monotonic() - sub_answer_start
 
@@ -923,6 +986,7 @@ async def ask(
                 "model": used_model,
                 "duration_seconds": round(gen_elapsed, 1),
                 "session_summary": memory,
+                "retrieval_info": retrieval_info,
             }
 
         # Collect all sources from contributing manuals and compute highlights
@@ -955,6 +1019,7 @@ async def ask(
             "session_summary": memory,
             "manuals_consulted": synthesis_result["manuals_consulted"],
             "has_conflicts": synthesis_result["has_conflicts"],
+            "retrieval_info": retrieval_info,
         }
 
 

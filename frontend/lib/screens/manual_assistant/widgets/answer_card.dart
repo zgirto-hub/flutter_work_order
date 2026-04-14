@@ -88,6 +88,31 @@ class _AnswerCardState extends State<AnswerCard> {
                   ],
                 ),
               ),
+              if (widget.answer.retrievalInfo?.filterApplied == true &&
+                  widget.answer.retrievalInfo?.detectedSystem != null) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.filter_alt_outlined,
+                          size: 12, color: Colors.blue.shade700),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Filtered to: ${widget.answer.retrievalInfo!.detectedSystem}',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.blue.shade700),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
             if (widget.answer.hasConflicts) ...[
               const SizedBox(height: 6),
