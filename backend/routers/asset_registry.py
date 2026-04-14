@@ -19,6 +19,7 @@ VALID_TYPES = [
     "power_adapter",
 ]
 VALID_ROLES = ["primary", "standby", "client"]
+VALID_SITES = ["production", "contingency"]
 
 
 def _admin_check(user_email: str):
@@ -51,8 +52,15 @@ class UpdateAssetBody(BaseModel):
 
 
 class CreateLinkBody(BaseModel):
-    system: str
+    system_id: Optional[str] = None
+    system: Optional[str] = None
     role: str
+    site: str
+
+
+class UpdateLinkBody(BaseModel):
+    role: Optional[str] = None
+    site: Optional[str] = None
 
 
 class DismissSuggestionBody(BaseModel):
@@ -67,7 +75,7 @@ def _fetch_asset_with_links(asset_id: str) -> Optional[dict]:
 
     links_resp = (
         supabase.table("asset_system_links")
-        .select("id, system_id, role, created_at, systems(name)")
+        .select("id, system_id, role, site, created_at, systems(name)")
         .eq("asset_id", asset_id)
         .execute()
     )
@@ -99,7 +107,7 @@ def get_domain_knowledge_block() -> str:
 
     all_links_resp = (
         supabase.table("asset_system_links")
-        .select("asset_id, system_id, role, systems(name)")
+        .select("asset_id, system_id, role, site, systems(name)")
         .execute()
     )
     links_by_asset = {}
@@ -115,7 +123,12 @@ def get_domain_knowledge_block() -> str:
     for asset in assets_resp.data:
         links = links_by_asset.get(asset["id"], [])
         if links:
-            roles_str = ", ".join([f"{l['system']} [{l['role']}]" for l in links])
+            roles_str = ", ".join(
+                [
+                    f"{l['system']} [{l['role']}/{l.get('site', 'production')}]"
+                    for l in links
+                ]
+            )
             lines.append(
                 f"- {asset['name']} ({asset['type']}, {asset['location']}): {roles_str}"
             )
@@ -139,7 +152,7 @@ async def list_assets(user_email: str = Query(...)):
 
     all_links_resp = (
         supabase.table("asset_system_links")
-        .select("id, asset_id, system_id, role, created_at, systems(name)")
+        .select("id, asset_id, system_id, role, site, created_at, systems(name)")
         .execute()
     )
     links_by_asset = {}
@@ -155,6 +168,86 @@ async def list_assets(user_email: str = Query(...)):
         asset["system_links"] = links_by_asset.get(asset["id"], [])
 
     return {"assets": assets}
+
+
+def _resolve_system(body: CreateLinkBody) -> dict:
+    if body.system_id:
+        sys_lookup = (
+            supabase.table("systems")
+            .select("id, name, has_contingency")
+            .eq("id", body.system_id)
+            .execute()
+        )
+        if sys_lookup.data:
+            return sys_lookup.data[0]
+
+    if body.system and body.system.strip():
+        sys_lookup = (
+            supabase.table("systems")
+            .select("id, name, has_contingency")
+            .ilike("name", body.system)
+            .execute()
+        )
+        if sys_lookup.data:
+            return sys_lookup.data[0]
+
+    raise HTTPException(
+        status_code=400,
+        detail={
+            "error": "invalid_system",
+            "detail": "Valid system_id is required",
+        },
+    )
+
+
+def _validate_link_conflict(
+    *,
+    asset_id: str,
+    system_id: str,
+    role: str,
+    site: str,
+    exclude_link_id: Optional[str] = None,
+):
+    duplicate_link_query = (
+        supabase.table("asset_system_links")
+        .select("id")
+        .eq("asset_id", asset_id)
+        .eq("system_id", system_id)
+        .eq("site", site)
+    )
+    if exclude_link_id:
+        duplicate_link_query = duplicate_link_query.neq("id", exclude_link_id)
+    duplicate_link = duplicate_link_query.execute()
+    if duplicate_link.data:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "duplicate_link",
+                "site": site,
+                "conflict_with_link_id": duplicate_link.data[0]["id"],
+            },
+        )
+
+    if role in ["primary", "standby"]:
+        role_query = (
+            supabase.table("asset_system_links")
+            .select("id")
+            .eq("system_id", system_id)
+            .eq("role", role)
+            .eq("site", site)
+        )
+        if exclude_link_id:
+            role_query = role_query.neq("id", exclude_link_id)
+        role_conflict = role_query.execute()
+        if role_conflict.data:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": f"duplicate_{role}",
+                    "site": site,
+                    "conflict_with_link_id": role_conflict.data[0]["id"],
+                },
+            )
 
 
 @router.get("/asset-registry/asset-names")
@@ -288,7 +381,7 @@ async def delete_asset(asset_id: str, user_email: str = Query(...)):
     return {"deleted": True}
 
 
-@router.post("/asset-registry/assets/{asset_id}/links")
+@router.post("/asset-registry/assets/{asset_id}/links", status_code=201)
 async def add_system_link(
     asset_id: str, body: CreateLinkBody, user_email: str = Query(...)
 ):
@@ -301,27 +394,8 @@ async def add_system_link(
             status_code=404, detail={"error": "not_found", "detail": "Asset not found"}
         )
 
-    if not body.system.strip():
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "invalid_system",
-                "detail": "System name is required",
-            },
-        )
-
-    sys_lookup = (
-        supabase.table("systems").select("id").ilike("name", body.system).execute()
-    )
-    if not sys_lookup.data:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "invalid_system",
-                "detail": f"Unknown system: {body.system}",
-            },
-        )
-    system_id = sys_lookup.data[0]["id"]
+    system = _resolve_system(body)
+    system_id = system["id"]
 
     if body.role not in VALID_ROLES:
         raise HTTPException(
@@ -332,58 +406,145 @@ async def add_system_link(
             },
         )
 
-    dup_check = (
-        supabase.table("asset_system_links")
-        .select("id")
-        .eq("asset_id", asset_id)
-        .eq("system_id", system_id)
-        .eq("role", body.role)
-        .execute()
-    )
-    if dup_check.data:
+    if body.site not in VALID_SITES:
         raise HTTPException(
-            status_code=409,
+            status_code=400,
             detail={
-                "error": "duplicate_link",
-                "detail": f"This asset is already linked to {body.system} as {body.role}",
+                "error": "invalid_site",
+                "detail": f"Site must be one of: {', '.join(VALID_SITES)}",
             },
         )
 
-    if body.role in ["primary", "standby"]:
-        role_check = (
-            supabase.table("asset_system_links")
-            .select("asset_id")
-            .eq("system_id", system_id)
-            .eq("role", body.role)
-            .execute()
+    if body.site == "contingency" and not system.get("has_contingency", False):
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "system_has_no_contingency"},
         )
-        if role_check.data:
-            holder_id = role_check.data[0]["asset_id"]
-            holder_resp = (
-                supabase.table("assets").select("name").eq("id", holder_id).execute()
-            )
-            holder_name = (
-                holder_resp.data[0]["name"] if holder_resp.data else "another asset"
-            )
-            raise HTTPException(
-                status_code=409,
-                detail={
-                    "error": "role_taken",
-                    "detail": f"{body.system} already has a {body.role} server: {holder_name}",
-                },
-            )
+
+    _validate_link_conflict(
+        asset_id=asset_id,
+        system_id=system_id,
+        role=body.role,
+        site=body.site,
+    )
 
     result = (
         supabase.table("asset_system_links")
-        .insert({"asset_id": asset_id, "system_id": system_id, "role": body.role})
+        .insert(
+            {
+                "asset_id": asset_id,
+                "system_id": system_id,
+                "role": body.role,
+                "site": body.site,
+            }
+        )
         .execute()
     )
 
     link = result.data[0]
-    link["system"] = body.system
-    log_activity(user_email, "asset", "added_system_link", f"{body.system}/{body.role}")
+    link["system"] = system["name"]
+    log_activity(
+        user_email,
+        "asset",
+        "added_system_link",
+        f"{system['name']}/{body.site}/{body.role}",
+    )
 
     return {"link": link}
+
+
+@router.patch("/asset-registry/links/{link_id}")
+async def update_system_link(
+    link_id: str, body: UpdateLinkBody, user_email: str = Query(...)
+):
+    _admin_check(user_email)
+
+    if body.role is None and body.site is None:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "missing_fields", "detail": "role or site is required"},
+        )
+
+    link_resp = (
+        supabase.table("asset_system_links")
+        .select("id, asset_id, system_id, role, site")
+        .eq("id", link_id)
+        .execute()
+    )
+    if not link_resp.data:
+        raise HTTPException(
+            status_code=404, detail={"error": "not_found", "detail": "Link not found"}
+        )
+
+    current = link_resp.data[0]
+    next_role = body.role or current["role"]
+    next_site = body.site or current.get("site") or "production"
+
+    if next_role not in VALID_ROLES:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "invalid_role",
+                "detail": f"Role must be one of: {', '.join(VALID_ROLES)}",
+            },
+        )
+
+    if next_site not in VALID_SITES:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "invalid_site",
+                "detail": f"Site must be one of: {', '.join(VALID_SITES)}",
+            },
+        )
+
+    system_resp = (
+        supabase.table("systems")
+        .select("id, name, has_contingency")
+        .eq("id", current["system_id"])
+        .execute()
+    )
+    system = system_resp.data[0] if system_resp.data else None
+    if not system:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "invalid_system", "detail": "System not found"},
+        )
+    if next_site == "contingency" and not system.get("has_contingency", False):
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "system_has_no_contingency"},
+        )
+
+    _validate_link_conflict(
+        asset_id=current["asset_id"],
+        system_id=current["system_id"],
+        role=next_role,
+        site=next_site,
+        exclude_link_id=link_id,
+    )
+
+    updated_link = (
+        supabase.table("asset_system_links")
+        .update({"role": next_role, "site": next_site})
+        .eq("id", link_id)
+        .execute()
+    )
+    (
+        supabase.table("systems")
+        .update({"updated_at": datetime.now(timezone.utc).isoformat()})
+        .eq("id", current["system_id"])
+        .execute()
+    )
+
+    log_activity(
+        user_email,
+        "asset",
+        "updated_system_link",
+        f"{system['name']}/{next_site}/{next_role}",
+    )
+
+    return {"link": updated_link.data[0]}
 
 
 @router.delete("/asset-registry/links/{link_id}")
@@ -393,7 +554,7 @@ async def delete_system_link(link_id: str, user_email: str = Query(...)):
 
     link_resp = (
         supabase.table("asset_system_links")
-        .select("system_id, role, systems(name)")
+        .select("system_id, role, site, systems(name)")
         .eq("id", link_id)
         .execute()
     )
@@ -411,7 +572,7 @@ async def delete_system_link(link_id: str, user_email: str = Query(...)):
         user_email,
         "asset",
         "removed_system_link",
-        f"{system_name}/{link['role']}",
+        f"{system_name}/{link.get('site', 'production')}/{link['role']}",
     )
 
     return {"deleted": True}
