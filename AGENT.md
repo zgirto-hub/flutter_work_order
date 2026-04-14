@@ -53,6 +53,10 @@ supabase/
   seed.sql            Initial data
 ```
 
+## RAG Pipeline
+
+- Manual-assistant retrieval can narrow cross-manual search to manuals matched by a detected system keyword; see `specs/062-hybrid-retrieval-filter/`.
+
 ---
 
 ## Database Schema
