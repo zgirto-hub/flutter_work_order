@@ -1,3 +1,5 @@
+from collections import Counter
+import json
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List
@@ -51,6 +53,10 @@ class UpdateAssetBody(BaseModel):
 class CreateLinkBody(BaseModel):
     system: str
     role: str
+
+
+class DismissSuggestionBody(BaseModel):
+    equipment_id: str
 
 
 def _fetch_asset_with_links(asset_id: str) -> Optional[dict]:
@@ -397,3 +403,137 @@ async def delete_system_link(link_id: str, user_email: str = Query(...)):
     )
 
     return {"deleted": True}
+
+
+@router.get("/asset-registry/suggestions")
+async def get_suggestions(user_email: str = Query(...)):
+    """Get unregistered equipment from pattern alerts with 2+ alerts."""
+    _admin_check(user_email)
+
+    alerts_resp = (
+        supabase.table("pattern_alerts").select("equipment_id, fault_type").execute()
+    )
+    if not alerts_resp.data:
+        return {"suggestions": []}
+
+    equipment_alerts = {}
+    for alert in alerts_resp.data:
+        eq_id = alert.get("equipment_id")
+        if not eq_id:
+            continue
+        if eq_id not in equipment_alerts:
+            equipment_alerts[eq_id] = {"count": 0, "fault_types": set()}
+        equipment_alerts[eq_id]["count"] += 1
+        if alert.get("fault_type"):
+            equipment_alerts[eq_id]["fault_types"].add(alert["fault_type"])
+
+    equipment_alerts = {k: v for k, v in equipment_alerts.items() if v["count"] >= 2}
+
+    assets_resp = supabase.table("assets").select("name").execute()
+    asset_names = {a["name"].lower() for a in (assets_resp.data or [])}
+
+    settings_resp = (
+        supabase.table("system_settings")
+        .select("value")
+        .eq("key", "dismissed_asset_suggestions")
+        .execute()
+    )
+    dismissed = []
+    if settings_resp.data and settings_resp.data[0].get("value"):
+        try:
+            dismissed = settings_resp.data[0]["value"]
+            if isinstance(dismissed, str):
+                dismissed = json.loads(dismissed)
+        except (json.JSONDecodeError, TypeError):
+            dismissed = []
+
+    dismissed_lower = {d.lower() for d in dismissed}
+
+    # Filter to candidate equipment_ids
+    candidate_ids = []
+    for equipment_id in equipment_alerts:
+        eq_lower = equipment_id.lower()
+        if eq_lower in asset_names or eq_lower in dismissed_lower:
+            continue
+        candidate_ids.append(equipment_id)
+
+    # Batch query for type inference (avoid N+1)
+    types_by_equipment = {}
+    if candidate_ids:
+        all_entities = (
+            supabase.table("work_order_entities")
+            .select("equipment_id, equipment_type")
+            .execute()
+        )
+        for e in all_entities.data or []:
+            eq_id = e.get("equipment_id")
+            eq_type = e.get("equipment_type")
+            if eq_id and eq_type and eq_id in equipment_alerts:
+                types_by_equipment.setdefault(eq_id, []).append(eq_type)
+
+    suggestions = []
+    for equipment_id in candidate_ids:
+        data = equipment_alerts[equipment_id]
+        inferred_type = None
+        types = types_by_equipment.get(equipment_id, [])
+        if types:
+            inferred_type = Counter(types).most_common(1)[0][0]
+
+        suggestions.append(
+            {
+                "equipment_id": equipment_id,
+                "alert_count": data["count"],
+                "fault_types": sorted(list(data["fault_types"])),
+                "inferred_type": inferred_type,
+            }
+        )
+
+    suggestions.sort(key=lambda x: x["alert_count"], reverse=True)
+    return {"suggestions": suggestions}
+
+
+@router.post("/asset-registry/suggestions/dismiss")
+async def dismiss_suggestion(body: DismissSuggestionBody, user_email: str = Query(...)):
+    """Dismiss a suggestion."""
+    _admin_check(user_email)
+
+    equipment_id = body.equipment_id
+    if not equipment_id or not equipment_id.strip():
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "missing_equipment_id",
+                "detail": "equipment_id is required",
+            },
+        )
+
+    settings_resp = (
+        supabase.table("system_settings")
+        .select("value")
+        .eq("key", "dismissed_asset_suggestions")
+        .execute()
+    )
+    dismissed = []
+    if settings_resp.data and settings_resp.data[0].get("value"):
+        try:
+            dismissed = settings_resp.data[0]["value"]
+            if isinstance(dismissed, str):
+                dismissed = json.loads(dismissed)
+        except (json.JSONDecodeError, TypeError):
+            dismissed = []
+
+    if isinstance(dismissed, list):
+        dismissed_set = {d.lower() for d in dismissed}
+        if equipment_id.lower() not in dismissed_set:
+            dismissed.append(equipment_id)
+    else:
+        dismissed = [equipment_id]
+
+    supabase.table("system_settings").upsert(
+        {"key": "dismissed_asset_suggestions", "value": json.dumps(dismissed)},
+        on_conflict="key",
+    ).execute()
+
+    log_activity(user_email, "asset", "dismissed_suggestion", equipment_id)
+
+    return {"dismissed": True}

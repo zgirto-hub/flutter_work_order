@@ -198,4 +198,47 @@ class AssetService {
       throw Exception('Failed to remove link');
     }
   }
+
+  Future<List<Map<String, dynamic>>> fetchSuggestions() async {
+    try {
+      final userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
+      final res = await http.get(
+        Uri.parse(
+            '${AppConfig.baseUrl}/asset-registry/suggestions?user_email=${Uri.encodeComponent(userEmail)}'),
+        headers: _headers(),
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final suggestions = data['suggestions'] as List<dynamic>? ?? [];
+        return suggestions.map((e) => Map<String, dynamic>.from(e)).toList();
+      } else if (res.statusCode == 403) {
+        return [];
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> dismissSuggestion(String equipmentId) async {
+    final userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
+    final res = await http.post(
+      Uri.parse(
+          '${AppConfig.baseUrl}/asset-registry/suggestions/dismiss?user_email=${Uri.encodeComponent(userEmail)}'),
+      headers: _headers(),
+      body: jsonEncode({'equipment_id': equipmentId}),
+    );
+
+    if (res.statusCode == 200) {
+      return;
+    } else if (res.statusCode == 403) {
+      throw Exception('Admin access required');
+    } else if (res.statusCode == 400) {
+      final err = jsonDecode(res.body);
+      throw Exception(err['detail'] ?? 'Invalid request');
+    } else {
+      throw Exception('Failed to dismiss suggestion');
+    }
+  }
 }

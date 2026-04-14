@@ -5,8 +5,15 @@ import '../../theme/app_theme.dart';
 
 class AssetEditScreen extends StatefulWidget {
   final Asset? asset;
+  final String? prefillName;
+  final String? prefillType;
 
-  const AssetEditScreen({super.key, this.asset});
+  const AssetEditScreen({
+    super.key,
+    this.asset,
+    this.prefillName,
+    this.prefillType,
+  });
 
   @override
   State<AssetEditScreen> createState() => _AssetEditScreenState();
@@ -27,11 +34,17 @@ class _AssetEditScreenState extends State<AssetEditScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.asset?.name ?? '');
+    _nameController = TextEditingController(
+        text: widget.asset?.name ?? widget.prefillName ?? '');
     _locationController =
         TextEditingController(text: widget.asset?.location ?? '');
     _notesController = TextEditingController(text: widget.asset?.notes ?? '');
     _selectedType = widget.asset?.type;
+    if (_selectedType == null && widget.prefillType != null) {
+      if (Asset.assetTypes.contains(widget.prefillType)) {
+        _selectedType = widget.prefillType;
+      }
+    }
     _currentAsset = widget.asset;
   }
 
@@ -87,7 +100,9 @@ class _AssetEditScreenState extends State<AssetEditScreen> {
         if (mounted) {
           setState(() => _currentAsset = saved);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Asset created. You can now add system associations.')),
+            const SnackBar(
+                content: Text(
+                    'Asset created. You can now add system associations.')),
           );
         }
       }
@@ -338,7 +353,8 @@ class _AssetEditScreenState extends State<AssetEditScreen> {
                 border: OutlineInputBorder(),
               ),
               items: Asset.assetTypes
-                  .map((t) => DropdownMenuItem(value: t, child: Text(Asset.displayType(t))))
+                  .map((t) => DropdownMenuItem(
+                      value: t, child: Text(Asset.displayType(t))))
                   .toList(),
               onChanged: (v) => setState(() => _selectedType = v),
               validator: (v) => v == null ? 'Type is required' : null,
