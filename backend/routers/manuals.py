@@ -1,3 +1,4 @@
+import time
 from fastapi import (
     APIRouter,
     HTTPException,
@@ -331,6 +332,9 @@ async def ask_question(request: AskRequest):
             status_code=400, detail={"error": "question_too_long", "limit": 2000}
         )
 
+    # F2.1: Add request start timer at very beginning
+    _req_start = time.perf_counter()
+
     if TRIVIAL_INPUT_PATTERN.match(question):
         try:
             log_activity(
@@ -343,6 +347,9 @@ async def ask_question(request: AskRequest):
             )
         except Exception:
             pass
+
+        # F2.2: Fix total_ms to be elapsed, not raw counter
+        total_ms = round((time.perf_counter() - _req_start) * 1000)
         return {
             "answer": TRIVIAL_INPUT_REPLY,
             "sources": [],
@@ -350,6 +357,15 @@ async def ask_question(request: AskRequest):
             "agentic": False,
             "tools_used": [],
             "bypass": "greeting",
+            "latency_breakdown": {
+                "embed_ms": None,
+                "hyde_ms": None,
+                "rewrite_ms": None,
+                "retrieval_ms": None,
+                "rerank_ms": None,
+                "generator_ms": None,
+                "total_ms": total_ms,
+            },
         }
 
     manual_id_filter = None
@@ -364,6 +380,11 @@ async def ask_question(request: AskRequest):
         if not check.data:
             raise HTTPException(status_code=404, detail={"error": "manual_not_found"})
 
+    # F3: Create breakdown dict BEFORE calling the service, pass it down
+    from services.manual_rag_service import _empty_latency_breakdown
+
+    breakdown = _empty_latency_breakdown()
+
     try:
         history = [
             {"question": h.question, "answer": h.answer} for h in request.history
@@ -375,7 +396,14 @@ async def ask_question(request: AskRequest):
             history=history,
             session_summary=request.session_summary,
             user_email=request.user_email,
+            # F1.4: Pass the breakdown dict into run_agentic_loop
+            latency_breakdown=breakdown,
         )
+
+        # F3.1-3.3: Stop synthesizing - use the dict that was passed through
+        breakdown["total_ms"] = round((time.perf_counter() - _req_start) * 1000)
+        result["latency_breakdown"] = breakdown
+
     except manual_rag_service.EmbedderUnavailableError:
         raise HTTPException(
             status_code=504,

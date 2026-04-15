@@ -5,7 +5,7 @@ import time
 
 from db import supabase
 from services.ollama_generator import generate, get_default_model
-from services.manual_rag_service import ask as manual_rag_ask
+from services.manual_rag_service import ask as manual_rag_ask, _StageTimer
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +187,13 @@ async def execute_work_orders_tool(params: dict) -> dict:
 
 
 async def execute_manuals_tool(
-    params: dict, manual_id_filter=None, model=None, history=None, session_summary=None
+    params: dict,
+    manual_id_filter=None,
+    model=None,
+    history=None,
+    session_summary=None,
+    user_email: str | None = None,
+    latency_breakdown: dict | None = None,
 ) -> dict:
     """
     Execute the manuals tool using the existing manual_rag_service.ask() function.
@@ -198,6 +204,12 @@ async def execute_manuals_tool(
         model: Optional model override
         history: Optional conversation history
         session_summary: Optional session summary context
+        user_email: Optional user email, threaded to manual_rag_ask for audit
+        latency_breakdown: Optional dict to record stage timings; passed
+            through to manual_rag_service.ask() which populates per-stage
+            keys via its internal _StageTimer wrappers. We do NOT wrap
+            manual_rag_ask here — doing so would record the whole pipeline
+            into a single key.
 
     Returns:
         Dict with success, answer, sources, and grounded status
@@ -218,6 +230,7 @@ async def execute_manuals_tool(
             history=history,
             session_summary=session_summary,
             user_email=user_email,
+            latency_breakdown=latency_breakdown,
         )
 
         return {
@@ -306,6 +319,8 @@ async def execute_tool(tool_name: str, params: dict, **kwargs) -> dict:
             model=kwargs.get("model"),
             history=kwargs.get("history"),
             session_summary=kwargs.get("session_summary"),
+            user_email=kwargs.get("user_email"),
+            latency_breakdown=kwargs.get("latency_breakdown"),
         )
     elif tool_name == "compare":
         return await execute_compare_tool(params, model=kwargs.get("model"))
@@ -320,6 +335,7 @@ async def run_agentic_loop(
     history=None,
     session_summary=None,
     user_email: str | None = None,
+    latency_breakdown: dict | None = None,
 ) -> dict:
     """
     Core agentic loop that decides whether to call tools and executes them.
@@ -331,6 +347,7 @@ async def run_agentic_loop(
         history: Optional conversation history for context
         session_summary: Optional session summary
         user_email: Optional user email for audit logging
+        latency_breakdown: Optional dict to record stage timings
 
     Returns:
         Dict with answer, tools_used, agentic flag, and other metadata
@@ -348,7 +365,10 @@ async def run_agentic_loop(
             history=history,
             session_summary=session_summary,
             user_email=user_email,
+            latency_breakdown=latency_breakdown,
         )
+        if latency_breakdown is not None:
+            result["latency_breakdown"] = latency_breakdown
         result["agentic"] = False
         result["tools_used"] = []
         result["duration_seconds"] = time.time() - start_time
@@ -415,10 +435,13 @@ User: {question}"""
                     history=history,
                     session_summary=session_summary,
                     user_email=user_email,
+                    latency_breakdown=latency_breakdown,
                 )
                 fallback_result["agentic"] = False
                 fallback_result["tools_used"] = []
                 fallback_result["duration_seconds"] = time.time() - start_time
+                if latency_breakdown is not None:
+                    fallback_result["latency_breakdown"] = latency_breakdown
                 return fallback_result
             except Exception as fallback_err:
                 logger.error(f"Fallback also failed: {fallback_err}")
@@ -458,10 +481,13 @@ User: {question}"""
                         history=history,
                         session_summary=session_summary,
                         user_email=user_email,
+                        latency_breakdown=latency_breakdown,
                     )
                     fallback_result["agentic"] = False
                     fallback_result["tools_used"] = []
                     fallback_result["duration_seconds"] = time.time() - start_time
+                    if latency_breakdown is not None:
+                        fallback_result["latency_breakdown"] = latency_breakdown
                     return fallback_result
                 except Exception as fallback_err:
                     logger.error(
@@ -487,6 +513,8 @@ User: {question}"""
             manual_id_filter=manual_id_filter,
             history=history,
             session_summary=session_summary,
+            user_email=user_email,
+            latency_breakdown=latency_breakdown,
         )
 
         tool_calls_log.append(
@@ -564,5 +592,9 @@ User: {question}"""
     else:
         response_dict["grounded"] = False
         response_dict["sources"] = []
+
+    # F1.4: If latency_breakdown was passed in, transfer to response
+    if latency_breakdown is not None:
+        response_dict["latency_breakdown"] = latency_breakdown
 
     return response_dict

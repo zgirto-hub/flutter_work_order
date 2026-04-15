@@ -48,31 +48,57 @@ async def generate(
     prompt: str,
     context_chunks: List[str],
     user_email: str | None = None,
+    latency_breakdown: dict | None = None,
 ) -> Tuple[str, str, str, bool, dict | None]:
     active_key = await get_active_provider_key()
     active = _resolve_provider(active_key)
     active_display = active.display_name
 
     try:
-        answer = await asyncio.wait_for(
-            active.generate(prompt, context_chunks), timeout=30.0
-        )
+        _gen_start = time.perf_counter()
+        try:
+            answer = await asyncio.wait_for(
+                active.generate(prompt, context_chunks), timeout=30.0
+            )
+        finally:
+            if latency_breakdown is not None:
+                latency_breakdown["generator_ms"] = round(
+                    (time.perf_counter() - _gen_start) * 1000
+                )
         if not answer or not answer.strip():
             raise GeneratorModelError(active_key, "empty_response")
         return (answer.strip(), active_key, active_display, False, None)
     except asyncio.TimeoutError as exc:
         logger.warning(f"Provider {active_key} timed out")
         if active_key != _DEFAULT_PROVIDER:
+            # Clear the primary's partial timing so the fallback can overwrite
+            # generator_ms with the successful call's elapsed (FR-013).
+            if latency_breakdown is not None:
+                latency_breakdown["generator_ms"] = None
             return await _fallback_to_local(
-                prompt, context_chunks, user_email, active_key, "timeout_30s", exc
+                prompt,
+                context_chunks,
+                user_email,
+                active_key,
+                "timeout_30s",
+                exc,
+                latency_breakdown=latency_breakdown,
             )
         raise GeneratorTimeoutError(f"Provider {active_key} timed out after 30s")
     except Exception as e:
         logger.warning(f"Provider {active_key} failed: {e}")
         if active_key != _DEFAULT_PROVIDER:
+            if latency_breakdown is not None:
+                latency_breakdown["generator_ms"] = None
             reason = str(e) if str(e) else type(e).__name__
             return await _fallback_to_local(
-                prompt, context_chunks, user_email, active_key, reason, e
+                prompt,
+                context_chunks,
+                user_email,
+                active_key,
+                reason,
+                e,
+                latency_breakdown=latency_breakdown,
             )
         raise
 
@@ -109,10 +135,18 @@ async def _fallback_to_local(
     failed_provider_key: str,
     reason: str,
     exc: Exception | None = None,
+    latency_breakdown: dict | None = None,
 ) -> Tuple[str, str, str, bool, dict | None]:
     local = _resolve_provider(_DEFAULT_PROVIDER)
     local_display = local.display_name
-    answer = await local.generate(prompt, context_chunks)
+    _fb_start = time.perf_counter()
+    try:
+        answer = await local.generate(prompt, context_chunks)
+    finally:
+        if latency_breakdown is not None:
+            latency_breakdown["generator_ms"] = round(
+                (time.perf_counter() - _fb_start) * 1000
+            )
     detail = _classify_fallback_reason(reason, exc)
     fallback_info = None
     if user_email:

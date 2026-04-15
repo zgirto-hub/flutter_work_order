@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import uuid
+import time
 from datetime import datetime, timezone
 from uuid import UUID
 from typing import List, Optional
@@ -12,11 +13,54 @@ from services.ollama_embedder import embed_many, EmbedderTimeoutError
 from services.manual_storage_service import save, delete as delete_file
 from services.system_registry import detect_system, get_manual_ids_for_system
 import services.validated_qa_service as validated_qa_service
+from pydantic import BaseModel, Field
+from typing import Optional as TypingOptional
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-import time as _time
+
+class LatencyBreakdown(BaseModel):
+    embed_ms: TypingOptional[int] = Field(default=None, ge=0)
+    hyde_ms: TypingOptional[int] = Field(default=None, ge=0)
+    rewrite_ms: TypingOptional[int] = Field(default=None, ge=0)
+    retrieval_ms: TypingOptional[int] = Field(default=None, ge=0)
+    rerank_ms: TypingOptional[int] = Field(default=None, ge=0)
+    generator_ms: TypingOptional[int] = Field(default=None, ge=0)
+    total_ms: int = Field(ge=0)
+
+
+class _StageTimer:
+    """Context manager for timing a pipeline stage."""
+
+    def __init__(self, breakdown: dict, key: str):
+        self.breakdown = breakdown
+        self.key = key
+        self._start = 0.0
+
+    def __enter__(self):
+        self._start = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            self.breakdown[self.key] = None
+        else:
+            self.breakdown[self.key] = round((time.perf_counter() - self._start) * 1000)
+        return False
+
+
+def _empty_latency_breakdown() -> dict:
+    return {
+        "embed_ms": None,
+        "hyde_ms": None,
+        "rewrite_ms": None,
+        "retrieval_ms": None,
+        "rerank_ms": None,
+        "generator_ms": None,
+        "total_ms": None,
+    }
+
 
 # System instructions cache (avoids DB round-trip on every question)
 _si_cache: dict = {"value": "", "ts": 0.0}
@@ -75,9 +119,17 @@ def _build_prompt(
 
     parts.append(
         "You are a technical assistant for a civil aviation maintenance department.\n"
-        "Answer the technician's question using ONLY the manual sections provided below.\n"
-        'If the answer is not found in the sections, say: "This information is not in the available manuals."\n'
-        "Reply in the same language as the question (Arabic or English)."
+        "Answer the technician's question using ONLY the manual sections provided below.\n\n"
+        "Rules:\n"
+        "1. LEAD with the direct answer in 1-2 sentences. No preamble like "
+        '"Based on the manual..." or "According to the provided section...".\n'
+        "2. Only add section headers if the answer spans 3+ genuinely distinct topics. "
+        "For simple lookups (credentials, values, single procedures), write prose, not sections.\n"
+        "3. Keep procedures as numbered steps only when the manual itself presents steps; "
+        "do not invent structure.\n"
+        '4. If the answer is not found in the sections, reply exactly: '
+        '"This information is not in the available manuals."\n'
+        "5. Reply in the same language as the question (Arabic or English)."
     )
 
     if validated_context:
@@ -587,6 +639,7 @@ async def _synthesize_answers(
     question: str,
     model: str | None,
     user_email: str | None = None,
+    latency_breakdown: dict | None = None,
 ) -> dict:
     """Combine grounded sub-answers into one synthesized answer (spec 046)."""
     from services.ollama_generator import generate
@@ -621,17 +674,22 @@ async def _synthesize_answers(
 
     synthesis_prompt = (
         "You are a technical synthesis expert for civil aviation maintenance.\n"
-        "You have received answers from multiple technical manuals to the same question.\n\n"
-        "Produce ONE coherent answer that:\n"
-        "1. Combines information from all manuals into a unified response\n"
-        '2. Names each manual when attributing information (e.g., "According to [Manual Title], ...")\n'
-        "3. If manuals AGREE on a point, state it once and cite all agreeing manuals\n"
-        "4. If manuals CONTRADICT each other, explicitly flag the conflict:\n"
-        '   "⚠ CONFLICT: [Manual A] states X, while [Manual B] states Y"\n'
-        "5. Reply in the same language as the question (Arabic or English)\n\n"
+        "You have answers from multiple manuals to the same question.\n\n"
+        "Rules:\n"
+        "1. LEAD with the direct answer in 1-2 sentences. No preamble, no headers before the answer.\n"
+        "2. Only add section headers if the answer spans 3+ genuinely distinct topics. "
+        "For simple lookups (credentials, values, single procedures), write prose, not sections.\n"
+        '3. Attribute inline when useful (e.g., "per [Manual X], ..."), not as bullet lists of sources.\n'
+        "4. If manuals AGREE, state once and cite agreeing manuals.\n"
+        "5. Only flag a CONFLICT if manuals directly contradict each other on the same fact. "
+        "Complementary info (one says 'ask IT', another gives a procedure) is NOT a conflict — "
+        "just present the concrete procedure.\n"
+        "6. If one manual has the concrete answer and another says 'info not available' or "
+        "'verify with supervisor', IGNORE the latter — do not mention it.\n"
+        "7. Reply in the same language as the question (Arabic or English).\n\n"
         f"QUESTION: {question}\n\n"
         f"MANUAL ANSWERS:\n{manual_answers_block}\n\n"
-        "SYNTHESIZED ANSWER:"
+        "ANSWER:"
     )
 
     try:
@@ -643,7 +701,9 @@ async def _synthesize_answers(
             provider_display_name,
             fallback_used,
             fallback_info,
-        ) = await provider_generate(synthesis_prompt, [], user_email)
+        ) = await provider_generate(
+            synthesis_prompt, [], user_email, latency_breakdown=latency_breakdown
+        )
     except Exception as e:
         logger.warning("Synthesis failed, returning first sub-answer: %s", e)
         first = grounded[0]
@@ -689,9 +749,16 @@ async def ask(
     history: list[dict] | None = None,
     session_summary: str | None = None,
     user_email: str | None = None,
+    latency_breakdown: dict | None = None,
 ) -> dict:
     from services.ollama_embedder import embed_single, EmbedderTimeoutError
     from services.ollama_generator import generate, GeneratorTimeoutError
+
+    # Use passed-in breakdown or create new one
+    if latency_breakdown is None:
+        latency_breakdown = _empty_latency_breakdown()
+    breakdown = latency_breakdown
+    _total_start = time.perf_counter()
 
     detected_system = detect_system(question)
     retrieval_info: dict = {
@@ -723,7 +790,8 @@ async def ask(
     # NOTE: rewrite must happen BEFORE the validated_qa cache check so context-dependent
     # follow-ups like "in english" get expanded into self-contained queries — otherwise
     # a bare "in english" could match an unrelated validated answer across sessions.
-    search_query = await _rewrite_query(question, history)
+    with _StageTimer(breakdown, "rewrite_ms"):
+        search_query = await _rewrite_query(question, history)
 
     # Follow-up detection: if the original question had no system keyword but the
     # history-aware rewrite surfaced one (e.g. turn-1 "how to restart CADAS-ATS"
@@ -780,14 +848,16 @@ async def ask(
         validated_context = None
 
     # HyDE: generate hypothetical answer for better embedding
-    hyde_text = await _generate_hypothetical_answer(search_query)
+    with _StageTimer(breakdown, "hyde_ms"):
+        hyde_text = await _generate_hypothetical_answer(search_query)
     embed_input = hyde_text if hyde_text else search_query
 
     # Embed the question
-    try:
-        question_embedding = await embed_single(embed_input)
-    except EmbedderTimeoutError:
-        raise EmbedderUnavailableError()
+    with _StageTimer(breakdown, "embed_ms"):
+        try:
+            question_embedding = await embed_single(embed_input)
+        except EmbedderTimeoutError:
+            raise EmbedderUnavailableError()
 
     # Convert embedding list to string format for PostgREST → pgvector cast.
     embedding_str = "[" + ",".join(str(x) for x in question_embedding) + "]"
@@ -870,11 +940,14 @@ async def ask(
             "match_count": 5,
             "manual_id_filter": str(manual_id_filter),
         }
-        try:
-            rpc_response = supabase.rpc("search_manual_chunks", rpc_params).execute()
-            chunks_data = rpc_response.data or []
-        except Exception:
-            raise
+        with _StageTimer(breakdown, "retrieval_ms"):
+            try:
+                rpc_response = supabase.rpc(
+                    "search_manual_chunks", rpc_params
+                ).execute()
+                chunks_data = rpc_response.data or []
+            except Exception:
+                raise
 
         if not chunks_data:
             return {
@@ -885,12 +958,23 @@ async def ask(
                 "retrieval_info": retrieval_info,
             }
 
-        # Chunk reranking (spec 044)
-        qualified_chunks = [
-            c for c in chunks_data if c.get("distance", 1.0) <= MAX_CHUNK_DISTANCE
-        ]
-        passed_count = len(qualified_chunks)
-        qualified_chunks = qualified_chunks[:MAX_PROMPT_CHUNKS]
+        # Chunk reranking (spec 044) — only time when there are enough candidates
+        # to be meaningfully reranked. Fewer than 2 → skip (leave rerank_ms=None).
+        if len(chunks_data) >= 2:
+            with _StageTimer(breakdown, "rerank_ms"):
+                qualified_chunks = [
+                    c
+                    for c in chunks_data
+                    if c.get("distance", 1.0) <= MAX_CHUNK_DISTANCE
+                ]
+                passed_count = len(qualified_chunks)
+                qualified_chunks = qualified_chunks[:MAX_PROMPT_CHUNKS]
+        else:
+            qualified_chunks = [
+                c for c in chunks_data if c.get("distance", 1.0) <= MAX_CHUNK_DISTANCE
+            ]
+            passed_count = len(qualified_chunks)
+            qualified_chunks = qualified_chunks[:MAX_PROMPT_CHUNKS]
 
         logger.info(
             "Chunk reranking: %d retrieved → %d passed threshold (≤%.2f) → %d sent to LLM",
@@ -943,7 +1027,9 @@ async def ask(
                 provider_display_name,
                 fallback_used,
                 fallback_info,
-            ) = await provider_generate(prompt, [], user_email)
+            ) = await provider_generate(
+                prompt, [], user_email, latency_breakdown=breakdown
+            )
         except GeneratorTimeoutError:
             raise GeneratorUnavailableError()
         gen_elapsed = time.monotonic() - gen_start
@@ -1004,12 +1090,13 @@ async def ask(
 
         # Step 1: Per-manual chunk retrieval
         retrieval_start = time.monotonic()
-        chunks_by_manual = await _retrieve_chunks_per_manual(
-            embedding_str,
-            allowed_manual_ids=set(system_manual_ids)
-            if retrieval_info["filter_applied"]
-            else None,
-        )
+        with _StageTimer(breakdown, "retrieval_ms"):
+            chunks_by_manual = await _retrieve_chunks_per_manual(
+                embedding_str,
+                allowed_manual_ids=set(system_manual_ids)
+                if retrieval_info["filter_applied"]
+                else None,
+            )
         retrieval_elapsed = time.monotonic() - retrieval_start
 
         if not chunks_by_manual:
@@ -1060,10 +1147,11 @@ async def ask(
             grounded_count,
         )
 
-        # Step 3: Synthesize
+        # Step 3: Synthesize — pass breakdown so generator_ms captures the
+        # final synthesis call (the customer-facing LLM invocation).
         synthesis_start = time.monotonic()
         synthesis_result = await _synthesize_answers(
-            sub_answers, question, model, user_email
+            sub_answers, question, model, user_email, latency_breakdown=breakdown
         )
         synthesis_elapsed = time.monotonic() - synthesis_start
 
