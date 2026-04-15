@@ -70,6 +70,7 @@ class ManualQaAnswer {
   final List<ManualSource> sources;
   final bool grounded;
   final String? model;
+  final String? providerDisplayName;
   final double? durationSeconds;
   final String? sessionSummary;
   final List<ManualConsulted> manualsConsulted;
@@ -87,6 +88,7 @@ class ManualQaAnswer {
     required this.sources,
     required this.grounded,
     this.model,
+    this.providerDisplayName,
     this.durationSeconds,
     this.sessionSummary,
     this.manualsConsulted = const [],
@@ -128,6 +130,7 @@ class ManualQaAnswer {
       sources: sourcesList,
       grounded: json['grounded'] ?? false,
       model: json['model'],
+      providerDisplayName: json['provider_display_name'],
       durationSeconds: (json['duration_seconds'] as num?)?.toDouble(),
       sessionSummary: json['session_summary'],
       manualsConsulted: consultedList,

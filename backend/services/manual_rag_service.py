@@ -491,9 +491,10 @@ async def _generate_sub_answers(
     history: list[dict] | None,
     memory: str | None,
     model: str | None,
+    user_email: str | None = None,
     validated_context: str | None = None,
     extra_prefix: str | None = None,
-) -> tuple[list[dict], str, bool]:
+) -> tuple[list[dict], str, bool, str, dict | None]:
     """Generate a sub-answer for each manual's chunks (spec 046)."""
     from services.ai_providers.resolver import generate as provider_generate
 
@@ -528,9 +529,13 @@ async def _generate_sub_answers(
             prompt = f"{extra_prefix}\n\n{prompt}"
 
         try:
-            answer_text, provider_used, fallback_used = await provider_generate(
-                prompt, [], None
-            )
+            (
+                answer_text,
+                provider_used,
+                provider_display_name,
+                fallback_used,
+                _fallback_info,
+            ) = await provider_generate(prompt, [], user_email)
         except Exception as e:
             logger.warning(
                 "Sub-answer generation failed for manual '%s': %s", manual_title, e
@@ -550,19 +555,38 @@ async def _generate_sub_answers(
                 "answer": answer_text.strip(),
                 "chunks": manual_sources,
                 "grounded": grounded,
+                "provider_display_name": provider_display_name,
+                "provider_used": provider_used,
+                "fallback_used": fallback_used,
+                "_fallback_info": _fallback_info,
             }
         )
 
     if not sub_answers and last_error:
         raise last_error
 
-    return sub_answers, provider_used, fallback_used
+    provider_display_name = sub_answers[-1].get(
+        "provider_display_name", "Local (Ollama)"
+    )
+    fallback_used = any(sa.get("fallback_used", False) for sa in sub_answers)
+    fallback_info = next(
+        (sa.get("_fallback_info") for sa in sub_answers if sa.get("_fallback_info")),
+        None,
+    )
+    return (
+        sub_answers,
+        provider_used,
+        fallback_used,
+        provider_display_name,
+        fallback_info,
+    )
 
 
 async def _synthesize_answers(
     sub_answers: list[dict],
     question: str,
     model: str | None,
+    user_email: str | None = None,
 ) -> dict:
     """Combine grounded sub-answers into one synthesized answer (spec 046)."""
     from services.ollama_generator import generate
@@ -613,12 +637,19 @@ async def _synthesize_answers(
     try:
         from services.ai_providers.resolver import generate as provider_generate
 
-        synthesized, provider_used, fallback_used = await provider_generate(
-            synthesis_prompt, [], None
-        )
+        (
+            synthesized,
+            provider_used,
+            provider_display_name,
+            fallback_used,
+            fallback_info,
+        ) = await provider_generate(synthesis_prompt, [], user_email)
     except Exception as e:
         logger.warning("Synthesis failed, returning first sub-answer: %s", e)
         first = grounded[0]
+        provider_display_name = first.get("provider_display_name", "Local (Ollama)")
+        provider_used = first.get("provider_used", "local")
+        fallback_used = first.get("fallback_used", False)
         return {
             "answer": first["answer"],
             "synthesized": False,
@@ -629,6 +660,8 @@ async def _synthesize_answers(
             "grounded": True,
             "provider_used": provider_used,
             "fallback_used": fallback_used,
+            "provider_display_name": provider_display_name,
+            "_fallback_info": first.get("_fallback_info"),
         }
 
     answer_text = synthesized.strip()
@@ -644,6 +677,8 @@ async def _synthesize_answers(
         "grounded": True,
         "provider_used": provider_used,
         "fallback_used": fallback_used,
+        "provider_display_name": provider_display_name,
+        "_fallback_info": fallback_info,
     }
 
 
@@ -653,6 +688,7 @@ async def ask(
     model: Optional[str] = None,
     history: list[dict] | None = None,
     session_summary: str | None = None,
+    user_email: str | None = None,
 ) -> dict:
     from services.ollama_embedder import embed_single, EmbedderTimeoutError
     from services.ollama_generator import generate, GeneratorTimeoutError
@@ -894,9 +930,13 @@ async def ask(
         try:
             from services.ai_providers.resolver import generate as provider_generate
 
-            answer, provider_used, fallback_used = await provider_generate(
-                prompt, [], None
-            )
+            (
+                answer,
+                provider_used,
+                provider_display_name,
+                fallback_used,
+                fallback_info,
+            ) = await provider_generate(prompt, [], user_email)
         except GeneratorTimeoutError:
             raise GeneratorUnavailableError()
         gen_elapsed = time.monotonic() - gen_start
@@ -905,16 +945,19 @@ async def ask(
         grounded = not any(phrase in answer.lower() for phrase in _SENTINEL_PHRASES)
 
         if not grounded:
+            provider_display_name = provider_display_name or "Local (Ollama)"
             return {
                 "answer": "This information is not in the available manuals.",
                 "grounded": False,
                 "sources": [],
-                "model": used_model,
+                "model": provider_display_name,  # spec-065: deprecated alias
+                "provider_display_name": provider_display_name,
                 "duration_seconds": round(gen_elapsed, 1),
                 "session_summary": memory,
                 "retrieval_info": retrieval_info,
                 "provider_used": provider_used,
                 "fallback_used": fallback_used,
+                "_fallback_info": fallback_info,
             }
 
         # Highlight sources
@@ -938,12 +981,14 @@ async def ask(
             "answer": answer,
             "grounded": True,
             "sources": final_sources,
-            "model": used_model,
+            "model": provider_display_name,  # spec-065: deprecated alias
+            "provider_display_name": provider_display_name,
             "duration_seconds": round(gen_elapsed, 1),
             "session_summary": memory,
             "retrieval_info": retrieval_info,
             "provider_used": provider_used,
             "fallback_used": fallback_used,
+            "_fallback_info": fallback_info,
         }
 
     else:
@@ -982,12 +1027,19 @@ async def ask(
 
         # Step 2: Generate sub-answers per manual
         sub_answer_start = time.monotonic()
-        sub_answers, provider_used, fallback_used = await _generate_sub_answers(
+        (
+            sub_answers,
+            provider_used,
+            fallback_used,
+            provider_display_name,
+            sub_fallback_info,
+        ) = await _generate_sub_answers(
             chunks_by_manual,
             question,
             effective_history,
             memory,
             model,
+            user_email,
             validated_context,
             no_manuals_directive,
         )
@@ -1003,7 +1055,9 @@ async def ask(
 
         # Step 3: Synthesize
         synthesis_start = time.monotonic()
-        synthesis_result = await _synthesize_answers(sub_answers, question, model)
+        synthesis_result = await _synthesize_answers(
+            sub_answers, question, model, user_email
+        )
         synthesis_elapsed = time.monotonic() - synthesis_start
 
         logger.info("Synthesis took %.1fs", synthesis_elapsed)
@@ -1011,14 +1065,18 @@ async def ask(
         gen_elapsed = time.monotonic() - gen_start
 
         if not synthesis_result["grounded"]:
+            provider_display_name = provider_display_name or "Local (Ollama)"
             return {
                 "answer": "This information is not in the available manuals.",
                 "grounded": False,
                 "sources": [],
-                "model": used_model,
+                "model": provider_display_name,  # spec-065: deprecated alias
+                "provider_display_name": provider_display_name,
                 "duration_seconds": round(gen_elapsed, 1),
                 "session_summary": memory,
                 "retrieval_info": retrieval_info,
+                "fallback_used": fallback_used,
+                "_fallback_info": sub_fallback_info,
             }
 
         # Collect all sources from contributing manuals and compute highlights
@@ -1046,7 +1104,8 @@ async def ask(
             "answer": synthesis_result["answer"],
             "grounded": True,
             "sources": all_sources,
-            "model": used_model,
+            "model": provider_display_name,  # spec-065: deprecated alias
+            "provider_display_name": provider_display_name,
             "duration_seconds": round(gen_elapsed, 1),
             "session_summary": memory,
             "manuals_consulted": synthesis_result["manuals_consulted"],
@@ -1054,6 +1113,8 @@ async def ask(
             "retrieval_info": retrieval_info,
             "provider_used": provider_used,
             "fallback_used": fallback_used,
+            "_fallback_info": sub_fallback_info
+            or synthesis_result.get("_fallback_info"),
         }
 
 
