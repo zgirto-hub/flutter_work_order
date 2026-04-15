@@ -17,9 +17,6 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
   final _service = SystemStatusService();
   bool _loading = true;
   List<SystemStatus> _systems = [];
-  List<SystemStatus> _mainSystems = [];
-  Map<String, List<SystemStatus>> _groupedSystems = {};
-  final Set<String> _expandedGroups = {};
   List<SystemStatusReport> _history = [];
 
   String get _email => Supabase.instance.client.auth.currentUser?.email ?? '';
@@ -62,24 +59,14 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
       setState(() {
         _systems = results[0] as List<SystemStatus>;
         _history = results[1] as List<SystemStatusReport>;
-        _mainSystems = [];
-        _groupedSystems = {};
-        for (final s in _systems) {
-          if (s.systemName.contains(' - ')) {
-            final prefix = s.systemName.split(' - ').first;
-            _groupedSystems.putIfAbsent(prefix, () => []).add(s);
-          } else {
-            _mainSystems.add(s);
-          }
-        }
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load: $e')));
     }
   }
 
@@ -128,10 +115,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
               const SizedBox(height: 4),
               Text(
                 system.systemName,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 20),
 
@@ -149,8 +133,10 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                   }
                 },
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.bgSurface2,
                     borderRadius: BorderRadius.circular(10),
@@ -158,8 +144,11 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today,
-                          size: 16, color: AppColors.textSecondary),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}',
@@ -197,10 +186,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                   ),
                   contentPadding: const EdgeInsets.all(12),
                 ),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textPrimary,
-                ),
+                style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 16),
 
@@ -227,9 +213,9 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                       );
                     } catch (e) {
                       if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('$e')),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('$e')));
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -240,8 +226,10 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text('Report Issue',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  child: const Text(
+                    'Report Issue',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
             ],
@@ -294,10 +282,11 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
             _detailRow('Date', report.reportDate),
             if (report.notes.isNotEmpty) _detailRow('Notes', report.notes),
             _detailRow(
-                'Reported by',
-                report.reportedByName.isNotEmpty
-                    ? report.reportedByName
-                    : report.reportedBy),
+              'Reported by',
+              report.reportedByName.isNotEmpty
+                  ? report.reportedByName
+                  : report.reportedBy,
+            ),
             const SizedBox(height: 20),
             // Action buttons row
             Row(
@@ -357,8 +346,10 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: const Text('Resolve',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    child: const Text(
+                      'Resolve',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
               ],
@@ -386,7 +377,11 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Padding(
           padding: EdgeInsets.fromLTRB(
-              20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+            20,
+            20,
+            20,
+            MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,8 +461,10 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                   }
                 },
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.bgSurface2,
                     borderRadius: BorderRadius.circular(10),
@@ -475,8 +472,11 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today,
-                          size: 16, color: AppColors.textSecondary),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         '${selectedResolveDate.year}-${selectedResolveDate.month.toString().padLeft(2, '0')}-${selectedResolveDate.day.toString().padLeft(2, '0')}',
@@ -515,9 +515,9 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                           } catch (e) {
                             if (!mounted) return;
                             setSheet(() => resolving = false);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('$e')),
-                            );
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(SnackBar(content: Text('$e')));
                           }
                         },
                   style: ElevatedButton.styleFrom(
@@ -533,10 +533,14 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                      : const Text('Confirm Resolve',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
+                      : const Text(
+                          'Confirm Resolve',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
                 ),
               ),
             ],
@@ -587,10 +591,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
               const SizedBox(height: 4),
               Text(
                 report.systemName,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 20),
 
@@ -608,8 +609,10 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                   }
                 },
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.bgSurface2,
                     borderRadius: BorderRadius.circular(10),
@@ -617,8 +620,11 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today,
-                          size: 16, color: AppColors.textSecondary),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}',
@@ -656,10 +662,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                   ),
                   contentPadding: const EdgeInsets.all(12),
                 ),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textPrimary,
-                ),
+                style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 16),
               if (report.isResolved) ...[
@@ -699,8 +702,11 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.calendar_today,
-                            size: 16, color: AppColors.textSecondary),
+                        Icon(
+                          Icons.calendar_today,
+                          size: 16,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           selectedResolveDate != null
@@ -743,9 +749,9 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                       );
                     } catch (e) {
                       if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('$e')),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('$e')));
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -756,8 +762,10 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text('Save Changes',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  child: const Text(
+                    'Save Changes',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
             ],
@@ -774,9 +782,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.bgSurface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: Text(
           'Delete Issue',
           style: TextStyle(
@@ -787,10 +793,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
         ),
         content: Text(
           'Delete the issue report for ${report.systemName} on ${report.reportDate}? This cannot be undone.',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
+          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
@@ -807,15 +810,15 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                 if (!mounted) return;
                 Navigator.pop(ctx);
                 _load();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Issue deleted')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Issue deleted')));
               } catch (e) {
                 if (!mounted) return;
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('$e')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('$e')));
               }
             },
             child: const Text(
@@ -851,10 +854,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.textPrimary,
-              ),
+              style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
             ),
           ),
         ],
@@ -914,9 +914,9 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
             } catch (e) {
               setSheetState(() => generating = false);
               if (ctx.mounted) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  SnackBar(content: Text('$e')),
-                );
+                ScaffoldMessenger.of(
+                  ctx,
+                ).showSnackBar(SnackBar(content: Text('$e')));
               }
             }
           }
@@ -996,8 +996,10 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Generate Report',
-                              style: TextStyle(fontWeight: FontWeight.w600)),
+                          : const Text(
+                              'Generate Report',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -1013,8 +1015,9 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                           const SizedBox(height: 16),
 
                           // Per-system cards
-                          ...reportData!
-                              .map((r) => _SystemUptimeCard(report: r)),
+                          ...reportData!.map(
+                            (r) => _SystemUptimeCard(report: r),
+                          ),
                         ],
                       ),
                     ),
@@ -1053,8 +1056,11 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
             : null,
         actions: [
           IconButton(
-            icon: Icon(Icons.pie_chart_outline,
-                color: AppColors.textSecondary, size: 20),
+            icon: Icon(
+              Icons.pie_chart_outline,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
             tooltip: 'Uptime Report',
             onPressed: _showUptimeReportSheet,
           ),
@@ -1085,31 +1091,12 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                         mainAxisSpacing: 8,
                         childAspectRatio: 3.0,
                       ),
-                      itemCount: _mainSystems.length,
+                      itemCount: _systems.length,
                       itemBuilder: (context, i) => _SystemCard(
-                        system: _mainSystems[i],
-                        onTap: () => _showReportIssueSheet(_mainSystems[i]),
+                        system: _systems[i],
+                        onTap: () => _showReportIssueSheet(_systems[i]),
                       ),
                     ),
-
-                    // Grouped sub-systems (expandable with animation)
-                    for (final entry in _groupedSystems.entries) ...[
-                      const SizedBox(height: 8),
-                      _ExpandableGroup(
-                        title: entry.key,
-                        isExpanded: _expandedGroups.contains(entry.key),
-                        issueCount: entry.value.where((s) => s.hasIssue).length,
-                        onToggle: () => setState(() {
-                          if (_expandedGroups.contains(entry.key)) {
-                            _expandedGroups.remove(entry.key);
-                          } else {
-                            _expandedGroups.add(entry.key);
-                          }
-                        }),
-                        children: entry.value,
-                        onSubSystemTap: _showReportIssueSheet,
-                      ),
-                    ],
                     const SizedBox(height: 16),
 
                     // History section
@@ -1124,11 +1111,13 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                         ),
                       ),
                       const SizedBox(height: 8),
-                      ..._history.map((r) => _HistoryCard(
-                            report: r,
-                            onEdit: () => _showEditIssueSheet(r),
-                            onDelete: () => _confirmDelete(r),
-                          )),
+                      ..._history.map(
+                        (r) => _HistoryCard(
+                          report: r,
+                          onEdit: () => _showEditIssueSheet(r),
+                          onDelete: () => _confirmDelete(r),
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -1138,167 +1127,16 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
   }
 }
 
-// ── Expandable Group ─────────────────────────────────────────────────────────
-
-class _ExpandableGroup extends StatefulWidget {
-  final String title;
-  final bool isExpanded;
-  final int issueCount;
-  final VoidCallback onToggle;
-  final List<SystemStatus> children;
-  final void Function(SystemStatus) onSubSystemTap;
-
-  const _ExpandableGroup({
-    required this.title,
-    required this.isExpanded,
-    required this.issueCount,
-    required this.onToggle,
-    required this.children,
-    required this.onSubSystemTap,
-  });
-
-  @override
-  State<_ExpandableGroup> createState() => _ExpandableGroupState();
-}
-
-class _ExpandableGroupState extends State<_ExpandableGroup>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _arrowTurns;
-  late final Animation<double> _sizeFactor;
-  late final Animation<double> _fade;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-      value: widget.isExpanded ? 1.0 : 0.0,
-    );
-    _arrowTurns = Tween(begin: 0.0, end: 0.25).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
-    _sizeFactor = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
-    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
-  }
-
-  @override
-  void didUpdateWidget(_ExpandableGroup old) {
-    super.didUpdateWidget(old);
-    if (widget.isExpanded != old.isExpanded) {
-      widget.isExpanded ? _ctrl.forward() : _ctrl.reverse();
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        GestureDetector(
-          onTap: widget.onToggle,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              color: AppColors.bgSurface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border2, width: 0.5),
-            ),
-            child: Row(
-              children: [
-                AnimatedBuilder(
-                  animation: _arrowTurns,
-                  builder: (_, child) => Transform.rotate(
-                    angle: _arrowTurns.value * 3.14159 * 2,
-                    child: child,
-                  ),
-                  child: Icon(
-                    Icons.keyboard_arrow_right_rounded,
-                    size: 20,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-                if (widget.issueCount > 0)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEE2E2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '${widget.issueCount} issue${widget.issueCount > 1 ? 's' : ''}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFFB91C1C),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        SizeTransition(
-          sizeFactor: _sizeFactor,
-          child: FadeTransition(
-            opacity: _fade,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio: 3.0,
-                ),
-                itemCount: widget.children.length,
-                itemBuilder: (context, i) => _SystemCard(
-                  system: widget.children[i],
-                  displayName: widget.children[i].systemName.split(' - ').last,
-                  onTap: () => widget.onSubSystemTap(widget.children[i]),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 // ── System Card ───────────────────────────────────────────────────────────────
 
 class _SystemCard extends StatelessWidget {
-  static const _satSystems = {'VAS', 'DRP'};
-
   final SystemStatus system;
-  final String? displayName;
   final VoidCallback onTap;
 
-  const _SystemCard(
-      {required this.system, this.displayName, required this.onTap});
-
-  bool get _isSat => _satSystems.contains(system.systemName);
+  const _SystemCard({
+    required this.system,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1319,7 +1157,7 @@ class _SystemCard extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                displayName ?? system.systemName,
+                system.systemName,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -1329,23 +1167,6 @@ class _SystemCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (_isSat)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                margin: const EdgeInsets.only(left: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: const Text(
-                  'SAT',
-                  style: TextStyle(
-                    fontSize: 7,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFB45309),
-                  ),
-                ),
-              ),
             const SizedBox(width: 4),
             Text(
               isIssue ? 'Issue' : 'OK',
@@ -1429,7 +1250,9 @@ class _HistoryCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 1),
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: isResolved
                             ? const Color(0xFFDCFCE7)
@@ -1488,14 +1311,19 @@ class _HistoryCard extends StatelessWidget {
                             height: 36,
                             child: Row(
                               children: [
-                                Icon(Icons.delete_outline,
-                                    size: 16, color: Color(0xFFB91C1C)),
+                                Icon(
+                                  Icons.delete_outline,
+                                  size: 16,
+                                  color: Color(0xFFB91C1C),
+                                ),
                                 SizedBox(width: 8),
-                                Text('Delete',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Color(0xFFB91C1C),
-                                    )),
+                                Text(
+                                  'Delete',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFFB91C1C),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -1563,15 +1391,15 @@ class _DatePickerField extends StatelessWidget {
             const SizedBox(height: 2),
             Row(
               children: [
-                Icon(Icons.calendar_today,
-                    size: 13, color: AppColors.textSecondary),
+                Icon(
+                  Icons.calendar_today,
+                  size: 13,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   value,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textPrimary,
-                  ),
+                  style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
                 ),
               ],
             ),
@@ -1682,18 +1510,12 @@ class _OverallUptimeChart extends StatelessWidget {
         Container(
           width: 8,
           height: 8,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 4),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
       ],
     );
