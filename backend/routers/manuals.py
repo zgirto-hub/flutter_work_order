@@ -52,8 +52,8 @@ TRIVIAL_INPUT_PATTERN = re.compile(
 
 TRIVIAL_INPUT_REPLY = (
     "Hi! Ask me a technical question about the manuals — "
-    "for example: \"how do I reset the X400 after a fault?\" or "
-    "\"what are the APU start procedures?\""
+    'for example: "how do I reset the X400 after a fault?" or '
+    '"what are the APU start procedures?"'
 )
 
 
@@ -424,6 +424,9 @@ async def ask_question(request: AskRequest):
         )
     except Exception:
         pass
+
+    result.setdefault("provider_used", "local")
+    result.setdefault("fallback_used", False)
 
     return result
 

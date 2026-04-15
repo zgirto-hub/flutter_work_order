@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../theme/app_theme.dart';
 import '../../models/manual.dart';
 import '../../models/manual_qa_answer.dart';
 import '../../services/manual_assistant_service.dart';
+import '../../services/ai_provider_service.dart';
+import '../../widgets/ai_provider_chip.dart';
 import 'widgets/answer_card.dart';
 
 class ChatMessage {
@@ -26,12 +29,12 @@ class ChatTab extends StatefulWidget {
   State<ChatTab> createState() => _ChatTabState();
 }
 
-class _ChatTabState extends State<ChatTab>
-    with AutomaticKeepAliveClientMixin {
+class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
   final ManualAssistantService _service = ManualAssistantService();
+  final AiProviderService _providerService = AiProviderService();
   final TextEditingController _questionController = TextEditingController();
   final List<ChatMessage> _messages = [];
   final List<Map<String, String>> _history =
@@ -44,12 +47,32 @@ class _ChatTabState extends State<ChatTab>
   bool _loading = false;
   bool _manualsLoading = true;
   String? _loadError;
+  String _providerDisplayName = 'Local (Ollama)';
+  bool _fallbackUsed = false;
 
   @override
   void initState() {
     super.initState();
     _loadManuals();
     _loadModels();
+    _loadProvider();
+  }
+
+  Future<void> _loadProvider() async {
+    try {
+      final resp = await _providerService.listProviders();
+      if (mounted) {
+        setState(() {
+          final activeProvider = resp.providers.firstWhere(
+            (p) => p.key == resp.active,
+            orElse: () => resp.providers.first,
+          );
+          _providerDisplayName = activeProvider.displayName;
+        });
+      }
+    } catch (e) {
+      // Use default
+    }
   }
 
   Future<void> _loadManuals() async {
@@ -103,6 +126,8 @@ class _ChatTabState extends State<ChatTab>
         _messages.removeLast();
         _messages.add(ChatMessage(question: question, answer: answer));
         _loading = false;
+        _fallbackUsed =
+            answer.providerUsed == 'local' && (answer.fallbackUsed == true);
       });
     } on ManualAskException catch (e) {
       setState(() {
@@ -231,6 +256,26 @@ class _ChatTabState extends State<ChatTab>
               ],
             ),
           ),
+        Padding(
+          padding: const EdgeInsets.only(left: 8.0, right: 8.0, top: 4.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Ask the AI Assistant',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              AiProviderChip(
+                providerDisplayName: _providerDisplayName,
+                fallbackUsed: _fallbackUsed,
+              ),
+            ],
+          ),
+        ),
         // Messages
         Expanded(
           child: _manualsLoading
@@ -262,98 +307,104 @@ class _ChatTabState extends State<ChatTab>
                         )
                       : SelectionArea(
                           child: ListView.builder(
-                          itemCount: _messages.length,
-                          itemBuilder: (context, index) {
-                            final msg = _messages[index];
-                            if (msg.loading) {
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Container(
-                                      margin: const EdgeInsets.fromLTRB(
-                                          48, 8, 8, 4),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 10),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .primaryColor
-                                            .withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(16),
+                            itemCount: _messages.length,
+                            itemBuilder: (context, index) {
+                              final msg = _messages[index];
+                              if (msg.loading) {
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Container(
+                                        margin: const EdgeInsets.fromLTRB(
+                                            48, 8, 8, 4),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 14, vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .primaryColor
+                                              .withValues(alpha: 0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        child: Text(msg.question,
+                                            style:
+                                                const TextStyle(fontSize: 13)),
                                       ),
-                                      child: Text(msg.question,
-                                          style: const TextStyle(fontSize: 13)),
                                     ),
-                                  ),
-                                  const ListTile(
-                                    title: Text('Thinking...',
-                                        style: TextStyle(fontSize: 13)),
-                                    leading: SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }
-                            if (msg.error != null) {
-                              return ListTile(
-                                title: Text(msg.error!,
-                                    style: const TextStyle(color: Colors.red)),
-                                subtitle: Text(msg.question),
-                                trailing: TextButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _messages.removeAt(index);
-                                    });
-                                  },
-                                  child: const Text('Dismiss'),
-                                ),
-                              );
-                            }
-                            if (msg.answer != null) {
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  // Question bubble
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Container(
-                                      margin: const EdgeInsets.fromLTRB(
-                                          48, 8, 8, 4),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 10),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .primaryColor
-                                            .withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(16),
+                                    const ListTile(
+                                      title: Text('Thinking...',
+                                          style: TextStyle(fontSize: 13)),
+                                      leading: SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2),
                                       ),
-                                      child: Text(
+                                    ),
+                                  ],
+                                );
+                              }
+                              if (msg.error != null) {
+                                return ListTile(
+                                  title: Text(msg.error!,
+                                      style:
+                                          const TextStyle(color: Colors.red)),
+                                  subtitle: Text(msg.question),
+                                  trailing: TextButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _messages.removeAt(index);
+                                      });
+                                    },
+                                    child: const Text('Dismiss'),
+                                  ),
+                                );
+                              }
+                              if (msg.answer != null) {
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Question bubble
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Container(
+                                        margin: const EdgeInsets.fromLTRB(
+                                            48, 8, 8, 4),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 14, vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .primaryColor
+                                              .withValues(alpha: 0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        child: Text(
+                                          msg.question,
+                                          style: const TextStyle(fontSize: 13),
+                                        ),
+                                      ),
+                                    ),
+                                    // Answer card
+                                    AnswerCard(
+                                      answer: msg.answer!,
+                                      questionText: msg.question,
+                                      onRate: (rating) => _handleRate(
                                         msg.question,
-                                        style: const TextStyle(fontSize: 13),
+                                        msg.answer!,
+                                        rating,
                                       ),
                                     ),
-                                  ),
-                                  // Answer card
-                                  AnswerCard(
-                                    answer: msg.answer!,
-                                    questionText: msg.question,
-                                    onRate: (rating) => _handleRate(
-                                      msg.question,
-                                      msg.answer!,
-                                      rating,
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        ),
+                                  ],
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
                         ),
         ),
         // Input
