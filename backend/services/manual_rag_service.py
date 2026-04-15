@@ -1113,7 +1113,8 @@ async def ask(
             "retrieval_info": retrieval_info,
             "provider_used": provider_used,
             "fallback_used": fallback_used,
-            "_fallback_info": sub_fallback_info,
+            "_fallback_info": sub_fallback_info
+            or synthesis_result.get("_fallback_info"),
         }
 
 

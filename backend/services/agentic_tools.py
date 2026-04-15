@@ -217,6 +217,7 @@ async def execute_manuals_tool(
             model=model,
             history=history,
             session_summary=session_summary,
+            user_email=user_email,
         )
 
         return {
@@ -408,11 +409,12 @@ User: {question}"""
             )
             try:
                 fallback_result = await manual_rag_ask(
-                    question=question,
+                    question=query,
                     manual_id_filter=manual_id_filter,
                     model=model,
                     history=history,
                     session_summary=session_summary,
+                    user_email=user_email,
                 )
                 fallback_result["agentic"] = False
                 fallback_result["tools_used"] = []
@@ -455,6 +457,7 @@ User: {question}"""
                         model=model,
                         history=history,
                         session_summary=session_summary,
+                        user_email=user_email,
                     )
                     fallback_result["agentic"] = False
                     fallback_result["tools_used"] = []
