@@ -85,7 +85,7 @@ _SENTINEL_PHRASES = [
 
 def _get_system_instructions() -> str:
     """Read system instructions from DB, cached for 60 seconds."""
-    now = _time.monotonic()
+    now = time.monotonic()
     if now - _si_cache["ts"] < _SI_CACHE_TTL:
         return _si_cache["value"]
     try:
