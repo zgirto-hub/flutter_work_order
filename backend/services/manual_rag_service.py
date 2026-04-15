@@ -546,6 +546,7 @@ async def _generate_sub_answers(
     user_email: str | None = None,
     validated_context: str | None = None,
     extra_prefix: str | None = None,
+    latency_breakdown: dict | None = None,
 ) -> tuple[list[dict], str, bool, str, dict | None]:
     """Generate a sub-answer for each manual's chunks (spec 046)."""
     from services.ai_providers.resolver import generate as provider_generate
@@ -587,7 +588,9 @@ async def _generate_sub_answers(
                 provider_display_name,
                 fallback_used,
                 _fallback_info,
-            ) = await provider_generate(prompt, [], user_email)
+            ) = await provider_generate(
+                prompt, [], user_email, latency_breakdown=latency_breakdown
+            )
         except Exception as e:
             logger.warning(
                 "Sub-answer generation failed for manual '%s': %s", manual_title, e
@@ -1135,6 +1138,7 @@ async def ask(
             user_email,
             validated_context,
             no_manuals_directive,
+            latency_breakdown=breakdown,
         )
         sub_answer_elapsed = time.monotonic() - sub_answer_start
 
