@@ -1,4 +1,5 @@
 import 'manual_source.dart';
+import 'latency_breakdown.dart';
 
 class RetrievalInfo {
   final String? detectedSystem;
@@ -82,6 +83,7 @@ class ManualQaAnswer {
   final RetrievalInfo? retrievalInfo;
   final String? providerUsed;
   final bool fallbackUsed;
+  final LatencyBreakdown? latencyBreakdown;
 
   const ManualQaAnswer({
     required this.answer,
@@ -100,6 +102,7 @@ class ManualQaAnswer {
     this.retrievalInfo,
     this.providerUsed,
     this.fallbackUsed = false,
+    this.latencyBreakdown,
   });
 
   factory ManualQaAnswer.fromJson(Map<String, dynamic> json) {
@@ -125,6 +128,12 @@ class ManualQaAnswer {
         Map<String, dynamic>.from(json['retrieval_info'] as Map),
       );
     }
+    LatencyBreakdown? latencyBreakdown;
+    if (json['latency_breakdown'] != null) {
+      latencyBreakdown = LatencyBreakdown.fromJson(
+        Map<String, dynamic>.from(json['latency_breakdown'] as Map),
+      );
+    }
     return ManualQaAnswer(
       answer: json['answer'] ?? '',
       sources: sourcesList,
@@ -145,6 +154,7 @@ class ManualQaAnswer {
       retrievalInfo: retrievalInfo,
       providerUsed: json['provider_used'],
       fallbackUsed: json['fallback_used'] ?? false,
+      latencyBreakdown: latencyBreakdown,
     );
   }
 

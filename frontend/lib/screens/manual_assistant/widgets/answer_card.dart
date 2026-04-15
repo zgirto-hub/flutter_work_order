@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../models/manual_qa_answer.dart';
+import '../../../models/latency_breakdown.dart';
+import '../../../utils/latency_formatter.dart';
 import 'source_card.dart';
 
 class AnswerCard extends StatefulWidget {
@@ -20,6 +22,7 @@ class AnswerCard extends StatefulWidget {
 
 class _AnswerCardState extends State<AnswerCard> {
   String? _selectedRating;
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +142,10 @@ class _AnswerCardState extends State<AnswerCard> {
                 ),
               ),
             ],
-            if (widget.answer.providerDisplayName != null ||
+            if (widget.answer.latencyBreakdown != null) ...[
+              const SizedBox(height: 8),
+              _buildLatencyFooter(widget.answer.latencyBreakdown!),
+            ] else if (widget.answer.providerDisplayName != null ||
                 widget.answer.model != null) ...[
               const SizedBox(height: 8),
               Text(
@@ -253,5 +259,92 @@ class _AnswerCardState extends State<AnswerCard> {
     if (_selectedRating == rating) return;
     setState(() => _selectedRating = rating);
     widget.onRate?.call(rating);
+  }
+
+  Widget _buildLatencyFooter(LatencyBreakdown lb) {
+    final providerName = widget.answer.providerDisplayName ?? 'Unknown';
+    final hasGenerator = lb.generatorMs != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              providerName,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade600,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            if (hasGenerator) ...[
+              Text(
+                ' · ${formatStageLatency(lb.generatorMs)}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+            Text(
+              ' · pipeline ${formatStageLatency(lb.totalMs)}',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade500,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const Spacer(),
+            Semantics(
+              label: 'Show pipeline timing breakdown',
+              button: true,
+              child: IconButton(
+                icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
+                iconSize: 18,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: () => setState(() => _expanded = !_expanded),
+              ),
+            ),
+          ],
+        ),
+        if (_expanded)
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            child: Column(
+              children: [
+                _latencyRow('Embed', lb.embedMs),
+                _latencyRow('HyDE', lb.hydeMs),
+                _latencyRow('Rewrite', lb.rewriteMs),
+                _latencyRow('Retrieval', lb.retrievalMs),
+                _latencyRow('Rerank', lb.rerankMs),
+                _latencyRow('Generator', lb.generatorMs),
+                _latencyRow('Total', lb.totalMs),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _latencyRow(String label, int? ms) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+          ),
+          const Spacer(),
+          Text(
+            formatStageLatency(ms),
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
   }
 }
