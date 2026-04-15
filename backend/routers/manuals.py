@@ -425,15 +425,8 @@ async def ask_question(request: AskRequest):
     except Exception:
         pass
 
-    try:
-        from services.ai_providers.resolver import get_last_provider_result
-
-        provider_used, fallback_used = get_last_provider_result()
-        result["provider_used"] = provider_used
-        result["fallback_used"] = fallback_used
-    except Exception:
-        result["provider_used"] = "local"
-        result["fallback_used"] = False
+    result.setdefault("provider_used", "local")
+    result.setdefault("fallback_used", False)
 
     return result
 

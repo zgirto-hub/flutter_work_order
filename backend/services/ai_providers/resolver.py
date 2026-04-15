@@ -11,7 +11,6 @@ from services.ollama_generator import GeneratorModelError, GeneratorTimeoutError
 logger = logging.getLogger(__name__)
 
 _cache: dict = {"value": None, "expires_at": 0.0}
-_last_result: dict = {"provider": "local", "fallback_used": False}
 _TTL_SECONDS = 60.0
 _DEFAULT_PROVIDER = "local"
 
@@ -59,8 +58,6 @@ async def generate(
         )
         if not answer or not answer.strip():
             raise GeneratorModelError(active_key, "empty_response")
-        _last_result["provider"] = active_key
-        _last_result["fallback_used"] = False
         return (answer.strip(), active_key, False)
     except asyncio.TimeoutError:
         logger.warning(f"Provider {active_key} timed out")
@@ -100,15 +97,6 @@ async def _fallback_to_local(
                 )
             except Exception:
                 pass
-        _last_result["provider"] = _DEFAULT_PROVIDER
-        _last_result["fallback_used"] = True
         return (answer, _DEFAULT_PROVIDER, True)
     except Exception:
         raise GeneratorTimeoutError(f"All providers failed: {reason}")
-
-
-def get_last_provider_result() -> Tuple[str, bool]:
-    return (
-        _last_result.get("provider", _DEFAULT_PROVIDER),
-        _last_result.get("fallback_used", False),
-    )
