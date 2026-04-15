@@ -10,7 +10,8 @@ from services.ollama_generator import GeneratorModelError, GeneratorTimeoutError
 
 logger = logging.getLogger(__name__)
 
-_cache: dict = {"value": None, "expires_at": 0.0, "last_fallback_used": False}
+_cache: dict = {"value": None, "expires_at": 0.0}
+_last_result: dict = {"provider": "local", "fallback_used": False}
 _TTL_SECONDS = 60.0
 _DEFAULT_PROVIDER = "local"
 
@@ -40,6 +41,10 @@ def _resolve_provider(key: str) -> AIProvider:
     return provider_class()
 
 
+def invalidate_cache() -> None:
+    _cache["expires_at"] = 0.0
+
+
 async def generate(
     prompt: str,
     context_chunks: List[str],
@@ -54,7 +59,8 @@ async def generate(
         )
         if not answer or not answer.strip():
             raise GeneratorModelError(active_key, "empty_response")
-        _cache["last_fallback_used"] = False
+        _last_result["provider"] = active_key
+        _last_result["fallback_used"] = False
         return (answer.strip(), active_key, False)
     except asyncio.TimeoutError:
         logger.warning(f"Provider {active_key} timed out")
@@ -94,14 +100,15 @@ async def _fallback_to_local(
                 )
             except Exception:
                 pass
-        _cache["last_fallback_used"] = True
+        _last_result["provider"] = _DEFAULT_PROVIDER
+        _last_result["fallback_used"] = True
         return (answer, _DEFAULT_PROVIDER, True)
     except Exception:
         raise GeneratorTimeoutError(f"All providers failed: {reason}")
 
 
-async def get_last_provider_info() -> Tuple[str, bool]:
+def get_last_provider_result() -> Tuple[str, bool]:
     return (
-        _cache.get("value") or _DEFAULT_PROVIDER,
-        _cache.get("last_fallback_used", False),
+        _last_result.get("provider", _DEFAULT_PROVIDER),
+        _last_result.get("fallback_used", False),
     )

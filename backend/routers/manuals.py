@@ -426,9 +426,9 @@ async def ask_question(request: AskRequest):
         pass
 
     try:
-        from services.ai_providers.resolver import get_last_provider_info
+        from services.ai_providers.resolver import get_last_provider_result
 
-        provider_used, fallback_used = await get_last_provider_info()
+        provider_used, fallback_used = get_last_provider_result()
         result["provider_used"] = provider_used
         result["fallback_used"] = fallback_used
     except Exception:

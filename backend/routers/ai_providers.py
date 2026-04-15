@@ -1,11 +1,12 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import List, Optional
+from datetime import datetime, timezone
 from db import supabase
 from utils.app_settings import get_setting, set_setting
 from utils.activity import log_activity
 from services.ai_providers import PROVIDERS
-from services.ai_providers.resolver import get_active_provider_key, _cache
+from services.ai_providers.resolver import get_active_provider_key, invalidate_cache
 
 router = APIRouter(tags=["ai-providers"])
 
@@ -82,7 +83,7 @@ async def set_provider(
 
     old = await get_active_provider_key()
     await set_setting("ai_provider", request.provider, admin_email)
-    _cache["expires_at"] = 0.0
+    invalidate_cache()
 
     log_activity(
         admin_email,
@@ -93,7 +94,10 @@ async def set_provider(
         detail=f"old={old}",
     )
 
-    return {"active": request.provider, "updated_at": "now()"}
+    return {
+        "active": request.provider,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 class HealthResponse(BaseModel):
