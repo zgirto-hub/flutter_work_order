@@ -1,6 +1,6 @@
 ﻿# flutter_work_order Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-14
+Auto-generated from all feature plans. Last updated: 2026-04-15
 
 ## Active Technologies
 - Dart 3.x / Flutter 3.x + `pdf` ^3.10.7 (existing), `printing` ^5.12.0 (existing), `htmltopdfwidgets` (NEW) (002-use-html-css)
@@ -85,6 +85,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-14
 - Supabase (PostgreSQL) — existing `systems`, `assets`, `asset_system_links`, `system_status_reports` tables; no new tables (061-infrastructure-screen)
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx, existing `ollama_embedder`/`ollama_generator` (backend); Flutter Material, existing answer-card widgets (frontend). **No new dependencies.** (062-hybrid-retrieval-filter)
 - Supabase (PostgreSQL) — existing `manuals`, `manual_chunks` tables. No schema changes. No migrations. (062-hybrid-retrieval-filter)
+- Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (existing); `google-generativeai` (NEW — backend only, for Gemini SDK). Flutter Material + `supabase_flutter` + `http` (existing). (063-ai-provider-manager)
+- Supabase (PostgreSQL) — new `app_settings` key-value table (2 rows in phase 1). No pgvector changes. Existing `user_activity_log` reused for fallback audit events. (063-ai-provider-manager)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -107,9 +109,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 063-ai-provider-manager: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (existing); `google-generativeai` (NEW — backend only, for Gemini SDK). Flutter Material + `supabase_flutter` + `http` (existing).
 - 062-hybrid-retrieval-filter: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx, existing `ollama_embedder`/`ollama_generator` (backend); Flutter Material, existing answer-card widgets (frontend). **No new dependencies.**
 - 061-infrastructure-screen: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); `http`, `supabase_flutter`, Flutter Material (frontend)
-- 059-add-verified-answer: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); http, supabase_flutter, Flutter Material (frontend)
 
 
 <!-- MANUAL ADDITIONS START -->
