@@ -719,12 +719,36 @@ async def ask(
             "retrieval_info": retrieval_info,
         }
 
-    # Check for validated QA match first (spec 048)
+    # Rewrite query for better retrieval (uses conversation context for follow-up questions).
+    # NOTE: rewrite must happen BEFORE the validated_qa cache check so context-dependent
+    # follow-ups like "in english" get expanded into self-contained queries — otherwise
+    # a bare "in english" could match an unrelated validated answer across sessions.
+    search_query = await _rewrite_query(question, history)
+
+    # Follow-up detection: if the original question had no system keyword but the
+    # history-aware rewrite surfaced one (e.g. turn-1 "how to restart CADAS-ATS"
+    # → turn-2 "any other steps?" → rewritten to "any other steps for CADAS-ATS?"),
+    # re-run detection on the rewrite so multi-turn conversations stay scoped.
+    if detected_system is None and search_query and search_query != question:
+        followup_system = detect_system(search_query)
+        if followup_system:
+            detected_system = followup_system
+            retrieval_info["detected_system"] = followup_system
+            logger.info(
+                "[hybrid-retrieval] detected_system=%s via-rewrite (original question had no keyword)",
+                followup_system,
+            )
+
+    # Check for validated QA match using the context-resolved query (spec 048).
+    # Pass detected_system so cross-topic matches (e.g. "in english" retrieving a
+    # CADAS-ATS answer in an unrelated session) are rejected at the filter layer.
     import time as _time
 
     _vqa_start = _time.monotonic()
     try:
-        match_result = await validated_qa_service.check_validated_match(question)
+        match_result = await validated_qa_service.check_validated_match(
+            search_query, detected_system=detected_system
+        )
         if match_result["match_type"] == "direct":
             vqa = match_result["validated_qa"]
             elapsed = round(_time.monotonic() - _vqa_start, 1)
@@ -754,23 +778,6 @@ async def ask(
             "Validated QA check failed, falling back to normal pipeline: %s", e
         )
         validated_context = None
-
-    # Rewrite query for better retrieval (uses conversation context for follow-up questions)
-    search_query = await _rewrite_query(question, history)
-
-    # Follow-up detection: if the original question had no system keyword but the
-    # history-aware rewrite surfaced one (e.g. turn-1 "how to restart CADAS-ATS"
-    # → turn-2 "any other steps?" → rewritten to "any other steps for CADAS-ATS?"),
-    # re-run detection on the rewrite so multi-turn conversations stay scoped.
-    if detected_system is None and search_query and search_query != question:
-        followup_system = detect_system(search_query)
-        if followup_system:
-            detected_system = followup_system
-            retrieval_info["detected_system"] = followup_system
-            logger.info(
-                "[hybrid-retrieval] detected_system=%s via-rewrite (original question had no keyword)",
-                followup_system,
-            )
 
     # HyDE: generate hypothetical answer for better embedding
     hyde_text = await _generate_hypothetical_answer(search_query)

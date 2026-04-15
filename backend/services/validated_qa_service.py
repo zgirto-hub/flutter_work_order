@@ -45,6 +45,42 @@ def _extract_fault_code(text: str) -> Optional[str]:
     return None
 
 
+async def _rewrite_with_summary(question: str, session_summary: Optional[str]) -> str:
+    """Rewrite a (possibly context-dependent) question into a self-contained form
+    using the session summary captured at rating time. Returns the original
+    question if there's no summary or the rewrite fails.
+
+    This matters on the validation write path: without expansion, a bare
+    follow-up like "in english" would be embedded as-is into validated_qa and
+    could match unrelated future queries.
+    """
+    if not session_summary or not question.strip():
+        return question
+
+    try:
+        from services.ollama_generator import generate
+
+        prompt = (
+            "You are a search query rewriter. Given a session summary and a "
+            "follow-up question, rewrite the question into a single self-contained "
+            "query. Resolve all pronouns and references (e.g. 'it', 'that', 'in "
+            "english') using the summary. Preserve the original language. "
+            "Reply with ONLY the rewritten query — no explanation.\n\n"
+            f"SESSION SUMMARY:\n{session_summary}\n\n"
+            f"FOLLOW-UP QUESTION: {question}"
+        )
+        result = await generate(prompt, timeout=10.0)
+        rewritten = result.strip().strip('"').strip("'").strip()
+        if not rewritten:
+            return question
+        return rewritten
+    except Exception as e:
+        logger.warning(
+            "Summary-aware rewrite failed, using original question: %s", e
+        )
+        return question
+
+
 def save_rating(
     question_text: str,
     answer_text: str,
@@ -187,10 +223,15 @@ async def review_answer(
     else:
         raise ValueError(f"Invalid action: {action}")
 
-    embedding = await embed_single(rating_row["question_text"])
+    # Expand context-dependent questions (e.g. "in english") into self-contained
+    # form using the session summary captured at rating time, so the stored
+    # embedding reflects the real topic and can't cross-match unrelated queries.
+    question = await _rewrite_with_summary(
+        rating_row["question_text"], rating_row.get("session_summary")
+    )
+    embedding = await embed_single(question)
     embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
 
-    question = rating_row["question_text"]
     validated_row = {
         "question_text": question,
         "validated_answer": answer_to_validate,
@@ -223,7 +264,9 @@ async def review_answer(
     return validated_id
 
 
-async def check_validated_match(question_text: str) -> dict:
+async def check_validated_match(
+    question_text: str, detected_system: Optional[str] = None
+) -> dict:
     embedding = await embed_single(question_text)
     embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
 
@@ -235,6 +278,39 @@ async def check_validated_match(question_text: str) -> dict:
 
     match = rpc_resp.data[0]
     distance = match.get("distance", 1.0)
+
+    # Topic guard: if the incoming query resolves to a specific system, reject
+    # cached matches whose validated_qa is tagged for a *different* system. This
+    # prevents bare follow-ups (e.g. "in english") from retrieving a validated
+    # answer about an unrelated topic in a new session.
+    if detected_system and distance <= 0.25:
+        try:
+            row_resp = (
+                supabase.table("validated_qa")
+                .select("manual_ids")
+                .eq("id", match["id"])
+                .single()
+                .execute()
+            )
+            row_manual_ids = (row_resp.data or {}).get("manual_ids") or []
+            if row_manual_ids:
+                from services.system_registry import get_manual_ids_for_system
+
+                system_manual_ids = await get_manual_ids_for_system(
+                    detected_system, supabase
+                )
+                if system_manual_ids and not (
+                    set(str(m) for m in row_manual_ids)
+                    & set(str(m) for m in system_manual_ids)
+                ):
+                    logger.info(
+                        "[validated-qa] topic mismatch: row manual_ids=%s, detected_system=%s — rejecting cache match",
+                        row_manual_ids,
+                        detected_system,
+                    )
+                    return {"match_type": "none"}
+        except Exception as e:
+            logger.warning("Topic guard lookup failed, allowing match: %s", e)
 
     if distance <= 0.10:
         return {"match_type": "direct", "validated_qa": match}
