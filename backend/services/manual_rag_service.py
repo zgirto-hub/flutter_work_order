@@ -895,7 +895,6 @@ async def ask(
                 effective_history = history[-10:] if history else None
                 memory = None
 
-    import time
     from services.ollama_generator import get_default_model
 
     used_model = model or get_default_model()
