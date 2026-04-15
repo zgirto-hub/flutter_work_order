@@ -28,7 +28,7 @@ class MistralProvider(AIProvider):
             raise GeneratorModelError("mistral", "missing_credentials")
 
         try:
-            from mistralai import Mistral
+            from mistralai.client import Mistral
         except ImportError:
             raise GeneratorModelError("mistral", "mistralai SDK not installed")
 
@@ -67,7 +67,7 @@ class MistralProvider(AIProvider):
         if not self._api_key:
             return False
         try:
-            from mistralai import Mistral
+            from mistralai.client import Mistral
 
             async def _check():
                 client = Mistral(api_key=self._api_key)
