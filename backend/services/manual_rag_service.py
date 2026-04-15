@@ -491,9 +491,10 @@ async def _generate_sub_answers(
     history: list[dict] | None,
     memory: str | None,
     model: str | None,
+    user_email: str | None = None,
     validated_context: str | None = None,
     extra_prefix: str | None = None,
-) -> tuple[list[dict], str, bool]:
+) -> tuple[list[dict], str, bool, str, dict | None]:
     """Generate a sub-answer for each manual's chunks (spec 046)."""
     from services.ai_providers.resolver import generate as provider_generate
 
@@ -533,7 +534,8 @@ async def _generate_sub_answers(
                 provider_used,
                 provider_display_name,
                 fallback_used,
-            ) = await provider_generate(prompt, [], None)
+                _fallback_info,
+            ) = await provider_generate(prompt, [], user_email)
         except Exception as e:
             logger.warning(
                 "Sub-answer generation failed for manual '%s': %s", manual_title, e
@@ -556,6 +558,7 @@ async def _generate_sub_answers(
                 "provider_display_name": provider_display_name,
                 "provider_used": provider_used,
                 "fallback_used": fallback_used,
+                "_fallback_info": _fallback_info,
             }
         )
 
@@ -565,13 +568,25 @@ async def _generate_sub_answers(
     provider_display_name = sub_answers[-1].get(
         "provider_display_name", "Local (Ollama)"
     )
-    return sub_answers, provider_used, fallback_used, provider_display_name
+    fallback_used = any(sa.get("fallback_used", False) for sa in sub_answers)
+    fallback_info = next(
+        (sa.get("_fallback_info") for sa in sub_answers if sa.get("_fallback_info")),
+        None,
+    )
+    return (
+        sub_answers,
+        provider_used,
+        fallback_used,
+        provider_display_name,
+        fallback_info,
+    )
 
 
 async def _synthesize_answers(
     sub_answers: list[dict],
     question: str,
     model: str | None,
+    user_email: str | None = None,
 ) -> dict:
     """Combine grounded sub-answers into one synthesized answer (spec 046)."""
     from services.ollama_generator import generate
@@ -627,7 +642,8 @@ async def _synthesize_answers(
             provider_used,
             provider_display_name,
             fallback_used,
-        ) = await provider_generate(synthesis_prompt, [], None)
+            fallback_info,
+        ) = await provider_generate(synthesis_prompt, [], user_email)
     except Exception as e:
         logger.warning("Synthesis failed, returning first sub-answer: %s", e)
         first = grounded[0]
@@ -645,6 +661,7 @@ async def _synthesize_answers(
             "provider_used": provider_used,
             "fallback_used": fallback_used,
             "provider_display_name": provider_display_name,
+            "_fallback_info": first.get("_fallback_info"),
         }
 
     answer_text = synthesized.strip()
@@ -661,6 +678,7 @@ async def _synthesize_answers(
         "provider_used": provider_used,
         "fallback_used": fallback_used,
         "provider_display_name": provider_display_name,
+        "_fallback_info": fallback_info,
     }
 
 
@@ -670,6 +688,7 @@ async def ask(
     model: Optional[str] = None,
     history: list[dict] | None = None,
     session_summary: str | None = None,
+    user_email: str | None = None,
 ) -> dict:
     from services.ollama_embedder import embed_single, EmbedderTimeoutError
     from services.ollama_generator import generate, GeneratorTimeoutError
@@ -916,7 +935,8 @@ async def ask(
                 provider_used,
                 provider_display_name,
                 fallback_used,
-            ) = await provider_generate(prompt, [], None)
+                fallback_info,
+            ) = await provider_generate(prompt, [], user_email)
         except GeneratorTimeoutError:
             raise GeneratorUnavailableError()
         gen_elapsed = time.monotonic() - gen_start
@@ -937,6 +957,7 @@ async def ask(
                 "retrieval_info": retrieval_info,
                 "provider_used": provider_used,
                 "fallback_used": fallback_used,
+                "_fallback_info": fallback_info,
             }
 
         # Highlight sources
@@ -967,6 +988,7 @@ async def ask(
             "retrieval_info": retrieval_info,
             "provider_used": provider_used,
             "fallback_used": fallback_used,
+            "_fallback_info": fallback_info,
         }
 
     else:
@@ -1010,12 +1032,14 @@ async def ask(
             provider_used,
             fallback_used,
             provider_display_name,
+            sub_fallback_info,
         ) = await _generate_sub_answers(
             chunks_by_manual,
             question,
             effective_history,
             memory,
             model,
+            user_email,
             validated_context,
             no_manuals_directive,
         )
@@ -1031,7 +1055,9 @@ async def ask(
 
         # Step 3: Synthesize
         synthesis_start = time.monotonic()
-        synthesis_result = await _synthesize_answers(sub_answers, question, model)
+        synthesis_result = await _synthesize_answers(
+            sub_answers, question, model, user_email
+        )
         synthesis_elapsed = time.monotonic() - synthesis_start
 
         logger.info("Synthesis took %.1fs", synthesis_elapsed)
@@ -1049,6 +1075,8 @@ async def ask(
                 "duration_seconds": round(gen_elapsed, 1),
                 "session_summary": memory,
                 "retrieval_info": retrieval_info,
+                "fallback_used": fallback_used,
+                "_fallback_info": sub_fallback_info,
             }
 
         # Collect all sources from contributing manuals and compute highlights
@@ -1085,6 +1113,7 @@ async def ask(
             "retrieval_info": retrieval_info,
             "provider_used": provider_used,
             "fallback_used": fallback_used,
+            "_fallback_info": sub_fallback_info,
         }
 
 

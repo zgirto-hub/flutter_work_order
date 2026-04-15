@@ -374,6 +374,7 @@ async def ask_question(request: AskRequest):
             model=request.model,
             history=history,
             session_summary=request.session_summary,
+            user_email=request.user_email,
         )
     except manual_rag_service.EmbedderUnavailableError:
         raise HTTPException(
@@ -427,6 +428,23 @@ async def ask_question(request: AskRequest):
 
     result.setdefault("provider_used", "local")
     result.setdefault("fallback_used", False)
+
+    # spec-065: write exactly one audit row on fallback (FR-003)
+    fallback_info = result.get("_fallback_info")
+    if fallback_info:
+        try:
+            log_activity(
+                fallback_info.get("user_email", request.user_email),
+                category="admin",
+                action="ai_provider_fallback",
+                target_label=fallback_info.get("failed_provider", "local"),
+                target_id=fallback_info.get("fallback_provider", "local"),
+                detail=fallback_info.get("detail", "unknown"),
+            )
+        except Exception:
+            pass
+
+    result.pop("_fallback_info", None)
 
     return result
 

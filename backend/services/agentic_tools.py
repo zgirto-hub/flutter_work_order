@@ -313,7 +313,12 @@ async def execute_tool(tool_name: str, params: dict, **kwargs) -> dict:
 
 
 async def run_agentic_loop(
-    question: str, manual_id_filter=None, model=None, history=None, session_summary=None
+    question: str,
+    manual_id_filter=None,
+    model=None,
+    history=None,
+    session_summary=None,
+    user_email: str | None = None,
 ) -> dict:
     """
     Core agentic loop that decides whether to call tools and executes them.
@@ -324,6 +329,7 @@ async def run_agentic_loop(
         model: Optional model override
         history: Optional conversation history for context
         session_summary: Optional session summary
+        user_email: Optional user email for audit logging
 
     Returns:
         Dict with answer, tools_used, agentic flag, and other metadata
@@ -340,6 +346,7 @@ async def run_agentic_loop(
             model=model,
             history=history,
             session_summary=session_summary,
+            user_email=user_email,
         )
         result["agentic"] = False
         result["tools_used"] = []
@@ -434,7 +441,7 @@ User: {question}"""
                 # Strip FINAL_ANSWER: prefix if the model used it
                 final_answer = response.strip()
                 if final_answer.startswith("FINAL_ANSWER:"):
-                    final_answer = final_answer[len("FINAL_ANSWER:"):].strip()
+                    final_answer = final_answer[len("FINAL_ANSWER:") :].strip()
                 break
             else:
                 # First iteration, no tools needed — fall back to existing pipeline
@@ -454,7 +461,9 @@ User: {question}"""
                     fallback_result["duration_seconds"] = time.time() - start_time
                     return fallback_result
                 except Exception as fallback_err:
-                    logger.error(f"Fallback to manual_rag_service failed: {fallback_err}")
+                    logger.error(
+                        f"Fallback to manual_rag_service failed: {fallback_err}"
+                    )
                     return {
                         "answer": response.strip(),
                         "success": True,
@@ -469,7 +478,8 @@ User: {question}"""
         logger.info(f"Tool call: {tool_name}, params: {params}")
 
         result = await execute_tool(
-            tool_name, params,
+            tool_name,
+            params,
             model=model,
             manual_id_filter=manual_id_filter,
             history=history,
@@ -512,7 +522,7 @@ User: {question}"""
     # Clean up the final answer — strip FINAL_ANSWER: prefix and any stray TOOL_CALL blocks
     final_answer = final_answer.strip()
     if final_answer.upper().startswith("FINAL_ANSWER:"):
-        final_answer = final_answer[len("FINAL_ANSWER:"):].strip()
+        final_answer = final_answer[len("FINAL_ANSWER:") :].strip()
     # Remove any accidental TOOL_CALL block at the start (model confusion)
     if "TOOL_CALL:" in final_answer and "PARAMS:" in final_answer:
         # Keep only text after the last PARAMS: line

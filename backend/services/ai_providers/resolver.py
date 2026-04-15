@@ -48,7 +48,7 @@ async def generate(
     prompt: str,
     context_chunks: List[str],
     user_email: str | None = None,
-) -> Tuple[str, str, str, bool]:
+) -> Tuple[str, str, str, bool, dict | None]:
     active_key = await get_active_provider_key()
     active = _resolve_provider(active_key)
     active_display = active.display_name
@@ -59,7 +59,7 @@ async def generate(
         )
         if not answer or not answer.strip():
             raise GeneratorModelError(active_key, "empty_response")
-        return (answer.strip(), active_key, active_display, False)
+        return (answer.strip(), active_key, active_display, False, None)
     except asyncio.TimeoutError as exc:
         logger.warning(f"Provider {active_key} timed out")
         if active_key != _DEFAULT_PROVIDER:
@@ -78,17 +78,26 @@ async def generate(
 
 
 def _classify_fallback_reason(reason: str, exc: Exception | None = None) -> str:
-    reason_lower = reason.lower()
     if exc is not None:
         if isinstance(exc, asyncio.TimeoutError):
             return "timeout_30s"
+        if isinstance(exc, GeneratorModelError):
+            bare = (getattr(exc, "detail", "") or "").lower()
+            if bare in {
+                "quota_exceeded",
+                "timeout_30s",
+                "empty_response",
+                "missing_credentials",
+            }:
+                return bare
+    reason_lower = reason.lower()
     if "timeout" in reason_lower:
         return "timeout_30s"
     if "quota" in reason_lower or "429" in reason_lower:
         return "quota_exceeded"
-    if reason_lower == "missing_credentials":
+    if "missing_credentials" in reason_lower:
         return "missing_credentials"
-    if reason_lower == "empty_response":
+    if "empty_response" in reason_lower:
         return "empty_response"
     return "unknown"
 
@@ -100,24 +109,17 @@ async def _fallback_to_local(
     failed_provider_key: str,
     reason: str,
     exc: Exception | None = None,
-) -> Tuple[str, str, str, bool]:
-    try:
-        local = _resolve_provider(_DEFAULT_PROVIDER)
-        local_display = local.display_name
-        answer = await local.generate(prompt, context_chunks)
-        if user_email:
-            try:
-                detail = _classify_fallback_reason(reason, exc)
-                log_activity(
-                    user_email,
-                    category="admin",
-                    action="ai_provider_fallback",
-                    target_label=failed_provider_key,
-                    target_id=_DEFAULT_PROVIDER,
-                    detail=detail,
-                )
-            except Exception:
-                pass
-        return (answer, _DEFAULT_PROVIDER, local_display, True)
-    except Exception:
-        raise GeneratorTimeoutError(f"All providers failed: {reason}")
+) -> Tuple[str, str, str, bool, dict | None]:
+    local = _resolve_provider(_DEFAULT_PROVIDER)
+    local_display = local.display_name
+    answer = await local.generate(prompt, context_chunks)
+    detail = _classify_fallback_reason(reason, exc)
+    fallback_info = None
+    if user_email:
+        fallback_info = {
+            "user_email": user_email,
+            "failed_provider": failed_provider_key,
+            "fallback_provider": _DEFAULT_PROVIDER,
+            "detail": detail,
+        }
+    return (answer, _DEFAULT_PROVIDER, local_display, True, fallback_info)
