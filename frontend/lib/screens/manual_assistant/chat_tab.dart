@@ -48,6 +48,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
   bool _manualsLoading = true;
   String? _loadError;
   String _providerDisplayName = 'Local (Ollama)';
+  String? _lastResponseProviderDisplayName;
   bool _fallbackUsed = false;
 
   @override
@@ -126,6 +127,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
         _messages.removeLast();
         _messages.add(ChatMessage(question: question, answer: answer));
         _loading = false;
+        _lastResponseProviderDisplayName = answer.providerDisplayName;
         _fallbackUsed =
             answer.providerUsed == 'local' && (answer.fallbackUsed == true);
       });
@@ -270,7 +272,9 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
                 ),
               ),
               AiProviderChip(
-                providerDisplayName: _providerDisplayName,
+                providerDisplayName: _lastResponseProviderDisplayName != null
+                    ? _lastResponseProviderDisplayName!
+                    : _providerDisplayName,
                 fallbackUsed: _fallbackUsed,
               ),
             ],

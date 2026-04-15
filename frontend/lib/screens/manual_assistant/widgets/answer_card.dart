@@ -139,10 +139,11 @@ class _AnswerCardState extends State<AnswerCard> {
                 ),
               ),
             ],
-            if (widget.answer.model != null) ...[
+            if (widget.answer.providerDisplayName != null ||
+                widget.answer.model != null) ...[
               const SizedBox(height: 8),
               Text(
-                '${widget.answer.model} · ${widget.answer.durationFormatted}',
+                '${widget.answer.providerDisplayName ?? widget.answer.model ?? 'Unknown'} · ${widget.answer.durationFormatted}',
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.grey.shade500,
