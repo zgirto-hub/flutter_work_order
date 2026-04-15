@@ -409,7 +409,7 @@ User: {question}"""
             )
             try:
                 fallback_result = await manual_rag_ask(
-                    question=query,
+                    question=question,
                     manual_id_filter=manual_id_filter,
                     model=model,
                     history=history,
