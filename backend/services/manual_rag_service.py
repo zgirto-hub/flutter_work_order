@@ -127,7 +127,7 @@ def _build_prompt(
         "For simple lookups (credentials, values, single procedures), write prose, not sections.\n"
         "3. Keep procedures as numbered steps only when the manual itself presents steps; "
         "do not invent structure.\n"
-        '4. If the answer is not found in the sections, reply exactly: '
+        "4. If the answer is not found in the sections, reply exactly: "
         '"This information is not in the available manuals."\n'
         "5. Reply in the same language as the question (Arabic or English)."
     )
@@ -789,6 +789,54 @@ async def ask(
             "retrieval_info": retrieval_info,
         }
 
+    # Pre-rewrite validated-QA fast-path lookup (spec 067).
+    # Check for cached answer using the raw question BEFORE rewriting, so that
+    # identical repeated questions hit the cache regardless of conversation history.
+    import time as _time
+
+    _vqa_pre_start = _time.monotonic()
+    try:
+        pre_rewrite_match = await validated_qa_service.check_validated_match(
+            question, detected_system=detected_system
+        )
+        if pre_rewrite_match["match_type"] == "direct":
+            vqa = pre_rewrite_match["validated_qa"]
+            elapsed = round(_time.monotonic() - _vqa_pre_start, 1)
+            logger.info(
+                "validated_qa hit (pre-rewrite)",
+                extra={
+                    "validated_qa_id": str(vqa["id"]),
+                    "detected_system": detected_system,
+                },
+            )
+            return {
+                "answer": vqa["validated_answer"],
+                "grounded": True,
+                "sources": [],
+                "model": "validated_qa",
+                "duration_seconds": elapsed,
+                "is_verified": True,
+                "verified_source": {
+                    "validated_qa_id": str(vqa["id"]),
+                    "validated_by": vqa["validated_by"],
+                    "validated_at": vqa["validated_at"].isoformat()
+                    if hasattr(vqa["validated_at"], "isoformat")
+                    else str(vqa["validated_at"]),
+                    "similarity": 1.0 - vqa.get("distance", 0.0),
+                },
+                "retrieval_info": retrieval_info,
+            }
+        elif pre_rewrite_match["match_type"] == "context":
+            validated_context = pre_rewrite_match["validated_qa"]["validated_answer"]
+        else:
+            validated_context = None
+    except Exception as e:
+        logger.warning(
+            "Pre-rewrite validated_qa check failed, falling back to normal pipeline: %s",
+            e,
+        )
+        validated_context = None
+
     # Rewrite query for better retrieval (uses conversation context for follow-up questions).
     # NOTE: rewrite must happen BEFORE the validated_qa cache check so context-dependent
     # follow-ups like "in english" get expanded into self-contained queries — otherwise
@@ -813,7 +861,6 @@ async def ask(
     # Check for validated QA match using the context-resolved query (spec 048).
     # Pass detected_system so cross-topic matches (e.g. "in english" retrieving a
     # CADAS-ATS answer in an unrelated session) are rejected at the filter layer.
-    import time as _time
 
     _vqa_start = _time.monotonic()
     try:
@@ -823,6 +870,13 @@ async def ask(
         if match_result["match_type"] == "direct":
             vqa = match_result["validated_qa"]
             elapsed = round(_time.monotonic() - _vqa_start, 1)
+            logger.info(
+                "validated_qa hit (post-rewrite)",
+                extra={
+                    "validated_qa_id": str(vqa["id"]),
+                    "detected_system": detected_system,
+                },
+            )
             return {
                 "answer": vqa["validated_answer"],
                 "grounded": True,
