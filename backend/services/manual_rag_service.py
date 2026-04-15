@@ -613,7 +613,11 @@ async def _synthesize_answers(
     )
 
     try:
-        synthesized = await generate(synthesis_prompt, model=model)
+        from services.ai_providers.resolver import generate as provider_generate
+
+        synthesized, provider_used, fallback_used = await provider_generate(
+            synthesis_prompt, [], None
+        )
     except Exception as e:
         logger.warning("Synthesis failed, returning first sub-answer: %s", e)
         first = grounded[0]

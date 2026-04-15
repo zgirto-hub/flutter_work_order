@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_by UUID REFERENCES auth.users(id)
+    updated_by UUID REFERENCES public.users(id)
 );
 
 -- Enable RLS

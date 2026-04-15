@@ -2,10 +2,10 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import List, Optional
 from db import supabase
-from backend.utils.app_settings import get_setting, set_setting
-from backend.utils.activity import log_activity
+from utils.app_settings import get_setting, set_setting
+from utils.activity import log_activity
 from services.ai_providers import PROVIDERS
-from services.ai_providers.resolver import get_active_provider_key
+from services.ai_providers.resolver import get_active_provider_key, _cache
 
 router = APIRouter(tags=["ai-providers"])
 
@@ -82,6 +82,7 @@ async def set_provider(
 
     old = await get_active_provider_key()
     await set_setting("ai_provider", request.provider, admin_email)
+    _cache["expires_at"] = 0.0
 
     log_activity(
         admin_email,

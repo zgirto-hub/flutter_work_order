@@ -44,10 +44,10 @@ class GeminiProvider(AIProvider):
             return answer
         except Exception as e:
             error_msg = str(e)
+            if self._api_key and self._api_key in error_msg:
+                error_msg = error_msg.replace(self._api_key, "[API_KEY_SCRUBBED]")
             if "quota" in error_msg.lower():
                 raise GeneratorModelError("gemini", "quota_exceeded")
-            if "API" in error_msg:
-                error_msg = error_msg.replace(self._api_key, "[API_KEY_SCRUBBED]")
             logger.error(f"Gemini generation failed: {error_msg}")
             raise GeneratorModelError("gemini", error_msg[:100])
 

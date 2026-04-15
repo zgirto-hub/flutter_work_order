@@ -1,6 +1,7 @@
 import logging
 from typing import Optional
 from db import supabase
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,12 @@ async def set_setting(key: str, value: str, updated_by: Optional[str] = None) ->
                 user_id = user_result.data[0]["id"]
 
         supabase.table("app_settings").upsert(
-            {"key": key, "value": value, "updated_at": "now()", "updated_by": user_id},
+            {
+                "key": key,
+                "value": value,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_by": user_id,
+            },
             on_conflict="key",
         ).execute()
     except Exception as e:

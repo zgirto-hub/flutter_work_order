@@ -2,15 +2,15 @@ import asyncio
 import logging
 import time
 from typing import List, Tuple
-from backend.utils.app_settings import get_setting
-from backend.utils.activity import log_activity
+from utils.app_settings import get_setting
+from utils.activity import log_activity
 from . import PROVIDERS
 from .base import AIProvider
 from services.ollama_generator import GeneratorModelError, GeneratorTimeoutError
 
 logger = logging.getLogger(__name__)
 
-_cache: dict = {"value": None, "expires_at": 0.0}
+_cache: dict = {"value": None, "expires_at": 0.0, "last_fallback_used": False}
 _TTL_SECONDS = 60.0
 _DEFAULT_PROVIDER = "local"
 
@@ -54,6 +54,7 @@ async def generate(
         )
         if not answer or not answer.strip():
             raise GeneratorModelError(active_key, "empty_response")
+        _cache["last_fallback_used"] = False
         return (answer.strip(), active_key, False)
     except asyncio.TimeoutError:
         logger.warning(f"Provider {active_key} timed out")
@@ -93,6 +94,14 @@ async def _fallback_to_local(
                 )
             except Exception:
                 pass
+        _cache["last_fallback_used"] = True
         return (answer, _DEFAULT_PROVIDER, True)
     except Exception:
         raise GeneratorTimeoutError(f"All providers failed: {reason}")
+
+
+async def get_last_provider_info() -> Tuple[str, bool]:
+    return (
+        _cache.get("value") or _DEFAULT_PROVIDER,
+        _cache.get("last_fallback_used", False),
+    )
