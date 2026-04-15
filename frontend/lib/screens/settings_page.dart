@@ -22,6 +22,8 @@ import 'admin/settings_screen.dart';
 import '../widgets/nav_bar_customization_sheet.dart';
 import '../widgets/bottom_sheet_widgets.dart';
 import '../services/manual_assistant_service.dart';
+import '../services/ai_provider_service.dart';
+import '../models/ai_provider.dart';
 
 class SettingsPage extends StatefulWidget {
   final ThemeController themeController;
@@ -311,6 +313,9 @@ class _SettingsPageState extends State<SettingsPage> {
               if (widget.userRole == 'admin') ...[
                 SectionLabel(text: 'AI Model'),
                 _AiModelSection(),
+                SizedBox(height: 12),
+                SectionLabel(text: 'AI Assistant'),
+                _AiProviderSection(),
                 SizedBox(height: 12),
                 SectionLabel(text: 'Administration'),
                 SurfaceCard(
@@ -1048,6 +1053,222 @@ class _AiModelSectionState extends State<_AiModelSection> {
               }).toList(),
             ),
           const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── AI Provider Section ────────────────────────────────────────────────────────
+
+class _AiProviderSection extends StatefulWidget {
+  @override
+  State<_AiProviderSection> createState() => _AiProviderSectionState();
+}
+
+class _AiProviderSectionState extends State<_AiProviderSection> {
+  final _service = AiProviderService();
+  List<AiProvider> _providers = [];
+  String _activeProvider = 'local';
+  bool _loading = true;
+  bool _saving = false;
+  bool _healthLoading = false;
+  bool _isHealthy = true;
+  String? _healthReason;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final resp = await _service.listProviders();
+      if (mounted) {
+        setState(() {
+          _providers = resp.providers;
+          _activeProvider = resp.active;
+          _loading = false;
+        });
+        _checkHealth();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _checkHealth() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user?.email == null) return;
+    setState(() => _healthLoading = true);
+    try {
+      final health = await _service.getHealth(user!.email!);
+      if (mounted) {
+        setState(() {
+          _isHealthy = health.healthy;
+          _healthReason = health.reason;
+          _healthLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _healthLoading = false);
+      }
+    }
+  }
+
+  Future<void> _setProvider(String key) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user?.email == null) return;
+    setState(() => _saving = true);
+    try {
+      await _service.setActiveProvider(key, user!.email!);
+      if (mounted) {
+        setState(() {
+          _activeProvider = key;
+          _saving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('AI provider set to $key'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        _checkHealth();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to set provider'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return SurfaceCard(
+        padding: const EdgeInsets.all(14),
+        child: Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+                strokeWidth: 1.5, color: AppColors.textTertiary),
+          ),
+        ),
+      );
+    }
+
+    return SurfaceCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.bgSurface2,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.smart_toy_outlined,
+                    size: 18, color: AppColors.textSecondary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI Assistant Provider',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _healthLoading
+                                ? AppColors.textTertiary
+                                : (_isHealthy
+                                    ? const Color(0xFF22C55E)
+                                    : const Color(0xFFDC2626)),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _healthLoading
+                              ? 'Checking...'
+                              : (_isHealthy ? 'Healthy' : 'Unhealthy'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _isHealthy
+                                ? const Color(0xFF22C55E)
+                                : const Color(0xFFDC2626),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (_saving)
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 1.5, color: AppColors.textTertiary),
+                ),
+            ],
+          ),
+          if (_providers.length > 1) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _providers.map((p) {
+                final isSelected = p.key == _activeProvider;
+                return GestureDetector(
+                  onTap: () => _setProvider(p.key),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color:
+                          isSelected ? AppColors.accent : AppColors.bgSurface2,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      p.displayName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color:
+                            isSelected ? Colors.white : AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
         ],
       ),
     );

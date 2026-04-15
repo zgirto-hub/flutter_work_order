@@ -79,6 +79,8 @@ class ManualQaAnswer {
   final bool isVerified;
   final VerifiedSource? verifiedSource;
   final RetrievalInfo? retrievalInfo;
+  final String? providerUsed;
+  final bool fallbackUsed;
 
   const ManualQaAnswer({
     required this.answer,
@@ -94,6 +96,8 @@ class ManualQaAnswer {
     this.isVerified = false,
     this.verifiedSource,
     this.retrievalInfo,
+    this.providerUsed,
+    this.fallbackUsed = false,
   });
 
   factory ManualQaAnswer.fromJson(Map<String, dynamic> json) {
@@ -136,6 +140,8 @@ class ManualQaAnswer {
       isVerified: json['is_verified'] ?? false,
       verifiedSource: verifiedSource,
       retrievalInfo: retrievalInfo,
+      providerUsed: json['provider_used'],
+      fallbackUsed: json['fallback_used'] ?? false,
     );
   }
 

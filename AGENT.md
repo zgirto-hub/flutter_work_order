@@ -338,6 +338,8 @@ uvicorn main:app --reload --port 8000
 
 The backend reads `SUPABASE_URL`, `SUPABASE_KEY` (service role), and `ONESIGNAL_API_KEY` from environment variables. Copy `.env.example` if present, or set them in your shell.
 
+- `GEMINI_API_KEY` — Google AI Studio key for Gemini 2.5 Flash provider (spec 063)
+
 `backend/uploaded_files/` is created automatically on startup. Do not commit its contents.
 
 ### Frontend
