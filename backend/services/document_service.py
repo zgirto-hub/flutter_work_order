@@ -28,7 +28,9 @@ async def index_document(document_id: str, file_path: str) -> None:
         elif ext in (".docx", ".txt", ".md"):
             from services.manual_parser import parse
 
-            pages = parse(file_path)
+            with open(file_path, "rb") as f:
+                file_bytes = f.read()
+            pages = parse(file_bytes, ext.lstrip("."))
         else:
             raise ValueError(f"Unsupported file type: {ext}")
 
