@@ -83,6 +83,9 @@ async def index_document(document_id: str, file_path: str) -> None:
                 }
             )
 
+        # raw_content stores the full raw page text for each chunk's page.
+        # This is page-level (not per-chunk) because chunk boundaries differ
+        # between raw and preprocessed versions.
         child_chunks = []
         for parent in parent_chunks:
             children = _split_into_children(sections[parent["section_index"]])

@@ -111,13 +111,11 @@ async def preprocess_pages(
     setting_value = await get_setting("smart_preprocessing_enabled")
     if setting_value == "false":
         logger.info("Smart preprocessing disabled, returning pages unchanged")
-        raw_mapping = {page_num: text for page_num, text in pages}
-        return pages, raw_mapping
+        return pages, {}
 
     if not GEMINI_API_KEY:
         logger.warning("GEMINI_API_KEY not set, skipping preprocessing")
-        raw_mapping = {page_num: text for page_num, text in pages}
-        return pages, raw_mapping
+        return pages, {}
 
     preprocessed_pages = []
     raw_mapping: Dict[int, str] = {}
