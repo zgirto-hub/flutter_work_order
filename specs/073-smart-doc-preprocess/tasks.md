@@ -119,9 +119,9 @@
 
 **Purpose**: Activity logging, edge case hardening, documentation
 
-- [ ] T009 Add activity logging for preprocessing in `backend/services/document_preprocessor.py`. After processing all pages in `preprocess_pages()`, log a summary to `user_activity_log` via the existing `backend/utils/activity.py` fire-and-forget pattern. Log: action=`"document_preprocessed"`, category=`"document"`, metadata with `total_pages`, `preprocessed_count`, `fallback_count`, `document_id`. This satisfies constitution principle VI (Audit Everything).
+- [x] T009 Add activity logging for preprocessing in `backend/services/document_preprocessor.py`. After processing all pages in `preprocess_pages()`, log a summary to `user_activity_log` via the existing `backend/utils/activity.py` fire-and-forget pattern. Log: action=`"document_preprocessed"`, category=`"document"`, metadata with `total_pages`, `preprocessed_count`, `fallback_count`, `document_id`. This satisfies constitution principle VI (Audit Everything).
 
-- [ ] T010 Update the `create_manual_with_chunks` RPC (find it in `supabase/migrations/` — likely `20260411000000_create_manuals.sql`) if it does not accept `raw_content` in the chunk payload. If the RPC uses a fixed column list for inserts, add `raw_content` to it. If it passes through JSON dynamically, no change needed. Test that manual uploads with preprocessing correctly store `raw_content`.
+- [x] T010 Update the `create_manual_with_chunks` RPC (find it in `supabase/migrations/` — likely `20260411000000_create_manuals.sql`) if it does not accept `raw_content` in the chunk payload. If the RPC uses a fixed column list for inserts, add `raw_content` to it. If it passes through JSON dynamically, no change needed. Test that manual uploads with preprocessing correctly store `raw_content`.
 
 - [ ] T011 Run the full verification checklist from `specs/073-smart-doc-preprocess/quickstart.md`: (1) migration applied, (2) setting seeded, (3) slide-deck upload with status progression, (4) chunk content vs raw_content verification, (5) search quality check, (6) dense manual upload, (7) fallback when Gemini unavailable, (8) toggle disable/enable, (9) restart backend.
 

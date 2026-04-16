@@ -293,12 +293,15 @@ async def upload_manual(
         file_bytes, file_extension
     )  # raises NoExtractableTextError directly
 
+    # Step 1.5: Allocate manual_id (needed for activity logging)
+    manual_id = uuid.uuid4()
+
     pages_for_preprocessing = [
         (page_num, text) for page_num, text in paragraphs if page_num is not None
     ]
     if pages_for_preprocessing:
         preprocessed_pages, raw_mapping = await preprocess_pages(
-            pages_for_preprocessing, document_title=title
+            pages_for_preprocessing, document_title=title, document_id=str(manual_id)
         )
         preprocessed_dict = dict(preprocessed_pages)
         processed_paragraphs = []
@@ -323,8 +326,7 @@ async def upload_manual(
     except EmbedderTimeoutError as e:
         raise EmbedderUnavailableError() from e
 
-    # Step 4: Allocate manual_id
-    manual_id = uuid.uuid4()
+    # Step 4: Use manual_id allocated in Step 1.5
 
     # Step 5: Compute projected_bytes (research §10)
     # Sum of len(chunk.content.encode("utf-8")) + len(chunks) * 3072 + 200 * len(chunks) + 500

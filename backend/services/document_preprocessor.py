@@ -104,7 +104,9 @@ async def preprocess_page(
 
 
 async def preprocess_pages(
-    pages: List[Tuple[int, str]], document_title: str = ""
+    pages: List[Tuple[int, str]],
+    document_title: str = "",
+    document_id: Optional[str] = None,
 ) -> Tuple[List[Tuple[int, str]], Dict[int, str]]:
     from utils.app_settings import get_setting
 
@@ -119,6 +121,8 @@ async def preprocess_pages(
 
     preprocessed_pages = []
     raw_mapping: Dict[int, str] = {}
+    preprocessed_count = 0
+    fallback_count = 0
 
     for page_number, raw_text in pages:
         raw_mapping[page_number] = raw_text
@@ -131,10 +135,26 @@ async def preprocess_pages(
             logger.info(
                 f"Page {page_number}: preprocessed (fallback={result.fallback_used})"
             )
+            preprocessed_count += 1
         else:
             logger.info(f"Page {page_number}: fallback used")
+            fallback_count += 1
 
         preprocessed_pages.append((page_number, result.preprocessed_text))
+
+    if document_id:
+        try:
+            from utils.activity import log_activity
+
+            log_activity(
+                user_email="system",
+                category="document",
+                action="document_preprocessed",
+                target_id=document_id,
+                detail=f"total_pages={len(pages)}, preprocessed={preprocessed_count}, fallback={fallback_count}",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to log preprocessing activity: {e}")
 
     return preprocessed_pages, raw_mapping
 

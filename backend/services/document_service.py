@@ -49,7 +49,7 @@ async def index_document(document_id: str, file_path: str) -> None:
         ).execute()
 
         preprocessed_pages, raw_mapping = await preprocess_pages(
-            pages, document_title=document_title
+            pages, document_title=document_title, document_id=document_id
         )
         pages = preprocessed_pages
 
