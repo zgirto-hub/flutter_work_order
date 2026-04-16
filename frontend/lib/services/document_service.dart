@@ -13,7 +13,7 @@ class DocumentService {
     required String displayName,
     required String uploadedBy,
   }) async {
-    final uri = Uri.parse('$_baseUrl/api/documents/upload');
+    final uri = Uri.parse('$_baseUrl/documents/upload');
     final request = http.MultipartRequest('POST', uri)
       ..fields['display_name'] = displayName
       ..fields['uploaded_by'] = uploadedBy
@@ -33,7 +33,7 @@ class DocumentService {
 
   Future<List<Map<String, dynamic>>> listDocuments(String userEmail) async {
     final resp = await http.get(
-      Uri.parse('$_baseUrl/api/documents/?user_email=$userEmail'),
+      Uri.parse('$_baseUrl/documents/?user_email=$userEmail'),
     );
     if (resp.statusCode != 200)
       throw Exception('List failed: ${resp.statusCode}');
@@ -44,7 +44,7 @@ class DocumentService {
       String documentId, String userEmail) async {
     final resp = await http.get(
       Uri.parse(
-          '$_baseUrl/api/documents/$documentId/status?user_email=$userEmail'),
+          '$_baseUrl/documents/$documentId/status?user_email=$userEmail'),
     );
     if (resp.statusCode != 200)
       throw Exception('Status failed: ${resp.statusCode}');
@@ -53,7 +53,7 @@ class DocumentService {
 
   Future<void> deleteDocument(String documentId, String userEmail) async {
     final resp = await http.delete(
-      Uri.parse('$_baseUrl/api/documents/$documentId?user_email=$userEmail'),
+      Uri.parse('$_baseUrl/documents/$documentId?user_email=$userEmail'),
     );
     if (resp.statusCode != 200)
       throw Exception('Delete failed: ${resp.statusCode}');
@@ -63,7 +63,7 @@ class DocumentService {
       String documentId, String userEmail) async {
     final resp = await http.post(
       Uri.parse(
-          '$_baseUrl/api/documents/$documentId/reindex?user_email=$userEmail'),
+          '$_baseUrl/documents/$documentId/reindex?user_email=$userEmail'),
     );
     if (resp.statusCode != 200)
       throw Exception('Reindex failed: ${resp.statusCode}');
