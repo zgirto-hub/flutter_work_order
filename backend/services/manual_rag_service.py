@@ -407,6 +407,7 @@ async def upload_manual(
 
 
 async def _rewrite_query(question: str, history: list[dict] | None) -> str:
+    # Spec 076: Intentionally hardcoded to Ollama — NOT routed through provider resolver
     """Rewrite a follow-up question into a self-contained search query using conversation context."""
     from services.ollama_generator import generate
 
@@ -513,6 +514,7 @@ async def _compress_history(
 
 
 async def _generate_hypothetical_answer(query: str) -> str | None:
+    # Spec 076: Intentionally hardcoded to Ollama — NOT routed through provider resolver
     """Generate a hypothetical document passage for better retrieval (HyDE)."""
     from services.ollama_generator import generate
 

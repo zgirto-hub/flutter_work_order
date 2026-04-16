@@ -2,7 +2,7 @@ import asyncio
 import logging
 import time
 from typing import List, Tuple
-from utils.app_settings import get_setting
+from utils.app_settings import get_setting, set_setting
 from utils.activity import log_activity
 from . import PROVIDERS
 from .base import AIProvider
@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 _cache: dict = {"value": None, "expires_at": 0.0}
 _TTL_SECONDS = 60.0
-_DEFAULT_PROVIDER = "local"
+_DEFAULT_PROVIDER = "gemini"
+_FALLBACK_PROVIDER = "local"  # Always fall back to Ollama, regardless of default
 
 
 async def get_active_provider_key() -> str:
@@ -56,6 +57,7 @@ async def generate(
     # /manuals/ask) must consume to write exactly one user_activity_log row with
     # action="ai_provider_fallback". Dropping fallback_info on the floor silently loses
     # the audit row. Any new call site must thread it through unchanged.
+    # Spec 076: All failures (timeout, error, 429, missing creds) trigger identical per-request fallback to Ollama
     active_key = await get_active_provider_key()
     active = _resolve_provider(active_key)
     active_display = active.display_name
@@ -76,7 +78,7 @@ async def generate(
         return (answer.strip(), active_key, active_display, False, None)
     except asyncio.TimeoutError as exc:
         logger.warning(f"Provider {active_key} timed out")
-        if active_key != _DEFAULT_PROVIDER:
+        if active_key != _FALLBACK_PROVIDER:
             # Clear the primary's partial timing so the fallback can overwrite
             # generator_ms with the successful call's elapsed (FR-013).
             if latency_breakdown is not None:
@@ -93,7 +95,7 @@ async def generate(
         raise GeneratorTimeoutError(f"Provider {active_key} timed out after 30s")
     except Exception as e:
         logger.warning(f"Provider {active_key} failed: {e}")
-        if active_key != _DEFAULT_PROVIDER:
+        if active_key != _FALLBACK_PROVIDER:
             if latency_breakdown is not None:
                 latency_breakdown["generator_ms"] = None
             reason = str(e) if str(e) else type(e).__name__
@@ -143,7 +145,7 @@ async def _fallback_to_local(
     exc: Exception | None = None,
     latency_breakdown: dict | None = None,
 ) -> Tuple[str, str, str, bool, dict | None]:
-    local = _resolve_provider(_DEFAULT_PROVIDER)
+    local = _resolve_provider(_FALLBACK_PROVIDER)
     local_display = local.display_name
     _fb_start = time.perf_counter()
     try:
@@ -159,7 +161,33 @@ async def _fallback_to_local(
         fallback_info = {
             "user_email": user_email,
             "failed_provider": failed_provider_key,
-            "fallback_provider": _DEFAULT_PROVIDER,
+            "fallback_provider": _FALLBACK_PROVIDER,
             "detail": detail,
         }
-    return (answer, _DEFAULT_PROVIDER, local_display, True, fallback_info)
+    return (answer, _FALLBACK_PROVIDER, local_display, True, fallback_info)
+
+
+async def _migrate_default_provider() -> None:
+    """One-time migration: rewrite stored 'local' default to 'gemini' (spec 076).
+
+    Idempotent — runs on every startup but only mutates state when the stored
+    value is exactly 'local'. Safe across Uvicorn worker restarts: whichever
+    worker wins the first UPDATE observes `current == "local"` exactly once;
+    subsequent starts (same worker or new) observe 'gemini' and skip.
+    Failures are logged and swallowed — migration MUST NOT block startup.
+    """
+    try:
+        current = await get_setting("ai_provider")
+        if current == "local":
+            await set_setting("ai_provider", "gemini")
+            invalidate_cache()
+            log_activity(
+                "system",
+                category="admin",
+                action="ai_provider_migrated",
+                target_label="gemini",
+                detail="old=local",
+            )
+            logger.info("spec 076: migrated ai_provider from 'local' to 'gemini'")
+    except Exception as e:
+        logger.error(f"spec 076: ai_provider migration failed: {e}")

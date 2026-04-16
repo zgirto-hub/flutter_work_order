@@ -46,8 +46,10 @@ async def lifespan(app: FastAPI):
         initialize as ai_queue_init,
         shutdown as ai_queue_shutdown,
     )
+    from services.ai_providers.resolver import _migrate_default_provider
 
     await seed_built_in_rules()
+    await _migrate_default_provider()
     ai_queue_init()
     worker_task = asyncio.create_task(ai_worker())
     print("[ai_queue] Worker started")
