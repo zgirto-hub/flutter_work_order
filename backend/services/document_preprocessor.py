@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_PREPROCESS_MODEL = os.environ.get("OLLAMA_PREPROCESS_MODEL", "gemma4:e2b")
 OLLAMA_KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "30m")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 
 @dataclass
@@ -40,14 +41,47 @@ Follow these rules:
 8. Output ONLY the cleaned/enhanced version of the page content. No preamble, no explanation, no metadata."""
 
 
-async def preprocess_page(
-    raw_text: str, page_number: int, document_title: str = ""
-) -> PreprocessResult:
-    if len(raw_text.strip()) < 50:
-        return PreprocessResult(
-            preprocessed_text=raw_text, success=True, fallback_used=False
-        )
+async def _preprocess_with_gemini(
+    raw_text: str, page_number: int, document_title: str
+) -> PreprocessResult | None:
+    """Try preprocessing with Gemini Flash. Returns None if unavailable."""
+    if not GEMINI_API_KEY:
+        return None
 
+    try:
+        import google.generativeai as genai
+        from utils.app_settings import get_setting
+
+        genai.configure(api_key=GEMINI_API_KEY)
+
+        model_id = await get_setting("gemini_model") or "gemini-2.0-flash"
+        model = genai.GenerativeModel(model_id)
+
+        user_prompt = ""
+        if document_title:
+            user_prompt = f"Document: {document_title}\n\n"
+        user_prompt += raw_text
+
+        full_prompt = f"{SYSTEM_PROMPT}\n\n{user_prompt}"
+
+        response = await model.generate_content_async(full_prompt)
+        text = response.text.strip()
+
+        if text:
+            logger.info("Gemini preprocessed page %d", page_number)
+            return PreprocessResult(
+                preprocessed_text=text, success=True, fallback_used=False
+            )
+        return None
+    except Exception as e:
+        logger.warning("Gemini preprocessing failed for page %d: %s", page_number, e)
+        return None
+
+
+async def _preprocess_with_ollama(
+    raw_text: str, page_number: int, document_title: str
+) -> PreprocessResult:
+    """Preprocess with local Ollama (fallback)."""
     try:
         user_prompt = ""
         if document_title:
@@ -71,28 +105,42 @@ async def preprocess_page(
             text = data.get("response", "").strip()
 
         if text:
-            logger.info("Successfully preprocessed page %d", page_number)
+            logger.info("Ollama preprocessed page %d", page_number)
             return PreprocessResult(
-                preprocessed_text=text,
-                success=True,
-                fallback_used=False,
+                preprocessed_text=text, success=True, fallback_used=False
             )
         else:
-            logger.warning("Empty response for page %d, using fallback", page_number)
+            logger.warning("Empty Ollama response for page %d", page_number)
             return PreprocessResult(
                 preprocessed_text=raw_text, success=False, fallback_used=True
             )
 
     except httpx.TimeoutException:
-        logger.warning("Timeout preprocessing page %d, using fallback", page_number)
+        logger.warning("Ollama timeout for page %d", page_number)
         return PreprocessResult(
             preprocessed_text=raw_text, success=False, fallback_used=True
         )
     except Exception as e:
-        logger.error("Error preprocessing page %d: %s", page_number, e)
+        logger.error("Ollama error for page %d: %s", page_number, e)
         return PreprocessResult(
             preprocessed_text=raw_text, success=False, fallback_used=True
         )
+
+
+async def preprocess_page(
+    raw_text: str, page_number: int, document_title: str = ""
+) -> PreprocessResult:
+    if len(raw_text.strip()) < 50:
+        return PreprocessResult(
+            preprocessed_text=raw_text, success=True, fallback_used=False
+        )
+
+    # Try Gemini first, fall back to Ollama
+    result = await _preprocess_with_gemini(raw_text, page_number, document_title)
+    if result:
+        return result
+
+    return await _preprocess_with_ollama(raw_text, page_number, document_title)
 
 
 async def preprocess_pages(
