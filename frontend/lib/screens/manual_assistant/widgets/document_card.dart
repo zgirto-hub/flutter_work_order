@@ -94,7 +94,7 @@ class DocumentCard extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.refresh, size: 20),
                     tooltip: 'Re-index',
-                    onPressed: status == 'indexing' ? null : onReindex,
+                    onPressed: (status == 'indexing' || status == 'preprocessing') ? null : onReindex,
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline, size: 20),

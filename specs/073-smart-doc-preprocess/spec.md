@@ -93,11 +93,15 @@ An administrator can enable or disable smart preprocessing from the settings. Wh
 - **FR-009**: When preprocessing is disabled, the upload pipeline MUST behave identically to the current implementation (no AI calls, no additional latency).
 - **FR-010**: System MUST apply preprocessing to all supported document types (PDF, DOCX, TXT, MD), not only PDFs.
 - **FR-011**: System MUST process pages sequentially or in controlled batches to respect AI service rate limits and avoid overloading the service.
-- **FR-012**: The preprocessed Markdown MUST be stored as the chunk content (replacing raw text), so that all downstream operations (search, display, retrieval) benefit from the enriched text.
+- **FR-012**: The preprocessed Markdown MUST be stored as the chunk content used for embedding and search, so that all downstream operations (search, display, retrieval) benefit from the enriched text.
+- **FR-013**: The system MUST retain the original raw extracted text alongside the preprocessed Markdown for each page, enabling future re-preprocessing, quality comparison, and debugging without re-extracting from the source file.
+- **FR-014**: Smart preprocessing MUST apply to newly uploaded documents only. Already-indexed documents retain their existing chunks unchanged.
+- **FR-015**: The preprocessing pipeline MUST be designed as a separable stage so that retroactive re-processing of existing documents can be added in a future iteration without architectural changes.
+- **FR-016**: Preprocessing MUST use a dedicated fast/cheap AI provider, independent of the active Q&A provider setting. This avoids routing batch workloads through slow or expensive conversational models.
 
 ### Key Entities
 
-- **Preprocessed Page**: A page of a document whose raw extracted text has been transformed into structured Markdown by the AI model. Attributes: original raw text, preprocessed Markdown output, page number, preprocessing status (success/fallback).
+- **Preprocessed Page**: A page of a document whose raw extracted text has been transformed into structured Markdown by the AI model. Attributes: original raw text (retained for re-preprocessing and quality auditing), preprocessed Markdown output (used for chunking and embedding), page number, preprocessing status (success/fallback).
 - **Preprocessing Setting**: A system-level toggle controlling whether smart preprocessing is active. Part of the existing system settings mechanism.
 
 ## Success Criteria *(mandatory)*
@@ -110,9 +114,17 @@ An administrator can enable or disable smart preprocessing from the settings. Wh
 - **SC-004**: When the AI preprocessing service is unavailable, 100% of document uploads still complete successfully using the fallback raw-text pipeline.
 - **SC-005**: Users can see the preprocessing status during upload, reducing confusion about processing time by providing clear progress feedback.
 
+## Clarifications
+
+### Session 2026-04-16
+
+- Q: Should the system retain the original raw text alongside the preprocessed Markdown, or discard it after preprocessing? → A: Retain original raw text alongside preprocessed Markdown per chunk/page (enables re-preprocessing, quality auditing, and debugging).
+- Q: Should already-indexed documents be re-processable with preprocessing, or new uploads only? → A: New uploads only, but design the pipeline so retroactive re-processing is easy to add later.
+- Q: Should preprocessing use the active AI provider from the resolver or a dedicated fast/cheap provider? → A: Always use a specific fast/cheap provider for preprocessing, independent of the Q&A provider setting.
+
 ## Assumptions
 
-- The existing AI provider infrastructure (spec 063) with Gemini Flash will be used for preprocessing, leveraging the existing API key configuration and fallback mechanisms.
+- The existing AI provider infrastructure (spec 063) will be leveraged for API key configuration, but preprocessing uses a dedicated fast/cheap provider rather than the active Q&A provider.
 - The `GEMINI_API_KEY` environment variable is already configured on the server (required by spec 063).
 - Preprocessing latency per page is acceptable (estimated 1-3 seconds per page) given the batch/background nature of document indexing.
 - The existing `app_settings` table (from spec 063) will be used to store the preprocessing toggle, following the same key-value pattern.

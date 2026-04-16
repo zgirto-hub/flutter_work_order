@@ -31,5 +31,7 @@
 
 ## Notes
 
-- All items pass. Spec is ready for `/speckit.clarify` or `/speckit.plan`.
-- Assumptions section references existing infrastructure (spec 063 AI providers, app_settings table) as dependencies rather than implementation prescriptions — this is appropriate for a spec that builds on prior work.
+- All items pass. Spec is ready for `/speckit.plan`.
+- Clarification session (2026-04-16) resolved 3 ambiguities: raw text retention, retroactive scope, AI provider routing.
+- FR count expanded from 12 to 16 after clarifications.
+- Assumptions section references existing infrastructure (spec 063 AI providers, app_settings table) as dependencies rather than implementation prescriptions.
