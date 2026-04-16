@@ -11,6 +11,9 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 class GeminiProvider(AIProvider):
     def __init__(self):
         self._api_key = GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY")
+        if self._api_key:
+            import google.generativeai as genai
+            genai.configure(api_key=self._api_key)
 
     @property
     def display_name(self) -> str:
