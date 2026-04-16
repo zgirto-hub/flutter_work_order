@@ -790,6 +790,7 @@ async def ask(
     }
     system_manual_ids: list[str] = []
     no_manuals_directive: str | None = None
+    validated_context: str | None = None
 
     # Check corpus is not empty
     count_response = (
@@ -843,18 +844,20 @@ async def ask(
 
                 # Call LLM
                 from services.ai_providers.resolver import generate as provider_generate
-                from services.ai_providers.resolver import get_provider_info
-
-                provider_info = get_provider_info()
-                provider_display_name = provider_info.get("display_name", "local")
 
                 gen_start = _time.monotonic()
-                answer = provider_generate(
+                (
+                    answer,
+                    vqa_provider_used,
+                    vqa_provider_display_name,
+                    vqa_fallback_used,
+                    vqa_fallback_info,
+                ) = await provider_generate(
                     prompt, [], user_email, latency_breakdown=breakdown
                 )
                 gen_elapsed = _time.monotonic() - gen_start
 
-                elapsed = round(_time.monotonic() - _vqa_pre_start, 1)
+                vqa_provider_display_name = vqa_provider_display_name or "Local (Ollama)"
 
                 # Build enriched response
                 if max_score >= RAG_HIGH_CONFIDENCE:
@@ -879,9 +882,9 @@ async def ask(
                     "sources": sources,
                     "confidence": confidence,
                     "score": max_score,
-                    "model": provider_display_name,
-                    "provider_display_name": provider_display_name,
-                    "duration_seconds": round(elapsed + gen_elapsed, 1),
+                    "model": vqa_provider_display_name,
+                    "provider_display_name": vqa_provider_display_name,
+                    "duration_seconds": round(gen_elapsed, 1),
                     "is_verified": True,
                     "verified_source": {
                         "validated_qa_id": str(vqa_matches[0]["id"]),
@@ -892,8 +895,8 @@ async def ask(
                         "similarity": max_score,
                     },
                     "retrieval_info": retrieval_info,
-                    "provider_used": "local",
-                    "fallback_used": False,
+                    "provider_used": vqa_provider_used,
+                    "fallback_used": vqa_fallback_used,
                     "session_summary": None,
                     "latency_breakdown": breakdown,
                 }
@@ -968,18 +971,20 @@ async def ask(
 
                 # Call LLM
                 from services.ai_providers.resolver import generate as provider_generate
-                from services.ai_providers.resolver import get_provider_info
-
-                provider_info = get_provider_info()
-                provider_display_name = provider_info.get("display_name", "local")
 
                 gen_start = _time.monotonic()
-                answer = provider_generate(
+                (
+                    answer,
+                    vqa_provider_used,
+                    vqa_provider_display_name,
+                    vqa_fallback_used,
+                    vqa_fallback_info,
+                ) = await provider_generate(
                     prompt, [], user_email, latency_breakdown=breakdown
                 )
                 gen_elapsed = _time.monotonic() - gen_start
 
-                elapsed = round(_time.monotonic() - _vqa_start, 1)
+                vqa_provider_display_name = vqa_provider_display_name or "Local (Ollama)"
 
                 # Build enriched response
                 if max_score >= RAG_HIGH_CONFIDENCE:
@@ -1013,9 +1018,9 @@ async def ask(
                     "sources": sources,
                     "confidence": confidence,
                     "score": max_score,
-                    "model": provider_display_name,
-                    "provider_display_name": provider_display_name,
-                    "duration_seconds": round(elapsed + gen_elapsed, 1),
+                    "model": vqa_provider_display_name,
+                    "provider_display_name": vqa_provider_display_name,
+                    "duration_seconds": round(gen_elapsed, 1),
                     "is_verified": True,
                     "verified_source": {
                         "validated_qa_id": str(vqa_matches[0]["id"]),
@@ -1026,6 +1031,9 @@ async def ask(
                         "similarity": max_score,
                     },
                     "retrieval_info": retrieval_info,
+                    "provider_used": vqa_provider_used,
+                    "fallback_used": vqa_fallback_used,
+                    "session_summary": None,
                     "latency_breakdown": breakdown,
                 }
             else:
