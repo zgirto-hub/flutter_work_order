@@ -13,6 +13,7 @@ from services.ollama_embedder import embed_many, embed_single, EmbedderTimeoutEr
 from services.manual_storage_service import save, delete as delete_file
 from services.system_registry import detect_system, get_manual_ids_for_system
 from services.document_preprocessor import preprocess_pages
+from services.contextual_prefix import apply_contextual_prefix
 import services.validated_qa_service as validated_qa_service
 from services.document_search_service import (
     search_document_chunks,
@@ -321,8 +322,16 @@ async def upload_manual(
 
     # Step 3: Embed via ollama_embedder
     try:
-        texts = [chunk.content for chunk in chunks]
+        texts = [
+            apply_contextual_prefix(content=chunk.content, doc_title=title)
+            for chunk in chunks
+        ]
         embeddings = await embed_many(texts)
+        logger.info(
+            "Embedding %d chunks with contextual prefix for manual '%s'",
+            len(texts),
+            title,
+        )
     except EmbedderTimeoutError as e:
         raise EmbedderUnavailableError() from e
 

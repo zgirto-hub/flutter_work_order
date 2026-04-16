@@ -16,16 +16,24 @@ from db import supabase
 from utils.activity import log_activity
 from services.document_service import index_document, delete_document, reindex_document
 from services.ollama_embedder import embed_single
+from services.contextual_prefix import apply_contextual_prefix
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+
+def _get_document_title(document_id: str) -> str:
+    """Fetch display_name for contextual embedding prefix."""
+    resp = supabase.table("knowledge_documents").select("display_name").eq("id", document_id).maybe_single().execute()
+    return resp.data.get("display_name", "") if resp.data else ""
 
 UPLOAD_DIR = "uploaded_files"
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
 # --- Pydantic request bodies (Fix 7: avoid query params for content) ---
+
 
 class ChunkAddBody(BaseModel):
     parent_id: str
@@ -40,6 +48,7 @@ class ChunkUpdateBody(BaseModel):
 
 
 # --- Helpers ---
+
 
 def _admin_check(user_email: str):
     """Shared admin check pattern (replicated from manuals.py)."""
@@ -92,6 +101,7 @@ _migration_status = {
 
 
 # --- Document CRUD ---
+
 
 @router.post("/upload")
 async def upload_document(
@@ -166,6 +176,7 @@ async def list_documents(user_email: str = Query(...)):
 
 # --- Migration endpoints (BEFORE parameterized routes to avoid shadowing) ---
 
+
 @router.post("/migrate-all")
 async def migrate_all_documents(
     user_email: str = Query(...),
@@ -235,9 +246,7 @@ async def _run_migration(all_manuals: list, user_email: str):
                 "uploaded_by": uploader_email,
                 "file_extension": file_ext,
             }
-            doc_resp = (
-                supabase.table("knowledge_documents").insert(doc_row).execute()
-            )
+            doc_resp = supabase.table("knowledge_documents").insert(doc_row).execute()
             doc_id = doc_resp.data[0]["id"]
 
             await index_document(doc_id, file_path)
@@ -246,17 +255,13 @@ async def _run_migration(all_manuals: list, user_email: str):
 
         except Exception as e:
             logger.error("Migration failed for manual %s: %s", manual["id"], e)
-            _migration_status["failed"].append(
-                {"id": manual["id"], "error": str(e)}
-            )
+            _migration_status["failed"].append({"id": manual["id"], "error": str(e)})
 
     _migration_status["status"] = (
         "completed_with_errors" if _migration_status["failed"] else "completed"
     )
 
-    log_activity(
-        user_email, "document", "migrated", f"{len(all_manuals)} manuals", ""
-    )
+    log_activity(user_email, "document", "migrated", f"{len(all_manuals)} manuals", "")
 
 
 @router.get("/migration-status")
@@ -275,9 +280,7 @@ async def migrate_cleanup(user_email: str = Query(...)):
     manuals_resp = supabase.table("manuals").select("id", count="exact").execute()
     manuals_count = manuals_resp.count or 0
 
-    chunks_resp = (
-        supabase.table("manual_chunks").select("id", count="exact").execute()
-    )
+    chunks_resp = supabase.table("manual_chunks").select("id", count="exact").execute()
     chunks_count = chunks_resp.count or 0
 
     supabase.table("manual_chunks").delete().neq("id", "").execute()
@@ -294,13 +297,16 @@ async def migrate_cleanup(user_email: str = Query(...)):
 
 # --- Parameterized document routes (AFTER specific paths) ---
 
+
 @router.get("/{document_id}/status")
 async def get_document_status(document_id: str, user_email: str = Query(...)):
     _admin_check(user_email)
 
     resp = (
         supabase.table("knowledge_documents")
-        .select("id, status, total_chunks, total_pages, preprocessing_progress, error_message")
+        .select(
+            "id, status, total_chunks, total_pages, preprocessing_progress, error_message"
+        )
         .eq("id", document_id)
         .maybe_single()
         .execute()
@@ -320,9 +326,7 @@ async def get_document_status(document_id: str, user_email: str = Query(...)):
 
 
 @router.delete("/{document_id}")
-async def delete_document_endpoint(
-    document_id: str, user_email: str = Query(...)
-):
+async def delete_document_endpoint(document_id: str, user_email: str = Query(...)):
     _admin_check(user_email)
 
     doc_resp = (
@@ -375,10 +379,15 @@ async def reindex_document_endpoint(
         str(document_id),
     )
 
-    return {"document_id": document_id, "status": "indexing", "message": "Re-indexing started"}
+    return {
+        "document_id": document_id,
+        "status": "indexing",
+        "message": "Re-indexing started",
+    }
 
 
 # --- Chunk CRUD ---
+
 
 @router.get("/{document_id}/chunks")
 async def list_chunks(
@@ -479,11 +488,13 @@ async def add_chunk(document_id: str, body: ChunkAddBody):
     else:
         new_index = len(siblings.data or [])
 
-    # Embed the new chunk
+    # Embed the new chunk with contextual prefix
     embedding_str = None
     embedding_stale = False
     try:
-        emb = await embed_single(content)
+        doc_title = _get_document_title(document_id)
+        prefixed = apply_contextual_prefix(content, doc_title, parent_resp.data.get("section_title"))
+        emb = await embed_single(prefixed)
         embedding_str = "[" + ",".join(str(x) for x in emb) + "]"
     except Exception:
         embedding_stale = True
@@ -513,9 +524,7 @@ async def add_chunk(document_id: str, body: ChunkAddBody):
 
 
 @router.get("/{document_id}/chunks/{chunk_id}")
-async def get_chunk(
-    document_id: str, chunk_id: str, user_email: str = Query(...)
-):
+async def get_chunk(document_id: str, chunk_id: str, user_email: str = Query(...)):
     _admin_check(user_email)
 
     resp = (
@@ -552,7 +561,7 @@ async def update_chunk(document_id: str, chunk_id: str, body: ChunkUpdateBody):
 
     resp = (
         supabase.table("document_chunks")
-        .select("id, chunk_type")
+        .select("id, chunk_type, section_title")
         .eq("id", chunk_id)
         .eq("document_id", document_id)
         .maybe_single()
@@ -565,9 +574,11 @@ async def update_chunk(document_id: str, chunk_id: str, body: ChunkUpdateBody):
     update_data = {"content": body.content}
 
     if chunk_type == "child":
-        # Re-embed child chunk
+        # Re-embed child chunk with contextual prefix
         try:
-            emb = await embed_single(body.content)
+            doc_title = _get_document_title(document_id)
+            prefixed = apply_contextual_prefix(body.content, doc_title, resp.data.get("section_title"))
+            emb = await embed_single(prefixed)
             embedding_str = "[" + ",".join(str(x) for x in emb) + "]"
             update_data["embedding"] = embedding_str
             update_data["embedding_stale"] = False
@@ -575,9 +586,7 @@ async def update_chunk(document_id: str, chunk_id: str, body: ChunkUpdateBody):
             update_data["embedding_stale"] = True
     # Parent chunks: just update content, no embedding
 
-    supabase.table("document_chunks").update(update_data).eq(
-        "id", chunk_id
-    ).execute()
+    supabase.table("document_chunks").update(update_data).eq("id", chunk_id).execute()
 
     log_activity(body.user_email, "chunk", "updated", body.content[:50], chunk_id)
 
@@ -589,9 +598,7 @@ async def update_chunk(document_id: str, chunk_id: str, body: ChunkUpdateBody):
 
 
 @router.delete("/{document_id}/chunks/{chunk_id}")
-async def delete_chunk(
-    document_id: str, chunk_id: str, user_email: str = Query(...)
-):
+async def delete_chunk(document_id: str, chunk_id: str, user_email: str = Query(...)):
     _admin_check(user_email)
 
     resp = (
@@ -610,9 +617,7 @@ async def delete_chunk(
 
     # If deleting a parent, explicitly delete children first (before CASCADE)
     if chunk_type == "parent":
-        supabase.table("document_chunks").delete().eq(
-            "parent_id", chunk_id
-        ).execute()
+        supabase.table("document_chunks").delete().eq("parent_id", chunk_id).execute()
 
     # Delete the chunk itself
     supabase.table("document_chunks").delete().eq("id", chunk_id).execute()
@@ -655,20 +660,24 @@ async def split_chunk(
     first_content = content[:split_position]
     second_content = content[split_position:]
 
-    # Embed both halves
+    # Embed both halves with contextual prefix
     first_emb_str = None
     first_stale = False
     second_emb_str = None
     second_stale = False
+    doc_title = _get_document_title(document_id)
+    section_title = resp.data.get("section_title")
 
     try:
-        first_emb = await embed_single(first_content)
+        prefixed_first = apply_contextual_prefix(first_content, doc_title, section_title)
+        first_emb = await embed_single(prefixed_first)
         first_emb_str = "[" + ",".join(str(x) for x in first_emb) + "]"
     except Exception:
         first_stale = True
 
     try:
-        second_emb = await embed_single(second_content)
+        prefixed_second = apply_contextual_prefix(second_content, doc_title, section_title)
+        second_emb = await embed_single(prefixed_second)
         second_emb_str = "[" + ",".join(str(x) for x in second_emb) + "]"
     except Exception:
         second_stale = True
@@ -765,9 +774,7 @@ async def merge_chunk(
         .execute()
     )
     if not next_resp.data:
-        raise HTTPException(
-            status_code=400, detail="No adjacent sibling to merge with"
-        )
+        raise HTTPException(status_code=400, detail="No adjacent sibling to merge with")
     if next_resp.data.get("parent_id") != parent_id:
         raise HTTPException(
             status_code=400, detail="Cannot merge chunks from different parents"
@@ -776,11 +783,13 @@ async def merge_chunk(
     # Combine content
     combined_content = resp.data["content"] + "\n\n" + next_resp.data["content"]
 
-    # Embed combined content
+    # Embed combined content with contextual prefix
     embedding_str = None
     embedding_stale = False
     try:
-        emb = await embed_single(combined_content)
+        doc_title = _get_document_title(document_id)
+        prefixed = apply_contextual_prefix(combined_content, doc_title, resp.data.get("section_title"))
+        emb = await embed_single(prefixed)
         embedding_str = "[" + ",".join(str(x) for x in emb) + "]"
     except Exception:
         embedding_stale = True
@@ -793,14 +802,10 @@ async def merge_chunk(
     if embedding_str:
         update_data["embedding"] = embedding_str
 
-    supabase.table("document_chunks").update(update_data).eq(
-        "id", chunk_id
-    ).execute()
+    supabase.table("document_chunks").update(update_data).eq("id", chunk_id).execute()
 
     # Delete the second chunk
-    supabase.table("document_chunks").delete().eq(
-        "id", next_resp.data["id"]
-    ).execute()
+    supabase.table("document_chunks").delete().eq("id", next_resp.data["id"]).execute()
 
     # Reindex siblings
     _reindex_siblings(document_id, parent_id)
@@ -833,24 +838,38 @@ async def re_embed_all_chunks(
     total_children = children_resp.count or 0
 
     async def _re_embed_task():
+        doc_resp = (
+            supabase.table("knowledge_documents")
+            .select("display_name")
+            .eq("id", document_id)
+            .maybe_single()
+            .execute()
+        )
+        display_name = doc_resp.data["display_name"] if doc_resp.data else ""
+
         chunks_resp = (
             supabase.table("document_chunks")
-            .select("id, content")
+            .select("id, content, section_title")
             .eq("document_id", document_id)
             .eq("chunk_type", "child")
             .execute()
         )
         for chunk in chunks_resp.data or []:
             try:
-                emb = await embed_single(chunk["content"])
+                prefixed = apply_contextual_prefix(
+                    content=chunk["content"],
+                    doc_title=display_name,
+                    section_title=chunk.get("section_title"),
+                )
+                emb = await embed_single(prefixed)
                 emb_str = "[" + ",".join(str(x) for x in emb) + "]"
                 supabase.table("document_chunks").update(
                     {"embedding": emb_str, "embedding_stale": False}
                 ).eq("id", chunk["id"]).execute()
             except Exception:
-                supabase.table("document_chunks").update(
-                    {"embedding_stale": True}
-                ).eq("id", chunk["id"]).execute()
+                supabase.table("document_chunks").update({"embedding_stale": True}).eq(
+                    "id", chunk["id"]
+                ).execute()
 
     background_tasks.add_task(_re_embed_task)
 
