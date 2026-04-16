@@ -108,8 +108,10 @@ DOCUMENT_QA_SYSTEM_PROMPT = (
     "- If the answer is not clearly stated in the context, respond with exactly: "
     '"I don\'t have that information in the knowledge base."\n'
     "- Never guess, infer, or make up technical specifications, procedures, or values.\n"
-    "- Be concise and direct. Use bullet points for procedures.\n"
-    '- Always cite the document source (e.g. "According to CADAS ATS Manual, Section 4.2...").\n'
+    "- When the context contains step-by-step procedures, list ALL steps in order. Do not summarize or skip steps.\n"
+    "- When the context contains lists, thresholds, or specific values, include them exactly as written.\n"
+    "- Use numbered steps for procedures, bullet points for lists.\n"
+    '- Cite the document and page (e.g. "According to CNMS Manual, page 58").\n'
     "- If multiple sources are relevant, synthesize them into one clear answer."
 )
 
