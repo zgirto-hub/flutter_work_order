@@ -1380,7 +1380,7 @@ class _SmartPreprocessingWidget extends StatefulWidget {
 class _SmartPreprocessingWidgetState extends State<_SmartPreprocessingWidget> {
   final _service = AiProviderService();
   bool _loading = true;
-  bool _enabled = true;
+  bool _enabled = false;
   bool _saving = false;
 
   @override
