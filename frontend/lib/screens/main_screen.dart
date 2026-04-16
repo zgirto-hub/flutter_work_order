@@ -301,6 +301,11 @@ class _AnimatedTabBodyState extends State<_AnimatedTabBody>
     end: Offset.zero,
   ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
 
+  /// Tracks which tab indices have been visited at least once.
+  /// Tabs that haven't been visited render a SizedBox placeholder instead of
+  /// their real widget, preventing eager network calls from hidden tabs.
+  final Set<int> _visited = {0};
+
   @override
   void initState() {
     super.initState();
@@ -313,6 +318,7 @@ class _AnimatedTabBodyState extends State<_AnimatedTabBody>
     if (old.index != widget.index) {
       _ctrl.forward(from: 0);
     }
+    _visited.add(widget.index);
   }
 
   @override
@@ -323,11 +329,20 @@ class _AnimatedTabBodyState extends State<_AnimatedTabBody>
 
   @override
   Widget build(BuildContext context) {
+    _visited.add(widget.index);
     return FadeTransition(
       opacity: _fade,
       child: SlideTransition(
         position: _slide,
-        child: IndexedStack(index: widget.index, children: widget.children),
+        child: IndexedStack(
+          index: widget.index,
+          children: [
+            for (int i = 0; i < widget.children.length; i++)
+              _visited.contains(i)
+                  ? widget.children[i]
+                  : const SizedBox.shrink(),
+          ],
+        ),
       ),
     );
   }

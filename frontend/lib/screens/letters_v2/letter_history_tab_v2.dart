@@ -17,6 +17,7 @@ class LetterHistoryTabV2 extends StatefulWidget {
 class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
   List<GeneratedLetter> _letters = [];
   bool _isLoading = true;
+  String? _loadError;
   int _expandedIndex = -1;
   bool _actionInProgress = false;
 
@@ -28,6 +29,10 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
 
   Future<void> _loadLetters() async {
     try {
+      setState(() {
+        _isLoading = true;
+        _loadError = null;
+      });
       final letters = await LetterService().fetchAllV2();
       if (mounted)
         setState(() {
@@ -36,10 +41,10 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
         });
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading letters: $e')),
-        );
+        setState(() {
+          _isLoading = false;
+          _loadError = e.toString();
+        });
       }
     }
   }
@@ -111,6 +116,18 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Center(child: CircularProgressIndicator(color: AppColors.accent));
+    }
+    if (_loadError != null) {
+      return EmptyState(
+        icon: Icons.cloud_off_rounded,
+        title: 'Could not load letters',
+        subtitle: 'Check your connection and try again',
+        action: TextButton.icon(
+          onPressed: _loadLetters,
+          icon: const Icon(Icons.refresh_rounded, size: 18),
+          label: const Text('Retry'),
+        ),
+      );
     }
     if (_letters.isEmpty) {
       return EmptyState(
