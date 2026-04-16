@@ -21,7 +21,10 @@ class DocumentsTab extends StatefulWidget {
   State<DocumentsTab> createState() => _DocumentsTabState();
 }
 
-class _DocumentsTabState extends State<DocumentsTab> {
+class _DocumentsTabState extends State<DocumentsTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   final DocumentService _documentService = DocumentService();
   List<Map<String, dynamic>> _documents = [];
   bool _loading = true;
@@ -266,20 +269,10 @@ class _DocumentsTabState extends State<DocumentsTab> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     Widget body;
 
-    if (_uploading) {
-      body = const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Uploading document...'),
-          ],
-        ),
-      );
-    } else if (_loading) {
+    if (_loading && _documents.isEmpty) {
       body = const Center(child: CircularProgressIndicator());
     } else if (_error != null) {
       body = Center(
@@ -342,6 +335,28 @@ class _DocumentsTabState extends State<DocumentsTab> {
       children: [
         Column(
           children: [
+            if (_uploading)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Uploading document...',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             _buildMigrationBanner(),
             Expanded(child: body),
           ],

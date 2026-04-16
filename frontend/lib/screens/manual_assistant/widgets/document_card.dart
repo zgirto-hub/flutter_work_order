@@ -160,14 +160,25 @@ class DocumentCard extends StatelessWidget {
 
   Widget _progressBar(String status) {
     final totalPages = document['total_pages'] as int? ?? 0;
+    final totalChunks = document['total_chunks'] as int? ?? 0;
     final progress = document['preprocessing_progress'] as int? ?? 0;
     final isPreprocessing = status == 'preprocessing';
 
-    final double fraction =
-        isPreprocessing && totalPages > 0 ? progress / totalPages : 0;
-    final String label = isPreprocessing
-        ? 'Enhancing page $progress of $totalPages'
-        : 'Indexing...';
+    final double? fraction;
+    final String label;
+
+    if (isPreprocessing) {
+      fraction = totalPages > 0 ? progress / totalPages : null;
+      label = totalPages > 0
+          ? 'Enhancing page $progress of $totalPages'
+          : 'Enhancing content...';
+    } else {
+      // indexing — progress tracks chunks embedded
+      fraction = totalChunks > 0 ? progress / totalChunks : null;
+      label = totalChunks > 0
+          ? 'Embedding chunk $progress of $totalChunks'
+          : 'Indexing...';
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,7 +186,7 @@ class DocumentCard extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
-            value: isPreprocessing ? fraction : null,
+            value: fraction,
             minHeight: 6,
             backgroundColor: AppColors.bgSurface2,
             valueColor: AlwaysStoppedAnimation<Color>(

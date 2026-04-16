@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import pymupdf4llm
 import pymupdf
 from db import supabase
-from services.ollama_embedder import embed_many
+from services.ollama_embedder import embed_single, PRIORITY_HIGH
 from services.document_preprocessor import preprocess_pages
 from services.contextual_prefix import apply_contextual_prefix
 
@@ -58,9 +58,9 @@ async def index_document(document_id: str, file_path: str) -> None:
         )
         pages = preprocessed_pages
 
-        supabase.table("knowledge_documents").update({"status": "indexing"}).eq(
-            "id", document_id
-        ).execute()
+        supabase.table("knowledge_documents").update(
+            {"status": "indexing", "preprocessing_progress": 0}
+        ).eq("id", document_id).execute()
 
         sections = _detect_sections(pages, file_ext=ext)
 
@@ -121,27 +121,31 @@ async def index_document(document_id: str, file_path: str) -> None:
                     }
                 )
 
-        texts_to_embed = [
-            apply_contextual_prefix(
-                content=c["content"],
-                doc_title=document_title,
-                section_title=c["section_title"],
-            )
-            for c in child_chunks
-        ]
-        embeddings = await embed_many(texts_to_embed)
-
+        total_children = len(child_chunks)
         logger.info(
             "Embedding %d chunks with contextual prefix for document '%s'",
-            len(texts_to_embed),
+            total_children,
             document_title,
         )
 
-        for child_chunk, embedding in zip(child_chunks, embeddings):
+        supabase.table("knowledge_documents").update(
+            {"total_chunks": total_children}
+        ).eq("id", document_id).execute()
+
+        for idx, child_chunk in enumerate(child_chunks):
+            text_to_embed = apply_contextual_prefix(
+                content=child_chunk["content"],
+                doc_title=document_title,
+                section_title=child_chunk["section_title"],
+            )
+            embedding = await embed_single(text_to_embed, priority=PRIORITY_HIGH)
             embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
             supabase.table("document_chunks").update({"embedding": embedding_str}).eq(
                 "id", child_chunk["id"]
             ).execute()
+            supabase.table("knowledge_documents").update(
+                {"preprocessing_progress": idx + 1}
+            ).eq("id", document_id).execute()
 
         supabase.table("knowledge_documents").update(
             {
