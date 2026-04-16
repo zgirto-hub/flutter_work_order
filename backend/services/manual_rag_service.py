@@ -76,6 +76,24 @@ MAX_PROMPT_CHUNKS = 3
 MAX_CHUNKS_PER_MANUAL = 3
 MAX_MANUALS_FOR_SYNTHESIS = 8
 
+# --- Validated QA confidence thresholds (spec 069) ---
+RAG_CONFIDENCE_THRESHOLD = 0.70  # Minimum similarity to proceed to LLM
+RAG_HIGH_CONFIDENCE = 0.85  # Score >= this → confidence: "high"
+
+# --- Strict system prompt for validated QA RAG (spec 069) ---
+VALIDATED_QA_SYSTEM_PROMPT = (
+    "You are a technical assistant for a civil aviation maintenance management system (CMMS).\n\n"
+    "Your job is to answer maintenance and operations questions using ONLY the context provided below.\n\n"
+    "Rules:\n"
+    "- Answer ONLY from the provided context. Do not use outside knowledge.\n"
+    "- If the answer is not clearly stated in the context, respond with exactly: "
+    '"I don\'t have that information in the knowledge base."\n'
+    "- Never guess, infer, or make up technical specifications, procedures, or values.\n"
+    "- Be concise and direct. Use bullet points for procedures.\n"
+    '- Always refer to the source when answering (e.g. "According to source 1...").\n'
+    "- If multiple sources are relevant, synthesize them into one clear answer."
+)
+
 # Sentinel phrases indicating an ungrounded answer (shared by single- and cross-manual paths)
 _SENTINEL_PHRASES = [
     "this information is not in the available manuals",
@@ -772,6 +790,7 @@ async def ask(
     }
     system_manual_ids: list[str] = []
     no_manuals_directive: str | None = None
+    validated_context: str | None = None
 
     # Check corpus is not empty
     count_response = (
@@ -789,7 +808,7 @@ async def ask(
             "retrieval_info": retrieval_info,
         }
 
-    # Pre-rewrite validated-QA fast-path lookup (spec 067).
+    # Pre-rewrite validated-QA fast-path lookup (spec 067, spec 069).
     # Check for cached answer using the raw question BEFORE rewriting, so that
     # identical repeated questions hit the cache regardless of conversation history.
     import time as _time
@@ -799,43 +818,102 @@ async def ask(
         pre_rewrite_match = await validated_qa_service.check_validated_match(
             question, detected_system=detected_system
         )
-        if pre_rewrite_match["match_type"] == "direct":
-            vqa = pre_rewrite_match["validated_qa"]
-            elapsed = round(_time.monotonic() - _vqa_pre_start, 1)
+        vqa_matches = pre_rewrite_match.get("matches", [])
+
+        if vqa_matches:
+            max_score = max(m["similarity"] for m in vqa_matches)
             logger.info(
-                "validated_qa hit (pre-rewrite)",
-                extra={
-                    "validated_qa_id": str(vqa["id"]),
-                    "detected_system": detected_system,
-                },
+                "[validated-qa] pre-rewrite check: max_similarity=%.2f threshold=%.2f",
+                max_score,
+                RAG_CONFIDENCE_THRESHOLD,
             )
-            return {
-                "answer": vqa["validated_answer"],
-                "grounded": True,
-                "sources": [],
-                "model": "validated_qa",
-                "duration_seconds": elapsed,
-                "is_verified": True,
-                "verified_source": {
-                    "validated_qa_id": str(vqa["id"]),
-                    "validated_by": vqa["validated_by"],
-                    "validated_at": vqa["validated_at"].isoformat()
-                    if hasattr(vqa["validated_at"], "isoformat")
-                    else str(vqa["validated_at"]),
-                    "similarity": 1.0 - vqa.get("distance", 0.0),
-                },
-                "retrieval_info": retrieval_info,
-            }
-        elif pre_rewrite_match["match_type"] == "context":
-            validated_context = pre_rewrite_match["validated_qa"]["validated_answer"]
+
+            if max_score >= RAG_CONFIDENCE_THRESHOLD:
+                # Build combined context from top 3 matches
+                context_parts = []
+                for i, m in enumerate(vqa_matches):
+                    context_parts.append(f"[Source {i + 1}]\n{m['validated_answer']}")
+                combined_context = "\n\n".join(context_parts)
+
+                # Build the strict prompt
+                prompt = (
+                    f"{VALIDATED_QA_SYSTEM_PROMPT}\n\n"
+                    f"CONTEXT:\n{combined_context}\n\n"
+                    f"QUESTION: {question}\n\nANSWER:"
+                )
+
+                # Call LLM
+                from services.ai_providers.resolver import generate as provider_generate
+
+                gen_start = _time.monotonic()
+                (
+                    answer,
+                    vqa_provider_used,
+                    vqa_provider_display_name,
+                    vqa_fallback_used,
+                    vqa_fallback_info,
+                ) = await provider_generate(
+                    prompt, [], user_email, latency_breakdown=breakdown
+                )
+                gen_elapsed = _time.monotonic() - gen_start
+
+                vqa_provider_display_name = vqa_provider_display_name or "Local (Ollama)"
+
+                # Build enriched response
+                if max_score >= RAG_HIGH_CONFIDENCE:
+                    confidence = "high"
+                elif max_score >= RAG_CONFIDENCE_THRESHOLD:
+                    confidence = "medium"
+                else:
+                    confidence = "low"
+
+                sources = [
+                    {
+                        "id": m["id"],
+                        "question_text": m["question_text"],
+                        "score": m["similarity"],
+                    }
+                    for m in vqa_matches
+                ]
+
+                return {
+                    "answer": answer,
+                    "grounded": True,
+                    "sources": sources,
+                    "confidence": confidence,
+                    "score": max_score,
+                    "model": vqa_provider_display_name,
+                    "provider_display_name": vqa_provider_display_name,
+                    "duration_seconds": round(gen_elapsed, 1),
+                    "is_verified": True,
+                    "verified_source": {
+                        "validated_qa_id": str(vqa_matches[0]["id"]),
+                        "validated_by": vqa_matches[0]["validated_by"],
+                        "validated_at": vqa_matches[0]["validated_at"].isoformat()
+                        if hasattr(vqa_matches[0]["validated_at"], "isoformat")
+                        else str(vqa_matches[0]["validated_at"]),
+                        "similarity": max_score,
+                    },
+                    "retrieval_info": retrieval_info,
+                    "provider_used": vqa_provider_used,
+                    "fallback_used": vqa_fallback_used,
+                    "session_summary": None,
+                    "latency_breakdown": breakdown,
+                }
+            else:
+                # Below threshold - continue to post-rewrite check
+                logger.info(
+                    "[validated-qa] pre-rewrite below threshold (%.2f < %.2f), trying post-rewrite",
+                    max_score,
+                    RAG_CONFIDENCE_THRESHOLD,
+                )
         else:
-            validated_context = None
+            logger.info("[validated-qa] pre-rewrite: no matches")
     except Exception as e:
         logger.warning(
             "Pre-rewrite validated_qa check failed, falling back to normal pipeline: %s",
             e,
         )
-        validated_context = None
 
     # Rewrite query for better retrieval (uses conversation context for follow-up questions).
     # NOTE: rewrite must happen BEFORE the validated_qa cache check so context-dependent
@@ -858,7 +936,7 @@ async def ask(
                 followup_system,
             )
 
-    # Check for validated QA match using the context-resolved query (spec 048).
+    # Check for validated QA match using the context-resolved query (spec 048, spec 069).
     # Pass detected_system so cross-topic matches (e.g. "in english" retrieving a
     # CADAS-ATS answer in an unrelated session) are rejected at the filter layer.
 
@@ -867,42 +945,110 @@ async def ask(
         match_result = await validated_qa_service.check_validated_match(
             search_query, detected_system=detected_system
         )
-        if match_result["match_type"] == "direct":
-            vqa = match_result["validated_qa"]
-            elapsed = round(_time.monotonic() - _vqa_start, 1)
+        vqa_matches = match_result.get("matches", [])
+
+        if vqa_matches:
+            max_score = max(m["similarity"] for m in vqa_matches)
             logger.info(
-                "validated_qa hit (post-rewrite)",
-                extra={
-                    "validated_qa_id": str(vqa["id"]),
-                    "detected_system": detected_system,
-                },
+                "[validated-qa] post-rewrite check: max_similarity=%.2f threshold=%.2f",
+                max_score,
+                RAG_CONFIDENCE_THRESHOLD,
             )
-            return {
-                "answer": vqa["validated_answer"],
-                "grounded": True,
-                "sources": [],
-                "model": "validated_qa",
-                "duration_seconds": elapsed,
-                "is_verified": True,
-                "verified_source": {
-                    "validated_qa_id": str(vqa["id"]),
-                    "validated_by": vqa["validated_by"],
-                    "validated_at": vqa["validated_at"].isoformat()
-                    if hasattr(vqa["validated_at"], "isoformat")
-                    else str(vqa["validated_at"]),
-                    "similarity": 1.0 - vqa.get("distance", 0.0),
-                },
-                "retrieval_info": retrieval_info,
-            }
-        elif match_result["match_type"] == "context":
-            validated_context = match_result["validated_qa"]["validated_answer"]
+
+            if max_score >= RAG_CONFIDENCE_THRESHOLD:
+                # Build combined context from top 3 matches
+                context_parts = []
+                for i, m in enumerate(vqa_matches):
+                    context_parts.append(f"[Source {i + 1}]\n{m['validated_answer']}")
+                combined_context = "\n\n".join(context_parts)
+
+                # Build the strict prompt
+                prompt = (
+                    f"{VALIDATED_QA_SYSTEM_PROMPT}\n\n"
+                    f"CONTEXT:\n{combined_context}\n\n"
+                    f"QUESTION: {search_query}\n\nANSWER:"
+                )
+
+                # Call LLM
+                from services.ai_providers.resolver import generate as provider_generate
+
+                gen_start = _time.monotonic()
+                (
+                    answer,
+                    vqa_provider_used,
+                    vqa_provider_display_name,
+                    vqa_fallback_used,
+                    vqa_fallback_info,
+                ) = await provider_generate(
+                    prompt, [], user_email, latency_breakdown=breakdown
+                )
+                gen_elapsed = _time.monotonic() - gen_start
+
+                vqa_provider_display_name = vqa_provider_display_name or "Local (Ollama)"
+
+                # Build enriched response
+                if max_score >= RAG_HIGH_CONFIDENCE:
+                    confidence = "high"
+                elif max_score >= RAG_CONFIDENCE_THRESHOLD:
+                    confidence = "medium"
+                else:
+                    confidence = "low"
+
+                sources = [
+                    {
+                        "id": m["id"],
+                        "question_text": m["question_text"],
+                        "score": m["similarity"],
+                    }
+                    for m in vqa_matches
+                ]
+
+                logger.info(
+                    "validated_qa hit (post-rewrite)",
+                    extra={
+                        "validated_qa_id": str(vqa_matches[0]["id"]),
+                        "detected_system": detected_system,
+                        "max_similarity": max_score,
+                    },
+                )
+
+                return {
+                    "answer": answer,
+                    "grounded": True,
+                    "sources": sources,
+                    "confidence": confidence,
+                    "score": max_score,
+                    "model": vqa_provider_display_name,
+                    "provider_display_name": vqa_provider_display_name,
+                    "duration_seconds": round(gen_elapsed, 1),
+                    "is_verified": True,
+                    "verified_source": {
+                        "validated_qa_id": str(vqa_matches[0]["id"]),
+                        "validated_by": vqa_matches[0]["validated_by"],
+                        "validated_at": vqa_matches[0]["validated_at"].isoformat()
+                        if hasattr(vqa_matches[0]["validated_at"], "isoformat")
+                        else str(vqa_matches[0]["validated_at"]),
+                        "similarity": max_score,
+                    },
+                    "retrieval_info": retrieval_info,
+                    "provider_used": vqa_provider_used,
+                    "fallback_used": vqa_fallback_used,
+                    "session_summary": None,
+                    "latency_breakdown": breakdown,
+                }
+            else:
+                # Below threshold - let flow continue to manual-chunks pipeline
+                logger.info(
+                    "[validated-qa] post-rewrite below threshold (%.2f < %.2f), falling through to manual-chunks",
+                    max_score,
+                    RAG_CONFIDENCE_THRESHOLD,
+                )
         else:
-            validated_context = None
+            logger.info("[validated-qa] post-rewrite: no matches")
     except Exception as e:
         logger.warning(
             "Validated QA check failed, falling back to normal pipeline: %s", e
         )
-        validated_context = None
 
     # HyDE: generate hypothetical answer for better embedding
     with _StageTimer(breakdown, "hyde_ms"):

@@ -75,9 +75,7 @@ async def _rewrite_with_summary(question: str, session_summary: Optional[str]) -
             return question
         return rewritten
     except Exception as e:
-        logger.warning(
-            "Summary-aware rewrite failed, using original question: %s", e
-        )
+        logger.warning("Summary-aware rewrite failed, using original question: %s", e)
         return question
 
 
@@ -271,24 +269,21 @@ async def check_validated_match(
     embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
 
     rpc_resp = supabase.rpc(
-        "search_validated_qa", {"q_embedding": embedding_str, "match_count": 1}
+        "search_validated_qa", {"q_embedding": embedding_str, "match_count": 3}
     ).execute()
     if not rpc_resp.data:
-        return {"match_type": "none"}
+        return {"matches": []}
 
-    match = rpc_resp.data[0]
-    distance = match.get("distance", 1.0)
+    # Apply topic guard to the best match (lowest distance)
+    best_match = rpc_resp.data[0]
+    best_distance = best_match.get("distance", 1.0)
 
-    # Topic guard: if the incoming query resolves to a specific system, reject
-    # cached matches whose validated_qa is tagged for a *different* system. This
-    # prevents bare follow-ups (e.g. "in english") from retrieving a validated
-    # answer about an unrelated topic in a new session.
-    if detected_system and distance <= 0.25:
+    if detected_system and best_distance <= 0.25:
         try:
             row_resp = (
                 supabase.table("validated_qa")
                 .select("manual_ids")
-                .eq("id", match["id"])
+                .eq("id", best_match["id"])
                 .single()
                 .execute()
             )
@@ -308,16 +303,26 @@ async def check_validated_match(
                         row_manual_ids,
                         detected_system,
                     )
-                    return {"match_type": "none"}
+                    return {"matches": []}
         except Exception as e:
             logger.warning("Topic guard lookup failed, allowing match: %s", e)
 
-    if distance <= 0.10:
-        return {"match_type": "direct", "validated_qa": match}
-    elif distance <= 0.25:
-        return {"match_type": "context", "validated_qa": match}
-    else:
-        return {"match_type": "none"}
+    # Build matches with similarity scores
+    matches = []
+    for match in rpc_resp.data:
+        similarity = round(1.0 - match.get("distance", 1.0), 2)
+        matches.append(
+            {
+                "id": str(match["id"]),
+                "question_text": match["question_text"],
+                "validated_answer": match["validated_answer"],
+                "validated_by": match["validated_by"],
+                "validated_at": match["validated_at"],
+                "similarity": similarity,
+            }
+        )
+
+    return {"matches": matches}
 
 
 def update_validated_rating(validated_qa_id: str, rating: str) -> None:
@@ -403,10 +408,7 @@ async def update_verified_answer(
         update_data["validated_answer"] = validated_answer
 
     result = (
-        supabase.table("validated_qa")
-        .update(update_data)
-        .eq("id", qa_id)
-        .execute()
+        supabase.table("validated_qa").update(update_data).eq("id", qa_id).execute()
     )
 
     if not result.data:
@@ -496,7 +498,9 @@ async def review_answer_multi(
     if action == "retro_expand":
         if not existing_validated_qa_id:
             raise ValueError("existing_validated_qa_id required for retro_expand")
-        return await _retro_expand_multi(existing_validated_qa_id, reviewer_email, variant_texts)
+        return await _retro_expand_multi(
+            existing_validated_qa_id, reviewer_email, variant_texts
+        )
 
     # approve or correct flow
     if action == "correct" and not corrected_answer:
