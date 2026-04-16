@@ -155,7 +155,7 @@ async def list_documents(user_email: str = Query(...)):
         supabase.table("knowledge_documents")
         .select(
             "id, display_name, filename, status, error_message, total_pages, "
-            "total_chunks, indexed_at, uploaded_by, created_at, file_extension"
+            "total_chunks, preprocessing_progress, indexed_at, uploaded_by, created_at, file_extension"
         )
         .order("created_at", desc=True)
         .execute()

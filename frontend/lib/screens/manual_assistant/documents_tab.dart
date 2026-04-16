@@ -55,6 +55,15 @@ class _DocumentsTabState extends State<DocumentsTab> {
           _documents = List<Map<String, dynamic>>.from(docs);
           _loading = false;
         });
+        // Auto-poll any documents still processing (for all users, not just uploader)
+        for (final doc in _documents) {
+          final status = doc['status'] as String? ?? '';
+          if (status == 'pending' ||
+              status == 'preprocessing' ||
+              status == 'indexing') {
+            _startStatusPolling(doc['id']);
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
