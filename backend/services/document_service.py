@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+from datetime import datetime, timezone
 import pdfplumber
 from db import supabase
 from services.ollama_embedder import embed_many
@@ -15,13 +16,12 @@ async def index_document(document_id: str, file_path: str) -> None:
             "id", document_id
         ).execute()
 
-        pdf = pdfplumber.open(file_path)
-        pages = []
-        for page in pdf.pages:
-            text = page.extract_text()
-            if text:
-                pages.append((page.page_number, text))
-        pdf.close()
+        with pdfplumber.open(file_path) as pdf:
+            pages = []
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    pages.append((page.page_number, text))
 
         supabase.table("knowledge_documents").update({"total_pages": len(pages)}).eq(
             "id", document_id
@@ -49,20 +49,13 @@ async def index_document(document_id: str, file_path: str) -> None:
                     "id": parent_resp.data[0]["id"],
                     "title": section["title"],
                     "page_number": section["page_number"],
+                    "section_index": i,
                 }
             )
 
         child_chunks = []
         for parent in parent_chunks:
-            children = _split_into_children(
-                {
-                    "title": parent["title"],
-                    "content": next(
-                        s["content"] for s in sections if s["title"] == parent["title"]
-                    ),
-                    "page_number": parent["page_number"],
-                }
-            )
+            children = _split_into_children(sections[parent["section_index"]])
             for child in children:
                 child_resp = (
                     supabase.table("document_chunks")
@@ -98,7 +91,7 @@ async def index_document(document_id: str, file_path: str) -> None:
             {
                 "status": "ready",
                 "total_chunks": len(child_chunks),
-                "indexed_at": "now()",
+                "indexed_at": datetime.now(timezone.utc).isoformat(),
             }
         ).eq("id", document_id).execute()
 

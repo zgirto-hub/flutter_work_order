@@ -83,7 +83,6 @@ MAX_MANUALS_FOR_SYNTHESIS = 8
 # --- Validated QA confidence thresholds (spec 069) ---
 RAG_CONFIDENCE_THRESHOLD = 0.70  # Minimum similarity to proceed to LLM
 RAG_HIGH_CONFIDENCE = 0.85  # Score >= this → confidence: "high"
-RAG_OFFTOPIC_THRESHOLD = 0.40  # Score below this → skip manual-chunks pipeline entirely
 
 # --- Strict system prompt for validated QA RAG (spec 069) ---
 VALIDATED_QA_SYSTEM_PROMPT = (
@@ -828,11 +827,6 @@ async def ask(
             "retrieval_info": retrieval_info,
         }
 
-    # Track best VQA similarity across both pre- and post-rewrite checks.
-    # If the best score stays below RAG_OFFTOPIC_THRESHOLD, the question is
-    # clearly off-topic and we skip the expensive manual-chunks pipeline entirely.
-    _best_vqa_score = 0.0
-
     # Pre-rewrite validated-QA fast-path lookup (spec 067, spec 069).
     # Check for cached answer using the raw question BEFORE rewriting, so that
     # identical repeated questions hit the cache regardless of conversation history.
@@ -847,7 +841,6 @@ async def ask(
 
         if vqa_matches:
             max_score = max(m["similarity"] for m in vqa_matches)
-            _best_vqa_score = max(_best_vqa_score, max_score)
             logger.info(
                 "[validated-qa] pre-rewrite check: max_similarity=%.2f threshold=%.2f",
                 max_score,
@@ -978,7 +971,6 @@ async def ask(
 
         if vqa_matches:
             max_score = max(m["similarity"] for m in vqa_matches)
-            _best_vqa_score = max(_best_vqa_score, max_score)
             logger.info(
                 "[validated-qa] post-rewrite check: max_similarity=%.2f threshold=%.2f",
                 max_score,
@@ -1208,28 +1200,6 @@ async def ask(
         )
 
     # --- End Layer 2 ---
-
-    # Early exit: if the best VQA score across both checks is below the
-    # off-topic threshold, the question is clearly unrelated to the knowledge
-    # base. Skip the entire manual-chunks pipeline (HyDE + embed + retrieval)
-    # to save ~15-20s of wasted compute.
-    if _best_vqa_score < RAG_OFFTOPIC_THRESHOLD:
-        logger.info(
-            "[off-topic] best VQA score %.2f < %.2f — skipping manual-chunks pipeline",
-            _best_vqa_score,
-            RAG_OFFTOPIC_THRESHOLD,
-        )
-        breakdown["total_ms"] = round((time.perf_counter() - _total_start) * 1000)
-        return {
-            "answer": "This information is not in the available manuals.",
-            "grounded": False,
-            "sources": [],
-            "confidence": "low",
-            "score": round(_best_vqa_score, 2),
-            "session_summary": None,
-            "retrieval_info": retrieval_info,
-            "latency_breakdown": breakdown,
-        }
 
     # HyDE: generate hypothetical answer for better embedding
     with _StageTimer(breakdown, "hyde_ms"):
