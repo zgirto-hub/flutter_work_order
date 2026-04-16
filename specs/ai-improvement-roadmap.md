@@ -92,23 +92,9 @@
 
 ## Phase 3: Answer Intelligence (Medium Effort, High Impact)
 
-### Spec 081: Validated Q&A Fast Path
+### ~~Spec 081: Validated Q&A Fast Path~~ — ALREADY IMPLEMENTED
 
-**Problem**: The full 7-stage pipeline runs even for questions that have been asked and verified before. This wastes 30-40 seconds when an instant answer exists.
-
-**Solution**:
-- Before entering the RAG pipeline, check `validated_qa` table for a semantic match
-- If a verified answer exists with high similarity (> 0.90), return it instantly
-- Show "Verified Answer" badge in the UI
-- Skip all 7 pipeline stages — response in < 1 second
-- Already partially built in spec 059 — wire it into the main query flow
-
-**Impact**: Instant answers for repeated questions. Reduces load on Ollama and Gemini.
-
-**Prompt**:
-```
-/speckit.specify Build Spec 081: Validated Q&A Fast Path — before running the RAG pipeline, check the validated_qa table for a semantically similar question (cosine similarity > 0.90). If a verified answer exists, return it immediately with a "Verified Answer" badge, skipping all 7 pipeline stages. Response time should be under 1 second. The validated_qa table and embedding infrastructure already exist from specs 048 and 059. This spec wires the lookup into the main /manuals/ask endpoint as the first step before query rewrite.
-```
+**Status**: Done (specs 048, 059). Fully wired into `/manuals/ask` at two checkpoints: pre-rewrite (raw question) and post-rewrite (history-aware question). Threshold: 0.70 similarity, with 0.85 for high confidence. Topic guard prevents cross-manual confusion. Skips all 7 pipeline stages on match.
 
 ---
 
