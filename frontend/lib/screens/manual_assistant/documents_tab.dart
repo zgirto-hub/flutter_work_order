@@ -157,10 +157,12 @@ class _DocumentsTabState extends State<DocumentsTab> {
     _statusPolling[documentId]?.cancel();
     _statusPolling[documentId] =
         Timer.periodic(const Duration(seconds: 3), (timer) async {
+      // Guard: if timer was already cancelled by a concurrent callback, skip
+      if (!_statusPolling.containsKey(documentId)) return;
       try {
         final status =
             await _documentService.getStatus(documentId, widget.userEmail);
-        if (!mounted) {
+        if (!mounted || !_statusPolling.containsKey(documentId)) {
           timer.cancel();
           return;
         }
