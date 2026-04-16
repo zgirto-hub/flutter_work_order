@@ -317,6 +317,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 SectionLabel(text: 'AI Assistant'),
                 _AiProviderSection(),
                 SizedBox(height: 12),
+                SmartPreprocessingSection(),
+                SizedBox(height: 12),
                 SectionLabel(text: 'Administration'),
                 SurfaceCard(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -1269,6 +1271,143 @@ class _AiProviderSectionState extends State<_AiProviderSection> {
               }).toList(),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class SmartPreprocessingSection extends StatelessWidget {
+  const SmartPreprocessingSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SmartPreprocessingWidget();
+  }
+}
+
+class _SmartPreprocessingWidget extends StatefulWidget {
+  @override
+  State<_SmartPreprocessingWidget> createState() =>
+      _SmartPreprocessingWidgetState();
+}
+
+class _SmartPreprocessingWidgetState extends State<_SmartPreprocessingWidget> {
+  final _service = AiProviderService();
+  bool _loading = true;
+  bool _enabled = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user?.email == null) return;
+    try {
+      final enabled = await _service.getSmartPreprocessing(user!.email!);
+      if (mounted) {
+        setState(() {
+          _enabled = enabled;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _toggle(bool value) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user?.email == null) return;
+    setState(() => _saving = true);
+    try {
+      await _service.setSmartPreprocessing(value, user!.email!);
+      if (mounted) {
+        setState(() {
+          _enabled = value;
+          _saving = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return SurfaceCard(
+        padding: const EdgeInsets.all(14),
+        child: Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+                strokeWidth: 1.5, color: AppColors.textTertiary),
+          ),
+        ),
+      );
+    }
+
+    return SurfaceCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.bgSurface2,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.auto_fix_high,
+                size: 18, color: AppColors.textSecondary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Smart Document Preprocessing',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'When enabled, uploaded documents are enhanced with AI to improve search quality',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_saving)
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                  strokeWidth: 1.5, color: AppColors.textTertiary),
+            )
+          else
+            Switch(
+              value: _enabled,
+              onChanged: _toggle,
+              activeColor: AppColors.accent,
+            ),
         ],
       ),
     );

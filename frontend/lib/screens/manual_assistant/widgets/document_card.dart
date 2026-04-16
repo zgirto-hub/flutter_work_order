@@ -119,6 +119,10 @@ class DocumentCard extends StatelessWidget {
         color = Colors.green;
         label = 'Ready';
         break;
+      case 'preprocessing':
+        color = Colors.cyan;
+        label = 'Enhancing content...';
+        break;
       case 'indexing':
         color = Colors.amber;
         label = 'Indexing';

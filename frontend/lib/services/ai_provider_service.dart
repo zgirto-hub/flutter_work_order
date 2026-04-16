@@ -51,4 +51,29 @@ class AiProviderService {
       reason: data['reason'] as String?,
     );
   }
+
+  Future<bool> getSmartPreprocessing(String userEmail) async {
+    final res = await http.get(
+      Uri.parse(
+          '${AppConfig.baseUrl}/settings/smart-preprocessing?admin_email=${Uri.encodeComponent(userEmail)}'),
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to fetch smart preprocessing status');
+    }
+    final data = jsonDecode(res.body);
+    return data['enabled'] as bool;
+  }
+
+  Future<void> setSmartPreprocessing(bool enabled, String userEmail) async {
+    final res = await http.put(
+      Uri.parse(
+          '${AppConfig.baseUrl}/settings/smart-preprocessing?admin_email=${Uri.encodeComponent(userEmail)}'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'enabled': enabled}),
+    );
+    if (res.statusCode != 200) {
+      final data = jsonDecode(res.body);
+      throw Exception(data['detail'] ?? 'Failed to set smart preprocessing');
+    }
+  }
 }

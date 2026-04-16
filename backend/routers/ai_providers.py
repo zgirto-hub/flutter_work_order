@@ -127,3 +127,55 @@ async def provider_health(admin_email: str = Query(...)):
         reason = "missing_credentials"
 
     return HealthResponse(provider=active_key, healthy=healthy, reason=reason)
+
+
+class SmartPreprocessingResponse(BaseModel):
+    enabled: bool
+    updated_at: Optional[str] = None
+
+
+class SetPreprocessingRequest(BaseModel):
+    enabled: bool
+
+
+@router.get("/settings/smart-preprocessing", response_model=SmartPreprocessingResponse)
+async def get_smart_preprocessing(admin_email: str = Query(...)):
+    user_resp = (
+        supabase.table("users").select("user_type").eq("email", admin_email).execute()
+    )
+    if not user_resp.data or user_resp.data[0].get("user_type") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    value = await get_setting("smart_preprocessing_enabled")
+    return SmartPreprocessingResponse(enabled=value == "true")
+
+
+@router.put("/settings/smart-preprocessing", response_model=SmartPreprocessingResponse)
+async def set_smart_preprocessing(
+    request: SetPreprocessingRequest,
+    admin_email: str = Query(...),
+):
+    user_resp = (
+        supabase.table("users").select("user_type").eq("email", admin_email).execute()
+    )
+    if not user_resp.data or user_resp.data[0].get("user_type") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    await set_setting(
+        "smart_preprocessing_enabled",
+        "true" if request.enabled else "false",
+        admin_email,
+    )
+
+    log_activity(
+        admin_email,
+        category="admin",
+        action="smart_preprocessing_toggled",
+        target_label=str(request.enabled),
+        detail=f"enabled={request.enabled}",
+    )
+
+    return SmartPreprocessingResponse(
+        enabled=request.enabled,
+        updated_at=datetime.now(timezone.utc).isoformat(),
+    )

@@ -93,43 +93,19 @@
 
 ### Implementation for User Story 2
 
-- [ ] T005 [US2] Review and tune the preprocessing prompt in `backend/services/document_preprocessor.py`. The prompt from T002 should already handle dense prose correctly (instruction 5: "for already-rich prose with full paragraphs, apply only minimal cleanup"). Verify by:
+- [x] T005 [US2] Review and tune the preprocessing prompt in `backend/services/document_preprocessor.py`. The prompt from T002 should already handle dense prose correctly (instruction 5: "for already-rich prose with full paragraphs, apply only minimal cleanup"). Verify by:
   - Reading the prompt and confirming it explicitly instructs the model to preserve rich content as-is
   - If needed, add a preamble to the prompt that says: "If the text is already well-structured with complete sentences and clear paragraphs, return it with only whitespace normalization — do NOT rewrite or expand it"
   - Ensure the prompt does not add any wrapper Markdown (e.g., no added `# Page N` headers unless they were in the original)
 
-**Checkpoint**: Preprocessing handles both terse slides and dense manuals correctly without mode switching.
+- [x] T006 [US3] Modify `frontend/lib/screens/manual_assistant/documents_tab.dart` — in the widget that renders document status (look for where `status` string is displayed, likely in a `_buildStatusBadge` or similar method). Add a case for `'preprocessing'` that displays a user-friendly label like "Enhancing content..." with an appropriate icon (e.g., `Icons.auto_fix_high` or `Icons.psychology`). The existing status polling (every 3 seconds via `_startStatusPolling`) does NOT need changes — it already reads the `status` field from the API response and stops only on `'ready'` or `'failed'`. The new `'preprocessing'` status will be polled and displayed automatically. Reference: `specs/073-smart-doc-preprocess/contracts/api-contracts.md` for the updated status enum.
 
----
-
-## Phase 5: User Story 3 — Preprocessing Status Visible During Upload (Priority: P2)
-
-**Goal**: The frontend displays a "preprocessing" status label while AI enrichment is in progress, so users know the system is working and not stuck.
-
-**Independent Test**: Upload a 30-page slide deck and observe the UI shows a "preprocessing" or "Enhancing content..." status before transitioning to "indexing" then "ready."
-
-### Implementation for User Story 3
-
-- [ ] T006 [US3] Modify `frontend/lib/screens/manual_assistant/documents_tab.dart` — in the widget that renders document status (look for where `status` string is displayed, likely in a `_buildStatusBadge` or similar method). Add a case for `'preprocessing'` that displays a user-friendly label like "Enhancing content..." with an appropriate icon (e.g., `Icons.auto_fix_high` or `Icons.psychology`). The existing status polling (every 3 seconds via `_startStatusPolling`) does NOT need changes — it already reads the `status` field from the API response and stops only on `'ready'` or `'failed'`. The new `'preprocessing'` status will be polled and displayed automatically. Reference: `specs/073-smart-doc-preprocess/contracts/api-contracts.md` for the updated status enum.
-
-**Checkpoint**: Users see clear status progression: "Pending" → "Enhancing content..." → "Indexing" → "Ready."
-
----
-
-## Phase 6: User Story 4 — Administrator Toggles Preprocessing On/Off (Priority: P3)
-
-**Goal**: An admin can enable/disable smart preprocessing from settings. When disabled, uploads skip AI calls entirely.
-
-**Independent Test**: Toggle preprocessing off, upload a document, verify no AI calls and `raw_content` is NULL. Toggle on, upload another, verify preprocessing occurs.
-
-### Implementation for User Story 4
-
-- [ ] T007 [US4] Add preprocessing toggle endpoints to `backend/routers/documents.py` (or to `backend/routers/ai_providers.py` if settings are consolidated there — check which file has the existing `GET /ai/providers` and `POST /ai/provider` routes). Add two routes:
+- [x] T007 [US4] Add preprocessing toggle endpoints to `backend/routers/documents.py` (or to `backend/routers/ai_providers.py` if settings are consolidated there — check which file has the existing `GET /ai/providers` and `POST /ai/provider` routes). Add two routes:
   - `GET /settings/smart-preprocessing` — returns `{"enabled": true/false}` by reading `get_setting("smart_preprocessing_enabled")` from `backend/utils/app_settings.py`. Admin-only (check existing auth patterns in the file).
   - `PUT /settings/smart-preprocessing` — accepts `{"enabled": bool, "user_email": str}`, calls `set_setting("smart_preprocessing_enabled", "true"/"false", updated_by=user_uuid)`, returns `{"enabled": bool, "updated_at": str}`. Admin-only.
   Reference: `specs/073-smart-doc-preprocess/contracts/api-contracts.md` (New Endpoints section).
 
-- [ ] T008 [US4] Add a preprocessing toggle to the frontend admin settings UI. Find the existing admin settings screen (likely in `frontend/lib/screens/settings/` or wherever the AI provider selection UI lives from spec 063). Add a switch/toggle for "Smart Document Preprocessing" that:
+- [x] T008 [US4] Add a preprocessing toggle to the frontend admin settings UI. Find the existing admin settings screen (likely in `frontend/lib/screens/settings/` or wherever the AI provider selection UI lives from spec 063). Add a switch/toggle for "Smart Document Preprocessing" that:
   - Calls `GET /settings/smart-preprocessing` on load to get current state
   - Calls `PUT /settings/smart-preprocessing` on toggle with the admin's email
   - Shows a brief description: "When enabled, uploaded documents are enhanced with AI to improve search quality"
