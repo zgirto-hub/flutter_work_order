@@ -38,7 +38,7 @@ async def get_setting(key: str, admin_email: str = Query(...)):
         .maybe_single()
         .execute()
     )
-    if not result.data:
+    if not result or not result.data:
         raise HTTPException(status_code=404, detail="Setting not found")
     return result.data
 

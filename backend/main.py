@@ -122,10 +122,10 @@ app.include_router(ai_search.router, prefix="/api")
 app.include_router(letters_v2.router, prefix="/api")
 app.include_router(manuals.router, prefix="/api")
 app.include_router(patterns.router, prefix="/api")
+app.include_router(ai_providers.router, prefix="/api", tags=["ai-providers"])
 app.include_router(settings.router, prefix="/api")
 app.include_router(asset_registry.router, prefix="/api")
 app.include_router(systems.router, prefix="/api", tags=["systems"])
-app.include_router(ai_providers.router, prefix="/api", tags=["ai-providers"])
 app.include_router(documents.router, prefix="/api", tags=["documents"])
 
 
