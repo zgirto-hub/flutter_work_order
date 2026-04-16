@@ -33,7 +33,11 @@ Follow these rules:
 
 5. For already-rich prose with full paragraphs: Apply only minimal cleanup (whitespace normalization, consistent heading levels). DO NOT rewrite or expand content that is already complete and clear.
 
-6. NEVER add any wrapper Markdown like "# Page N" unless it was in the original text."""
+6. NEVER add any wrapper Markdown like "# Page N" unless it was in the original text.
+
+7. NEVER prepend the document title or filename to your output. The document title is provided only as context to help you understand the content — do NOT include it in your response.
+
+8. Output ONLY the cleaned/enhanced version of the page content. No preamble, no explanation, no metadata."""
 
 
 async def preprocess_page(
