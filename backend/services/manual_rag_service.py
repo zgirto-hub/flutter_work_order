@@ -1115,7 +1115,7 @@ async def ask(
                 fallback_used,
                 provider_display_name,
             ) = await generate_document_sub_answers(
-                chunks_by_doc, search_query, history, memory, user_email, breakdown
+                chunks_by_doc, search_query, history, None, user_email, breakdown
             )
 
             # Synthesis
