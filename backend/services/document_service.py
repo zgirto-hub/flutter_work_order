@@ -16,12 +16,21 @@ async def index_document(document_id: str, file_path: str) -> None:
             "id", document_id
         ).execute()
 
-        with pdfplumber.open(file_path) as pdf:
-            pages = []
-            for page in pdf.pages:
-                text = page.extract_text()
-                if text:
-                    pages.append((page.page_number, text))
+        ext = os.path.splitext(file_path)[1].lower()
+
+        if ext == ".pdf":
+            with pdfplumber.open(file_path) as pdf:
+                pages = []
+                for page in pdf.pages:
+                    text = page.extract_text()
+                    if text:
+                        pages.append((page.page_number, text))
+        elif ext in (".docx", ".txt", ".md"):
+            from services.manual_parser import parse
+
+            pages = parse(file_path)
+        else:
+            raise ValueError(f"Unsupported file type: {ext}")
 
         supabase.table("knowledge_documents").update({"total_pages": len(pages)}).eq(
             "id", document_id

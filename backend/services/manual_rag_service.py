@@ -1075,125 +1075,111 @@ async def ask(
             "Validated QA check failed, falling back to normal pipeline: %s", e
         )
 
-    # --- Layer 2: Document chunk search (spec 070) ---
-    # Search uploaded document chunks BEFORE falling through to the manual-chunks pipeline.
-    # Embed the search_query directly (no HyDE — that's for manual-chunks).
-    import time as _time
+    # --- Layer 2: Document chunk search (spec 072) ---
+    # Enhanced search with HyDE + per-document retrieval + sub-answers + synthesis.
+    from services.document_search_service import (
+        retrieve_chunks_per_document,
+        generate_document_sub_answers,
+        synthesize_document_answers,
+    )
 
     try:
-        _doc_embed_start = _time.perf_counter()
-        doc_query_embedding = await embed_single(search_query)
-        _doc_embed_elapsed = _time.perf_counter() - _doc_embed_start
+        # HyDE: generate hypothetical answer for better embedding
+        hyde_text = await _generate_hypothetical_answer(search_query)
+        embed_input = hyde_text if hyde_text else search_query
+        doc_query_embedding = await embed_single(embed_input)
+        embedding_str = "[" + ",".join(str(x) for x in doc_query_embedding) + "]"
 
-        doc_matches = await search_document_chunks(doc_query_embedding, limit=3)
+        # Per-document retrieval
+        chunks_by_doc = await retrieve_chunks_per_document(embedding_str)
 
-        if doc_matches:
-            doc_max_score = max(m["similarity"] for m in doc_matches)
+        if not chunks_by_doc:
             logger.info(
-                "[document-search] max_similarity=%.2f threshold=%.2f",
-                doc_max_score,
-                RAG_CONFIDENCE_THRESHOLD,
+                "[document-search] no chunks found, falling through to manual-chunks"
+            )
+        else:
+            # Sub-answer generation
+            (
+                sub_answers,
+                provider_used,
+                fallback_used,
+                provider_display_name,
+            ) = await generate_document_sub_answers(
+                chunks_by_doc, search_query, history, memory, user_email, breakdown
             )
 
-            if doc_max_score >= RAG_CONFIDENCE_THRESHOLD:
-                # Fetch full parent section content for each matched child
-                enriched_matches = await fetch_parent_context(doc_matches)
+            # Synthesis
+            result = await synthesize_document_answers(
+                sub_answers, search_query, user_email, breakdown
+            )
 
-                # Build document context for LLM
-                context_parts = []
-                for i, m in enumerate(enriched_matches):
-                    part = f"[Document Source {i + 1}]\n"
-                    part += f"Document: {m['display_name']}\n"
-                    if m.get("section_title"):
-                        part += f"Section: {m['section_title']}\n"
-                    if m.get("page_number"):
-                        part += f"Page: {m['page_number']}\n"
-                    part += f"\n{m.get('parent_content', m['content'])}"
-                    context_parts.append(part)
-                combined_context = "\n\n".join(context_parts)
-
-                # Build prompt with document system prompt
-                prompt = (
-                    f"{DOCUMENT_QA_SYSTEM_PROMPT}\n\n"
-                    f"CONTEXT:\n{combined_context}\n\n"
-                    f"QUESTION: {search_query}\n\nANSWER:"
+            if result.get("grounded"):
+                max_score = max(
+                    (
+                        c.get("similarity", 0)
+                        for doc_chunks in chunks_by_doc.values()
+                        for c in doc_chunks
+                    ),
+                    default=0,
+                )
+                confidence = (
+                    "high"
+                    if max_score >= RAG_HIGH_CONFIDENCE
+                    else "medium"
+                    if max_score >= RAG_CONFIDENCE_THRESHOLD
+                    else "low"
                 )
 
-                # Call LLM
-                from services.ai_providers.resolver import generate as provider_generate
+                docs_consulted = result.get("documents_consulted", [])
 
-                gen_start = _time.perf_counter()
-                (
-                    answer,
-                    doc_provider_used,
-                    doc_provider_display_name,
-                    doc_fallback_used,
-                    doc_fallback_info,
-                ) = await provider_generate(
-                    prompt, [], user_email, latency_breakdown=breakdown
-                )
-                gen_elapsed = _time.perf_counter() - gen_start
-
-                doc_provider_display_name = (
-                    doc_provider_display_name or "Local (Ollama)"
-                )
-
-                # Build confidence band
-                if doc_max_score >= RAG_HIGH_CONFIDENCE:
-                    confidence = "high"
-                elif doc_max_score >= RAG_CONFIDENCE_THRESHOLD:
-                    confidence = "medium"
-                else:
-                    confidence = "low"
-
-                # Build document sources array
-                sources = [
-                    {
-                        "type": "document",
-                        "document_id": m["document_id"],
-                        "display_name": m["display_name"],
-                        "section_title": m.get("section_title", ""),
-                        "page_number": m.get("page_number"),
-                        "score": m["similarity"],
-                    }
-                    for m in enriched_matches
-                ]
+                # Build sources array
+                sources = []
+                for doc_id, chunks in chunks_by_doc.items():
+                    for chunk in chunks[:3]:
+                        sources.append(
+                            {
+                                "type": "document",
+                                "document_id": chunk["document_id"],
+                                "display_name": chunk.get("display_name", ""),
+                                "section_title": chunk.get("section_title", ""),
+                                "page_number": chunk.get("page_number"),
+                                "score": chunk.get("similarity", 0),
+                            }
+                        )
 
                 logger.info(
                     "document_chunk hit",
                     extra={
-                        "document_id": enriched_matches[0]["document_id"],
-                        "section": enriched_matches[0].get("section_title"),
-                        "max_similarity": doc_max_score,
+                        "documents": len(chunks_by_doc),
+                        "max_score": max_score,
                     },
                 )
 
+                _total_elapsed = time.perf_counter() - _total_start
                 return {
-                    "answer": answer,
+                    "answer": result["answer"],
                     "grounded": True,
                     "sources": sources,
                     "confidence": confidence,
-                    "score": doc_max_score,
+                    "score": max_score,
                     "source_type": "document",
-                    "model": doc_provider_display_name,
-                    "provider_display_name": doc_provider_display_name,
-                    "duration_seconds": round(gen_elapsed, 1),
+                    "model": provider_display_name,
+                    "provider_display_name": provider_display_name,
+                    "duration_seconds": round(_total_elapsed, 1),
                     "is_verified": False,
                     "verified_source": None,
+                    "manuals_consulted": docs_consulted,
+                    "has_conflicts": result.get("has_conflicts", False),
                     "retrieval_info": retrieval_info,
-                    "provider_used": doc_provider_used,
-                    "fallback_used": doc_fallback_used,
+                    "provider_used": provider_used,
+                    "fallback_used": fallback_used,
                     "session_summary": None,
                     "latency_breakdown": breakdown,
                 }
             else:
                 logger.info(
-                    "[document-search] below threshold (%.2f < %.2f), falling through to manual-chunks",
-                    doc_max_score,
-                    RAG_CONFIDENCE_THRESHOLD,
+                    "[document-search] not grounded, falling through to manual-chunks"
                 )
-        else:
-            logger.info("[document-search] no matches found")
     except Exception as e:
         logger.warning(
             "Document chunk search failed, falling through to manual-chunks: %s", e
