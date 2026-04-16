@@ -1,0 +1,2067 @@
+{
+  "timestamp": "2026-04-17 00:23:37",
+  "base_url": "https://zorin.taila92fe8.ts.net",
+  "total_passed": 31,
+  "total_tests": 42,
+  "score_pct": 73.8,
+  "avg_latency_sec": 43.9,
+  "results": [
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "How do I reset the CADAS-ATS administrator password?",
+      "expected": "grounded",
+      "answer": "",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Connection error: CancelledError",
+      "latency_sec": 3.7,
+      "error": "CancelledError: "
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "Where are the CADAS-ATS log files located?",
+      "expected": "grounded",
+      "answer": "All log files can be found in the directory: /var/log/cadas-ats/ (Document Source 1, page 68).\n\nSpecific log files include:\n*   Message Handler log file: msghdl.log\n*   Terminal Server log files: tomcat.[date].log (Contains error, warning, and information events) and catalina.[date].log (Contains tomcat related events) (Document Source 1, page 68).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Log Files",
+          "page_number": 68,
+          "score": 0.69
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Database Restoration – Examples",
+          "page_number": 67,
+          "score": 0.65
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnostic capabilities of CADAS-ATS",
+          "page_number": 39,
+          "score": 0.62
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 42.7,
+      "error": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "How do I start and stop CADAS-IMS services?",
+      "expected": "grounded",
+      "answer": "You can manually stop and restart the CADAS-IMS system using the following Linux commands: use `cadas_ims_stop` to stop the whole system and `cadas_ims_start` to restart it (Document 02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.74
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Settings",
+          "page_number": 32,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Cannot Start Terminal Server – Conflict with Terminal Server Port",
+          "page_number": 75,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Cannot Start Terminal Server – Conflict with Terminal Server Port",
+          "page_number": 75,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "General Information",
+          "page_number": 72,
+          "score": 0.59
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 60.6,
+      "error": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "What does a flashing yellow LED mean on the RAID drive?",
+      "expected": "grounded",
+      "answer": "I do not have this information in the provided knowledge base.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Useful Tips for Diagnosis",
+          "page_number": 55,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Diagnosis - System Status",
+          "page_number": 33,
+          "score": 0.47
+        }
+      ],
+      "passed": false,
+      "reason": "No keywords found. Missing: ['fail', 'drive']",
+      "latency_sec": 46.6,
+      "error": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "How do I backup the CADAS-ATS database?",
+      "expected": "grounded",
+      "answer": "To backup the CADAS-ATS database, follow these steps:\n\n1. Use the script `cadas_backup` on the servers (Source 2, Source 3).\n2. The user account used must have the Unix group (Source 2, Source 3).\n3. Choose from the following backup options:\n    * Store the complete CADAS-ATS database (default) (Source 2, Source 3).\n    * Store only the parameter databases (`--parameters`) (Source 2, Source 3).\n    * Store only the essential parameters (`--min`) (Source 2, Source 3).\n4. To backup data from a different CADAS-ATS server, give the IP address as an option. For example: `cadas_backup <IP address>` (Source 2, Source 3).",
+      "grounded": true,
+      "sources": [
+        {
+          "id": "c7dfbf81-bebb-435a-aa8e-a49adde0eced",
+          "question_text": "how to restore Cadas ATS database ?",
+          "score": 0.8
+        },
+        {
+          "id": "40155398-54c2-4987-b76c-601862e2396d",
+          "question_text": "how to backup cadas ats",
+          "score": 0.78
+        },
+        {
+          "id": "b573cbe4-d048-47c8-9bb7-31196e1f86cc",
+          "question_text": "how to backup cadas ats",
+          "score": 0.78
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 18.0,
+      "error": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "What are the Linux commands to restart the CADAS-ATS terminal server?",
+      "expected": "grounded",
+      "answer": "The Linux commands to restart the CADAS-ATS terminal server involve stopping and starting the service: `cadas_service_tomcat stop` and `cadas_service_tomcat start` (Document Source 1, page 60).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Linux Commands to Restart Single Servers",
+          "page_number": 60,
+          "score": 0.77
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Cannot Start Terminal Server – Conflict with Terminal Server Port",
+          "page_number": 75,
+          "score": 0.73
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Cannot Start Terminal Server – Configuration File Changed",
+          "page_number": 74,
+          "score": 0.71
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.77
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 47.1,
+      "error": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "Where are CADAS-IMS database backups stored?",
+      "expected": "grounded",
+      "answer": "CADAS-IMS database backups are referenced using paths such as `/var/cadas_ims/backups/` (Source 2, Source 3).",
+      "grounded": true,
+      "sources": [
+        {
+          "id": "eee8bc70-c4b1-4bc2-8be5-d51a45284e21",
+          "question_text": "how to restore CADAS IMS database?",
+          "score": 0.78
+        },
+        {
+          "id": "bc079a36-faf3-4f78-bb2d-e3f09d207158",
+          "question_text": "how to restore Cadas ims database ?",
+          "score": 0.71
+        },
+        {
+          "id": "072c0c3a-79d7-48e3-832b-24fb8c51a236",
+          "question_text": "how to restore cadas ims database?",
+          "score": 0.7
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 13.8,
+      "error": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "What does the cadas_status command do?",
+      "expected": "grounded",
+      "answer": "The `cadas_status` command is used to retrieve simple information regarding the status of each Terminal Server and Message Handler.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Status Information",
+          "page_number": 70,
+          "score": 0.72
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnosis > System Status",
+          "page_number": 49,
+          "score": 0.7
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnostic capabilities of CADAS-ATS",
+          "page_number": 39,
+          "score": 0.68
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.54
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 43.3,
+      "error": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "What are all the steps to recover a corrupted config.txt file?",
+      "expected": "grounded",
+      "answer": "The corrupted configuration file can be recovered using two main methods: manual recovery or running a script.\n\n**Method 1: Manual Recovery**\n1. Stop the Terminal Server via the applications/context menu.\n2. Recover the file by obtaining the original state from `/etc/cadas/configs/<system_name>-config.txt` and renaming it to `/etc/cadas/config.txt`.\n3. Start the terminal server and ensure it is running by executing `# cadas_status`.\n\n**Alternative Method: Using a Script**\n1. Execute the script `/opt/cadas_ats/bin/cadas-install-config`, which restores the configuration file. (per Document 02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0)",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Cannot Start Terminal Server – Configuration File Changed",
+          "page_number": 74,
+          "score": 0.67
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Cannot Start Terminal Server – Configuration File Changed",
+          "page_number": 74,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Cannot Start Terminal Server – Configuration File Changed",
+          "page_number": 74,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "## Database Backup and Restoration",
+          "page_number": 38,
+          "score": 0.55
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 54.3,
+      "error": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "How do I import AIXM static data into CADAS-IMS and verify the import was successful?",
+      "expected": "grounded",
+      "answer": "To import static data in the AIXM 4.5 format into CADAS-IMS and verify the import, follow these steps: Import the static data in the AIXM 4.5 format, select Data Administration, and then choose Import Static Data AIXM. To verify the import, view the details in the AIXM Import Log and examine the ERROR and FATAL messages that appear after each import. For detailed log messages, refer to the CADAS-IMS Portal User Manual (Document Source 1, page 21).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Import and Export Static Data (AIXM 4.5)",
+          "page_number": 21,
+          "score": 0.88
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Data Administration",
+          "page_number": 20,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Import/Export Static Data",
+          "page_number": 37,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Database Restoration – Examples",
+          "page_number": 67,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "## IWXXM Messages",
+          "page_number": 41,
+          "score": 0.54
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 58.2,
+      "error": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "Explain the process to customize the CADAS-ATS homepage.",
+      "expected": "grounded",
+      "answer": "To customize the CADAS-ATS homepage, follow these steps: download the content into a local folder named cadas_web_download, change the content within that folder, and then upload the new content to cadas_web_upload (Document Source 1, page 64).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Web Page Tailoring",
+          "page_number": 64,
+          "score": 0.78
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "# CADAS-ATS Administrator Password Lost",
+          "page_number": 73,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "MTS Client Configuration",
+          "page_number": 24,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Settings",
+          "page_number": 32,
+          "score": 0.58
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 42.6,
+      "error": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "How do I configure AMHS mailbox security settings?",
+      "expected": "grounded",
+      "answer": "To configure AMHS mailbox security settings, you must use a certificate for the AMHS mailbox connection authentication and specify the AMHS mailbox security features (Document 02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0). Additionally, for configuring AMHS message options, you can sign the message (Security), specify open entry options, add attachments, and check the potential delivery by sending a Probe (Document 03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Mailboxes > AMHS Security",
+          "page_number": 28,
+          "score": 0.79
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "AMHS Mailbox Configuration",
+          "page_number": 25,
+          "score": 0.73
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Mailboxes > AMHS Address",
+          "page_number": 26,
+          "score": 0.72
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "AMHS Message Creation",
+          "page_number": 22,
+          "score": 0.65
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "Open Entry Options of AMHS Message",
+          "page_number": 24,
+          "score": 0.59
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 49.4,
+      "error": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "What are the steps to reinstall a Frequentis server from a Kickstart CD?",
+      "expected": "grounded",
+      "answer": "The provided documents do not contain the steps required to reinstall a Frequentis server from a Kickstart CD.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Linux Commands to Restart All Servers",
+          "page_number": 61,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Subsystem Restarts",
+          "page_number": 59,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Linux Commands to Restart Single Servers",
+          "page_number": 60,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.49
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['network']",
+      "latency_sec": 38.5,
+      "error": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "Walk me through the full procedure to resolve a CADAS-ATS split-brain situation.",
+      "expected": "grounded",
+      "answer": "I don't have that information in the knowledge base.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "# Split-brain in Dual Node Cluster",
+          "page_number": 79,
+          "score": 0.75
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Split-brain in Dual Node Cluster",
+          "page_number": 76,
+          "score": 0.75
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Split-brain in Dual Node Cluster",
+          "page_number": 77,
+          "score": 0.74
+        }
+      ],
+      "passed": false,
+      "reason": "No keywords found. Missing: ['victim', 'database', 'synchroni']",
+      "latency_sec": 32.1,
+      "error": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "How do I create a message retrieval filter in CADAS-ATS with multiple conditions?",
+      "expected": "grounded",
+      "answer": "I do not have the necessary information in the provided knowledge base to answer how to create a message retrieval filter in CADAS-ATS with multiple conditions.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "## Message Filters",
+          "page_number": 29,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Message Filters",
+          "page_number": 28,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "## Message Filters",
+          "page_number": 29,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "ATFM Messages",
+          "page_number": 34,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "AIM Summary",
+          "page_number": 35,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnostic capabilities of CADAS-ATS",
+          "page_number": 39,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Status Information",
+          "page_number": 70,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "# Split-brain in Dual Node Cluster",
+          "page_number": 79,
+          "score": 0.52
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['wildcard']",
+      "latency_sec": 50.5,
+      "error": null
+    },
+    {
+      "category": 3,
+      "category_name": "Cross-Manual Synthesis",
+      "question": "What is the difference between CADAS-ATS and CADAS-IMS in terms of administration and troubleshooting?",
+      "expected": "grounded",
+      "answer": "The provided documents do not contain information regarding the difference between CADAS-ATS and CADAS-IMS in terms of administration and troubleshooting.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.69
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Introduction to CADAS-IMS",
+          "page_number": 3,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Introduction to CADAS-IMS",
+          "page_number": 4,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnostic capabilities of CADAS-ATS",
+          "page_number": 39,
+          "score": 0.69
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Status Information",
+          "page_number": 70,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Database Restoration – Examples",
+          "page_number": 67,
+          "score": 0.6
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 43.4,
+      "error": null
+    },
+    {
+      "category": 3,
+      "category_name": "Cross-Manual Synthesis",
+      "question": "If the CADAS-IMS message queue is stuck, what diagnostic steps from the System Diagnosis manual should I use, and what CADAS-IMS specific steps apply?",
+      "expected": "grounded",
+      "answer": "To diagnose a stuck CADAS-IMS message queue, you should follow diagnostic steps that cover System and Application Health Status, Mailbox and Alarm Status, and Data and Log Retrieval. These steps involve displaying system health, inspecting mailbox status, retrieving log entries, and monitoring technical events.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.69
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Diagnosis - Statistics",
+          "page_number": 34,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "General Information",
+          "page_number": 72,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Useful Tips for Diagnosis",
+          "page_number": 55,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnostic capabilities of CADAS-ATS",
+          "page_number": 39,
+          "score": 0.61
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['restart']",
+      "latency_sec": 52.4,
+      "error": null
+    },
+    {
+      "category": 3,
+      "category_name": "Cross-Manual Synthesis",
+      "question": "Compare how log file analysis works in CADAS-ATS vs the System Diagnosis manual — are there overlapping tools?",
+      "expected": "grounded",
+      "answer": "Log file analysis in CADAS-ATS involves accessing specific log files located in directories such as `/var/log/cadas-ats/` (Document Source 1), whereas system diagnosis utilizes specific scripts to retrieve status and diagnostic information (Document Source 3). Overlapping tools exist in the form of diagnostic capabilities; for instance, CADAS-ATS can display log entries for the terminal and server connections, and the diagnostic script `msghdl_diag` is used to obtain information on the Message Handler, which relates directly to the analysis of log files like `msghdl.log` (Document Source 2, 3).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Log Files",
+          "page_number": 68,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnostic capabilities of CADAS-ATS",
+          "page_number": 39,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Status Information",
+          "page_number": 70,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "Diagnosis > Statistic",
+          "page_number": 77,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Application Log and Alarms",
+          "page_number": 14,
+          "score": 0.51
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 60.7,
+      "error": null
+    },
+    {
+      "category": 3,
+      "category_name": "Cross-Manual Synthesis",
+      "question": "How does the MTS Client configuration relate to AMHS mailbox setup in CADAS-ATS?",
+      "expected": "grounded",
+      "answer": "The configuration of the MTS Client is required to establish the connection between the AMHS mailboxes of the CADAS-ATS system and an MTA based on the P3 protocol (Document Source 1, page 24). Furthermore, when configuring the AMHS bind arguments for mailboxes, an MTS Client must be selected to be used for communication (Document Source 3, page 27).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "MTS Client Configuration",
+          "page_number": 24,
+          "score": 0.8
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "AMHS Capabilities in CADAS-ATS",
+          "page_number": 22,
+          "score": 0.69
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Mailboxes > AMHS Bind Arguments",
+          "page_number": 27,
+          "score": 0.65
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Introduction to CADAS-IMS",
+          "page_number": 4,
+          "score": 0.56
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 46.6,
+      "error": null
+    },
+    {
+      "category": 3,
+      "category_name": "Cross-Manual Synthesis",
+      "question": "What are all the ways to restart CADAS-ATS services across both the admin manual and the troubleshooting guide?",
+      "expected": "grounded",
+      "answer": "The CADAS-ATS services can be restarted using specific Linux commands for individual services and by following a sequence of steps to resolve port conflicts.\n\nRestarting specific services involves the following commands:\n*   **Terminal Server:** Stop the service using `cadas_service_tomcat stop` and then start it using `cadas_service_tomcat start`.\n*   **Message Handler:** Stop the service using `cadas_service_msghdl stop` and then start it using `cadas_service_msghdl start`.\n\nTo resolve an issue where the terminal service cannot start due to port conflicts, the following steps are required:\n1.  Stop all terminal servers.\n2.  Determine which service requires a port change.\n3.  Change the ports of other services that utilize the CADAS-ATS default port 80.\n4.  Restart the affected CADAS-ATS Terminal Server.\n5.  Verify that the CADAS-ATS homepage and terminal applications are operational.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.74
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "General Information",
+          "page_number": 72,
+          "score": 0.69
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Cannot Start Terminal Server – Conflict with Terminal Server Port",
+          "page_number": 75,
+          "score": 0.69
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Linux Commands to Restart Single Servers",
+          "page_number": 60,
+          "score": 0.68
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 54.4,
+      "error": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "A CADAS-ATS dual-node cluster has entered a split-brain situation. What should I do first?",
+      "expected": "grounded",
+      "answer": "To handle the split-brain situation after deleting the database, the initial steps are to start the message handler and then start the terminal server, followed by waiting for the synchronization process to complete (Document 02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0, page 79).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "# Split-brain in Dual Node Cluster",
+          "page_number": 79,
+          "score": 0.76
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Split-brain in Dual Node Cluster",
+          "page_number": 77,
+          "score": 0.76
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Split-brain in Dual Node Cluster",
+          "page_number": 76,
+          "score": 0.73
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.5
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['victim']",
+      "latency_sec": 48.4,
+      "error": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "The message handler service is not responding. Based on the troubleshooting guides, what are the possible causes and how should I diagnose them?",
+      "expected": "grounded",
+      "answer": "To diagnose the unresponsive message handler service, you should monitor technical events and system status to identify potential bottlenecks. Specifically, monitor the status of Pending Messages, disk space, and connections, and filter technical events to find the reasons for disconnects or connections (Document: 02\\_KW-INDRA-AIM-MHS-UPD\\_CADAS-ATS\\_AdminCourse\\_V1.0).\n\nThe overall troubleshooting sequence involves checking various system components, including Groups, Mailboxes, Profiles, Users, System Configuration, AMHS, and Static Data before proceeding to the Diagnosis phase (Document: 02\\_KW-INDRA-AIM-MHS-UPD\\_CADAS-ATS\\_AdminCourse\\_V1.0).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Useful Tips for Diagnosis",
+          "page_number": 55,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Troubleshooting",
+          "page_number": 71,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnosis",
+          "page_number": 38,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "# Diagnosis",
+          "page_number": 73,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "Message Handling",
+          "page_number": 2,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "## Useful Tips for Message Handling",
+          "page_number": 9,
+          "score": 0.51
+        }
+      ],
+      "passed": false,
+      "reason": "No keywords found. Missing: ['restart', 'log']",
+      "latency_sec": 57.4,
+      "error": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "If I see ERROR severity in the CADAS-IMS AIXM import log, what should I check?",
+      "expected": "grounded",
+      "answer": "You should examine the ERROR messages after each import. According to Document 02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2, ERROR and FATAL messages are the two most important severities that require examination following an import.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Import and Export Static Data (AIXM 4.5)",
+          "page_number": 21,
+          "score": 0.71
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Import and Export Static Data (AIXM 4.5)",
+          "page_number": 21,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Introduction to CADAS-IMS",
+          "page_number": 4,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Import/Export Static Data",
+          "page_number": 37,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "General Information",
+          "page_number": 72,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "## IWXXM Messages",
+          "page_number": 41,
+          "score": 0.5
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 50.0,
+      "error": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "A hard drive failure LED is lit on the server. What does that mean and what action should I take?",
+      "expected": "grounded",
+      "answer": "I don't have that information in the knowledge base.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Useful Tips for Diagnosis",
+          "page_number": 55,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Troubleshooting",
+          "page_number": 71,
+          "score": 0.46
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnosis",
+          "page_number": 38,
+          "score": 0.45
+        }
+      ],
+      "passed": false,
+      "reason": "No keywords found. Missing: ['replace', 'drive']",
+      "latency_sec": 30.4,
+      "error": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "Users cannot access the CADAS-ATS homepage or login. What could be wrong?",
+      "expected": "grounded",
+      "answer": "If the terminal service does not start, users cannot access the CADAS-ATS homepage or cannot log in (Document Source 1, page 75).\n\nSteps to resolve the issue are:\n1. Stop all terminal servers.\n2. Decide which service is needed to change the port number.\n3. Change the ports of other services that use the CADAS-ATS default port 80. This prevents other issues, for example, invalid CADAS-ATS configuration, which prevent the terminal server from running.\n4. Restart the affected CADAS-ATS Terminal Server.\n5. Make sure that the CADAS-ATS homepage can be accessed.\n6. Make sure that the terminal applications operate.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Cannot Start Terminal Server – Conflict with Terminal Server Port",
+          "page_number": 75,
+          "score": 0.73
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "# CADAS-ATS Administrator Password Lost",
+          "page_number": 73,
+          "score": 0.7
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "General Information",
+          "page_number": 72,
+          "score": 0.69
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 32.0,
+      "error": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "I suspect a network failure is affecting the system. What steps should I take to diagnose it?",
+      "expected": "grounded",
+      "answer": "To diagnose a potential network failure, you should monitor technical events and system status, and inspect various operational data.\n\nSpecific diagnostic steps include:\n*   Check and monitor technical events by creating filters to reduce messages and investigating disconnects or connections (Document 02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0).\n*   Monitor System Status and Application Status, including the status of Pending Messages, disk space, and connections (Document 02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0).\n*   Inspect the status of all accessible group mailboxes and display information on currently active alarms (Document 03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0).\n*   Retrieve statistical information from the internal database (Document 03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Useful Tips for Diagnosis",
+          "page_number": 55,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnosis",
+          "page_number": 38,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Troubleshooting",
+          "page_number": 71,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "Diagnosis",
+          "page_number": 74,
+          "score": 0.46
+        }
+      ],
+      "passed": false,
+      "reason": "No keywords found. Missing: ['ping', 'cabling']",
+      "latency_sec": 49.3,
+      "error": null
+    },
+    {
+      "category": 5,
+      "category_name": "CADAS-ATS Advanced",
+      "question": "How does CADAS-ATS integrate with Keycloak for user authentication?",
+      "expected": "grounded",
+      "answer": "CADAS-ATS integrates with Keycloak to utilize a central access and identity management system. Configuration is achieved by setting up the connection in System Parameters > Connection > Keycloak, and CADAS-ATS requires specific user details such as group, access permissions, and mailbox names for each user (Document Source 1, 2, 3, page 57).\n\nThere are two methods for connecting users: either the external Keycloak user is linked to an existing CADAS-ATS user, or the external Keycloak user provides the necessary group, profile, and mailbox parameters. Furthermore, the Keycloak setup must ensure that the correct token claim information is provided to CADAS-ATS.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Configure Keycloak",
+          "page_number": 57,
+          "score": 0.78
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Configure Keycloak",
+          "page_number": 57,
+          "score": 0.69
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Configure Keycloak",
+          "page_number": 57,
+          "score": 0.68
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "User and Role Management with Keycloak",
+          "page_number": 11,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "## User and Role Management",
+          "page_number": 12,
+          "score": 0.65
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "# CADAS-IMS AWI",
+          "page_number": 30,
+          "score": 0.63
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 52.8,
+      "error": null
+    },
+    {
+      "category": 5,
+      "category_name": "CADAS-ATS Advanced",
+      "question": "How do restricted areas work in CADAS-ATS?",
+      "expected": "grounded",
+      "answer": "Restricted areas are found in the NM Regulation List, which details all airspace restrictions issued by the NM. This data allows for viewing information for a selected target date and can be filtered by criteria such as Traffic Volume Set, Active only, or Measure Id (Document Source 1, page 36).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "NM Regulation List",
+          "page_number": 36,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnostic capabilities of CADAS-ATS",
+          "page_number": 39,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Parameter > Profiles",
+          "page_number": 7,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "AMHS Capabilities in CADAS-ATS",
+          "page_number": 22,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Introduction to CADAS-IMS",
+          "page_number": 4,
+          "score": 0.54
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['polygon']",
+      "latency_sec": 49.8,
+      "error": null
+    },
+    {
+      "category": 5,
+      "category_name": "CADAS-ATS Advanced",
+      "question": "What are scheduled RPLs in CADAS-ATS and how do I configure them?",
+      "expected": "grounded",
+      "answer": "Scheduled RPLs in CADAS-ATS are used to automatically create repetitive flight plan messages.\n\nTo configure the creation process, you must define the following parameters: flight plan message values, the timeframe for the automatic creation, and the days of operation within that timeframe (Document 02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0; Document 03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0). Additionally, there is an option to split scheduled RPLs (Document 02_KW-INDRA-AIM-MHS_CADAS_IMS_AdminTraining_V1.2).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Parameter > Scheduled RPLs",
+          "page_number": 16,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Parameter > Scheduled Tasks",
+          "page_number": 20,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnostic capabilities of CADAS-ATS",
+          "page_number": 39,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "Parameter > Scheduled RPLs",
+          "page_number": 45,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "ATFM Messages",
+          "page_number": 34,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "# Maintenance Procedures",
+          "page_number": 36,
+          "score": 0.48
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 60.2,
+      "error": null
+    },
+    {
+      "category": 5,
+      "category_name": "CADAS-ATS Advanced",
+      "question": "What is the difference between a New Retrieval and a New Expert Retrieval in CADAS-ATS?",
+      "expected": "grounded",
+      "answer": "I do not have the information regarding the difference between a New Retrieval and a New Expert Retrieval in CADAS-ATS in the provided documents.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnostic capabilities of CADAS-ATS",
+          "page_number": 39,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Database Restoration – Examples",
+          "page_number": 67,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnosis > Sessions",
+          "page_number": 40,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Introduction to CADAS-IMS",
+          "page_number": 3,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Introduction to CADAS-IMS",
+          "page_number": 4,
+          "score": 0.5
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['filter']",
+      "latency_sec": 43.9,
+      "error": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "How do I configure CADAS-ATS for SITA network connectivity?",
+      "expected": "ungrounded",
+      "answer": "To configure the MTS Client for connecting the AMHS mailboxes of the CADAS-ATS system with an MTA based on the P3 protocol, follow these steps:\n\n1. Navigate to Parameter > MTS Client.\n2. Decide whether to use the Forced Access mode.\n3. Configure the connection values related to the MTA.\n4. Configure the connection values related to your CADAS-ATS system.\n\nAccording to Document Source 1, page 24.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "MTS Client Configuration",
+          "page_number": 24,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Cannot Start Terminal Server – Conflict with Terminal Server Port",
+          "page_number": 75,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Printer Configuration",
+          "page_number": 63,
+          "score": 0.63
+        }
+      ],
+      "passed": false,
+      "reason": "HALLUCINATED — gave grounded answer for info not in manuals",
+      "latency_sec": 34.2,
+      "error": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "What is the default oper password for CADAS-IMS?",
+      "expected": "ungrounded",
+      "answer": "The default OPER password for CADAS-IMS is not available in the provided documents.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "General",
+          "page_number": 31,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Settings",
+          "page_number": 32,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "# CADAS-ATS Administrator Password Lost",
+          "page_number": 73,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnosis > Sessions",
+          "page_number": 40,
+          "score": 0.58
+        }
+      ],
+      "passed": false,
+      "reason": "HALLUCINATED — gave grounded answer for info not in manuals",
+      "latency_sec": 40.6,
+      "error": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "What is the maximum number of users CADAS-ATS supports?",
+      "expected": "ungrounded",
+      "answer": "I don't have that information in the knowledge base.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnostic capabilities of CADAS-ATS",
+          "page_number": 39,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnosis > Sessions",
+          "page_number": 40,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnosis > Sessions",
+          "page_number": 40,
+          "score": 0.6
+        }
+      ],
+      "passed": false,
+      "reason": "HALLUCINATED — gave grounded answer for info not in manuals",
+      "latency_sec": 26.6,
+      "error": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "How do I configure CADAS-ATS to send emails?",
+      "expected": "ungrounded",
+      "answer": "The provided documents do not contain information on how to configure CADAS-ATS to send emails.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "MTS Client Configuration",
+          "page_number": 24,
+          "score": 0.74
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Printer Configuration",
+          "page_number": 63,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnostic capabilities of CADAS-ATS",
+          "page_number": 39,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "## Useful Tips for Message Handling",
+          "page_number": 9,
+          "score": 0.58
+        }
+      ],
+      "passed": false,
+      "reason": "HALLUCINATED — gave grounded answer for info not in manuals",
+      "latency_sec": 37.6,
+      "error": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "What is the CADAS-IMS API endpoint for creating NOTAMs programmatically?",
+      "expected": "ungrounded",
+      "answer": "I do not have the information regarding the CADAS-IMS API endpoint for creating NOTAMs in the provided documents.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Introduction to CADAS-IMS",
+          "page_number": 4,
+          "score": 0.68
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Introduction to CADAS-IMS",
+          "page_number": 3,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "Create New NOTAM Message",
+          "page_number": 39,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "NOTAM and Related Messages",
+          "page_number": 38,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "69b2f5d6-9788-4bd0-9fb5-d6a890bbe7d6",
+          "display_name": "03_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_OperatorCourse_V1.0",
+          "section_title": "NOTAM and Related Messages",
+          "page_number": 38,
+          "score": 0.52
+        }
+      ],
+      "passed": false,
+      "reason": "HALLUCINATED — gave grounded answer for info not in manuals",
+      "latency_sec": 40.0,
+      "error": null
+    },
+    {
+      "category": 7,
+      "category_name": "CADAS-IMS Specific",
+      "question": "What are the main functions of CADAS-IMS?",
+      "expected": "grounded",
+      "answer": "The main functions of CADAS-IMS involve data management, automated synchronization of NOTAM messages, integrated briefing functionalities, and system access.\n\nThese functions include managing NOTAM and SNOWTAM/ASHTAM messages, synchronizing messages (RQL, RQR, RQN), integrating with the MET Office and OPMET Database, and providing integrated briefing types (Area, Aerodrome, En-Route, and Narrow-Route) in accordance with ICAO Doc. 8126. The system also features automated input validation and message fragmentation handling.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Introduction to CADAS-IMS",
+          "page_number": 3,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Introduction to CADAS-IMS",
+          "page_number": 4,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnostic capabilities of CADAS-ATS",
+          "page_number": 39,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "AMHS Capabilities in CADAS-ATS",
+          "page_number": 22,
+          "score": 0.55
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 58.7,
+      "error": null
+    },
+    {
+      "category": 7,
+      "category_name": "CADAS-IMS Specific",
+      "question": "How does CADAS-IMS use Keycloak for user and role management?",
+      "expected": "grounded",
+      "answer": "CADAS-IMS utilizes Keycloak for user and role management to authorize access to CADAS-IMS modules.\n\nKeycloak is used to assign user roles by giving users one or more client roles, which are configured within the Keycloak client `client_ims` (Document Source 2). Administrators can assign these roles in two ways: directly assigning a role to a user or creating a group and adding the Keycloak user to that group (Document Source 2). Furthermore, the role `Authenticated` is mandatory for users to log into CADAS-IMS (Document Source 2).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "## User and Role Management",
+          "page_number": 12,
+          "score": 0.78
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Keycloak",
+          "page_number": 13,
+          "score": 0.73
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "User and Role Management with Keycloak",
+          "page_number": 11,
+          "score": 0.67
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Configure Keycloak",
+          "page_number": 57,
+          "score": 0.74
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Configure Keycloak",
+          "page_number": 57,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Configure Keycloak",
+          "page_number": 57,
+          "score": 0.61
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 56.8,
+      "error": null
+    },
+    {
+      "category": 7,
+      "category_name": "CADAS-IMS Specific",
+      "question": "How do I configure alarms in CADAS-IMS?",
+      "expected": "grounded",
+      "answer": "To configure alarms in CADAS-IMS, select Administration > Alarms (Document Source 1, page 17).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Alarms",
+          "page_number": 17,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "MTS Client Configuration",
+          "page_number": 24,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnostic capabilities of CADAS-ATS",
+          "page_number": 39,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Diagnosis > Show Alarms",
+          "page_number": 54,
+          "score": 0.54
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['event']",
+      "latency_sec": 40.1,
+      "error": null
+    },
+    {
+      "category": 7,
+      "category_name": "CADAS-IMS Specific",
+      "question": "How do message filters work in CADAS-IMS?",
+      "expected": "grounded",
+      "answer": "Message filters allow you to make the system handle specified incoming messages differently. To do this, you select Administration > Message Filters (Document Source 2, Page 29).\n\nExamples of filtering capabilities include:\n\n*   Configuring the system to allow some originator to request all NOTAM messages (RQN) or checklists (RQL), while another originator is allowed to request only specified NOTAM or no NOTAM at all.\n*   Making the system perform a check on messages that enter the system via a certain interface.\n*   If item A of a NOTAM contains a FIR in country XY AND item E contains the word CLSD, the system will put the NOTAM into the Operator's Queue.\n*   Creating a blacklist by checking incoming messages and rejecting messages based on filter criteria.\n*   Searching for erroneous messages based on syntax, semantic, or consistency compared to the Static Database. This involves specifying filter criteria based on the message fields and specifying the steps the system takes when it receives an erroneous message.\n\nFor more details on the filters, refer to the CADAS-IMS Portal User Manual (Document Source 2, Page 29).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Message Filters",
+          "page_number": 28,
+          "score": 0.67
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "## Message Filters",
+          "page_number": 29,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "# Maintenance Procedures",
+          "page_number": 36,
+          "score": 0.6
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 35.8,
+      "error": null
+    },
+    {
+      "category": 8,
+      "category_name": "Ambiguous / Vague",
+      "question": "How do I fix the system?",
+      "expected": "either",
+      "answer": "To fix the system, you should first perform diagnostics by monitoring technical events and system statuses, and then use specific commands to restart the system components.\n\nFor diagnosis, you should monitor technical events by creating filters to reduce messages, and monitor the System Status and Application Status, including Pending Messages, disk space, and connections (Document Source 1, page 55). Troubleshooting areas include Groups, Mailboxes, Profiles, Users, System Configuration, AMHS, Static Data, Diagnosis, Keycloak Connection, and Advanced Administrative Procedures (Document Source 2, page 71).\n\nTo manually restart the CADAS-IMS system, use the following Linux commands:\n1. Open a terminal window.\n2. To stop the whole system, enter `cadas_ims_stop`.\n3. To restart the system, enter `cadas_ims_start`.\n4. To check the status of CADAS-IMS, enter `cadas_ims_status` (Document Source 2).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Useful Tips for Diagnosis",
+          "page_number": 55,
+          "score": 0.5
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Troubleshooting",
+          "page_number": 71,
+          "score": 0.5
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Subsystem Restarts",
+          "page_number": 59,
+          "score": 0.49
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.47
+        }
+      ],
+      "passed": true,
+      "reason": "Ambiguous — grounded=True",
+      "latency_sec": 56.9,
+      "error": null
+    },
+    {
+      "category": 8,
+      "category_name": "Ambiguous / Vague",
+      "question": "What's the password?",
+      "expected": "either",
+      "answer": "According to Document Source 1, the temporary password generated for the user `CSADMIN` when executing the command `cadas_maint --createadmin` is `1q1q1q1q` (Document Source 1, Page 73).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "# CADAS-ATS Administrator Password Lost",
+          "page_number": 73,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Parameter > Profiles",
+          "page_number": 7,
+          "score": 0.47
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "General Information",
+          "page_number": 72,
+          "score": 0.47
+        }
+      ],
+      "passed": true,
+      "reason": "Ambiguous — grounded=True",
+      "latency_sec": 28.6,
+      "error": null
+    },
+    {
+      "category": 8,
+      "category_name": "Ambiguous / Vague",
+      "question": "How do I restart the server?",
+      "expected": "either",
+      "answer": "Server components can be restarted using specific Linux commands depending on whether you are restarting Terminal Servers, Message Handlers, or the entire CADAS-IMS system.\n\nTo restart Terminal Servers, stop the service using `cadas_service_tomcat stop` and then start it with `cadas_service_tomcat start` (Document Source 1, page 60). Message Handlers are restarted by executing `cadas_service_msghdl stop` followed by `cadas_service_msghdl start` (Document Source 1, page 61). For restarting all Terminal Servers simultaneously, use `clsync -a tstop` and then `clsync -a tstart` (Document Source 1, page 61).\n\nFor the CADAS-IMS system, a manual restart can be performed by entering `cadas_ims_stop` to stop the system and then `cadas_ims_start` to restart it (Document Source 2, page 37).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "## Subsystem Restarts",
+          "page_number": 59,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Linux Commands to Restart Single Servers",
+          "page_number": 60,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "b758a1a4-87d5-491c-904f-dde2b559c207",
+          "display_name": "02_KW-INDRA-AIM-MHS-UPD_CADAS-ATS_AdminCourse_V1.0",
+          "section_title": "Linux Commands to Restart All Servers",
+          "page_number": 61,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Restart CADAS-IMS",
+          "page_number": 37,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "73b4949c-9697-40ab-80d0-7888b9f74742",
+          "display_name": "02_KW-INDRA-AIM-MHS_CADAS-IMS_AdminTraining_V1.2",
+          "section_title": "Diagnosis - System Status",
+          "page_number": 33,
+          "score": 0.47
+        }
+      ],
+      "passed": true,
+      "reason": "Ambiguous — grounded=True",
+      "latency_sec": 56.8,
+      "error": null
+    }
+  ]
+}
