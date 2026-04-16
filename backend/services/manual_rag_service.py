@@ -848,17 +848,21 @@ async def ask(
             "Validated QA check failed, falling back to normal pipeline: %s", e
         )
 
-    # --- Layer 2: Document chunk search (spec 072) ---
-    # Enhanced search with HyDE + per-document retrieval + sub-answers + synthesis.
+    # --- Layer 2: Document chunk search (spec 072, spec 074) ---
+    # Enhanced search with HyDE + per-document retrieval + direct generation.
+    # Replaces sub-answer + synthesis with single generation call (spec 074).
     # HyDE + embedding are computed ONCE here and reused by Layer 3 if Layer 2 falls through.
     from services.document_search_service import (
         retrieve_chunks_per_document,
-        generate_document_sub_answers,
-        synthesize_document_answers,
+        build_direct_generation_prompt,
     )
+    from services.ai_providers.resolver import generate as provider_generate
 
     _layer2_hyde_text = None
     _layer2_embedding = None
+    provider_used = "local"
+    fallback_used = False
+    provider_display_name = "Local (Ollama)"
 
     try:
         # HyDE: generate hypothetical answer for better embedding
@@ -881,22 +885,29 @@ async def ask(
                 "[document-search] no chunks found, falling through to manual-chunks"
             )
         else:
-            # Sub-answer generation
-            (
-                sub_answers,
-                provider_used,
-                fallback_used,
-                provider_display_name,
-            ) = await generate_document_sub_answers(
-                chunks_by_doc, search_query, history, None, user_email, breakdown
+            # Direct generation: build combined prompt from all document chunks (spec 074)
+            prompt, sources, docs_consulted = build_direct_generation_prompt(
+                chunks_by_doc, search_query, DOCUMENT_QA_SYSTEM_PROMPT
             )
 
-            # Synthesis
-            result = await synthesize_document_answers(
-                sub_answers, search_query, user_email, breakdown
+            # Single generation call (replaces up to 9 LLM calls)
+            with _StageTimer(breakdown, "generator_ms"):
+                (
+                    answer,
+                    provider_used,
+                    provider_display_name,
+                    fallback_used,
+                    _fallback_info,
+                ) = await provider_generate(
+                    prompt, [], user_email, latency_breakdown=breakdown
+                )
+
+            # Check if answer is grounded
+            grounded = answer and not any(
+                phrase in answer.lower() for phrase in _SENTINEL_PHRASES
             )
 
-            if result.get("grounded"):
+            if grounded:
                 max_score = max(
                     (
                         c.get("similarity", 0)
@@ -913,25 +924,25 @@ async def ask(
                     else "low"
                 )
 
-                docs_consulted = result.get("documents_consulted", [])
+                # Format sources for response
+                response_sources = []
+                for s in sources:
+                    response_sources.append(
+                        {
+                            "type": "document",
+                            "document_id": s["document_id"],
+                            "display_name": s["display_name"],
+                            "section_title": s.get("section_title", ""),
+                            "page_number": s.get("page_number"),
+                            "score": s.get("similarity", 0),
+                        }
+                    )
 
-                # Build sources array
-                sources = []
-                for doc_id, chunks in chunks_by_doc.items():
-                    for chunk in chunks[:3]:
-                        sources.append(
-                            {
-                                "type": "document",
-                                "document_id": chunk["document_id"],
-                                "display_name": chunk.get("display_name", ""),
-                                "section_title": chunk.get("section_title", ""),
-                                "page_number": chunk.get("page_number"),
-                                "score": chunk.get("similarity", 0),
-                            }
-                        )
+                # Check for conflicts
+                has_conflicts = "⚠ CONFLICT:" in answer or "⚠ تعارض:" in answer
 
                 logger.info(
-                    "document_chunk hit",
+                    "direct_generation",
                     extra={
                         "documents": len(chunks_by_doc),
                         "max_score": max_score,
@@ -940,9 +951,9 @@ async def ask(
 
                 _total_elapsed = time.perf_counter() - _total_start
                 return {
-                    "answer": result["answer"],
+                    "answer": answer,
                     "grounded": True,
-                    "sources": sources,
+                    "sources": response_sources,
                     "confidence": confidence,
                     "score": max_score,
                     "source_type": "document",
@@ -952,7 +963,7 @@ async def ask(
                     "is_verified": False,
                     "verified_source": None,
                     "manuals_consulted": docs_consulted,
-                    "has_conflicts": result.get("has_conflicts", False),
+                    "has_conflicts": has_conflicts,
                     "retrieval_info": retrieval_info,
                     "provider_used": provider_used,
                     "fallback_used": fallback_used,
@@ -962,7 +973,7 @@ async def ask(
             else:
                 logger.info(
                     "[document-search] not grounded (answer=%s), falling through to manual-chunks",
-                    result.get("answer", "")[:100],
+                    answer[:100] if answer else "",
                 )
     except Exception as e:
         logger.warning(
