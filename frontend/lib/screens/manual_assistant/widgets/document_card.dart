@@ -64,6 +64,10 @@ class DocumentCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodySmall),
                 ],
               ),
+              if (status == 'preprocessing' || status == 'indexing') ...[
+                const SizedBox(height: 8),
+                _progressBar(status),
+              ],
               if (status == 'failed' && errorMessage != null) ...[
                 const SizedBox(height: 8),
                 Text(
@@ -151,6 +155,40 @@ class DocumentCard extends StatelessWidget {
               : color.withValues(alpha: 1.0),
         ),
       ),
+    );
+  }
+
+  Widget _progressBar(String status) {
+    final totalPages = document['total_pages'] as int? ?? 0;
+    final progress = document['preprocessing_progress'] as int? ?? 0;
+    final isPreprocessing = status == 'preprocessing';
+
+    final double fraction =
+        isPreprocessing && totalPages > 0 ? progress / totalPages : 0;
+    final String label = isPreprocessing
+        ? 'Enhancing page $progress of $totalPages'
+        : 'Indexing...';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: isPreprocessing ? fraction : null,
+            minHeight: 6,
+            backgroundColor: AppColors.bgSurface2,
+            valueColor: AlwaysStoppedAnimation<Color>(
+              isPreprocessing ? Colors.cyan : Colors.amber,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+        ),
+      ],
     );
   }
 

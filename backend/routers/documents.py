@@ -300,7 +300,7 @@ async def get_document_status(document_id: str, user_email: str = Query(...)):
 
     resp = (
         supabase.table("knowledge_documents")
-        .select("id, status, total_chunks, error_message")
+        .select("id, status, total_chunks, total_pages, preprocessing_progress, error_message")
         .eq("id", document_id)
         .maybe_single()
         .execute()
@@ -313,6 +313,8 @@ async def get_document_status(document_id: str, user_email: str = Query(...)):
         "document_id": resp.data["id"],
         "status": resp.data["status"],
         "total_chunks": resp.data["total_chunks"],
+        "total_pages": resp.data.get("total_pages"),
+        "preprocessing_progress": resp.data.get("preprocessing_progress", 0),
         "error_message": resp.data["error_message"],
     }
 

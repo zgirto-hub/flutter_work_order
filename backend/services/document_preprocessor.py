@@ -123,8 +123,21 @@ async def preprocess_pages(
     raw_mapping: Dict[int, str] = {}
     preprocessed_count = 0
     fallback_count = 0
+    total = len(pages)
 
-    for page_number, raw_text in pages:
+    # Update progress in DB so frontend can show a progress bar
+    def _update_progress(current: int):
+        if not document_id:
+            return
+        try:
+            from db import supabase
+            supabase.table("knowledge_documents").update(
+                {"preprocessing_progress": current}
+            ).eq("id", document_id).execute()
+        except Exception:
+            pass  # fire-and-forget, don't block pipeline
+
+    for idx, (page_number, raw_text) in enumerate(pages):
         raw_mapping[page_number] = raw_text
 
         result = await _preprocess_page_with_retry(
@@ -141,6 +154,7 @@ async def preprocess_pages(
             fallback_count += 1
 
         preprocessed_pages.append((page_number, result.preprocessed_text))
+        _update_progress(idx + 1)
 
     if document_id:
         try:
