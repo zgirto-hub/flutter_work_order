@@ -206,7 +206,7 @@ async def get_smart_preprocessing(admin_email: str = Query(...)):
     user_resp = (
         supabase.table("users").select("user_type").eq("email", admin_email).execute()
     )
-    if not user_resp.data or user_resp.data[0].get("user_type") != "admin":
+    if not user_resp or not getattr(user_resp, 'data', None) or user_resp.data[0].get("user_type") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
     value = await get_setting("smart_preprocessing_enabled")
@@ -221,7 +221,7 @@ async def set_smart_preprocessing(
     user_resp = (
         supabase.table("users").select("user_type").eq("email", admin_email).execute()
     )
-    if not user_resp.data or user_resp.data[0].get("user_type") != "admin":
+    if not user_resp or not getattr(user_resp, 'data', None) or user_resp.data[0].get("user_type") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
     await set_setting(
