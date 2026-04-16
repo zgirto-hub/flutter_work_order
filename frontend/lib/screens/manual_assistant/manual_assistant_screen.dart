@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/manual_assistant_service.dart';
 import 'chat_tab.dart';
-import 'manuals_tab.dart';
 import 'review_queue_tab.dart';
 import 'rules_tab.dart';
 import 'alerts_tab.dart';
@@ -32,7 +31,7 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
     super.initState();
     _isAdmin = widget.userRole == 'admin';
     _userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
-    _tabController = TabController(length: _isAdmin ? 7 : 2, vsync: this);
+    _tabController = TabController(length: _isAdmin ? 6 : 1, vsync: this);
 
     if (_isAdmin) {
       _loadFlaggedCount();
@@ -48,8 +47,8 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
   }
 
   void _onTabChanged() {
-    if (!_tabController.indexIsChanging && _tabController.index == 2) {
-      // Switched to Review Queue tab — reload entries
+    if (!_tabController.indexIsChanging && _tabController.index == 1) {
+      // Switched to Review Queue tab — reload entries (index 1 after Knowledge tab removed)
       _reviewQueueKey.currentState?.reload();
     }
   }
@@ -88,7 +87,6 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
           tabAlignment: TabAlignment.start,
           tabs: [
             const Tab(text: 'Chat'),
-            const Tab(text: 'Knowledge'),
             if (_isAdmin)
               Tab(
                 child: Row(
@@ -155,7 +153,6 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
         controller: _tabController,
         children: [
           const ChatTab(),
-          ManualsTab(isAdmin: _isAdmin),
           if (_isAdmin)
             ReviewQueueTab(
               key: _reviewQueueKey,
