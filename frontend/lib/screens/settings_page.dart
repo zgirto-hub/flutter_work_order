@@ -1077,6 +1077,8 @@ class _AiProviderSectionState extends State<_AiProviderSection> {
   bool _healthLoading = false;
   bool _isHealthy = true;
   String? _healthReason;
+  List<Map<String, String>> _geminiModels = [];
+  String _activeGeminiModel = 'gemini-2.0-flash';
 
   @override
   void initState() {
@@ -1094,10 +1096,50 @@ class _AiProviderSectionState extends State<_AiProviderSection> {
           _loading = false;
         });
         _checkHealth();
+        if (_activeProvider == 'gemini') _loadGeminiModels();
       }
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _loadGeminiModels() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user?.email == null) return;
+    try {
+      final resp = await _service.getGeminiModels(user!.email!);
+      if (mounted) {
+        setState(() {
+          _geminiModels = resp.models;
+          _activeGeminiModel = resp.activeModel;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _setGeminiModel(String modelId) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user?.email == null) return;
+    setState(() => _saving = true);
+    try {
+      await _service.setGeminiModel(modelId, user!.email!);
+      if (mounted) {
+        setState(() {
+          _activeGeminiModel = modelId;
+          _saving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gemini model set to $modelId'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
       }
     }
   }
@@ -1133,6 +1175,7 @@ class _AiProviderSectionState extends State<_AiProviderSection> {
           _activeProvider = key;
           _saving = false;
         });
+        if (key == 'gemini') _loadGeminiModels();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('AI provider set to $key'),
@@ -1269,6 +1312,48 @@ class _AiProviderSectionState extends State<_AiProviderSection> {
                   ),
                 );
               }).toList(),
+            ),
+          ],
+          if (_activeProvider == 'gemini' && _geminiModels.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.bgSurface2,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _activeGeminiModel,
+                  isExpanded: true,
+                  icon: Icon(Icons.expand_more, size: 18, color: AppColors.textSecondary),
+                  style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                  dropdownColor: AppColors.bgSurface,
+                  items: _geminiModels.map((m) {
+                    return DropdownMenuItem<String>(
+                      value: m['id'],
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              m['name'] ?? '',
+                              style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                            ),
+                          ),
+                          Text(
+                            m['free_quota'] ?? '',
+                            style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (v) {
+                    if (v != null && v != _activeGeminiModel) _setGeminiModel(v);
+                  },
+                ),
+              ),
             ),
           ],
         ],

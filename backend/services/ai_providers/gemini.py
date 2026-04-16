@@ -7,6 +7,12 @@ from services.ollama_generator import GeneratorModelError
 logger = logging.getLogger(__name__)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
+GEMINI_MODELS = [
+    {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "free_quota": "1500/day"},
+    {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "free_quota": "20/day"},
+]
+DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
+
 
 class GeminiProvider(AIProvider):
     def __init__(self):
@@ -14,6 +20,16 @@ class GeminiProvider(AIProvider):
         if self._api_key:
             import google.generativeai as genai
             genai.configure(api_key=self._api_key)
+
+    async def _get_model_id(self) -> str:
+        try:
+            from utils.app_settings import get_setting
+            model_id = await get_setting("gemini_model")
+            if model_id and any(m["id"] == model_id for m in GEMINI_MODELS):
+                return model_id
+        except Exception:
+            pass
+        return DEFAULT_GEMINI_MODEL
 
     @property
     def display_name(self) -> str:
@@ -29,7 +45,8 @@ class GeminiProvider(AIProvider):
             raise GeneratorModelError("gemini", "google-generativeai not installed")
 
         try:
-            model = GenerativeModel("gemini-2.5-flash")
+            model_id = await self._get_model_id()
+            model = GenerativeModel(model_id)
             full_prompt = (
                 "You are a technical synthesis expert for civil aviation maintenance.\n"
                 "You have received relevant information from technical manuals below.\n\n"
@@ -62,8 +79,10 @@ class GeminiProvider(AIProvider):
             import asyncio
             from google.generativeai import GenerativeModel
 
+            model_id = await self._get_model_id()
+
             async def _check():
-                model = GenerativeModel("gemini-2.5-flash")
+                model = GenerativeModel(model_id)
                 response = await model.generate_content_async("ping")
                 return response.text
 

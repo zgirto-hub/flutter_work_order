@@ -129,6 +129,69 @@ async def provider_health(admin_email: str = Query(...)):
     return HealthResponse(provider=active_key, healthy=healthy, reason=reason)
 
 
+class GeminiModelInfo(BaseModel):
+    id: str
+    name: str
+    free_quota: str
+
+
+class GeminiModelResponse(BaseModel):
+    models: List[GeminiModelInfo]
+    active_model: str
+
+
+class SetGeminiModelRequest(BaseModel):
+    model: str
+
+
+@router.get("/ai/gemini/models", response_model=GeminiModelResponse)
+async def list_gemini_models(admin_email: str = Query(...)):
+    user_resp = (
+        supabase.table("users").select("user_type").eq("email", admin_email).execute()
+    )
+    if not user_resp.data or user_resp.data[0].get("user_type") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    from services.ai_providers.gemini import GEMINI_MODELS, DEFAULT_GEMINI_MODEL
+
+    active = await get_setting("gemini_model") or DEFAULT_GEMINI_MODEL
+    return GeminiModelResponse(
+        models=[GeminiModelInfo(**m) for m in GEMINI_MODELS],
+        active_model=active,
+    )
+
+
+@router.post("/ai/gemini/model")
+async def set_gemini_model(
+    request: SetGeminiModelRequest,
+    admin_email: str = Query(...),
+):
+    user_resp = (
+        supabase.table("users").select("user_type").eq("email", admin_email).execute()
+    )
+    if not user_resp.data or user_resp.data[0].get("user_type") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    from services.ai_providers.gemini import GEMINI_MODELS
+
+    if not any(m["id"] == request.model for m in GEMINI_MODELS):
+        raise HTTPException(status_code=400, detail=f"Unknown model: {request.model}")
+
+    old = await get_setting("gemini_model") or "gemini-2.0-flash"
+    await set_setting("gemini_model", request.model, admin_email)
+
+    log_activity(
+        admin_email,
+        category="admin",
+        action="gemini_model_changed",
+        target_label=request.model,
+        target_id=old,
+        detail=f"old={old}",
+    )
+
+    return {"active_model": request.model}
+
+
 class SmartPreprocessingResponse(BaseModel):
     enabled: bool
     updated_at: Optional[str] = None

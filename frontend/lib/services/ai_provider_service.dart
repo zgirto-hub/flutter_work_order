@@ -64,6 +64,39 @@ class AiProviderService {
     return data['enabled'] as bool;
   }
 
+  Future<({List<Map<String, String>> models, String activeModel})>
+      getGeminiModels(String userEmail) async {
+    final res = await http.get(
+      Uri.parse(
+          '${AppConfig.baseUrl}/ai/gemini/models?admin_email=${Uri.encodeComponent(userEmail)}'),
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to fetch Gemini models');
+    }
+    final data = jsonDecode(res.body);
+    final models = (data['models'] as List)
+        .map((m) => {
+              'id': m['id'] as String,
+              'name': m['name'] as String,
+              'free_quota': m['free_quota'] as String,
+            })
+        .toList();
+    return (models: models, activeModel: data['active_model'] as String);
+  }
+
+  Future<void> setGeminiModel(String model, String userEmail) async {
+    final res = await http.post(
+      Uri.parse(
+          '${AppConfig.baseUrl}/ai/gemini/model?admin_email=${Uri.encodeComponent(userEmail)}'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'model': model}),
+    );
+    if (res.statusCode != 200) {
+      final data = jsonDecode(res.body);
+      throw Exception(data['detail'] ?? 'Failed to set Gemini model');
+    }
+  }
+
   Future<void> setSmartPreprocessing(bool enabled, String userEmail) async {
     final res = await http.put(
       Uri.parse(
