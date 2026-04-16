@@ -127,12 +127,13 @@ BEGIN
     VALUES (p_id, p_title, p_file_name, p_file_extension, p_file_size_bytes, p_uploaded_by, jsonb_array_length(p_chunks));
 
     FOR v_chunk IN SELECT * FROM jsonb_array_elements(p_chunks) LOOP
-        INSERT INTO manual_chunks (manual_id, chunk_index, source_page, content, embedding)
+        INSERT INTO manual_chunks (manual_id, chunk_index, source_page, content, raw_content, embedding)
         VALUES (
             p_id,
             (v_chunk->>'chunk_index')::int,
             NULLIF(v_chunk->>'source_page', '')::int,
             v_chunk->>'content',
+            v_chunk->>'raw_content',
             (v_chunk->>'embedding')::vector(768)
         );
     END LOOP;

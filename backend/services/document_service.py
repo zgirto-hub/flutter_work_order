@@ -5,17 +5,14 @@ from datetime import datetime, timezone
 import pdfplumber
 from db import supabase
 from services.ollama_embedder import embed_many
+from services.document_preprocessor import preprocess_pages
 
 logger = logging.getLogger(__name__)
 
 
 async def index_document(document_id: str, file_path: str) -> None:
-    """Main pipeline: extract text, create chunks, embed children, update status."""
+    """Main pipeline: extract text, preprocess, create chunks, embed children, update status."""
     try:
-        supabase.table("knowledge_documents").update({"status": "indexing"}).eq(
-            "id", document_id
-        ).execute()
-
         ext = os.path.splitext(file_path)[1].lower()
 
         if ext == ".pdf":
@@ -35,6 +32,28 @@ async def index_document(document_id: str, file_path: str) -> None:
             raise ValueError(f"Unsupported file type: {ext}")
 
         supabase.table("knowledge_documents").update({"total_pages": len(pages)}).eq(
+            "id", document_id
+        ).execute()
+
+        doc_resp = (
+            supabase.table("knowledge_documents")
+            .select("display_name")
+            .eq("id", document_id)
+            .maybe_single()
+            .execute()
+        )
+        document_title = doc_resp.data["display_name"] if doc_resp.data else ""
+
+        supabase.table("knowledge_documents").update({"status": "preprocessing"}).eq(
+            "id", document_id
+        ).execute()
+
+        preprocessed_pages, raw_mapping = await preprocess_pages(
+            pages, document_title=document_title
+        )
+        pages = preprocessed_pages
+
+        supabase.table("knowledge_documents").update({"status": "indexing"}).eq(
             "id", document_id
         ).execute()
 
@@ -68,6 +87,9 @@ async def index_document(document_id: str, file_path: str) -> None:
         for parent in parent_chunks:
             children = _split_into_children(sections[parent["section_index"]])
             for child in children:
+                raw_content = (
+                    raw_mapping.get(child["page_number"]) if raw_mapping else None
+                )
                 child_resp = (
                     supabase.table("document_chunks")
                     .insert(
@@ -78,6 +100,7 @@ async def index_document(document_id: str, file_path: str) -> None:
                             "section_title": child["section_title"],
                             "content": child["content"],
                             "page_number": child["page_number"],
+                            "raw_content": raw_content,
                         }
                     )
                     .execute()
@@ -151,7 +174,9 @@ def _extract_page_title(text: str) -> str:
     return "Untitled"
 
 
-def _detect_sections(pages: list[tuple[int, str]], file_ext: str = ".pdf") -> list[dict]:
+def _detect_sections(
+    pages: list[tuple[int, str]], file_ext: str = ".pdf"
+) -> list[dict]:
     """Detect section boundaries based on file type.
 
     - PDFs: always use page-per-section (vendor PDFs, slides, mixed layouts)
@@ -160,7 +185,9 @@ def _detect_sections(pages: list[tuple[int, str]], file_ext: str = ".pdf") -> li
     # PDFs always use page-per-section — heading detection is unreliable
     # for vendor PDFs, slide decks, and mixed-layout documents.
     if file_ext == ".pdf":
-        logger.info("[chunker] PDF detected — using page-per-section (%d pages)", len(pages))
+        logger.info(
+            "[chunker] PDF detected — using page-per-section (%d pages)", len(pages)
+        )
         return _page_per_section(pages)
 
     # For text-based formats, try heading detection
@@ -180,7 +207,9 @@ def _detect_sections(pages: list[tuple[int, str]], file_ext: str = ".pdf") -> li
     min_headings = max(5, len(pages) // 3)
     logger.info(
         "[chunker] text format=%s, heading_count=%d, threshold=%d",
-        file_ext, heading_count, min_headings,
+        file_ext,
+        heading_count,
+        min_headings,
     )
     if heading_count >= min_headings:
         return _heading_based_sections(pages)
@@ -231,24 +260,26 @@ def _page_per_section(pages: list[tuple[int, str]]) -> list[dict]:
             continue  # skip cover pages, blank pages, title-only slides
 
         title = _extract_page_title(cleaned)
-        sections.append({
-            "title": title,
-            "content": cleaned,
-            "page_number": page_num,
-        })
+        sections.append(
+            {
+                "title": title,
+                "content": cleaned,
+                "page_number": page_num,
+            }
+        )
 
     # If all pages were too short individually but the document has content,
     # combine everything into one section so tiny docs remain searchable.
     if not sections:
-        all_text = "\n".join(
-            _clean_page_text(text) for _, text in pages
-        ).strip()
+        all_text = "\n".join(_clean_page_text(text) for _, text in pages).strip()
         if all_text:
-            sections.append({
-                "title": _extract_page_title(all_text),
-                "content": all_text,
-                "page_number": pages[0][0] if pages else None,
-            })
+            sections.append(
+                {
+                    "title": _extract_page_title(all_text),
+                    "content": all_text,
+                    "page_number": pages[0][0] if pages else None,
+                }
+            )
 
     return sections
 

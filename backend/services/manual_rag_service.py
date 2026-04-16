@@ -12,6 +12,7 @@ from services.manual_chunker import chunk_paragraphs, Chunk
 from services.ollama_embedder import embed_many, embed_single, EmbedderTimeoutError
 from services.manual_storage_service import save, delete as delete_file
 from services.system_registry import detect_system, get_manual_ids_for_system
+from services.document_preprocessor import preprocess_pages
 import services.validated_qa_service as validated_qa_service
 from services.document_search_service import (
     search_document_chunks,
@@ -292,6 +293,24 @@ async def upload_manual(
         file_bytes, file_extension
     )  # raises NoExtractableTextError directly
 
+    pages_for_preprocessing = [
+        (page_num, text) for page_num, text in paragraphs if page_num is not None
+    ]
+    if pages_for_preprocessing:
+        preprocessed_pages, raw_mapping = await preprocess_pages(
+            pages_for_preprocessing, document_title=title
+        )
+        preprocessed_dict = dict(preprocessed_pages)
+        processed_paragraphs = []
+        for page_num, text in paragraphs:
+            if page_num is not None and page_num in preprocessed_dict:
+                processed_paragraphs.append((page_num, preprocessed_dict[page_num]))
+            else:
+                processed_paragraphs.append((page_num, text))
+        paragraphs = processed_paragraphs
+    else:
+        raw_mapping = {}
+
     # Step 2: Chunk with manual_chunker
     chunks: List[Chunk] = chunk_paragraphs(paragraphs)
     if not chunks:
@@ -348,6 +367,9 @@ async def upload_manual(
                 "source_page": chunks[i].source_page,
                 "content": chunks[i].content,
                 "embedding": embeddings[i],
+                "raw_content": raw_mapping.get(chunks[i].source_page)
+                if raw_mapping
+                else None,
             }
             for i in range(len(chunks))
         ]
