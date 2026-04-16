@@ -1077,21 +1077,31 @@ async def ask(
 
     # --- Layer 2: Document chunk search (spec 072) ---
     # Enhanced search with HyDE + per-document retrieval + sub-answers + synthesis.
+    # HyDE + embedding are computed ONCE here and reused by Layer 3 if Layer 2 falls through.
     from services.document_search_service import (
         retrieve_chunks_per_document,
         generate_document_sub_answers,
         synthesize_document_answers,
     )
 
+    _layer2_hyde_text = None
+    _layer2_embedding = None
+
     try:
         # HyDE: generate hypothetical answer for better embedding
-        hyde_text = await _generate_hypothetical_answer(search_query)
-        embed_input = hyde_text if hyde_text else search_query
-        doc_query_embedding = await embed_single(embed_input)
-        embedding_str = "[" + ",".join(str(x) for x in doc_query_embedding) + "]"
+        with _StageTimer(breakdown, "hyde_ms"):
+            _layer2_hyde_text = await _generate_hypothetical_answer(search_query)
+        embed_input = _layer2_hyde_text if _layer2_hyde_text else search_query
+        with _StageTimer(breakdown, "embed_ms"):
+            _layer2_embedding = await embed_single(embed_input)
+        embedding_str = "[" + ",".join(str(x) for x in _layer2_embedding) + "]"
 
         # Per-document retrieval
         chunks_by_doc = await retrieve_chunks_per_document(embedding_str)
+        logger.info(
+            "[document-search] found %d documents with chunks",
+            len(chunks_by_doc) if chunks_by_doc else 0,
+        )
 
         if not chunks_by_doc:
             logger.info(
@@ -1178,7 +1188,8 @@ async def ask(
                 }
             else:
                 logger.info(
-                    "[document-search] not grounded, falling through to manual-chunks"
+                    "[document-search] not grounded (answer=%s), falling through to manual-chunks",
+                    result.get("answer", "")[:100],
                 )
     except Exception as e:
         logger.warning(
@@ -1187,20 +1198,23 @@ async def ask(
 
     # --- End Layer 2 ---
 
-    # HyDE: generate hypothetical answer for better embedding
-    with _StageTimer(breakdown, "hyde_ms"):
-        hyde_text = await _generate_hypothetical_answer(search_query)
-    embed_input = hyde_text if hyde_text else search_query
-
-    # Embed the question
-    with _StageTimer(breakdown, "embed_ms"):
-        try:
-            question_embedding = await embed_single(embed_input)
-        except EmbedderTimeoutError:
-            raise EmbedderUnavailableError()
-
-    # Convert embedding list to string format for PostgREST → pgvector cast.
-    embedding_str = "[" + ",".join(str(x) for x in question_embedding) + "]"
+    # Reuse HyDE + embedding from Layer 2 if available (avoids ~15s double computation).
+    if _layer2_embedding is not None:
+        hyde_text = _layer2_hyde_text
+        question_embedding = _layer2_embedding
+        embedding_str = "[" + ",".join(str(x) for x in question_embedding) + "]"
+        logger.info("[layer3] reusing HyDE + embedding from Layer 2")
+    else:
+        # Fallback: compute fresh (only if Layer 2 crashed before embedding)
+        with _StageTimer(breakdown, "hyde_ms"):
+            hyde_text = await _generate_hypothetical_answer(search_query)
+        embed_input = hyde_text if hyde_text else search_query
+        with _StageTimer(breakdown, "embed_ms"):
+            try:
+                question_embedding = await embed_single(embed_input)
+            except EmbedderTimeoutError:
+                raise EmbedderUnavailableError()
+        embedding_str = "[" + ",".join(str(x) for x in question_embedding) + "]"
 
     # --- Compression logic (spec 045) — shared by both paths ---
     memory: str | None = None
