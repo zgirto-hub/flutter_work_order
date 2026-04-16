@@ -9,10 +9,14 @@ from typing import List, Optional
 from db import supabase
 from services.manual_parser import parse, NoExtractableTextError
 from services.manual_chunker import chunk_paragraphs, Chunk
-from services.ollama_embedder import embed_many, EmbedderTimeoutError
+from services.ollama_embedder import embed_many, embed_single, EmbedderTimeoutError
 from services.manual_storage_service import save, delete as delete_file
 from services.system_registry import detect_system, get_manual_ids_for_system
 import services.validated_qa_service as validated_qa_service
+from services.document_search_service import (
+    search_document_chunks,
+    fetch_parent_context,
+)
 from pydantic import BaseModel, Field
 from typing import Optional as TypingOptional
 
@@ -91,6 +95,21 @@ VALIDATED_QA_SYSTEM_PROMPT = (
     "- Never guess, infer, or make up technical specifications, procedures, or values.\n"
     "- Be concise and direct. Use bullet points for procedures.\n"
     '- Always refer to the source when answering (e.g. "According to source 1...").\n'
+    "- If multiple sources are relevant, synthesize them into one clear answer."
+)
+
+# --- System prompt for document-sourced RAG (spec 070) ---
+DOCUMENT_QA_SYSTEM_PROMPT = (
+    "You are a technical assistant for a civil aviation maintenance management system (CMMS).\n\n"
+    "Your job is to answer maintenance and operations questions using ONLY the context provided below.\n"
+    "The context comes from uploaded technical manuals.\n\n"
+    "Rules:\n"
+    "- Answer ONLY from the provided context. Do not use outside knowledge.\n"
+    "- If the answer is not clearly stated in the context, respond with exactly: "
+    '"I don\'t have that information in the knowledge base."\n'
+    "- Never guess, infer, or make up technical specifications, procedures, or values.\n"
+    "- Be concise and direct. Use bullet points for procedures.\n"
+    '- Always cite the document source (e.g. "According to CADAS ATS Manual, Section 4.2...").\n'
     "- If multiple sources are relevant, synthesize them into one clear answer."
 )
 
@@ -857,7 +876,9 @@ async def ask(
                 )
                 gen_elapsed = _time.monotonic() - gen_start
 
-                vqa_provider_display_name = vqa_provider_display_name or "Local (Ollama)"
+                vqa_provider_display_name = (
+                    vqa_provider_display_name or "Local (Ollama)"
+                )
 
                 # Build enriched response
                 if max_score >= RAG_HIGH_CONFIDENCE:
@@ -899,6 +920,7 @@ async def ask(
                     "fallback_used": vqa_fallback_used,
                     "session_summary": None,
                     "latency_breakdown": breakdown,
+                    "source_type": "validated_qa",
                 }
             else:
                 # Below threshold - continue to post-rewrite check
@@ -984,7 +1006,9 @@ async def ask(
                 )
                 gen_elapsed = _time.monotonic() - gen_start
 
-                vqa_provider_display_name = vqa_provider_display_name or "Local (Ollama)"
+                vqa_provider_display_name = (
+                    vqa_provider_display_name or "Local (Ollama)"
+                )
 
                 # Build enriched response
                 if max_score >= RAG_HIGH_CONFIDENCE:
@@ -1035,6 +1059,7 @@ async def ask(
                     "fallback_used": vqa_fallback_used,
                     "session_summary": None,
                     "latency_breakdown": breakdown,
+                    "source_type": "validated_qa",
                 }
             else:
                 # Below threshold - let flow continue to manual-chunks pipeline
@@ -1049,6 +1074,132 @@ async def ask(
         logger.warning(
             "Validated QA check failed, falling back to normal pipeline: %s", e
         )
+
+    # --- Layer 2: Document chunk search (spec 070) ---
+    # Search uploaded document chunks BEFORE falling through to the manual-chunks pipeline.
+    # Embed the search_query directly (no HyDE — that's for manual-chunks).
+    import time as _time
+
+    try:
+        _doc_embed_start = _time.perf_counter()
+        doc_query_embedding = await embed_single(search_query)
+        _doc_embed_elapsed = _time.perf_counter() - _doc_embed_start
+
+        doc_matches = await search_document_chunks(doc_query_embedding, limit=3)
+
+        if doc_matches:
+            doc_max_score = max(m["similarity"] for m in doc_matches)
+            logger.info(
+                "[document-search] max_similarity=%.2f threshold=%.2f",
+                doc_max_score,
+                RAG_CONFIDENCE_THRESHOLD,
+            )
+
+            if doc_max_score >= RAG_CONFIDENCE_THRESHOLD:
+                # Fetch full parent section content for each matched child
+                enriched_matches = await fetch_parent_context(doc_matches)
+
+                # Build document context for LLM
+                context_parts = []
+                for i, m in enumerate(enriched_matches):
+                    part = f"[Document Source {i + 1}]\n"
+                    part += f"Document: {m['display_name']}\n"
+                    if m.get("section_title"):
+                        part += f"Section: {m['section_title']}\n"
+                    if m.get("page_number"):
+                        part += f"Page: {m['page_number']}\n"
+                    part += f"\n{m.get('parent_content', m['content'])}"
+                    context_parts.append(part)
+                combined_context = "\n\n".join(context_parts)
+
+                # Build prompt with document system prompt
+                prompt = (
+                    f"{DOCUMENT_QA_SYSTEM_PROMPT}\n\n"
+                    f"CONTEXT:\n{combined_context}\n\n"
+                    f"QUESTION: {search_query}\n\nANSWER:"
+                )
+
+                # Call LLM
+                from services.ai_providers.resolver import generate as provider_generate
+
+                gen_start = _time.perf_counter()
+                (
+                    answer,
+                    doc_provider_used,
+                    doc_provider_display_name,
+                    doc_fallback_used,
+                    doc_fallback_info,
+                ) = await provider_generate(
+                    prompt, [], user_email, latency_breakdown=breakdown
+                )
+                gen_elapsed = _time.perf_counter() - gen_start
+
+                doc_provider_display_name = (
+                    doc_provider_display_name or "Local (Ollama)"
+                )
+
+                # Build confidence band
+                if doc_max_score >= RAG_HIGH_CONFIDENCE:
+                    confidence = "high"
+                elif doc_max_score >= RAG_CONFIDENCE_THRESHOLD:
+                    confidence = "medium"
+                else:
+                    confidence = "low"
+
+                # Build document sources array
+                sources = [
+                    {
+                        "type": "document",
+                        "document_id": m["document_id"],
+                        "display_name": m["display_name"],
+                        "section_title": m.get("section_title", ""),
+                        "page_number": m.get("page_number"),
+                        "score": m["similarity"],
+                    }
+                    for m in enriched_matches
+                ]
+
+                logger.info(
+                    "document_chunk hit",
+                    extra={
+                        "document_id": enriched_matches[0]["document_id"],
+                        "section": enriched_matches[0].get("section_title"),
+                        "max_similarity": doc_max_score,
+                    },
+                )
+
+                return {
+                    "answer": answer,
+                    "grounded": True,
+                    "sources": sources,
+                    "confidence": confidence,
+                    "score": doc_max_score,
+                    "source_type": "document",
+                    "model": doc_provider_display_name,
+                    "provider_display_name": doc_provider_display_name,
+                    "duration_seconds": round(gen_elapsed, 1),
+                    "is_verified": False,
+                    "verified_source": None,
+                    "retrieval_info": retrieval_info,
+                    "provider_used": doc_provider_used,
+                    "fallback_used": doc_fallback_used,
+                    "session_summary": None,
+                    "latency_breakdown": breakdown,
+                }
+            else:
+                logger.info(
+                    "[document-search] below threshold (%.2f < %.2f), falling through to manual-chunks",
+                    doc_max_score,
+                    RAG_CONFIDENCE_THRESHOLD,
+                )
+        else:
+            logger.info("[document-search] no matches found")
+    except Exception as e:
+        logger.warning(
+            "Document chunk search failed, falling through to manual-chunks: %s", e
+        )
+
+    # --- End Layer 2 ---
 
     # HyDE: generate hypothetical answer for better embedding
     with _StageTimer(breakdown, "hyde_ms"):

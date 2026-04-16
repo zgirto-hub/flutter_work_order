@@ -8,6 +8,87 @@ class SourceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (source.type == 'document') {
+      return _buildDocumentSource(context);
+    }
+    return _buildManualSource(context);
+  }
+
+  Widget _buildDocumentSource(BuildContext context) {
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: Colors.blue.shade200),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.description, size: 16, color: Colors.blue.shade700),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    source.displayName ?? source.manualTitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                ),
+                if (source.score != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color:
+                          _getScoreColor(source.score!).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${(source.score! * 100).toInt()}%',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: _getScoreColor(source.score!),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            if (source.sectionTitle != null &&
+                source.sectionTitle!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                source.sectionTitle!,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              ),
+            ],
+            if (source.pageNumber != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.book, size: 12, color: Colors.grey.shade500),
+                  const SizedBox(width: 2),
+                  Text(
+                    'Page ${source.pageNumber}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildManualSource(BuildContext context) {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -74,5 +155,11 @@ class SourceCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Color _getScoreColor(double score) {
+    if (score >= 0.85) return Colors.green;
+    if (score >= 0.70) return Colors.orange;
+    return Colors.red;
   }
 }
