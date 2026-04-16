@@ -118,15 +118,70 @@ async def index_document(document_id: str, file_path: str) -> None:
         ).eq("id", document_id).execute()
 
 
+# Footer patterns to strip from all pages (vendor PDFs, slide decks)
+_FOOTER_PATTERNS = [
+    re.compile(r"©.*(?:Frequentis|Comsoft|GmbH).*", re.IGNORECASE),
+    re.compile(r"^\d+\s*\|\s*\w+.*(?:Frequentis|General)", re.IGNORECASE),
+    re.compile(r"^Frequentis\s+General\s*\|", re.IGNORECASE),
+    re.compile(r"^\d+\s*$"),  # bare page numbers
+]
+
+
+def _clean_page_text(text: str) -> str:
+    """Remove footer lines, copyright notices, and bare page numbers."""
+    lines = text.split("\n")
+    cleaned = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            cleaned.append("")
+            continue
+        if any(p.search(stripped) for p in _FOOTER_PATTERNS):
+            continue
+        cleaned.append(line)
+    return "\n".join(cleaned).strip()
+
+
+def _extract_page_title(text: str) -> str:
+    """Extract the first meaningful line as page/slide title."""
+    for line in text.split("\n"):
+        stripped = line.strip()
+        if stripped and len(stripped) > 3 and len(stripped) < 200:
+            return stripped
+    return "Untitled"
+
+
 def _detect_sections(pages: list[tuple[int, str]]) -> list[dict]:
-    """Detect section boundaries across pages."""
+    """Detect section boundaries. Tries heading detection first, falls back to page-per-section."""
+
+    # First pass: check if the document has structured headings
+    heading_count = 0
+    for _, page_text in pages:
+        for line in page_text.split("\n"):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if re.match(r"^(\d+\.)+\d*\s+\S", stripped):
+                heading_count += 1
+            elif re.match(r"^(Chapter|Section)\s+\d+", stripped, re.IGNORECASE):
+                heading_count += 1
+
+    # If enough structured headings found (>= 5), use heading-based detection
+    if heading_count >= 5:
+        return _heading_based_sections(pages)
+
+    # Otherwise use page-per-section (best for slides, presentations, vendor PDFs)
+    return _page_per_section(pages)
+
+
+def _heading_based_sections(pages: list[tuple[int, str]]) -> list[dict]:
+    """Split by detected headings (for structured documents with numbered sections)."""
     sections = []
     current_section = {"title": "Introduction", "content": "", "page_number": 1}
-    has_heading = False
 
     for page_num, page_text in pages:
-        lines = page_text.split("\n")
-        for line in lines:
+        cleaned = _clean_page_text(page_text)
+        for line in cleaned.split("\n"):
             stripped = line.strip()
             if not stripped:
                 continue
@@ -136,67 +191,37 @@ def _detect_sections(pages: list[tuple[int, str]]) -> list[dict]:
                 is_heading = True
             elif re.match(r"^(Chapter|Section)\s+\d+", stripped, re.IGNORECASE):
                 is_heading = True
-            elif (
-                stripped == stripped.upper()
-                and len(stripped) < 80
-                and len(stripped) > 3
-            ):
-                is_heading = True
-            elif stripped.endswith(":") and len(stripped) < 60:
-                is_heading = True
 
-            if is_heading and current_section["content"]:
+            if is_heading and current_section["content"].strip():
                 sections.append(current_section)
                 current_section = {
                     "title": stripped,
                     "content": "",
                     "page_number": page_num,
                 }
-                has_heading = True
             else:
                 current_section["content"] += line + "\n"
 
-    if current_section["content"]:
+    if current_section["content"].strip():
         sections.append(current_section)
 
-    if not has_heading:
-        return _fixed_size_chunking(pages)
-
-    return sections
+    return sections if sections else _page_per_section(pages)
 
 
-def _fixed_size_chunking(pages: list[tuple[int, str]]) -> list[dict]:
-    """Fallback: split text into fixed-size chunks when no headings detected."""
-    full_text = "\n\n".join(text for _, text in pages)
-
-    chunk_size = 2000
-    overlap = 500
+def _page_per_section(pages: list[tuple[int, str]]) -> list[dict]:
+    """Each page becomes one section. Best for slide decks and vendor PDFs."""
     sections = []
-    offset = 0
-    page_offset = 0
+    for page_num, page_text in pages:
+        cleaned = _clean_page_text(page_text)
+        if len(cleaned) < 50:
+            continue  # skip cover pages, blank pages, title-only slides
 
-    for i, (page_num, _) in enumerate(pages):
-        if i > 0:
-            page_offset += len(pages[i - 1][1])
-
-    while offset < len(full_text):
-        chunk = full_text[offset : offset + chunk_size]
-        estimated_page = 1
-        char_count = 0
-        for i, (page_num, text) in enumerate(pages):
-            char_count += len(text)
-            if char_count > offset:
-                estimated_page = page_num
-                break
-
-        sections.append(
-            {
-                "title": f"Section {len(sections) + 1}",
-                "content": chunk,
-                "page_number": estimated_page,
-            }
-        )
-        offset += chunk_size - overlap
+        title = _extract_page_title(cleaned)
+        sections.append({
+            "title": title,
+            "content": cleaned,
+            "page_number": page_num,
+        })
 
     return sections
 
