@@ -166,8 +166,15 @@ def _detect_sections(pages: list[tuple[int, str]]) -> list[dict]:
             elif re.match(r"^(Chapter|Section)\s+\d+", stripped, re.IGNORECASE):
                 heading_count += 1
 
-    # If enough structured headings found (>= 5), use heading-based detection
-    if heading_count >= 5:
+    # If enough structured headings found relative to page count, use heading-based detection.
+    # Threshold: at least 1 heading per 5 pages (a 70-page doc needs 14+ headings).
+    # This prevents slide decks with a few numbered items from triggering heading mode.
+    min_headings = max(10, len(pages) // 5)
+    logger.info(
+        "[chunker] heading_count=%d, pages=%d, threshold=%d",
+        heading_count, len(pages), min_headings,
+    )
+    if heading_count >= min_headings:
         return _heading_based_sections(pages)
 
     # Otherwise use page-per-section (best for slides, presentations, vendor PDFs)
