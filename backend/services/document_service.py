@@ -234,20 +234,42 @@ def _page_per_section(pages: list[tuple[int, str]]) -> list[dict]:
 
 
 def _split_into_children(section: dict) -> list[dict]:
-    """Split section content into child chunks on double newlines."""
-    paragraphs = section["content"].split("\n\n")
-    children = []
-    for para in paragraphs:
-        para = para.strip()
-        if len(para) >= 50:
-            children.append(
-                {
-                    "content": para,
-                    "section_title": section["title"],
-                    "page_number": section["page_number"],
-                }
-            )
-    return children
+    """Split section content into child chunks.
+
+    Strategy:
+    - Try splitting on double newlines first (structured documents).
+    - If that produces < 2 chunks, the content likely uses single newlines
+      (slide decks, bullet lists). In that case, treat the entire section
+      as one child chunk — the parent already represents the page.
+    """
+    content = section["content"].strip()
+    if not content or len(content) < 50:
+        return []
+
+    # Try double-newline split first
+    paragraphs = content.split("\n\n")
+    children = [p.strip() for p in paragraphs if len(p.strip()) >= 50]
+
+    if len(children) >= 2:
+        # Structured document: multiple paragraphs per section
+        return [
+            {
+                "content": c,
+                "section_title": section["title"],
+                "page_number": section["page_number"],
+            }
+            for c in children
+        ]
+
+    # Slide/bullet content: treat the whole section as one child chunk.
+    # This ensures every page with content gets at least one searchable child.
+    return [
+        {
+            "content": content,
+            "section_title": section["title"],
+            "page_number": section["page_number"],
+        }
+    ]
 
 
 async def reindex_document(document_id: str) -> None:
