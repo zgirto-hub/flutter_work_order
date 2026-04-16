@@ -113,7 +113,7 @@ async def retrieve_chunks_per_document(
     return qualified_docs
 
 
-async def build_direct_generation_prompt(
+async def search_document_chunks(
     query_embedding: list[float], limit: int = 3
 ) -> list[dict]:
     """Search document chunks using vector similarity."""
@@ -159,7 +159,7 @@ async def build_direct_generation_prompt(
     return results
 
 
-async def build_direct_generation_prompt(
+def build_direct_generation_prompt(
     chunks_by_document: dict[str, list[dict]],
     question: str,
     system_prompt: str,
