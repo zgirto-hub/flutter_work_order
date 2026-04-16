@@ -38,7 +38,7 @@ async def index_document(document_id: str, file_path: str) -> None:
             "id", document_id
         ).execute()
 
-        sections = _detect_sections(pages)
+        sections = _detect_sections(pages, file_ext=ext)
 
         parent_chunks = []
         for i, section in enumerate(sections):
@@ -151,10 +151,19 @@ def _extract_page_title(text: str) -> str:
     return "Untitled"
 
 
-def _detect_sections(pages: list[tuple[int, str]]) -> list[dict]:
-    """Detect section boundaries. Tries heading detection first, falls back to page-per-section."""
+def _detect_sections(pages: list[tuple[int, str]], file_ext: str = ".pdf") -> list[dict]:
+    """Detect section boundaries based on file type.
 
-    # First pass: check if the document has structured headings
+    - PDFs: always use page-per-section (vendor PDFs, slides, mixed layouts)
+    - TXT/MD/DOCX: try heading detection first, fall back to page-per-section
+    """
+    # PDFs always use page-per-section — heading detection is unreliable
+    # for vendor PDFs, slide decks, and mixed-layout documents.
+    if file_ext == ".pdf":
+        logger.info("[chunker] PDF detected — using page-per-section (%d pages)", len(pages))
+        return _page_per_section(pages)
+
+    # For text-based formats, try heading detection
     heading_count = 0
     for _, page_text in pages:
         for line in page_text.split("\n"):
@@ -165,19 +174,17 @@ def _detect_sections(pages: list[tuple[int, str]]) -> list[dict]:
                 heading_count += 1
             elif re.match(r"^(Chapter|Section)\s+\d+", stripped, re.IGNORECASE):
                 heading_count += 1
+            elif re.match(r"^#{1,4}\s+\S", stripped):  # Markdown headings
+                heading_count += 1
 
-    # If enough structured headings found relative to page count, use heading-based detection.
-    # Threshold: at least 1 heading per 5 pages (a 70-page doc needs 14+ headings).
-    # This prevents slide decks with a few numbered items from triggering heading mode.
-    min_headings = max(10, len(pages) // 5)
+    min_headings = max(5, len(pages) // 3)
     logger.info(
-        "[chunker] heading_count=%d, pages=%d, threshold=%d",
-        heading_count, len(pages), min_headings,
+        "[chunker] text format=%s, heading_count=%d, threshold=%d",
+        file_ext, heading_count, min_headings,
     )
     if heading_count >= min_headings:
         return _heading_based_sections(pages)
 
-    # Otherwise use page-per-section (best for slides, presentations, vendor PDFs)
     return _page_per_section(pages)
 
 
