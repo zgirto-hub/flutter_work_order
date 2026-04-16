@@ -237,6 +237,19 @@ def _page_per_section(pages: list[tuple[int, str]]) -> list[dict]:
             "page_number": page_num,
         })
 
+    # If all pages were too short individually but the document has content,
+    # combine everything into one section so tiny docs remain searchable.
+    if not sections:
+        all_text = "\n".join(
+            _clean_page_text(text) for _, text in pages
+        ).strip()
+        if all_text:
+            sections.append({
+                "title": _extract_page_title(all_text),
+                "content": all_text,
+                "page_number": pages[0][0] if pages else None,
+            })
+
     return sections
 
 
@@ -250,8 +263,19 @@ def _split_into_children(section: dict) -> list[dict]:
       as one child chunk — the parent already represents the page.
     """
     content = section["content"].strip()
-    if not content or len(content) < 50:
+    if not content:
         return []
+
+    # Short content (< 50 chars) is still valuable for tiny documents
+    # (e.g. password notes, single-line procedures). Always produce a child.
+    if len(content) < 50:
+        return [
+            {
+                "content": content,
+                "section_title": section["title"],
+                "page_number": section["page_number"],
+            }
+        ]
 
     # Try double-newline split first
     paragraphs = content.split("\n\n")
