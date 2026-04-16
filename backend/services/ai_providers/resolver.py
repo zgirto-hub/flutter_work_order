@@ -50,6 +50,12 @@ async def generate(
     user_email: str | None = None,
     latency_breakdown: dict | None = None,
 ) -> Tuple[str, str, str, bool, dict | None]:
+    # spec-065 contract: returns (answer, provider_key, display_name, fallback_used, fallback_info).
+    # When fallback_used is True, fallback_info is a non-null dict that the CALLER must
+    # propagate up and the outermost handler (currently backend/routers/manuals.py
+    # /manuals/ask) must consume to write exactly one user_activity_log row with
+    # action="ai_provider_fallback". Dropping fallback_info on the floor silently loses
+    # the audit row. Any new call site must thread it through unchanged.
     active_key = await get_active_provider_key()
     active = _resolve_provider(active_key)
     active_display = active.display_name

@@ -128,8 +128,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
         _messages.add(ChatMessage(question: question, answer: answer));
         _loading = false;
         _lastResponseProviderDisplayName = answer.providerDisplayName;
-        _fallbackUsed =
-            answer.providerUsed == 'local' && (answer.fallbackUsed == true);
+        _fallbackUsed = answer.fallbackUsed == true;
       });
     } on ManualAskException catch (e) {
       setState(() {

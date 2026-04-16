@@ -471,8 +471,8 @@ async def ask_question(request: AskRequest):
                 fallback_info.get("user_email", request.user_email),
                 category="admin",
                 action="ai_provider_fallback",
-                target_label=fallback_info.get("failed_provider", "local"),
-                target_id=fallback_info.get("fallback_provider", "local"),
+                target_label=fallback_info.get("failed_provider", "unknown"),
+                target_id=fallback_info.get("fallback_provider", "unknown"),
                 detail=fallback_info.get("detail", "unknown"),
             )
         except Exception:
