@@ -1,4 +1,5 @@
 import fitz
+import pymupdf4llm
 from docx import Document
 from io import BytesIO
 from typing import List, Tuple
@@ -24,12 +25,13 @@ def parse_pdf(file_bytes: bytes) -> List[Tuple[int | None, str]]:
 
     with fitz.open(stream=file_bytes, filetype="pdf") as doc:
         total_chars = 0
-        for page_num, page in enumerate(doc, start=1):
-            text = page.get_text("text")
-            text = text.strip()
-            if text:
-                total_chars += len(text)
-                paragraphs.append((page_num, text))
+        for page_num in range(len(doc)):
+            md_text = pymupdf4llm.to_markdown(
+                doc, pages=[page_num], show_progress=False
+            ).strip()
+            if md_text:
+                total_chars += len(md_text)
+                paragraphs.append((page_num + 1, md_text))
 
     if total_chars < 20:
         raise NoExtractableTextError("The PDF contains no extractable text.")

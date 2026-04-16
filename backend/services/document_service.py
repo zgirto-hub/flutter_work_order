@@ -2,7 +2,8 @@ import logging
 import os
 import re
 from datetime import datetime, timezone
-import pdfplumber
+import pymupdf4llm
+import pymupdf
 from db import supabase
 from services.ollama_embedder import embed_many
 from services.document_preprocessor import preprocess_pages
@@ -16,12 +17,15 @@ async def index_document(document_id: str, file_path: str) -> None:
         ext = os.path.splitext(file_path)[1].lower()
 
         if ext == ".pdf":
-            with pdfplumber.open(file_path) as pdf:
-                pages = []
-                for page in pdf.pages:
-                    text = page.extract_text()
-                    if text:
-                        pages.append((page.page_number, text))
+            doc = pymupdf.open(file_path)
+            pages = []
+            for page_num in range(len(doc)):
+                md_text = pymupdf4llm.to_markdown(
+                    doc, pages=[page_num], show_progress=False
+                ).strip()
+                if md_text:
+                    pages.append((page_num + 1, md_text))
+            doc.close()
         elif ext in (".docx", ".txt", ".md"):
             from services.manual_parser import parse
 
