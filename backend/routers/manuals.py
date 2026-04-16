@@ -23,6 +23,7 @@ import services.agentic_tools as agentic_tools
 import services.validated_qa_service as validated_qa_service
 from services.ollama_embedder import embed_single, embed_many, EmbedderTimeoutError
 from services.ai_providers.resolver import generate as provider_generate
+from services.contextual_prefix import apply_contextual_prefix
 from prompts.paraphrase_prompt import (
     PARAPHRASE_PROMPT_TEMPLATE,
     parse_paraphrase_output,
@@ -30,6 +31,15 @@ from prompts.paraphrase_prompt import (
 import logging
 
 router = APIRouter(tags=["manuals"])
+
+logger = logging.getLogger(__name__)
+
+
+def _get_manual_title(manual_id: str) -> str:
+    """Fetch title for contextual embedding prefix."""
+    resp = supabase.table("manuals").select("title").eq("id", manual_id).maybe_single().execute()
+    return resp.data.get("title", "") if resp.data else ""
+
 
 ALLOWED_MIME_TYPES = {
     "application/pdf": "pdf",
@@ -921,6 +931,18 @@ async def re_embed_all(
 ):
     _admin_check(user_email)
 
+    manual_resp = (
+        supabase.table("manuals")
+        .select("title")
+        .eq("id", manual_id)
+        .maybe_single()
+        .execute()
+    )
+    if not manual_resp.data:
+        raise HTTPException(status_code=404, detail="Manual not found")
+
+    title = manual_resp.data["title"]
+
     count_resp = (
         supabase.table("manual_chunks")
         .select("id", count="exact")
@@ -929,7 +951,7 @@ async def re_embed_all(
     )
     count = count_resp.count or 0
 
-    async def re_embed_worker(mid: str):
+    async def re_embed_worker(mid: str, manual_title: str):
         chunks = (
             supabase.table("manual_chunks")
             .select("id, content")
@@ -939,18 +961,29 @@ async def re_embed_all(
         )
         for chunk in chunks.data:
             try:
-                embedding = await embed_single(chunk["content"])
+                prefixed = apply_contextual_prefix(
+                    content=chunk["content"], doc_title=manual_title
+                )
+                embedding = await embed_single(prefixed)
                 embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
                 supabase.table("manual_chunks").update({"embedding": embedding_str}).eq(
                     "id", chunk["id"]
                 ).execute()
-            except EmbedderTimeoutError:
-                pass
+            except Exception as e:
+                logger.warning("Re-embed failed for manual chunk %s: %s", chunk["id"], e)
 
     if background_tasks:
-        background_tasks.add_task(re_embed_worker, manual_id)
+        background_tasks.add_task(re_embed_worker, manual_id, title)
     else:
-        await re_embed_worker(manual_id)
+        await re_embed_worker(manual_id, title)
+
+    log_activity(
+        user_email,
+        "admin",
+        "manual_re_embedded",
+        target_label=title,
+        target_id=manual_id,
+    )
 
     return {"status": "started", "chunk_count": count}
 
@@ -1044,7 +1077,9 @@ async def add_chunk(manual_id: str, request: AddChunkRequest):
         raise HTTPException(status_code=400, detail={"error": "content_required"})
 
     try:
-        embedding = await embed_single(request.content)
+        title = _get_manual_title(manual_id)
+        prefixed = apply_contextual_prefix(request.content, title)
+        embedding = await embed_single(prefixed)
         embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
     except EmbedderTimeoutError:
         raise HTTPException(
@@ -1158,7 +1193,9 @@ async def update_chunk(manual_id: str, chunk_id: str, request: UpdateChunkReques
         raise HTTPException(status_code=400, detail={"error": "content_required"})
 
     try:
-        embedding = await embed_single(request.content)
+        title = _get_manual_title(manual_id)
+        prefixed = apply_contextual_prefix(request.content, title)
+        embedding = await embed_single(prefixed)
         embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
     except EmbedderTimeoutError:
         embedding_str = None
@@ -1256,7 +1293,10 @@ async def split_chunk(manual_id: str, chunk_id: str, request: SplitChunkRequest)
         )
 
     try:
-        embeddings = await embed_many([part_a, part_b])
+        title = _get_manual_title(manual_id)
+        prefixed_a = apply_contextual_prefix(part_a, title)
+        prefixed_b = apply_contextual_prefix(part_b, title)
+        embeddings = await embed_many([prefixed_a, prefixed_b])
         emb_a = "[" + ",".join(str(x) for x in embeddings[0]) + "]"
         emb_b = "[" + ",".join(str(x) for x in embeddings[1]) + "]"
     except EmbedderTimeoutError:
@@ -1384,7 +1424,9 @@ async def merge_chunk(manual_id: str, chunk_id: str, request: MergeChunkRequest)
     combined = chunk["content"] + "\n\n" + next_chunk["content"]
 
     try:
-        embedding = await embed_single(combined)
+        title = _get_manual_title(manual_id)
+        prefixed = apply_contextual_prefix(combined, title)
+        embedding = await embed_single(prefixed)
         embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
     except EmbedderTimeoutError:
         embedding_str = None

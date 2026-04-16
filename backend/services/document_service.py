@@ -7,6 +7,7 @@ import pymupdf
 from db import supabase
 from services.ollama_embedder import embed_many
 from services.document_preprocessor import preprocess_pages
+from services.contextual_prefix import apply_contextual_prefix
 
 logger = logging.getLogger(__name__)
 
@@ -116,11 +117,25 @@ async def index_document(document_id: str, file_path: str) -> None:
                     {
                         "id": child_resp.data[0]["id"],
                         "content": child["content"],
+                        "section_title": child["section_title"],
                     }
                 )
 
-        texts_to_embed = [c["content"] for c in child_chunks]
+        texts_to_embed = [
+            apply_contextual_prefix(
+                content=c["content"],
+                doc_title=document_title,
+                section_title=c["section_title"],
+            )
+            for c in child_chunks
+        ]
         embeddings = await embed_many(texts_to_embed)
+
+        logger.info(
+            "Embedding %d chunks with contextual prefix for document '%s'",
+            len(texts_to_embed),
+            document_title,
+        )
 
         for child_chunk, embedding in zip(child_chunks, embeddings):
             embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
