@@ -22,6 +22,12 @@ import services.manual_rag_service as manual_rag_service
 import services.agentic_tools as agentic_tools
 import services.validated_qa_service as validated_qa_service
 from services.ollama_embedder import embed_single, embed_many, EmbedderTimeoutError
+from services.ai_providers.resolver import generate as provider_generate
+from prompts.paraphrase_prompt import (
+    PARAPHRASE_PROMPT_TEMPLATE,
+    parse_paraphrase_output,
+)
+import logging
 
 router = APIRouter(tags=["manuals"])
 
@@ -602,6 +608,110 @@ async def review_answer(request: ReviewAnswerRequest):
         }
     except ValueError as e:
         raise HTTPException(status_code=404, detail={"error": str(e)})
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail={"error": "review_failed", "message": str(e)}
+        )
+
+
+class ParaphraseVariantsRequest(BaseModel):
+    question_text: str
+    rating_id: Optional[str] = None
+
+
+@router.post("/manuals/paraphrase-variants")
+async def generate_paraphrase_variants(
+    request: ParaphraseVariantsRequest,
+    user_email: str = Query(...),
+):
+    try:
+        _admin_check(user_email)
+    except Exception:
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+
+    stripped_question = request.question_text.strip() if request.question_text else ""
+    if not stripped_question or len(stripped_question) > 500:
+        raise HTTPException(
+            status_code=400, detail={"error": "question_text must be 1-500 chars"}
+        )
+
+    prompt = PARAPHRASE_PROMPT_TEMPLATE.format(q=request.question_text)
+
+    try:
+        (
+            answer_text,
+            provider_key,
+            display_name,
+            fallback_used,
+            fallback_info,
+        ) = await provider_generate(prompt, [])
+        variants = parse_paraphrase_output(answer_text, request.question_text)
+        return {"variants": variants}
+    except Exception as e:
+        logging.warning(f"Paraphrase generation failed: {e}")
+        return {"variants": []}
+
+
+class ReviewAnswerWithVariantsRequest(BaseModel):
+    rating_id: str
+    action: str
+    corrected_answer: Optional[str] = None
+    existing_validated_qa_id: Optional[str] = None
+    variants: List[str]
+
+
+@router.post("/manuals/review-answer-with-variants")
+async def review_answer_with_variants(
+    request: ReviewAnswerWithVariantsRequest,
+    user_email: str = Query(...),
+):
+    try:
+        _admin_check(user_email)
+    except Exception:
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+
+    if request.action not in ("approve", "correct", "retro_expand"):
+        raise HTTPException(status_code=400, detail={"error": "invalid_action"})
+
+    if request.action == "correct" and not request.corrected_answer:
+        raise HTTPException(
+            status_code=400, detail={"error": "corrected_answer_required"}
+        )
+
+    if request.action == "retro_expand" and not request.existing_validated_qa_id:
+        raise HTTPException(
+            status_code=400, detail={"error": "existing_validated_qa_id_required"}
+        )
+
+    # Validate variants: trim, drop whitespace-only
+    cleaned_variants = [v.strip() for v in request.variants if v.strip()]
+    if not cleaned_variants:
+        raise HTTPException(status_code=400, detail={"error": "no_valid_variants"})
+
+    if len(cleaned_variants) > 10:
+        raise HTTPException(status_code=400, detail={"error": "max_10_variants"})
+
+    # Validate each variant length
+    for v in cleaned_variants:
+        if len(v) > 500:
+            raise HTTPException(
+                status_code=400, detail={"error": "variant_exceeds_500_chars"}
+            )
+
+    try:
+        result = await validated_qa_service.review_answer_multi(
+            rating_id=request.rating_id,
+            action=request.action,
+            corrected_answer=request.corrected_answer,
+            reviewer_email=user_email,
+            variant_texts=cleaned_variants,
+            existing_validated_qa_id=request.existing_validated_qa_id,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail={"error": str(e)})
+    except EmbedderTimeoutError:
+        raise HTTPException(status_code=500, detail={"error": "embedding_timeout"})
     except Exception as e:
         raise HTTPException(
             status_code=500, detail={"error": "review_failed", "message": str(e)}

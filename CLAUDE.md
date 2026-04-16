@@ -1,6 +1,6 @@
 ﻿# flutter_work_order Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-15
+Auto-generated from all feature plans. Last updated: 2026-04-16
 
 ## Active Technologies
 - Dart 3.x / Flutter 3.x + `pdf` ^3.10.7 (existing), `printing` ^5.12.0 (existing), `htmltopdfwidgets` (NEW) (002-use-html-css)
@@ -89,6 +89,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-15
 - Supabase (PostgreSQL) — new `app_settings` key-value table (2 rows in phase 1). No pgvector changes. Existing `user_activity_log` reused for fallback audit events. (063-ai-provider-manager)
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx, existing `ollama_embedder`/`ollama_generator`/`ai_providers` (backend); Flutter Material, existing answer-card widgets and `manual_assistant_service.dart` (frontend). **No new dependencies.** (066-stage-latency-breakdown)
 - None — `latency_breakdown` is transient per-response only (FR-010). No Supabase schema changes, no migration, no `user_activity_log` writes. (066-stage-latency-breakdown)
+- Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend, existing); `services.ai_providers.resolver` (spec 063, existing); `services.ollama_embedder` (existing); `services.validated_qa_service` (existing). Flutter Material, `http`, shared widgets from `frontend/lib/widgets/bottom_sheet_widgets.dart` (existing). (068-auto-paraphrase-approve)
+- Supabase (PostgreSQL + pgvector). Existing `validated_qa`, `answer_ratings` tables. No migrations. `rating_id` is already nullable (migration `20260415000000`) and has **no unique constraint** — multiple `validated_qa` rows can share the same `rating_id`, which is exactly the shared-rating design this spec needs. (068-auto-paraphrase-approve)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -111,9 +113,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 068-auto-paraphrase-approve: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend, existing); `services.ai_providers.resolver` (spec 063, existing); `services.ollama_embedder` (existing); `services.validated_qa_service` (existing). Flutter Material, `http`, shared widgets from `frontend/lib/widgets/bottom_sheet_widgets.dart` (existing).
 - 066-stage-latency-breakdown: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx, existing `ollama_embedder`/`ollama_generator`/`ai_providers` (backend); Flutter Material, existing answer-card widgets and `manual_assistant_service.dart` (frontend). **No new dependencies.**
 - 063-ai-provider-manager: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (existing); `google-generativeai` (NEW — backend only, for Gemini SDK). Flutter Material + `supabase_flutter` + `http` (existing).
-- 062-hybrid-retrieval-filter: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx, existing `ollama_embedder`/`ollama_generator` (backend); Flutter Material, existing answer-card widgets (frontend). **No new dependencies.**
 
 
 <!-- MANUAL ADDITIONS START -->

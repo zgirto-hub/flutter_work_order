@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/manual_assistant_service.dart';
 import 'widgets/review_entry_card.dart';
+import 'widgets/variants_modal.dart';
 
 class ReviewQueueTab extends StatefulWidget {
   final String userEmail;
@@ -57,20 +58,50 @@ class ReviewQueueTabState extends State<ReviewQueueTab> {
   }
 
   Future<void> _handleApprove(String ratingId) async {
+    final entry = _entries.firstWhere((e) => e['id'] == ratingId);
+    final questionText = entry['question_text'] as String? ?? '';
+
     try {
-      await _service.reviewAnswer(
+      List<String> variants;
+      String? notice;
+
+      try {
+        variants = await _service.generateParaphraseVariants(
+          questionText: questionText,
+          ratingId: ratingId,
+        );
+        if (variants.isEmpty) {
+          notice = 'Automatic variants could not be generated.';
+        }
+      } catch (e) {
+        variants = [];
+        notice = 'Automatic variants could not be generated.';
+      }
+
+      final selectedVariants = await showVariantsModal(
+        context: context,
+        originalQuestion: questionText,
+        generatedVariants: variants,
+        notice: notice,
+      );
+
+      if (selectedVariants == null) return;
+
+      await _service.reviewAnswerWithVariants(
         ratingId: ratingId,
         action: 'approve',
-        reviewerEmail: widget.userEmail,
+        variants: selectedVariants,
       );
+
       if (mounted) {
         setState(() {
           _entries.removeWhere((e) => e['id'] == ratingId);
         });
         widget.onCountChanged?.call(_entries.length);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Answer approved and added to validated QA')),
+          SnackBar(
+            content: Text('${selectedVariants.length} verified answers saved'),
+          ),
         );
       }
     } catch (e) {

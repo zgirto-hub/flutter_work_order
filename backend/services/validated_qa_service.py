@@ -467,3 +467,213 @@ def delete_verified_answer(qa_id: str) -> str:
     ).execute()
 
     return qa_id
+
+
+async def review_answer_multi(
+    rating_id: str,
+    action: str,
+    corrected_answer: Optional[str],
+    reviewer_email: str,
+    variant_texts: List[str],
+    existing_validated_qa_id: Optional[str] = None,
+) -> dict:
+    """Insert multiple validated_qa rows from one approval, each with its own question variant.
+
+    Args:
+        rating_id: UUID of the answer_ratings row being approved.
+        action: One of "approve", "correct", "retro_expand".
+        corrected_answer: Required if action == "correct".
+        reviewer_email: Email of the admin performing the review.
+        variant_texts: List of question texts (including original) to insert as separate rows.
+        existing_validated_qa_id: Required if action == "retro_expand"; the validated_qa row to expand.
+
+    Returns:
+        Dict with inserted_count, validated_qa_ids, rating_id, status.
+    """
+    if action not in ("approve", "correct", "retro_expand"):
+        raise ValueError(f"Invalid action: {action}")
+
+    if action == "retro_expand":
+        if not existing_validated_qa_id:
+            raise ValueError("existing_validated_qa_id required for retro_expand")
+        return await _retro_expand_multi(existing_validated_qa_id, reviewer_email, variant_texts)
+
+    # approve or correct flow
+    if action == "correct" and not corrected_answer:
+        raise ValueError("corrected_answer required for 'correct' action")
+
+    # Lookup the answer_ratings row
+    rating_resp = (
+        supabase.table("answer_ratings")
+        .select("*")
+        .eq("id", rating_id)
+        .single()
+        .execute()
+    )
+    if not rating_resp.data:
+        raise ValueError(f"Rating {rating_id} not found")
+
+    rating_row = rating_resp.data
+
+    # Resolve the validated answer text
+    if action == "approve":
+        answer_to_validate = rating_row["answer_text"]
+        new_status = "approved"
+    else:
+        answer_to_validate = corrected_answer
+        new_status = "corrected"
+
+    # Resolve shared fields
+    manual_ids = [rating_row["manual_id"]] if rating_row.get("manual_id") else []
+    source_chunks = rating_row.get("source_chunks", [])
+    session_summary = rating_row.get("session_summary")
+
+    # Pre-compute all embeddings - fail fast before any insert (FR-013 atomicity)
+    embedded_rows = []
+    for i, variant_text in enumerate(variant_texts):
+        # Only apply session-summary rewrite to the first variant (original question).
+        # Generated paraphrases are already self-contained; rewriting them could
+        # unpredictably mutate admin-curated text if session_summary is non-null.
+        if i == 0:
+            question = await _rewrite_with_summary(variant_text, session_summary)
+        else:
+            question = variant_text
+        embedding = await embed_single(question)
+        embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
+
+        embedded_rows.append(
+            {
+                "question_text": question,
+                "question_embedding": embedding_str,
+                "equipment_type": _extract_equipment_type(question),
+                "fault_code": _extract_fault_code(question),
+            }
+        )
+
+    # Build the shared row dict (INV-2: same validated_answer across all variants)
+    now = datetime.now(timezone.utc).isoformat()
+    shared_row = {
+        "validated_answer": answer_to_validate,
+        "validated_by": reviewer_email,
+        "rating_id": rating_id,
+        "manual_ids": manual_ids,
+        "source_chunks": source_chunks,
+        "validated_at": now,
+    }
+
+    # Combine shared + per-variant fields
+    rows_to_insert = []
+    for variant in embedded_rows:
+        row = {**shared_row}
+        row["question_text"] = variant["question_text"]
+        row["question_embedding"] = variant["question_embedding"]
+        row["equipment_type"] = variant["equipment_type"]
+        row["fault_code"] = variant["fault_code"]
+        rows_to_insert.append(row)
+
+    # Single batch insert (atomic)
+    result = supabase.table("validated_qa").insert(rows_to_insert).execute()
+    inserted_ids = [row["id"] for row in result.data]
+
+    # Update answer_ratings status once
+    supabase.table("answer_ratings").update({"review_status": new_status}).eq(
+        "id", rating_id
+    ).execute()
+
+    # Log one activity for the batch
+    log_activity(
+        reviewer_email,
+        "manual",
+        "reviewed_answer",
+        target_label=rating_row["question_text"][:80],
+        detail=f"{action} -> {new_status} ({len(rows_to_insert)} variants)",
+    )
+
+    return {
+        "inserted_count": len(inserted_ids),
+        "validated_qa_ids": inserted_ids,
+        "rating_id": rating_id,
+        "status": new_status,
+    }
+
+
+async def _retro_expand_multi(
+    existing_validated_qa_id: str,
+    reviewer_email: str,
+    variant_texts: List[str],
+) -> dict:
+    """Expand an existing verified entry with additional question variants.
+
+    Reads shared fields from the existing validated_qa row and inserts new rows
+    sharing the same validated_answer, rating_id, manual_ids, source_chunks.
+    """
+    # Lookup the existing validated_qa row
+    existing_resp = (
+        supabase.table("validated_qa")
+        .select("*")
+        .eq("id", existing_validated_qa_id)
+        .single()
+        .execute()
+    )
+    if not existing_resp.data:
+        raise ValueError(f"Validated QA {existing_validated_qa_id} not found")
+
+    existing = existing_resp.data
+
+    # Shared fields from the existing row (INV-1, INV-2)
+    now = datetime.now(timezone.utc).isoformat()
+    shared_row = {
+        "validated_answer": existing["validated_answer"],
+        "validated_by": reviewer_email,
+        "validated_at": now,
+        "rating_id": existing.get("rating_id"),
+        "manual_ids": existing.get("manual_ids", []),
+        "source_chunks": existing.get("source_chunks", []),
+        "equipment_type": existing.get("equipment_type"),
+        "fault_code": existing.get("fault_code"),
+    }
+
+    # Pre-compute all embeddings - fail fast before any insert
+    embedded_rows = []
+    for variant_text in variant_texts:
+        embedding = await embed_single(variant_text)
+        embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
+
+        embedded_rows.append(
+            {
+                "question_text": variant_text,
+                "question_embedding": embedding_str,
+                "equipment_type": _extract_equipment_type(variant_text),
+                "fault_code": _extract_fault_code(variant_text),
+            }
+        )
+
+    # Build rows to insert
+    rows_to_insert = []
+    for variant in embedded_rows:
+        row = {**shared_row}
+        row["question_text"] = variant["question_text"]
+        row["question_embedding"] = variant["question_embedding"]
+        row["equipment_type"] = variant["equipment_type"]
+        row["fault_code"] = variant["fault_code"]
+        rows_to_insert.append(row)
+
+    # Single batch insert (atomic)
+    result = supabase.table("validated_qa").insert(rows_to_insert).execute()
+    inserted_ids = [row["id"] for row in result.data]
+
+    # Log activity (does NOT update answer_ratings - retro_expand leaves it untouched)
+    log_activity(
+        reviewer_email,
+        "manual",
+        "reviewed_answer",
+        target_label=existing["question_text"][:80],
+        detail=f"retro_expand -> {len(rows_to_insert)} variants",
+    )
+
+    return {
+        "inserted_count": len(inserted_ids),
+        "validated_qa_ids": inserted_ids,
+        "rating_id": shared_row["rating_id"],
+        "status": "expanded",
+    }
