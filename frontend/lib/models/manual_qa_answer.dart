@@ -84,6 +84,7 @@ class ManualQaAnswer {
   final String? providerUsed;
   final bool fallbackUsed;
   final LatencyBreakdown? latencyBreakdown;
+  final String? sourceType;
 
   const ManualQaAnswer({
     required this.answer,
@@ -103,6 +104,7 @@ class ManualQaAnswer {
     this.providerUsed,
     this.fallbackUsed = false,
     this.latencyBreakdown,
+    this.sourceType,
   });
 
   factory ManualQaAnswer.fromJson(Map<String, dynamic> json) {
@@ -155,6 +157,7 @@ class ManualQaAnswer {
       providerUsed: json['provider_used'],
       fallbackUsed: json['fallback_used'] ?? false,
       latencyBreakdown: latencyBreakdown,
+      sourceType: json['source_type'] as String?,
     );
   }
 
