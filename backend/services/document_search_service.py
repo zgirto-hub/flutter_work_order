@@ -9,18 +9,100 @@ MAX_CHUNKS_PER_DOCUMENT = 3
 MAX_DOCUMENTS_FOR_SYNTHESIS = 8
 
 
+def _diversity_select(
+    chunks_by_document: dict[str, list[dict]],
+    top_docs_count: int = 3,
+    max_chunks_per_doc: int = 3,
+    diversity_floor_threshold: float = 0.60,
+) -> dict[str, list[dict]]:
+    """Apply diversity-aware selection to document chunks.
+
+    1. Compute document relevance score = sum of top-3 chunk similarities per document
+    2. Rank documents by aggregate score (ties broken by highest individual chunk score)
+    3. Select top top_docs_count documents as "winning" documents
+    4. Apply diversity floor: non-winning docs with similarity >= threshold get 1 chunk
+    5. Return merged winning chunks + floor chunks
+    """
+    doc_scores: list[dict] = []
+
+    for doc_id, chunks in chunks_by_document.items():
+        if not chunks:
+            continue
+
+        sorted_chunks = sorted(
+            chunks, key=lambda c: c.get("similarity", 0), reverse=True
+        )
+        top_3 = sorted_chunks[:3]
+        aggregate_score = sum(c.get("similarity", 0) for c in top_3)
+        max_chunk_score = top_3[0].get("similarity", 0) if top_3 else 0
+
+        doc_scores.append(
+            {
+                "document_id": doc_id,
+                "display_name": chunks[0].get("display_name", "Unknown"),
+                "aggregate_score": aggregate_score,
+                "max_chunk_score": max_chunk_score,
+                "chunks": chunks,
+            }
+        )
+
+    doc_scores.sort(
+        key=lambda d: (d["aggregate_score"], d["max_chunk_score"]),
+        reverse=True,
+    )
+
+    winning_docs = set(d["document_id"] for d in doc_scores[:top_docs_count])
+    floor_docs = set()
+
+    all_docs = [d for d in doc_scores if d["document_id"] not in winning_docs]
+    for doc in all_docs:
+        highest_sim = max((c.get("similarity", 0) for c in doc["chunks"]), default=0)
+        if highest_sim >= diversity_floor_threshold:
+            floor_docs.add(doc["document_id"])
+
+    result: dict[str, list[dict]] = {}
+    for doc in doc_scores[:top_docs_count]:
+        doc_id = doc["document_id"]
+        sorted_chunks = sorted(
+            doc["chunks"], key=lambda c: c.get("similarity", 0), reverse=True
+        )
+        result[doc_id] = sorted_chunks[:max_chunks_per_doc]
+
+    for doc in doc_scores[top_docs_count:]:
+        doc_id = doc["document_id"]
+        if doc_id in floor_docs:
+            sorted_chunks = sorted(
+                doc["chunks"], key=lambda c: c.get("similarity", 0), reverse=True
+            )
+            result[doc_id] = [sorted_chunks[0]]
+
+    logger.info(
+        "Diversity selection: document scores %s",
+        {d["document_id"]: round(d["aggregate_score"], 2) for d in doc_scores},
+    )
+    logger.info(
+        "Diversity selection: winning docs %s, floor docs %s",
+        list(winning_docs),
+        list(floor_docs),
+    )
+
+    return result
+
+
 async def retrieve_chunks_per_document(
     embedding_str: str,
     max_chunks_per_doc: int = MAX_CHUNKS_PER_DOCUMENT,
     max_documents: int = MAX_DOCUMENTS_FOR_SYNTHESIS,
+    top_docs_count: int = 3,
+    diversity_floor_threshold: float = 0.60,
 ) -> dict[str, list[dict]]:
-    """Retrieve top qualifying chunks grouped by document ID (spec 072)."""
+    """Retrieve top qualifying chunks grouped by document ID (spec 072), with diversity-aware selection (spec 078)."""
     try:
         rpc_response = supabase.rpc(
             "search_document_chunks",
             {
                 "query_embedding": embedding_str,
-                "match_count": 10,
+                "match_count": 20,
                 "match_threshold": MAX_CHUNK_DISTANCE,
             },
         ).execute()
@@ -53,20 +135,15 @@ async def retrieve_chunks_per_document(
             }
         )
 
-    qualified_docs = {}
-    for doc_id, chunks in chunks_by_document.items():
-        capped = chunks[:max_chunks_per_doc]
-        if capped:
-            qualified_docs[doc_id] = capped
+    qualified_docs = _diversity_select(
+        chunks_by_document,
+        top_docs_count=top_docs_count,
+        max_chunks_per_doc=max_chunks_per_doc,
+        diversity_floor_threshold=diversity_floor_threshold,
+    )
 
     if len(qualified_docs) > max_documents:
-        ranked = sorted(
-            qualified_docs.items(),
-            key=lambda item: (
-                sum(c.get("distance", 1.0) for c in item[1]) / len(item[1])
-            ),
-        )
-        qualified_docs = dict(ranked[:max_documents])
+        qualified_docs = dict(list(qualified_docs.items())[:max_documents])
 
     for doc_id in qualified_docs:
         parent_ids = [
