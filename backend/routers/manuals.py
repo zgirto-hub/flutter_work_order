@@ -470,6 +470,24 @@ async def ask_question(request: AskRequest):
     except Exception:
         pass
 
+    # Fix #2: If the LLM refused to answer despite retrieval scoring above threshold,
+    # override grounded to False so the frontend doesn't show a "grounded" badge on
+    # an empty answer.  Uses the same sentinel phrases from manual_rag_service.
+    if result.get("grounded") and result.get("answer"):
+        from services.manual_rag_service import (
+            _NOT_FOUND_KNOWLEDGE_BASE,
+            _NOT_FOUND_MANUALS,
+            _NOT_FOUND_KNOWLEDGE_BASE_AR,
+        )
+        _sentinel_phrases = [
+            _NOT_FOUND_KNOWLEDGE_BASE.lower(),
+            _NOT_FOUND_MANUALS.lower(),
+            _NOT_FOUND_KNOWLEDGE_BASE_AR,
+        ]
+        answer_lower = result["answer"].strip().lower()
+        if any(phrase in answer_lower for phrase in _sentinel_phrases):
+            result["grounded"] = False
+
     result.setdefault("provider_used", "local")
     result.setdefault("fallback_used", False)
 

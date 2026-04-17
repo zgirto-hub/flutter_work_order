@@ -100,7 +100,7 @@ def _is_direct_lookup(query: str) -> bool:
 
 
 # --- Validated QA confidence thresholds (spec 069) ---
-RAG_CONFIDENCE_THRESHOLD = 0.70  # Minimum similarity to proceed to LLM
+RAG_CONFIDENCE_THRESHOLD = 0.75  # Minimum similarity to proceed to LLM
 RAG_HIGH_CONFIDENCE = 0.85  # Score >= this → confidence: "high"
 
 # --- Shared "not found" sentinel phrases (single source of truth) ---
