@@ -418,7 +418,10 @@ async def update_verified_answer(
 
 
 async def create_verified_answer(
-    question_text: str, validated_answer: str, editor_email: str
+    question_text: str,
+    validated_answer: str,
+    editor_email: str,
+    source_manual_id: Optional[str] = None,
 ) -> dict:
     if not question_text.strip() or not validated_answer.strip():
         raise ValueError("question and answer required")
@@ -429,22 +432,20 @@ async def create_verified_answer(
     equipment_type = _extract_equipment_type(question_text)
     fault_code = _extract_fault_code(question_text)
 
-    result = (
-        supabase.table("validated_qa")
-        .insert(
-            {
-                "question_text": question_text,
-                "validated_answer": validated_answer,
-                "question_embedding": embedding_str,
-                "validated_by": editor_email,
-                "equipment_type": equipment_type,
-                "fault_code": fault_code,
-                "source_chunks": [],
-                "manual_ids": [],
-            }
-        )
-        .execute()
-    )
+    insert_data = {
+        "question_text": question_text,
+        "validated_answer": validated_answer,
+        "question_embedding": embedding_str,
+        "validated_by": editor_email,
+        "equipment_type": equipment_type,
+        "fault_code": fault_code,
+        "source_chunks": [],
+        "manual_ids": [],
+    }
+    if source_manual_id:
+        insert_data["source_manual_id"] = source_manual_id
+
+    result = supabase.table("validated_qa").insert(insert_data).execute()
 
     return result.data[0]
 

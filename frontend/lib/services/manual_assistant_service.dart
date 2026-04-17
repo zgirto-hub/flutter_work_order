@@ -542,6 +542,7 @@ class ManualAssistantService {
   Future<List<String>> generateParaphraseVariants({
     required String questionText,
     String? ratingId,
+    String lang = 'en',
   }) async {
     try {
       final session = Supabase.instance.client.auth;
@@ -555,6 +556,7 @@ class ManualAssistantService {
         body: jsonEncode({
           'question_text': questionText,
           if (ratingId != null) 'rating_id': ratingId,
+          'lang': lang,
         }),
       );
 
@@ -853,6 +855,7 @@ class ManualAssistantService {
     required String questionText,
     required String validatedAnswer,
     required String editorEmail,
+    String? sourceManualId,
   }) async {
     try {
       final session = Supabase.instance.client.auth;
@@ -867,6 +870,7 @@ class ManualAssistantService {
           'question_text': questionText,
           'validated_answer': validatedAnswer,
           'editor_email': editorEmail,
+          if (sourceManualId != null) 'source_manual_id': sourceManualId,
         }),
       );
 
@@ -910,6 +914,186 @@ class ManualAssistantService {
         throw Exception('Answer not found');
       } else {
         throw Exception('Failed to delete verified answer');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> generateQACandidates({
+    required String manualId,
+    int maxCandidates = 20,
+    required String userEmail,
+  }) async {
+    try {
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.post(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/generate-qa-candidates?user_email=${Uri.encodeComponent(userEmail)}'),
+        headers: headers,
+        body: jsonEncode({
+          'manual_id': manualId,
+          'max_candidates': maxCandidates,
+        }),
+      );
+
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      } else if (res.statusCode == 403) {
+        throw Exception('admin_required');
+      } else if (res.statusCode == 404) {
+        throw Exception('not_found');
+      } else if (res.statusCode == 400) {
+        final data = jsonDecode(res.body);
+        throw Exception(data['error'] ?? 'no_chunks');
+      } else {
+        throw Exception('generation_failed');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> saveTrainedEntry({
+    required String question,
+    required String answer,
+    required String editorEmail,
+    String? sourceManualId,
+  }) async {
+    try {
+      final result = await createVerifiedAnswer(
+        questionText: question,
+        validatedAnswer: answer,
+        editorEmail: editorEmail,
+        sourceManualId: sourceManualId,
+      );
+      final primaryQaId = result['id'] as String;
+
+      final enVariants = await generateParaphraseVariants(
+        questionText: question,
+        lang: 'en',
+      );
+
+      final arVariants = await generateParaphraseVariants(
+        questionText: question,
+        lang: 'ar',
+      );
+
+      await reviewAnswerWithVariants(
+        ratingId: '',
+        action: 'retro_expand',
+        existingValidatedQaId: primaryQaId,
+        variants: [...enVariants, ...arVariants],
+      );
+
+      return {
+        'primaryQaId': primaryQaId,
+        'englishCount': enVariants.length,
+        'arabicCount': arVariants.length,
+        'totalEmbeddings': enVariants.length + arVariants.length,
+      };
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getRealUsageSuggestions({
+    required String userEmail,
+  }) async {
+    try {
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.get(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/real-usage-suggestions?user_email=${Uri.encodeComponent(userEmail)}'),
+        headers: headers,
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        return (data['suggestions'] as List<dynamic>?)
+                ?.map((e) => Map<String, dynamic>.from(e))
+                .toList() ??
+            [];
+      } else if (res.statusCode == 403) {
+        throw Exception('Admin access required');
+      } else {
+        throw Exception('Failed to fetch suggestions');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getStaleCacheEntries({
+    required String userEmail,
+  }) async {
+    try {
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.get(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/stale-cache-entries?user_email=${Uri.encodeComponent(userEmail)}'),
+        headers: headers,
+      );
+
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      } else if (res.statusCode == 403) {
+        throw Exception('Admin access required');
+      } else {
+        throw Exception('Failed to fetch stale entries');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> markCacheReviewed({
+    required String qaId,
+    required String action,
+    required String userEmail,
+    String? updatedQuestion,
+    String? updatedAnswer,
+  }) async {
+    try {
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.post(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/mark-cache-reviewed?user_email=${Uri.encodeComponent(userEmail)}'),
+        headers: headers,
+        body: jsonEncode({
+          'qa_id': qaId,
+          'action': action,
+          if (updatedQuestion != null) 'updated_question': updatedQuestion,
+          if (updatedAnswer != null) 'updated_answer': updatedAnswer,
+        }),
+      );
+
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      } else if (res.statusCode == 403) {
+        throw Exception('Admin access required');
+      } else if (res.statusCode == 404) {
+        throw Exception('not_found');
+      } else if (res.statusCode == 400) {
+        throw Exception('invalid_action');
+      } else {
+        throw Exception('review_failed');
       }
     } catch (e) {
       rethrow;

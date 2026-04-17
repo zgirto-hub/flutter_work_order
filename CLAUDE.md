@@ -101,6 +101,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - Supabase (PostgreSQL) with pgvector — existing `document_chunks`, `manual_chunks`, `knowledge_documents`, `manuals` tables. No schema changes. (075-contextual-embeddings)
 - Python 3.10 (backend only — no Flutter/Dart changes) + FastAPI, existing `services.ollama_generator`, existing `services.ollama_embedder`, existing `services.ai_providers.resolver` (077-rag-pipeline-parallelize)
 - Python 3.10 + FastAPI, Supabase Python client (existing — no new deps) (078-diversity-aware-retrieval)
+- Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, supabase_flutter, Flutter Material (frontend) (080-train-ai-tab)
+- Supabase (PostgreSQL) with pgvector — `validated_qa`, `answer_ratings`, `manuals`, `manual_chunks` tables (080-train-ai-tab)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -123,9 +125,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 080-train-ai-tab: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, supabase_flutter, Flutter Material (frontend)
 - 078-diversity-aware-retrieval: Added Python 3.10 + FastAPI, Supabase Python client (existing — no new deps)
 - 077-rag-pipeline-parallelize: Added Python 3.10 (backend only — no Flutter/Dart changes) + FastAPI, existing `services.ollama_generator`, existing `services.ollama_embedder`, existing `services.ai_providers.resolver`
-- 075-contextual-embeddings: Added Python 3.10 (backend only — no Flutter/Dart changes) + FastAPI, Supabase Python client, httpx, existing `services.ollama_embedder`, existing `services.document_service`, existing `services.manual_rag_service`
 
 
 <!-- MANUAL ADDITIONS START -->
