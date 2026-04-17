@@ -454,4 +454,13 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
       ],
     );
   }
+
+  @override
+  void dispose() {
+    if (_streaming) {
+      _service.cancelStream();
+    }
+    _questionController.dispose();
+    super.dispose();
+  }
 }
