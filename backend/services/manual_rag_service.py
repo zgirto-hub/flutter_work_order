@@ -6,7 +6,7 @@ import uuid
 import time
 from datetime import datetime, timezone
 from uuid import UUID
-from typing import List, Optional
+from typing import List, Optional, AsyncIterator
 from db import supabase
 from services.manual_parser import parse, NoExtractableTextError
 from services.manual_chunker import chunk_paragraphs, Chunk
@@ -603,6 +603,284 @@ _LAYER3_RETIRED = True  # Layer 3 functions removed (spec 072 Phase 7)
 # ----SPLICE_START----
 
 
+async def ask_stream(
+    question: str,
+    manual_id_filter: Optional[UUID] = None,
+    model: Optional[str] = None,
+    history: list[dict] | None = None,
+    session_summary: str | None = None,
+    user_email: str | None = None,
+    latency_breakdown: dict | None = None,
+    stream_meta: dict | None = None,
+) -> AsyncIterator[str]:
+    """Streaming version of ask() — runs the full RAG pipeline, then streams generation.
+
+    The caller passes a mutable ``stream_meta`` dict. On return it will contain:
+        sources, grounded, confidence, is_verified, verified_source,
+        manuals_consulted, retrieval_info, session_summary, search_query,
+        provider_key, display_name, fallback_used, fallback_info.
+    """
+    from services.ollama_embedder import embed_single
+    from services.ai_providers.resolver import (
+        generate_stream as provider_generate_stream,
+    )
+    from services.document_search_service import (
+        retrieve_chunks_per_document,
+        build_direct_generation_prompt,
+    )
+
+    if latency_breakdown is None:
+        latency_breakdown = _empty_latency_breakdown()
+    breakdown = latency_breakdown
+    if stream_meta is None:
+        stream_meta = {}
+
+    # Defaults — caller reads these after the generator is exhausted
+    stream_meta.update({
+        "sources": [],
+        "grounded": False,
+        "confidence": "low",
+        "is_verified": False,
+        "verified_source": None,
+        "manuals_consulted": [],
+        "retrieval_info": {
+            "detected_system": None,
+            "filtered_manual_ids": [],
+            "filter_applied": False,
+            "fallback_reason": None,
+        },
+        "session_summary": None,
+        "search_query": question,
+        "provider_key": "",
+        "display_name": "",
+        "fallback_used": False,
+        "fallback_info": None,
+    })
+
+    detected_system = detect_system(question)
+    stream_meta["retrieval_info"]["detected_system"] = detected_system
+    search_query: str = question
+
+    # ── Check corpus not empty ──
+    count_response = (
+        supabase.table("manual_corpus_stats")
+        .select("manual_count")
+        .eq("id", 1)
+        .execute()
+    )
+    if not count_response.data or count_response.data[0]["manual_count"] == 0:
+        yield _NOT_FOUND_MANUALS
+        return
+
+    # ── Pre-rewrite validated-QA fast path (spec 067, 069) ──
+    try:
+        pre_rewrite_match = await validated_qa_service.check_validated_match(
+            question, detected_system=detected_system
+        )
+        vqa_matches = pre_rewrite_match.get("matches", [])
+        if vqa_matches:
+            max_score = max(m["similarity"] for m in vqa_matches)
+            if max_score >= RAG_CONFIDENCE_THRESHOLD:
+                context_parts = [
+                    f"[Source {i + 1}]\n{m['validated_answer']}"
+                    for i, m in enumerate(vqa_matches)
+                ]
+                prompt = (
+                    f"{VALIDATED_QA_SYSTEM_PROMPT}\n\n"
+                    f"CONTEXT:\n{''.join(context_parts)}\n\n"
+                    f"QUESTION: {question}\n\nANSWER:"
+                )
+                _vqa_confidence = (
+                    "high" if max_score >= RAG_HIGH_CONFIDENCE
+                    else "medium" if max_score >= RAG_CONFIDENCE_THRESHOLD
+                    else "low"
+                )
+                stream_meta.update({
+                    "sources": [
+                        {"id": m["id"], "question_text": m["question_text"], "score": m["similarity"]}
+                        for m in vqa_matches
+                    ],
+                    "grounded": True,
+                    "confidence": _vqa_confidence,
+                    "is_verified": True,
+                    "verified_source": {
+                        "validated_qa_id": str(vqa_matches[0]["id"]),
+                        "validated_by": vqa_matches[0]["validated_by"],
+                        "validated_at": (
+                            vqa_matches[0]["validated_at"].isoformat()
+                            if hasattr(vqa_matches[0]["validated_at"], "isoformat")
+                            else str(vqa_matches[0]["validated_at"])
+                        ),
+                        "similarity": max_score,
+                    },
+                })
+                async for token in provider_generate_stream(
+                    prompt, [], user_email,
+                    latency_breakdown=breakdown, stream_meta=stream_meta,
+                ):
+                    yield token
+                return
+    except Exception as e:
+        logger.warning("Pre-rewrite validated_qa check failed: %s", e)
+
+    # ── Parallel rewrite + HyDE (spec 077) ──
+    _needs_rewrite = bool(history)
+    _needs_hyde = not _is_direct_lookup(question)
+    _hyde_already_ran = False
+    _parallel_hyde_text = None
+
+    if _needs_rewrite and _needs_hyde:
+        _hyde_already_ran = True
+
+        async def _timed_rewrite():
+            with _StageTimer(breakdown, "rewrite_ms"):
+                return await _rewrite_query(question, history)
+
+        async def _timed_hyde():
+            with _StageTimer(breakdown, "hyde_ms"):
+                return await _generate_hypothetical_answer(question)
+
+        rewrite_result, hyde_result = await asyncio.gather(
+            _timed_rewrite(), _timed_hyde(), return_exceptions=True,
+        )
+        if not isinstance(rewrite_result, Exception):
+            search_query = rewrite_result
+        if not isinstance(hyde_result, Exception):
+            _parallel_hyde_text = hyde_result
+    elif _needs_rewrite:
+        with _StageTimer(breakdown, "rewrite_ms"):
+            search_query = await _rewrite_query(question, history)
+        breakdown["hyde_ms"] = 0
+    elif _needs_hyde:
+        breakdown["rewrite_ms"] = 0
+    else:
+        breakdown["hyde_ms"] = 0
+        breakdown["rewrite_ms"] = 0
+
+    stream_meta["search_query"] = search_query
+
+    # Follow-up system detection on rewritten query
+    if detected_system is None and search_query != question:
+        followup_system = detect_system(search_query)
+        if followup_system:
+            detected_system = followup_system
+            stream_meta["retrieval_info"]["detected_system"] = followup_system
+
+    # ── Post-rewrite validated-QA check (spec 048, 069) ──
+    try:
+        match_result = await validated_qa_service.check_validated_match(
+            search_query, detected_system=detected_system
+        )
+        vqa_matches = match_result.get("matches", [])
+        if vqa_matches:
+            max_score = max(m["similarity"] for m in vqa_matches)
+            if max_score >= RAG_CONFIDENCE_THRESHOLD:
+                context_parts = [
+                    f"[Source {i + 1}]\n{m['validated_answer']}"
+                    for i, m in enumerate(vqa_matches)
+                ]
+                prompt = (
+                    f"{VALIDATED_QA_SYSTEM_PROMPT}\n\n"
+                    f"CONTEXT:\n{''.join(context_parts)}\n\n"
+                    f"QUESTION: {search_query}\n\nANSWER:"
+                )
+                _vqa_confidence = (
+                    "high" if max_score >= RAG_HIGH_CONFIDENCE
+                    else "medium" if max_score >= RAG_CONFIDENCE_THRESHOLD
+                    else "low"
+                )
+                stream_meta.update({
+                    "sources": [
+                        {"id": m["id"], "question_text": m["question_text"], "score": m["similarity"]}
+                        for m in vqa_matches
+                    ],
+                    "grounded": True,
+                    "confidence": _vqa_confidence,
+                    "is_verified": True,
+                    "verified_source": {
+                        "validated_qa_id": str(vqa_matches[0]["id"]),
+                        "validated_by": vqa_matches[0]["validated_by"],
+                        "validated_at": (
+                            vqa_matches[0]["validated_at"].isoformat()
+                            if hasattr(vqa_matches[0]["validated_at"], "isoformat")
+                            else str(vqa_matches[0]["validated_at"])
+                        ),
+                        "similarity": max_score,
+                    },
+                })
+                async for token in provider_generate_stream(
+                    prompt, [], user_email,
+                    latency_breakdown=breakdown, stream_meta=stream_meta,
+                ):
+                    yield token
+                return
+    except Exception as e:
+        logger.warning("Validated QA check failed: %s", e)
+
+    # ── Layer 2: Document chunk search (spec 072, 074) ──
+    try:
+        if _hyde_already_ran:
+            _layer2_hyde_text = _parallel_hyde_text
+        elif _needs_hyde:
+            with _StageTimer(breakdown, "hyde_ms"):
+                _layer2_hyde_text = await _generate_hypothetical_answer(search_query)
+        else:
+            _layer2_hyde_text = None
+            if breakdown.get("hyde_ms") is None:
+                breakdown["hyde_ms"] = 0
+
+        embed_input = _layer2_hyde_text if _layer2_hyde_text else search_query
+        with _StageTimer(breakdown, "embed_ms"):
+            _layer2_embedding = await embed_single(embed_input)
+        embedding_str = "[" + ",".join(str(x) for x in _layer2_embedding) + "]"
+
+        chunks_by_doc = await retrieve_chunks_per_document(embedding_str)
+
+        if chunks_by_doc:
+            prompt, sources, docs_consulted = build_direct_generation_prompt(
+                chunks_by_doc, search_query, DOCUMENT_QA_SYSTEM_PROMPT
+            )
+
+            max_score = max(
+                (c.get("similarity", 0) for doc_chunks in chunks_by_doc.values() for c in doc_chunks),
+                default=0,
+            )
+            _confidence = (
+                "high" if max_score >= RAG_HIGH_CONFIDENCE
+                else "medium" if max_score >= RAG_CONFIDENCE_THRESHOLD
+                else "low"
+            )
+            response_sources = [
+                {
+                    "type": "document",
+                    "document_id": s["document_id"],
+                    "display_name": s["display_name"],
+                    "section_title": s.get("section_title", ""),
+                    "page_number": s.get("page_number"),
+                    "score": s.get("similarity", 0),
+                }
+                for s in sources
+            ]
+            stream_meta.update({
+                "sources": response_sources,
+                "grounded": True,
+                "confidence": _confidence,
+                "manuals_consulted": docs_consulted,
+            })
+
+            async for token in provider_generate_stream(
+                prompt, [], user_email,
+                latency_breakdown=breakdown, stream_meta=stream_meta,
+            ):
+                yield token
+            return
+    except Exception as e:
+        logger.warning("Document chunk search failed: %s", e)
+
+    # ── No grounded answer — fallback ──
+    yield _NOT_FOUND_MANUALS
+
+
 async def ask(
     question: str,
     manual_id_filter: Optional[UUID] = None,
@@ -970,7 +1248,9 @@ async def ask(
     try:
         # Use pre-computed HyDE from parallel execution if available (spec 077)
         if _hyde_already_ran:
-            _layer2_hyde_text = _parallel_hyde_text  # Could be None — means HyDE produced nothing
+            _layer2_hyde_text = (
+                _parallel_hyde_text  # Could be None — means HyDE produced nothing
+            )
             # hyde_ms already set by parallel execution
         elif _needs_hyde:
             # No history case — HyDE wasn't run in parallel, run it now

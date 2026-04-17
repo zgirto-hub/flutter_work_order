@@ -8,6 +8,21 @@ import '../config.dart';
 import '../models/manual.dart';
 import '../models/manual_qa_answer.dart';
 
+class SseEvent {
+  final String? token;
+  final Map<String, dynamic>? metadata;
+  final String? error;
+  SseEvent.token(this.token)
+      : metadata = null,
+        error = null;
+  SseEvent.metadata(this.metadata)
+      : token = null,
+        error = null;
+  SseEvent.error(this.error)
+      : token = null,
+        metadata = null;
+}
+
 class ManualUploadException implements Exception {
   final String code;
   final String message;
@@ -266,6 +281,131 @@ class ManualAssistantService {
     } catch (e) {
       throw ManualAskException('ask_failed', e.toString());
     }
+  }
+
+  Stream<SseEvent> askQuestionStream(String question, String? manualIdFilter,
+      {required String userEmail,
+      String? model,
+      List<Map<String, String>>? history,
+      String? sessionSummary}) {
+    final body = <String, dynamic>{
+      'question': question,
+      'user_email': userEmail,
+    };
+    if (manualIdFilter != null) {
+      body['manual_id'] = manualIdFilter;
+    }
+    if (model != null) {
+      body['model'] = model;
+    }
+    if (history != null && history.isNotEmpty) {
+      body['history'] = history;
+    }
+    if (sessionSummary != null) {
+      body['session_summary'] = sessionSummary;
+    }
+
+    final session = Supabase.instance.client.auth;
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+    };
+    final token = session.currentSession?.accessToken;
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+
+    _activeStreamClient = http.Client();
+    final uri = Uri.parse('${AppConfig.baseUrl}/manuals/ask/stream');
+    final request = http.Request('POST', uri);
+    request.headers.addAll(headers);
+    request.body = jsonEncode(body);
+
+    final controller = StreamController<SseEvent>();
+
+    _activeStreamClient!.send(request).then((response) {
+      if (response.statusCode != 200) {
+        controller.add(SseEvent.error('HTTP ${response.statusCode}'));
+        controller.close();
+        _activeStreamClient?.close();
+        _activeStreamClient = null;
+        return;
+      }
+
+      String eventType = 'message';
+
+      response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen(
+        (line) {
+          if (line.startsWith('event: ')) {
+            eventType = line.substring(7).trim();
+          } else if (line.startsWith('data:')) {
+            // Preserve leading whitespace in token data (I4 fix).
+            // Strip exactly "data:" prefix (5 chars), then remove the single
+            // space that sse-starlette adds per SSE convention.
+            var data = line.substring(5);
+            if (data.startsWith(' ')) {
+              data = data.substring(1);
+            }
+            if (eventType == 'metadata') {
+              try {
+                final metadata = jsonDecode(data) as Map<String, dynamic>;
+                controller.add(SseEvent.metadata(metadata));
+              } catch (e) {
+                controller.add(SseEvent.error('Failed to parse metadata'));
+              }
+            } else if (eventType == 'error') {
+              try {
+                final error = jsonDecode(data) as Map<String, dynamic>;
+                controller
+                    .add(SseEvent.error(error['message'] ?? 'Unknown error'));
+              } catch (e) {
+                controller.add(SseEvent.error(data));
+              }
+            } else {
+              if (data.isNotEmpty) {
+                controller.add(SseEvent.token(data));
+              }
+            }
+            eventType = 'message';
+          } else if (line.isEmpty) {
+            eventType = 'message';
+          }
+        },
+        onError: (e) {
+          if (!controller.isClosed) {
+            controller.add(SseEvent.error('Connection lost'));
+            controller.close();
+          }
+          _activeStreamClient?.close();
+          _activeStreamClient = null;
+        },
+        onDone: () {
+          if (!controller.isClosed) {
+            controller.close();
+          }
+          _activeStreamClient?.close();
+          _activeStreamClient = null;
+        },
+      );
+    }).catchError((e) {
+      if (!controller.isClosed) {
+        controller.add(SseEvent.error('Connection failed: $e'));
+        controller.close();
+      }
+      _activeStreamClient?.close();
+      _activeStreamClient = null;
+    });
+
+    return controller.stream;
+  }
+
+  http.Client? _activeStreamClient;
+
+  void cancelStream() {
+    _activeStreamClient?.close();
+    _activeStreamClient = null;
   }
 
   Future<void> deleteManual(String manualId,

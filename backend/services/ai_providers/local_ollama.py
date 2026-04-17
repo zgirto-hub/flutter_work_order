@@ -17,6 +17,12 @@ class OllamaProvider(AIProvider):
 
         return await ollama_generate(prompt)
 
+    async def generate_stream(self, prompt: str, context_chunks: List[str]):
+        from services.ollama_generator import generate_stream as ollama_stream
+
+        async for token in ollama_stream(prompt):
+            yield token
+
     async def health_check(self) -> bool:
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:

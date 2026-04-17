@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from typing import List, Tuple
+from typing import List, Tuple, AsyncIterator
 from utils.app_settings import get_setting, set_setting
 from utils.activity import log_activity
 from . import PROVIDERS
@@ -107,6 +107,128 @@ async def generate(
                 reason,
                 e,
                 latency_breakdown=latency_breakdown,
+            )
+        raise
+
+
+async def generate_stream(
+    prompt: str,
+    context_chunks: List[str],
+    user_email: str | None = None,
+    latency_breakdown: dict | None = None,
+    stream_meta: dict | None = None,
+) -> AsyncIterator[str]:
+    """Yield answer tokens one chunk at a time with fallback support."""
+    if stream_meta is None:
+        stream_meta = {}
+
+    stream_meta["provider_key"] = ""
+    stream_meta["display_name"] = ""
+    stream_meta["fallback_used"] = False
+    stream_meta["fallback_info"] = None
+
+    active_key = await get_active_provider_key()
+    active = _resolve_provider(active_key)
+    active_display = active.display_name
+    stream_meta["provider_key"] = active_key
+    stream_meta["display_name"] = active_display
+
+    _gen_start = time.perf_counter()
+    first_chunk_yielded = False
+
+    try:
+        # Cannot use asyncio.wait_for() on an async generator — it expects a
+        # coroutine. Instead, apply a 30s timeout only to the first chunk
+        # (proves the provider is alive), then iterate without timeout.
+        aiter = active.generate_stream(prompt, context_chunks).__aiter__()
+        try:
+            first = await asyncio.wait_for(aiter.__anext__(), timeout=30.0)
+        except StopAsyncIteration:
+            return  # empty stream — no tokens at all
+        first_chunk_yielded = True
+        if latency_breakdown is not None:
+            latency_breakdown["generator_ms"] = round(
+                (time.perf_counter() - _gen_start) * 1000
+            )
+        yield first
+        async for token in aiter:
+            yield token
+        return
+    except asyncio.TimeoutError as exc:
+        logger.warning(f"Provider {active_key} timed out")
+        if active_key != _FALLBACK_PROVIDER:
+            if latency_breakdown is not None:
+                latency_breakdown["generator_ms"] = None
+            async for token in _fallback_stream(
+                prompt,
+                context_chunks,
+                user_email,
+                active_key,
+                "timeout_30s",
+                latency_breakdown,
+                stream_meta,
+            ):
+                yield token
+            return
+        raise GeneratorTimeoutError(f"Provider {active_key} timed out after 30s")
+    except Exception as e:
+        logger.warning(f"Provider {active_key} failed: {e}")
+        if active_key != _FALLBACK_PROVIDER:
+            if latency_breakdown is not None:
+                latency_breakdown["generator_ms"] = None
+            reason = str(e) if str(e) else type(e).__name__
+            async for token in _fallback_stream(
+                prompt,
+                context_chunks,
+                user_email,
+                active_key,
+                reason,
+                latency_breakdown,
+                stream_meta,
+            ):
+                yield token
+            return
+        raise
+
+
+async def _fallback_stream(
+    prompt: str,
+    context_chunks: List[str],
+    user_email: str | None,
+    failed_provider_key: str,
+    reason: str,
+    latency_breakdown: dict | None,
+    stream_meta: dict,
+) -> AsyncIterator[str]:
+    """Fallback to local provider with streaming."""
+    local = _resolve_provider(_FALLBACK_PROVIDER)
+    local_display = local.display_name
+    stream_meta["provider_key"] = _FALLBACK_PROVIDER
+    stream_meta["display_name"] = local_display
+    stream_meta["fallback_used"] = True
+    stream_meta["fallback_info"] = {
+        "user_email": user_email,
+        "failed_provider": failed_provider_key,
+        "fallback_provider": _FALLBACK_PROVIDER,
+        "detail": _classify_fallback_reason(reason, None),
+    }
+
+    _fb_start = time.perf_counter()
+    first_chunk_yielded = False
+
+    try:
+        async for token in local.generate_stream(prompt, context_chunks):
+            if not first_chunk_yielded:
+                first_chunk_yielded = True
+                if latency_breakdown is not None:
+                    latency_breakdown["generator_ms"] = round(
+                        (time.perf_counter() - _fb_start) * 1000
+                    )
+            yield token
+    except Exception as e:
+        if latency_breakdown is not None:
+            latency_breakdown["generator_ms"] = round(
+                (time.perf_counter() - _fb_start) * 1000
             )
         raise
 

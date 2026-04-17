@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 import '../../models/manual_qa_answer.dart';
+import '../../models/manual_source.dart';
 import '../../services/manual_assistant_service.dart';
 import '../../services/ai_provider_service.dart';
 import '../../widgets/ai_provider_chip.dart';
@@ -42,6 +43,8 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
   List<Map<String, dynamic>> _models = [];
   String? _selectedModel;
   bool _loading = false;
+  bool _streaming = false;
+  String _partialAnswer = '';
   String _providerDisplayName = 'Local (Ollama)';
   String? _lastResponseProviderDisplayName;
   bool _fallbackUsed = false;
@@ -70,7 +73,6 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
     }
   }
 
-
   Future<void> _loadModels() async {
     final models = await _service.listModels();
     if (mounted) setState(() => _models = models);
@@ -84,51 +86,144 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
       _messages.add(ChatMessage(question: question, loading: true));
       _questionController.clear();
       _loading = true;
+      _streaming = true;
+      _partialAnswer = '';
     });
 
     try {
       final email = Supabase.instance.client.auth.currentUser?.email ?? '';
-      // Send full history (no truncation) with session summary for compression
-      final answer = await _service.askQuestion(question, null,
+
+      final stream = _service.askQuestionStream(question, null,
           userEmail: email,
           model: _selectedModel,
           history: _history,
           sessionSummary: _sessionSummary);
-      // Store session summary from response
-      if (answer.sessionSummary != null) {
-        _sessionSummary = answer.sessionSummary;
+
+      await for (final event in stream) {
+        if (event.token != null) {
+          _partialAnswer += event.token!;
+          // Show progressive text as tokens arrive
+          final partialQaAnswer = ManualQaAnswer(
+            answer: _partialAnswer,
+            sources: [],
+            grounded: false,
+          );
+          setState(() {
+            _messages.removeLast();
+            _messages.add(ChatMessage(
+              question: question,
+              answer: partialQaAnswer,
+            ));
+          });
+        } else if (event.metadata != null) {
+          final metadata = event.metadata!;
+          final answer = ManualQaAnswer(
+            answer: _partialAnswer,
+            sources: (metadata['sources'] as List<dynamic>?)
+                    ?.map((s) => ManualSource(
+                          manualId: s['manual_id'] ?? s['document_id'] ?? '',
+                          manualTitle:
+                              s['manual_title'] ?? s['display_name'] ?? '',
+                          chunkIndex: 0,
+                          sourcePage: s['source_page'] ?? s['page_number'],
+                          contentPreview:
+                              s['content'] ?? s['section_title'] ?? '',
+                          displayName: s['display_name'],
+                          sectionTitle: s['section_title'],
+                          pageNumber: s['page_number'],
+                          score: (s['score'] as num?)?.toDouble(),
+                        ))
+                    .toList() ??
+                [],
+            grounded: metadata['grounded'] ?? false,
+            isVerified: metadata['is_verified'] ?? false,
+            providerDisplayName:
+                metadata['provider_display_name'] ?? 'Local (Ollama)',
+            fallbackUsed: metadata['fallback_used'] ?? false,
+            sessionSummary: metadata['session_summary'],
+            searchQuery: metadata['search_query'],
+          );
+
+          if (answer.sessionSummary != null) {
+            _sessionSummary = answer.sessionSummary;
+          }
+
+          _history.add({'question': question, 'answer': _partialAnswer});
+
+          setState(() {
+            _messages.removeLast();
+            _messages.add(ChatMessage(question: question, answer: answer));
+            _streaming = false;
+            _loading = false;
+            _lastResponseProviderDisplayName = answer.providerDisplayName;
+            _fallbackUsed = answer.fallbackUsed == true;
+          });
+        } else if (event.error != null) {
+          setState(() {
+            _messages.removeLast();
+            _messages.add(ChatMessage(
+              question: question,
+              answer: ManualQaAnswer(
+                answer: _partialAnswer.isNotEmpty
+                    ? _partialAnswer
+                    : 'Connection lost',
+                sources: [],
+                grounded: false,
+              ),
+              error: event.error,
+            ));
+            _streaming = false;
+            _loading = false;
+          });
+        }
       }
-      // Append this exchange to conversation memory
-      _history.add({'question': question, 'answer': answer.answer});
-      setState(() {
-        _messages.removeLast();
-        _messages.add(ChatMessage(question: question, answer: answer));
-        _loading = false;
-        _lastResponseProviderDisplayName = answer.providerDisplayName;
-        _fallbackUsed = answer.fallbackUsed == true;
-      });
     } on ManualAskException catch (e) {
+      if (!_streaming && !_loading) return; // cancelled — already cleaned up
       setState(() {
         _messages.removeLast();
         _messages.add(ChatMessage(
           question: question,
           error: e.message,
         ));
+        _streaming = false;
         _loading = false;
       });
     } catch (e) {
+      if (!_streaming && !_loading) return; // cancelled — already cleaned up
       setState(() {
         _messages.removeLast();
         _messages.add(ChatMessage(
           question: question,
           error: 'An error occurred. Please try again.',
         ));
+        _streaming = false;
         _loading = false;
       });
     }
   }
 
-  bool get _canSend => !_loading;
+  void _cancelStream() {
+    final question = _messages.isNotEmpty ? _messages.last.question : '';
+    final partialAnswer = ManualQaAnswer(
+      answer: _partialAnswer.isNotEmpty ? _partialAnswer : 'Cancelled',
+      sources: [],
+      grounded: false,
+    );
+    _service.cancelStream();
+    setState(() {
+      if (_messages.isNotEmpty && _messages.last.loading) {
+        _messages.removeLast();
+      }
+      _messages.add(ChatMessage(
+        question: question,
+        answer: partialAnswer,
+      ));
+      _streaming = false;
+      _loading = false;
+    });
+  }
+
+  bool get _canSend => !_loading && !_streaming;
 
   Future<void> _handleRate(
       String questionText, ManualQaAnswer answer, String rating) async {
@@ -233,132 +328,141 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
         // Messages
         Expanded(
           child: SelectionArea(
-                          child: ListView.builder(
-                            itemCount: _messages.length,
-                            itemBuilder: (context, index) {
-                              final msg = _messages[index];
-                              if (msg.loading) {
-                                return Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: Container(
-                                        margin: const EdgeInsets.fromLTRB(
-                                            48, 8, 8, 4),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 14, vertical: 10),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context)
-                                              .primaryColor
-                                              .withValues(alpha: 0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        child: Text(msg.question,
-                                            style:
-                                                const TextStyle(fontSize: 13)),
-                                      ),
-                                    ),
-                                    const ListTile(
-                                      title: Text('Thinking...',
-                                          style: TextStyle(fontSize: 13)),
-                                      leading: SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2),
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              }
-                              if (msg.error != null) {
-                                return ListTile(
-                                  title: Text(msg.error!,
-                                      style:
-                                          const TextStyle(color: Colors.red)),
-                                  subtitle: Text(msg.question),
-                                  trailing: TextButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _messages.removeAt(index);
-                                      });
-                                    },
-                                    child: const Text('Dismiss'),
-                                  ),
-                                );
-                              }
-                              if (msg.answer != null) {
-                                return Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    // Question bubble
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: Container(
-                                        margin: const EdgeInsets.fromLTRB(
-                                            48, 8, 8, 4),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 14, vertical: 10),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context)
-                                              .primaryColor
-                                              .withValues(alpha: 0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        child: Text(
-                                          msg.question,
-                                          style: const TextStyle(fontSize: 13),
-                                        ),
-                                      ),
-                                    ),
-                                    // Answer card
-                                    AnswerCard(
-                                      answer: msg.answer!,
-                                      questionText: msg.question,
-                                      onRate: (rating) => _handleRate(
-                                        msg.question,
-                                        msg.answer!,
-                                        rating,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              }
-                              return const SizedBox.shrink();
-                            },
+            child: ListView.builder(
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final msg = _messages[index];
+                if (msg.loading) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Container(
+                          margin: const EdgeInsets.fromLTRB(48, 8, 8, 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .primaryColor
+                                .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(msg.question,
+                              style: const TextStyle(fontSize: 13)),
+                        ),
+                      ),
+                      const ListTile(
+                        title:
+                            Text('Thinking...', style: TextStyle(fontSize: 13)),
+                        leading: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                if (msg.error != null) {
+                  return ListTile(
+                    title: Text(msg.error!,
+                        style: const TextStyle(color: Colors.red)),
+                    subtitle: Text(msg.question),
+                    trailing: TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _messages.removeAt(index);
+                        });
+                      },
+                      child: const Text('Dismiss'),
+                    ),
+                  );
+                }
+                if (msg.answer != null) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Question bubble
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Container(
+                          margin: const EdgeInsets.fromLTRB(48, 8, 8, 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .primaryColor
+                                .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            msg.question,
+                            style: const TextStyle(fontSize: 13),
                           ),
                         ),
+                      ),
+                      // Answer card
+                      AnswerCard(
+                        answer: msg.answer!,
+                        questionText: msg.question,
+                        isStreaming:
+                            _streaming && index == _messages.length - 1,
+                        onRate: (rating) => _handleRate(
+                          msg.question,
+                          msg.answer!,
+                          rating,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
         ),
         // Input
         Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _questionController,
-                    decoration: const InputDecoration(
-                      hintText: 'Ask a question...',
-                      border: OutlineInputBorder(),
-                    ),
-                    enabled: _canSend,
-                    onSubmitted: (_) => _sendQuestion(),
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _questionController,
+                  decoration: const InputDecoration(
+                    hintText: 'Ask a question...',
+                    border: OutlineInputBorder(),
                   ),
+                  enabled: !_loading,
+                  onSubmitted: (_) => _sendQuestion(),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _canSend ? _sendQuestion : null,
-                  icon: const Icon(Icons.send),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              _streaming
+                  ? IconButton(
+                      onPressed: _cancelStream,
+                      icon: const Icon(Icons.stop),
+                      color: Colors.red,
+                      tooltip: 'Stop streaming',
+                    )
+                  : IconButton(
+                      onPressed: _canSend ? _sendQuestion : null,
+                      icon: const Icon(Icons.send),
+                    ),
+            ],
           ),
+        ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    if (_streaming) {
+      _service.cancelStream();
+    }
+    _questionController.dispose();
+    super.dispose();
   }
 }
