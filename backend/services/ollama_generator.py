@@ -90,6 +90,45 @@ async def generate(
     return await _generate_direct(prompt, model=model, timeout=timeout)
 
 
+async def generate_stream(
+    prompt: str, model: str | None = None, timeout: float = 180.0
+):
+    """Yield token chunks from Ollama streaming API."""
+    use_model = model or get_default_model()
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            async with client.stream(
+                "POST",
+                f"{OLLAMA_URL}/api/generate",
+                json={
+                    "model": use_model,
+                    "prompt": prompt,
+                    "stream": True,
+                    "keep_alive": OLLAMA_KEEP_ALIVE,
+                },
+            ) as response:
+                if response.status_code == 500:
+                    try:
+                        err = response.json().get("error", "unknown error")
+                    except Exception:
+                        err = response.text[:200]
+                    raise GeneratorModelError(use_model, err)
+                if response.status_code == 404:
+                    raise GeneratorModelError(use_model, "model not found")
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.strip():
+                        continue
+                    data = json.loads(line)
+                    token = data.get("response", "")
+                    if token:
+                        yield token
+                    if data.get("done"):
+                        break
+        except httpx.TimeoutException:
+            raise GeneratorTimeoutError("Generator timed out")
+
+
 async def list_models() -> list[dict]:
     """Fetch available models from Ollama, excluding embedding models."""
     async with httpx.AsyncClient(timeout=10.0) as client:
