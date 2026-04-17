@@ -314,7 +314,7 @@ class ManualAssistantService {
       headers['Authorization'] = 'Bearer $token';
     }
 
-    final client = http.Client();
+    _activeStreamClient = http.Client();
     final uri = Uri.parse('${AppConfig.baseUrl}/manuals/ask/stream');
     final request = http.Request('POST', uri);
     request.headers.addAll(headers);
@@ -322,16 +322,16 @@ class ManualAssistantService {
 
     final controller = StreamController<SseEvent>();
 
-    client.send(request).then((response) {
+    _activeStreamClient!.send(request).then((response) {
       if (response.statusCode != 200) {
         controller.add(SseEvent.error('HTTP ${response.statusCode}'));
         controller.close();
-        client.close();
+        _activeStreamClient?.close();
+        _activeStreamClient = null;
         return;
       }
 
       String eventType = 'message';
-      final buffer = StringBuffer();
 
       response.stream
           .transform(utf8.decoder)
@@ -340,10 +340,13 @@ class ManualAssistantService {
         (line) {
           if (line.startsWith('event: ')) {
             eventType = line.substring(7).trim();
-          } else if (line.startsWith('data: ')) {
-            final data = line.substring(6).trim();
-            if (data.isEmpty) {
-              return;
+          } else if (line.startsWith('data:')) {
+            // Preserve leading whitespace in token data (I4 fix).
+            // Strip exactly "data:" prefix (5 chars), then remove the single
+            // space that sse-starlette adds per SSE convention.
+            var data = line.substring(5);
+            if (data.startsWith(' ')) {
+              data = data.substring(1);
             }
             if (eventType == 'metadata') {
               try {
@@ -361,7 +364,9 @@ class ManualAssistantService {
                 controller.add(SseEvent.error(data));
               }
             } else {
-              controller.add(SseEvent.token(data));
+              if (data.isNotEmpty) {
+                controller.add(SseEvent.token(data));
+              }
             }
             eventType = 'message';
           } else if (line.isEmpty) {
@@ -369,25 +374,39 @@ class ManualAssistantService {
           }
         },
         onError: (e) {
-          controller.add(SseEvent.error('Connection lost'));
-          controller.close();
-          client.close();
+          if (!controller.isClosed) {
+            controller.add(SseEvent.error('Connection lost'));
+            controller.close();
+          }
+          _activeStreamClient?.close();
+          _activeStreamClient = null;
         },
         onDone: () {
-          controller.close();
-          client.close();
+          if (!controller.isClosed) {
+            controller.close();
+          }
+          _activeStreamClient?.close();
+          _activeStreamClient = null;
         },
       );
     }).catchError((e) {
-      controller.add(SseEvent.error('Connection failed: $e'));
-      controller.close();
-      client.close();
+      if (!controller.isClosed) {
+        controller.add(SseEvent.error('Connection failed: $e'));
+        controller.close();
+      }
+      _activeStreamClient?.close();
+      _activeStreamClient = null;
     });
 
     return controller.stream;
   }
 
-  void cancelStream() {}
+  http.Client? _activeStreamClient;
+
+  void cancelStream() {
+    _activeStreamClient?.close();
+    _activeStreamClient = null;
+  }
 
   Future<void> deleteManual(String manualId,
       {required String userEmail}) async {

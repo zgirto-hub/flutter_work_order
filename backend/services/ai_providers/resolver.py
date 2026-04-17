@@ -137,15 +137,21 @@ async def generate_stream(
     first_chunk_yielded = False
 
     try:
-        async for token in asyncio.wait_for(
-            active.generate_stream(prompt, context_chunks), timeout=30.0
-        ):
-            if not first_chunk_yielded:
-                first_chunk_yielded = True
-                if latency_breakdown is not None:
-                    latency_breakdown["generator_ms"] = round(
-                        (time.perf_counter() - _gen_start) * 1000
-                    )
+        # Cannot use asyncio.wait_for() on an async generator — it expects a
+        # coroutine. Instead, apply a 30s timeout only to the first chunk
+        # (proves the provider is alive), then iterate without timeout.
+        aiter = active.generate_stream(prompt, context_chunks).__aiter__()
+        try:
+            first = await asyncio.wait_for(aiter.__anext__(), timeout=30.0)
+        except StopAsyncIteration:
+            return  # empty stream — no tokens at all
+        first_chunk_yielded = True
+        if latency_breakdown is not None:
+            latency_breakdown["generator_ms"] = round(
+                (time.perf_counter() - _gen_start) * 1000
+            )
+        yield first
+        async for token in aiter:
             yield token
         return
     except asyncio.TimeoutError as exc:

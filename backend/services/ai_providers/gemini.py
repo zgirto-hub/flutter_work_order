@@ -76,28 +76,64 @@ class GeminiProvider(AIProvider):
     async def generate_stream(self, prompt: str, context_chunks: List[str]):
         if not self._api_key:
             raise GeneratorModelError("gemini", "missing_credentials")
-        from google.generativeai import GenerativeModel
+
+        try:
+            from google.generativeai import GenerativeModel
+        except ImportError:
+            raise GeneratorModelError("gemini", "google-generativeai not installed")
+
         import asyncio
+        import queue
 
-        model_id = await self._get_model_id()
-        model = GenerativeModel(model_id)
-        full_prompt = (
-            "You are a technical synthesis expert for civil aviation maintenance.\n"
-            "You have received relevant information from technical manuals below.\n\n"
-            + "\n\n".join(
-                f"[Context {i + 1}]\n{chunk}" for i, chunk in enumerate(context_chunks)
+        try:
+            model_id = await self._get_model_id()
+            model = GenerativeModel(model_id)
+            full_prompt = (
+                "You are a technical synthesis expert for civil aviation maintenance.\n"
+                "You have received relevant information from technical manuals below.\n\n"
+                + "\n\n".join(
+                    f"[Context {i + 1}]\n{chunk}" for i, chunk in enumerate(context_chunks)
+                )
+                + f"\n\nQUESTION: {prompt}\n\n"
+                + "Please provide a clear, accurate answer based on the context provided."
             )
-            + f"\n\nQUESTION: {prompt}\n\n"
-            + "Please provide a clear, accurate answer based on the context provided."
-        )
 
-        def _stream():
-            return model.generate_content(full_prompt, stream=True)
+            # Iterate the synchronous streaming response in a background thread
+            # to avoid blocking the event loop.
+            q: queue.Queue = queue.Queue()
+            _SENTINEL = object()
 
-        response = await asyncio.to_thread(_stream)
-        for chunk in response:
-            if chunk.text:
-                yield chunk.text
+            def _stream_to_queue():
+                try:
+                    response = model.generate_content(full_prompt, stream=True)
+                    for chunk in response:
+                        if chunk.text:
+                            q.put(chunk.text)
+                except Exception as e:
+                    q.put(e)
+                finally:
+                    q.put(_SENTINEL)
+
+            loop = asyncio.get_event_loop()
+            loop.run_in_executor(None, _stream_to_queue)
+
+            while True:
+                item = await asyncio.to_thread(q.get)
+                if item is _SENTINEL:
+                    break
+                if isinstance(item, Exception):
+                    raise item
+                yield item
+        except GeneratorModelError:
+            raise
+        except Exception as e:
+            error_msg = str(e)
+            if self._api_key and self._api_key in error_msg:
+                error_msg = error_msg.replace(self._api_key, "[API_KEY_SCRUBBED]")
+            if "quota" in error_msg.lower():
+                raise GeneratorModelError("gemini", "quota_exceeded")
+            logger.error(f"Gemini streaming failed: {error_msg}")
+            raise GeneratorModelError("gemini", error_msg[:100])
 
     async def health_check(self) -> bool:
         if not self._api_key:

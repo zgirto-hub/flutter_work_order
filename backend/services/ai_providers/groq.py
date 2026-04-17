@@ -65,7 +65,11 @@ class GroqProvider(AIProvider):
     async def generate_stream(self, prompt: str, context_chunks: List[str]):
         if not self._api_key:
             raise GeneratorModelError("groq", "missing_credentials")
-        from groq import AsyncGroq
+
+        try:
+            from groq import AsyncGroq
+        except ImportError:
+            raise GeneratorModelError("groq", "groq SDK not installed")
 
         full_prompt = (
             "You are a technical synthesis expert for civil aviation maintenance.\n"
@@ -76,16 +80,27 @@ class GroqProvider(AIProvider):
             + f"\n\nQUESTION: {prompt}\n\n"
             + "Please provide a clear, accurate answer based on the context provided."
         )
-        client = AsyncGroq(api_key=self._api_key)
-        stream = await client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[{"role": "user", "content": full_prompt}],
-            stream=True,
-        )
-        async for chunk in stream:
-            content = chunk.choices[0].delta.content
-            if content:
-                yield content
+
+        try:
+            client = AsyncGroq(api_key=self._api_key)
+            stream = await client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=[{"role": "user", "content": full_prompt}],
+                stream=True,
+            )
+            async for chunk in stream:
+                content = chunk.choices[0].delta.content
+                if content:
+                    yield content
+        except GeneratorModelError:
+            raise
+        except Exception as e:
+            error_msg = self._scrub(str(e))
+            lowered = error_msg.lower()
+            if "rate" in lowered or "quota" in lowered or "429" in lowered:
+                raise GeneratorModelError("groq", "quota_exceeded")
+            logger.error(f"Groq streaming failed: {error_msg}")
+            raise GeneratorModelError("groq", error_msg[:100])
 
     async def health_check(self) -> bool:
         if not self._api_key:

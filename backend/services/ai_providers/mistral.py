@@ -65,7 +65,11 @@ class MistralProvider(AIProvider):
     async def generate_stream(self, prompt: str, context_chunks: List[str]):
         if not self._api_key:
             raise GeneratorModelError("mistral", "missing_credentials")
-        from mistralai.client import Mistral
+
+        try:
+            from mistralai.client import Mistral
+        except ImportError:
+            raise GeneratorModelError("mistral", "mistralai SDK not installed")
 
         full_prompt = (
             "You are a technical synthesis expert for civil aviation maintenance.\n"
@@ -76,15 +80,26 @@ class MistralProvider(AIProvider):
             + f"\n\nQUESTION: {prompt}\n\n"
             + "Please provide a clear, accurate answer based on the context provided."
         )
-        client = Mistral(api_key=self._api_key)
-        stream = await client.chat.stream_async(
-            model=MISTRAL_MODEL,
-            messages=[{"role": "user", "content": full_prompt}],
-        )
-        async for chunk in stream:
-            content = chunk.choices[0].delta.content
-            if content:
-                yield content
+
+        try:
+            client = Mistral(api_key=self._api_key)
+            stream = await client.chat.stream_async(
+                model=MISTRAL_MODEL,
+                messages=[{"role": "user", "content": full_prompt}],
+            )
+            async for chunk in stream:
+                content = chunk.choices[0].delta.content
+                if content:
+                    yield content
+        except GeneratorModelError:
+            raise
+        except Exception as e:
+            error_msg = self._scrub(str(e))
+            lowered = error_msg.lower()
+            if "rate" in lowered or "quota" in lowered or "429" in lowered:
+                raise GeneratorModelError("mistral", "quota_exceeded")
+            logger.error(f"Mistral streaming failed: {error_msg}")
+            raise GeneratorModelError("mistral", error_msg[:100])
 
     async def health_check(self) -> bool:
         if not self._api_key:

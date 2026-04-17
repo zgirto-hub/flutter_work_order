@@ -410,39 +410,10 @@ async def ask_question_stream(request: AskRequest):
             )
 
         stream_meta: dict = {}
-        retrieval_info: dict = {
-            "detected_system": None,
-            "filtered_manual_ids": [],
-            "filter_applied": False,
-            "fallback_reason": None,
-        }
-        sources = []
-        grounded = False
-        confidence = "low"
-        provider_used = "local"
-        provider_display_name = "Local (Ollama)"
-        fallback_used = False
-        is_verified = False
-        verified_source = None
-        manuals_consulted = []
-        agentic = False
-        tools_used = []
-        session_summary = None
-        search_query = question
+        token_count = 0
 
         async def event_gen():
-            nonlocal \
-                grounded, \
-                confidence, \
-                sources, \
-                provider_used, \
-                provider_display_name, \
-                fallback_used, \
-                is_verified, \
-                verified_source, \
-                manuals_consulted, \
-                tools_used, \
-                search_query
+            nonlocal token_count
 
             try:
                 async for token in manual_rag_service.ask_stream(
@@ -453,33 +424,60 @@ async def ask_question_stream(request: AskRequest):
                     session_summary=request.session_summary,
                     user_email=request.user_email,
                     latency_breakdown=breakdown,
+                    stream_meta=stream_meta,
                 ):
+                    token_count += 1
                     yield {"data": token}
 
-                if breakdown.get("generator_ms") is not None:
-                    breakdown["total_ms"] = round(
-                        (time.perf_counter() - _req_start) * 1000
+                breakdown["total_ms"] = round(
+                    (time.perf_counter() - _req_start) * 1000
+                )
+
+                # Activity logging (constitution VI: Audit Everything)
+                try:
+                    log_activity(
+                        request.user_email,
+                        "file",
+                        "asked_manual",
+                        target_label=question[:200],
+                        target_id=str(manual_id_filter) if manual_id_filter else "all",
+                        detail=f"stream=true, grounded={stream_meta.get('grounded', False)}, sources={len(stream_meta.get('sources', []))}",
                     )
+                except Exception:
+                    pass
+
+                # Fallback audit logging (spec-065)
+                fallback_info = stream_meta.get("fallback_info")
+                if fallback_info:
+                    try:
+                        log_activity(
+                            fallback_info.get("user_email", request.user_email),
+                            category="admin",
+                            action="ai_provider_fallback",
+                            target_label=fallback_info.get("failed_provider", "unknown"),
+                            target_id=fallback_info.get("fallback_provider", "unknown"),
+                            detail=fallback_info.get("detail", "unknown"),
+                        )
+                    except Exception:
+                        pass
 
                 result = {
-                    "sources": sources,
-                    "grounded": grounded,
-                    "confidence": confidence,
-                    "total_tokens": sum(1 for _ in []),
+                    "sources": stream_meta.get("sources", []),
+                    "grounded": stream_meta.get("grounded", False),
+                    "confidence": stream_meta.get("confidence", "low"),
+                    "total_tokens": token_count,
                     "done": True,
-                    "provider_used": stream_meta.get("provider_key", provider_used),
-                    "provider_display_name": stream_meta.get(
-                        "display_name", provider_display_name
-                    ),
-                    "fallback_used": stream_meta.get("fallback_used", fallback_used),
-                    "is_verified": is_verified,
-                    "verified_source": verified_source,
+                    "provider_used": stream_meta.get("provider_key", "local"),
+                    "provider_display_name": stream_meta.get("display_name", "Local (Ollama)"),
+                    "fallback_used": stream_meta.get("fallback_used", False),
+                    "is_verified": stream_meta.get("is_verified", False),
+                    "verified_source": stream_meta.get("verified_source"),
                     "latency_breakdown": breakdown,
-                    "session_summary": session_summary,
-                    "manuals_consulted": manuals_consulted,
-                    "agentic": agentic,
-                    "tools_used": tools_used,
-                    "retrieval_info": retrieval_info,
+                    "session_summary": stream_meta.get("session_summary"),
+                    "manuals_consulted": stream_meta.get("manuals_consulted", []),
+                    "agentic": False,
+                    "tools_used": [],
+                    "retrieval_info": stream_meta.get("retrieval_info"),
                 }
 
                 yield {"event": "metadata", "data": json.dumps(result)}
@@ -489,7 +487,7 @@ async def ask_question_stream(request: AskRequest):
                 error_data = {
                     "error": "stream_failed",
                     "message": str(e),
-                    "partial": grounded,
+                    "partial": token_count > 0,
                 }
                 yield {"event": "error", "data": json.dumps(error_data)}
 
@@ -532,6 +530,7 @@ async def _trivial_stream_response(question: str, user_email: str, total_ms: int
                 "confidence": "low",
                 "total_tokens": 0,
                 "done": True,
+                "bypass": "greeting",
                 "provider_used": "local",
                 "provider_display_name": "Local (Ollama)",
                 "fallback_used": False,

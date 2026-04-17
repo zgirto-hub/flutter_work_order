@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:http/http.dart' as http;
 import '../../theme/app_theme.dart';
 import '../../models/manual_qa_answer.dart';
 import '../../models/manual_source.dart';
@@ -45,7 +44,6 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
   String? _selectedModel;
   bool _loading = false;
   bool _streaming = false;
-  http.Client? _activeClient;
   String _partialAnswer = '';
   String _providerDisplayName = 'Local (Ollama)';
   String? _lastResponseProviderDisplayName;
@@ -103,8 +101,19 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
 
       await for (final event in stream) {
         if (event.token != null) {
+          _partialAnswer += event.token!;
+          // Show progressive text as tokens arrive
+          final partialQaAnswer = ManualQaAnswer(
+            answer: _partialAnswer,
+            sources: [],
+            grounded: false,
+          );
           setState(() {
-            _partialAnswer += event.token!;
+            _messages.removeLast();
+            _messages.add(ChatMessage(
+              question: question,
+              answer: partialQaAnswer,
+            ));
           });
         } else if (event.metadata != null) {
           final metadata = event.metadata!;
@@ -192,7 +201,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
   }
 
   void _cancelStream() {
-    _activeClient?.close();
+    _service.cancelStream();
     setState(() {
       _streaming = false;
       _loading = false;
@@ -382,6 +391,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
                       AnswerCard(
                         answer: msg.answer!,
                         questionText: msg.question,
+                        isStreaming: _streaming && index == _messages.length - 1,
                         onRate: (rating) => _handleRate(
                           msg.question,
                           msg.answer!,
