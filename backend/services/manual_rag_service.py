@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import re
@@ -82,6 +83,22 @@ MAX_PROMPT_CHUNKS = 3
 MAX_CHUNKS_PER_MANUAL = 3
 MAX_MANUALS_FOR_SYNTHESIS = 8
 
+# Direct lookup patterns for spec 077
+_DIRECT_LOOKUP_RE = re.compile(
+    r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"  # IP addresses
+    r"|\b[a-z]{2,5}\d?-(ops|cont|mux)\b"  # Server hostnames
+    r"|\b(AIDA|ATS|CISECA|IMS|eAIP|Mux|EFG)\s*\d+\b",  # Component names with numbers
+    re.IGNORECASE,
+)
+
+
+def _is_direct_lookup(query: str) -> bool:
+    """Check if query contains direct technical identifiers that bypass HyDE (spec 077)."""
+    result = bool(_DIRECT_LOOKUP_RE.search(query))
+    logger.info("[direct-lookup] query=%s, is_direct=%s", query[:80], result)
+    return result
+
+
 # --- Validated QA confidence thresholds (spec 069) ---
 RAG_CONFIDENCE_THRESHOLD = 0.70  # Minimum similarity to proceed to LLM
 RAG_HIGH_CONFIDENCE = 0.85  # Score >= this → confidence: "high"
@@ -125,6 +142,7 @@ DOCUMENT_QA_SYSTEM_PROMPT = (
 # Sentinel phrases indicating an ungrounded answer (shared by single- and cross-manual paths)
 _SENTINEL_PHRASES = [
     "this information is not in the available manuals",
+    "i don't have that information in the knowledge base",
     "المعلومات المطلوبة غير موجودة في الأدلة المتاحة",
 ]
 
