@@ -9,18 +9,90 @@ MAX_CHUNKS_PER_DOCUMENT = 3
 MAX_DOCUMENTS_FOR_SYNTHESIS = 8
 
 
+def _diversity_select(
+    chunks_by_document: dict[str, list[dict]],
+    top_docs_count: int = 3,
+    max_chunks_per_doc: int = 3,
+    diversity_floor_threshold: float = 0.60,
+) -> dict[str, list[dict]]:
+    """Apply diversity-aware selection to document chunks.
+
+    1. Compute document relevance score = sum of top-3 chunk similarities per document
+    2. Rank documents by aggregate score (ties broken by highest individual chunk score)
+    3. Select top top_docs_count documents as "winning" documents
+    4. Apply diversity floor: non-winning docs with similarity >= threshold get 1 chunk
+    5. Return merged winning chunks + floor chunks
+    """
+    doc_scores: list[dict] = []
+
+    for doc_id, chunks in chunks_by_document.items():
+        if not chunks:
+            continue
+
+        # Sort once per document; reuse for scoring and chunk selection
+        sorted_chunks = sorted(
+            chunks, key=lambda c: c.get("similarity", 0), reverse=True
+        )
+        top_3 = sorted_chunks[:3]
+        aggregate_score = sum(c.get("similarity", 0) for c in top_3)
+        max_chunk_score = sorted_chunks[0].get("similarity", 0)
+
+        doc_scores.append(
+            {
+                "document_id": doc_id,
+                "aggregate_score": aggregate_score,
+                "max_chunk_score": max_chunk_score,
+                "sorted_chunks": sorted_chunks,
+            }
+        )
+
+    doc_scores.sort(
+        key=lambda d: (d["aggregate_score"], d["max_chunk_score"]),
+        reverse=True,
+    )
+
+    winning_doc_ids = set(d["document_id"] for d in doc_scores[:top_docs_count])
+    floor_doc_ids = set()
+
+    for doc in doc_scores[top_docs_count:]:
+        if doc["max_chunk_score"] >= diversity_floor_threshold:
+            floor_doc_ids.add(doc["document_id"])
+
+    # Build result: winning docs first (preserves rank order for max_documents truncation),
+    # then floor docs — so truncation drops floor docs before winners.
+    result: dict[str, list[dict]] = {}
+    for doc in doc_scores[:top_docs_count]:
+        result[doc["document_id"]] = doc["sorted_chunks"][:max_chunks_per_doc]
+
+    for doc in doc_scores[top_docs_count:]:
+        if doc["document_id"] in floor_doc_ids:
+            result[doc["document_id"]] = [doc["sorted_chunks"][0]]
+
+    logger.info(
+        "Diversity selection: %d docs scored, %d winners, %d floor — scores: %s",
+        len(doc_scores),
+        len(winning_doc_ids),
+        len(floor_doc_ids),
+        {d["document_id"][:8]: round(d["aggregate_score"], 2) for d in doc_scores},
+    )
+
+    return result
+
+
 async def retrieve_chunks_per_document(
     embedding_str: str,
     max_chunks_per_doc: int = MAX_CHUNKS_PER_DOCUMENT,
     max_documents: int = MAX_DOCUMENTS_FOR_SYNTHESIS,
+    top_docs_count: int = 3,
+    diversity_floor_threshold: float = 0.60,
 ) -> dict[str, list[dict]]:
-    """Retrieve top qualifying chunks grouped by document ID (spec 072)."""
+    """Retrieve top qualifying chunks grouped by document ID (spec 072), with diversity-aware selection (spec 078)."""
     try:
         rpc_response = supabase.rpc(
             "search_document_chunks",
             {
                 "query_embedding": embedding_str,
-                "match_count": 10,
+                "match_count": 20,
                 "match_threshold": MAX_CHUNK_DISTANCE,
             },
         ).execute()
@@ -53,20 +125,18 @@ async def retrieve_chunks_per_document(
             }
         )
 
-    qualified_docs = {}
-    for doc_id, chunks in chunks_by_document.items():
-        capped = chunks[:max_chunks_per_doc]
-        if capped:
-            qualified_docs[doc_id] = capped
+    qualified_docs = _diversity_select(
+        chunks_by_document,
+        top_docs_count=top_docs_count,
+        max_chunks_per_doc=max_chunks_per_doc,
+        diversity_floor_threshold=diversity_floor_threshold,
+    )
 
+    # Truncate to max_documents if needed. _diversity_select() inserts winning
+    # docs first (by rank) then floor docs, so truncation drops floor docs
+    # before winners. Relies on Python 3.7+ dict insertion-order guarantee.
     if len(qualified_docs) > max_documents:
-        ranked = sorted(
-            qualified_docs.items(),
-            key=lambda item: (
-                sum(c.get("distance", 1.0) for c in item[1]) / len(item[1])
-            ),
-        )
-        qualified_docs = dict(ranked[:max_documents])
+        qualified_docs = dict(list(qualified_docs.items())[:max_documents])
 
     for doc_id in qualified_docs:
         parent_ids = [
