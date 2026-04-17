@@ -8,6 +8,21 @@ import '../config.dart';
 import '../models/manual.dart';
 import '../models/manual_qa_answer.dart';
 
+class SseEvent {
+  final String? token;
+  final Map<String, dynamic>? metadata;
+  final String? error;
+  SseEvent.token(this.token)
+      : metadata = null,
+        error = null;
+  SseEvent.metadata(this.metadata)
+      : token = null,
+        error = null;
+  SseEvent.error(this.error)
+      : token = null,
+        metadata = null;
+}
+
 class ManualUploadException implements Exception {
   final String code;
   final String message;
@@ -267,6 +282,112 @@ class ManualAssistantService {
       throw ManualAskException('ask_failed', e.toString());
     }
   }
+
+  Stream<SseEvent> askQuestionStream(String question, String? manualIdFilter,
+      {required String userEmail,
+      String? model,
+      List<Map<String, String>>? history,
+      String? sessionSummary}) {
+    final body = <String, dynamic>{
+      'question': question,
+      'user_email': userEmail,
+    };
+    if (manualIdFilter != null) {
+      body['manual_id'] = manualIdFilter;
+    }
+    if (model != null) {
+      body['model'] = model;
+    }
+    if (history != null && history.isNotEmpty) {
+      body['history'] = history;
+    }
+    if (sessionSummary != null) {
+      body['session_summary'] = sessionSummary;
+    }
+
+    final session = Supabase.instance.client.auth;
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+    };
+    final token = session.currentSession?.accessToken;
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+
+    final client = http.Client();
+    final uri = Uri.parse('${AppConfig.baseUrl}/manuals/ask/stream');
+    final request = http.Request('POST', uri);
+    request.headers.addAll(headers);
+    request.body = jsonEncode(body);
+
+    final controller = StreamController<SseEvent>();
+
+    client.send(request).then((response) {
+      if (response.statusCode != 200) {
+        controller.add(SseEvent.error('HTTP ${response.statusCode}'));
+        controller.close();
+        client.close();
+        return;
+      }
+
+      String eventType = 'message';
+      final buffer = StringBuffer();
+
+      response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen(
+        (line) {
+          if (line.startsWith('event: ')) {
+            eventType = line.substring(7).trim();
+          } else if (line.startsWith('data: ')) {
+            final data = line.substring(6).trim();
+            if (data.isEmpty) {
+              return;
+            }
+            if (eventType == 'metadata') {
+              try {
+                final metadata = jsonDecode(data) as Map<String, dynamic>;
+                controller.add(SseEvent.metadata(metadata));
+              } catch (e) {
+                controller.add(SseEvent.error('Failed to parse metadata'));
+              }
+            } else if (eventType == 'error') {
+              try {
+                final error = jsonDecode(data) as Map<String, dynamic>;
+                controller
+                    .add(SseEvent.error(error['message'] ?? 'Unknown error'));
+              } catch (e) {
+                controller.add(SseEvent.error(data));
+              }
+            } else {
+              controller.add(SseEvent.token(data));
+            }
+            eventType = 'message';
+          } else if (line.isEmpty) {
+            eventType = 'message';
+          }
+        },
+        onError: (e) {
+          controller.add(SseEvent.error('Connection lost'));
+          controller.close();
+          client.close();
+        },
+        onDone: () {
+          controller.close();
+          client.close();
+        },
+      );
+    }).catchError((e) {
+      controller.add(SseEvent.error('Connection failed: $e'));
+      controller.close();
+      client.close();
+    });
+
+    return controller.stream;
+  }
+
+  void cancelStream() {}
 
   Future<void> deleteManual(String manualId,
       {required String userEmail}) async {
