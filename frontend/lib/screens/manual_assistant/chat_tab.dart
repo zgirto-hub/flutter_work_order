@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 import '../../models/manual_qa_answer.dart';
-import '../../models/manual_source.dart';
 import '../../services/manual_assistant_service.dart';
 import '../../services/ai_provider_service.dart';
 import '../../widgets/ai_provider_chip.dart';
@@ -117,32 +116,11 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
           });
         } else if (event.metadata != null) {
           final metadata = event.metadata!;
-          final answer = ManualQaAnswer(
-            answer: _partialAnswer,
-            sources: (metadata['sources'] as List<dynamic>?)
-                    ?.map((s) => ManualSource(
-                          manualId: s['manual_id'] ?? s['document_id'] ?? '',
-                          manualTitle:
-                              s['manual_title'] ?? s['display_name'] ?? '',
-                          chunkIndex: 0,
-                          sourcePage: s['source_page'] ?? s['page_number'],
-                          contentPreview:
-                              s['content'] ?? s['section_title'] ?? '',
-                          displayName: s['display_name'],
-                          sectionTitle: s['section_title'],
-                          pageNumber: s['page_number'],
-                          score: (s['score'] as num?)?.toDouble(),
-                        ))
-                    .toList() ??
-                [],
-            grounded: metadata['grounded'] ?? false,
-            isVerified: metadata['is_verified'] ?? false,
-            providerDisplayName:
-                metadata['provider_display_name'] ?? 'Local (Ollama)',
-            fallbackUsed: metadata['fallback_used'] ?? false,
-            sessionSummary: metadata['session_summary'],
-            searchQuery: metadata['search_query'],
-          );
+          // Inject the streamed answer text into the metadata, then use
+          // fromJson which correctly parses all fields (latencyBreakdown,
+          // manualsConsulted, retrievalInfo, verifiedSource, etc.)
+          metadata['answer'] = _partialAnswer;
+          final answer = ManualQaAnswer.fromJson(metadata);
 
           if (answer.sessionSummary != null) {
             _sessionSummary = answer.sessionSummary;
