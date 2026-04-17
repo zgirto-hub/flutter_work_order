@@ -6,7 +6,7 @@ import uuid
 import time
 from datetime import datetime, timezone
 from uuid import UUID
-from typing import List, Optional
+from typing import List, Optional, AsyncIterator
 from db import supabase
 from services.manual_parser import parse, NoExtractableTextError
 from services.manual_chunker import chunk_paragraphs, Chunk
@@ -603,6 +603,191 @@ _LAYER3_RETIRED = True  # Layer 3 functions removed (spec 072 Phase 7)
 # ----SPLICE_START----
 
 
+async def ask_stream(
+    question: str,
+    manual_id_filter: Optional[UUID] = None,
+    model: Optional[str] = None,
+    history: list[dict] | None = None,
+    session_summary: str | None = None,
+    user_email: str | None = None,
+    latency_breakdown: dict | None = None,
+) -> AsyncIterator[str]:
+    """Streaming version of ask() that yields tokens progressively."""
+    from services.ai_providers.resolver import (
+        generate_stream as provider_generate_stream,
+    )
+
+    if latency_breakdown is None:
+        latency_breakdown = _empty_latency_breakdown()
+    breakdown = latency_breakdown
+    _total_start = time.perf_counter()
+
+    detected_system = detect_system(question)
+    retrieval_info: dict = {
+        "detected_system": detected_system,
+        "filtered_manual_ids": [],
+        "filter_applied": False,
+        "fallback_reason": None,
+    }
+
+    count_response = (
+        supabase.table("manual_corpus_stats")
+        .select("manual_count")
+        .eq("id", 1)
+        .execute()
+    )
+    if not count_response.data or count_response.data[0]["manual_count"] == 0:
+        yield "This information is not in the available manuals."
+        return
+
+    import time as _time
+
+    stream_meta: dict = {}
+    search_query = question
+    vqa_provider_used = None
+    vqa_provider_display_name = "Local (Ollama)"
+    vqa_fallback_used = False
+
+    _vqa_pre_start = _time.monotonic()
+    try:
+        pre_rewrite_match = await validated_qa_service.check_validated_match(
+            question, detected_system=detected_system
+        )
+        vqa_matches = pre_rewrite_match.get("matches", [])
+
+        if vqa_matches:
+            max_score = max(m["similarity"] for m in vqa_matches)
+            if max_score >= RAG_CONFIDENCE_THRESHOLD:
+                context_parts = []
+                for i, m in enumerate(vqa_matches):
+                    context_parts.append(f"[Source {i + 1}]\n{m['validated_answer']}")
+                combined_context = "\n\n".join(context_parts)
+
+                prompt = (
+                    f"{VALIDATED_QA_SYSTEM_PROMPT}\n\n"
+                    f"CONTEXT:\n{combined_context}\n\n"
+                    f"QUESTION: {question}\n\nANSWER:"
+                )
+
+                async for token in provider_generate_stream(
+                    prompt,
+                    [],
+                    user_email,
+                    latency_breakdown=breakdown,
+                    stream_meta=stream_meta,
+                ):
+                    yield token
+                return
+    except Exception as e:
+        logger.warning("Pre-rewrite validated_qa check failed: %s", e)
+
+    _needs_rewrite = bool(history)
+    _needs_hyde = not _is_direct_lookup(question)
+
+    if _needs_rewrite and _needs_hyde:
+        rewrite_result, hyde_result = await asyncio.gather(
+            _rewrite_query(question, history)
+            if _needs_rewrite
+            else asyncio.coroutine(lambda: question)(),
+            _generate_hypothetical_answer(question)
+            if _needs_hyde
+            else asyncio.coroutine(lambda: None)(),
+            return_exceptions=True,
+        )
+        if not isinstance(rewrite_result, Exception):
+            search_query = rewrite_result
+        hyde_text = hyde_result if not isinstance(hyde_result, Exception) else None
+    elif _needs_rewrite:
+        search_query = await _rewrite_query(question, history)
+        hyde_text = None
+        breakdown["hyde_ms"] = 0
+    elif _needs_hyde:
+        hyde_text = await _generate_hypothetical_answer(search_query)
+        breakdown["rewrite_ms"] = 0
+    else:
+        search_query = question
+        breakdown["hyde_ms"] = 0
+        breakdown["rewrite_ms"] = 0
+        hyde_text = None
+
+    if detected_system is None and search_query != question:
+        followup_system = detect_system(search_query)
+        if followup_system:
+            detected_system = followup_system
+            retrieval_info["detected_system"] = followup_system
+
+    try:
+        match_result = await validated_qa_service.check_validated_match(
+            search_query, detected_system=detected_system
+        )
+        vqa_matches = match_result.get("matches", [])
+
+        if vqa_matches:
+            max_score = max(m["similarity"] for m in vqa_matches)
+            if max_score >= RAG_CONFIDENCE_THRESHOLD:
+                context_parts = []
+                for i, m in enumerate(vqa_matches):
+                    context_parts.append(f"[Source {i + 1}]\n{m['validated_answer']}")
+                combined_context = "\n\n".join(context_parts)
+
+                prompt = (
+                    f"{VALIDATED_QA_SYSTEM_PROMPT}\n\n"
+                    f"CONTEXT:\n{combined_context}\n\n"
+                    f"QUESTION: {search_query}\n\nANSWER:"
+                )
+
+                async for token in provider_generate_stream(
+                    prompt,
+                    [],
+                    user_email,
+                    latency_breakdown=breakdown,
+                    stream_meta=stream_meta,
+                ):
+                    yield token
+                return
+    except Exception as e:
+        logger.warning("Validated QA check failed: %s", e)
+
+    from services.document_search_service import (
+        retrieve_chunks_per_document,
+        build_direct_generation_prompt,
+    )
+
+    _hyde_text = hyde_text if "hyde_text" in dir() else None
+
+    try:
+        if _needs_hyde and _hyde_text is None:
+            with _StageTimer(breakdown, "hyde_ms"):
+                _hyde_text = await _generate_hypothetical_answer(search_query)
+
+        embed_input = _hyde_text if _hyde_text else search_query
+        with _StageTimer(breakdown, "embed_ms"):
+            embedding = await embed_single(embed_input)
+
+        chunks_by_doc = await retrieve_chunks_per_document(
+            "[" + ",".join(str(x) for x in embedding) + "]"
+        )
+
+        if chunks_by_doc:
+            prompt, sources, docs_consulted = build_direct_generation_prompt(
+                chunks_by_doc, search_query, DOCUMENT_QA_SYSTEM_PROMPT
+            )
+
+            async for token in provider_generate_stream(
+                prompt,
+                [],
+                user_email,
+                latency_breakdown=breakdown,
+                stream_meta=stream_meta,
+            ):
+                yield token
+            return
+    except Exception as e:
+        logger.warning("Document chunk search failed: %s", e)
+
+    yield "This information is not in the available manuals."
+
+
 async def ask(
     question: str,
     manual_id_filter: Optional[UUID] = None,
@@ -970,7 +1155,9 @@ async def ask(
     try:
         # Use pre-computed HyDE from parallel execution if available (spec 077)
         if _hyde_already_ran:
-            _layer2_hyde_text = _parallel_hyde_text  # Could be None — means HyDE produced nothing
+            _layer2_hyde_text = (
+                _parallel_hyde_text  # Could be None — means HyDE produced nothing
+            )
             # hyde_ms already set by parallel execution
         elif _needs_hyde:
             # No history case — HyDE wasn't run in parallel, run it now
