@@ -8,26 +8,87 @@ class AnswerCard extends StatefulWidget {
   final ManualQaAnswer answer;
   final String questionText;
   final Function(String rating)? onRate;
+  final bool isStreaming;
 
   const AnswerCard({
     super.key,
     required this.answer,
     this.questionText = '',
     this.onRate,
+    this.isStreaming = false,
   });
 
   @override
   State<AnswerCard> createState() => _AnswerCardState();
 }
 
-class _AnswerCardState extends State<AnswerCard> {
+class _AnswerCardState extends State<AnswerCard>
+    with SingleTickerProviderStateMixin {
   String? _selectedRating;
   bool _expanded = false;
+  late AnimationController _cursorController;
+  late Animation<double> _cursorAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _cursorController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    )..repeat(reverse: true);
+    _cursorAnimation =
+        Tween<double>(begin: 0.0, end: 1.0).animate(_cursorController);
+  }
+
+  @override
+  void dispose() {
+    _cursorController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isVerified = widget.answer.isVerified;
+
+    if (widget.isStreaming) {
+      return Card(
+        margin: const EdgeInsets.all(8),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.answer.answer,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                  ),
+                  AnimatedBuilder(
+                    animation: _cursorAnimation,
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: _cursorAnimation.value,
+                        child: const Text(
+                          '|',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Card(
       margin: const EdgeInsets.all(8),
