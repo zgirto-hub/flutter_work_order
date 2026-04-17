@@ -178,6 +178,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
         }
       }
     } on ManualAskException catch (e) {
+      if (!_streaming && !_loading) return; // cancelled — already cleaned up
       setState(() {
         _messages.removeLast();
         _messages.add(ChatMessage(
@@ -188,6 +189,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
         _loading = false;
       });
     } catch (e) {
+      if (!_streaming && !_loading) return; // cancelled — already cleaned up
       setState(() {
         _messages.removeLast();
         _messages.add(ChatMessage(
