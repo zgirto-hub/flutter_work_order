@@ -233,16 +233,17 @@ async def execute_manuals_tool(
             latency_breakdown=latency_breakdown,
         )
 
-        return {
-            "success": True,
-            "data": {
-                "answer": result.get("answer", ""),
-                "sources": result.get("sources", []),
-                "grounded": result.get("grounded", False),
-                "manuals_consulted": result.get("manuals_consulted", []),
-                "has_conflicts": result.get("has_conflicts", False),
-            },
+        data = {
+            "answer": result.get("answer", ""),
+            "sources": result.get("sources", []),
+            "grounded": result.get("grounded", False),
+            "manuals_consulted": result.get("manuals_consulted", []),
+            "has_conflicts": result.get("has_conflicts", False),
         }
+        if result.get("search_query"):
+            data["search_query"] = result["search_query"]
+
+        return {"success": True, "data": data}
 
     except Exception as e:
         logger.error(f"execute_manuals_tool error: {e}")
@@ -589,6 +590,8 @@ User: {question}"""
             "manuals_consulted", []
         )
         response_dict["has_conflicts"] = manuals_tool_result.get("has_conflicts", False)
+        if manuals_tool_result.get("search_query") is not None:
+            response_dict["search_query"] = manuals_tool_result["search_query"]
     else:
         response_dict["grounded"] = False
         response_dict["sources"] = []

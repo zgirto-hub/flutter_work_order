@@ -298,6 +298,7 @@ class ManualAssistantService {
     String? manualId,
     String? modelUsed,
     String? validatedQaId,
+    String? sessionSummary,
   }) async {
     try {
       final body = <String, dynamic>{
@@ -310,6 +311,7 @@ class ManualAssistantService {
       if (manualId != null) body['manual_id'] = manualId;
       if (modelUsed != null) body['model_used'] = modelUsed;
       if (validatedQaId != null) body['validated_qa_id'] = validatedQaId;
+      if (sessionSummary != null) body['session_summary'] = sessionSummary;
 
       final session = Supabase.instance.client.auth;
       final headers = <String, String>{'Content-Type': 'application/json'};

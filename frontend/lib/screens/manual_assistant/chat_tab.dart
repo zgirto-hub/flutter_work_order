@@ -143,7 +143,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
 
     try {
       await _service.rateAnswer(
-        questionText: questionText,
+        questionText: answer.searchQuery ?? questionText,
         answerText: answer.answer,
         sourceChunks: sourceChunks,
         rating: rating,
@@ -151,6 +151,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
         manualId: null,
         modelUsed: answer.model,
         validatedQaId: answer.verifiedSource?.validatedQaId,
+        sessionSummary: _sessionSummary,
       );
     } catch (e) {
       if (mounted) {

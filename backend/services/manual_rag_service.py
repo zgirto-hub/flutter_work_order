@@ -631,6 +631,7 @@ async def ask(
     system_manual_ids: list[str] = []
     no_manuals_directive: str | None = None
     validated_context: str | None = None
+    search_query: str = question  # rewritten query; default to raw question
 
     # Check corpus is not empty
     count_response = (
@@ -645,6 +646,7 @@ async def ask(
             "grounded": False,
             "sources": [],
             "session_summary": None,
+            "search_query": search_query,
             "retrieval_info": retrieval_info,
         }
 
@@ -740,6 +742,7 @@ async def ask(
                     "provider_used": vqa_provider_used,
                     "fallback_used": vqa_fallback_used,
                     "session_summary": None,
+                    "search_query": search_query,
                     "latency_breakdown": breakdown,
                     "source_type": "validated_qa",
                 }
@@ -930,6 +933,7 @@ async def ask(
                     "provider_used": vqa_provider_used,
                     "fallback_used": vqa_fallback_used,
                     "session_summary": None,
+                    "search_query": search_query,
                     "latency_breakdown": breakdown,
                     "source_type": "validated_qa",
                 }
@@ -1078,6 +1082,7 @@ async def ask(
                     "provider_used": provider_used,
                     "fallback_used": fallback_used,
                     "session_summary": None,
+                    "search_query": search_query,
                     "latency_breakdown": breakdown,
                 }
             else:
@@ -1138,6 +1143,7 @@ async def ask(
         "grounded": False,
         "sources": [],
         "session_summary": None,
+        "search_query": search_query,
         "retrieval_info": retrieval_info,
         "latency_breakdown": breakdown,
     }

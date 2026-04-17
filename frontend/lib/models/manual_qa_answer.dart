@@ -85,6 +85,7 @@ class ManualQaAnswer {
   final bool fallbackUsed;
   final LatencyBreakdown? latencyBreakdown;
   final String? sourceType;
+  final String? searchQuery;
 
   const ManualQaAnswer({
     required this.answer,
@@ -105,6 +106,7 @@ class ManualQaAnswer {
     this.fallbackUsed = false,
     this.latencyBreakdown,
     this.sourceType,
+    this.searchQuery,
   });
 
   factory ManualQaAnswer.fromJson(Map<String, dynamic> json) {
@@ -158,6 +160,7 @@ class ManualQaAnswer {
       fallbackUsed: json['fallback_used'] ?? false,
       latencyBreakdown: latencyBreakdown,
       sourceType: json['source_type'] as String?,
+      searchQuery: json['search_query'] as String?,
     );
   }
 
