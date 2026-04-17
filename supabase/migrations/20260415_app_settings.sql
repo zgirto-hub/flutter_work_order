@@ -21,7 +21,7 @@ CREATE POLICY "authenticated_select_app_settings" ON public.app_settings
 
 -- Seed rows for AI Provider Manager
 INSERT INTO public.app_settings (key, value) VALUES
-    ('ai_provider', 'gemini'),
+    ('ai_provider', 'local'),
     ('ai_providers_available', '["local","gemini"]')
 ON CONFLICT (key) DO UPDATE SET
     value = EXCLUDED.value,

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 _cache: dict = {"value": None, "expires_at": 0.0}
 _TTL_SECONDS = 60.0
-_DEFAULT_PROVIDER = "gemini"
+_DEFAULT_PROVIDER = "local"
 _FALLBACK_PROVIDER = "local"  # Always fall back to Ollama, regardless of default
 
 
@@ -168,26 +168,26 @@ async def _fallback_to_local(
 
 
 async def _migrate_default_provider() -> None:
-    """One-time migration: rewrite stored 'local' default to 'gemini' (spec 076).
+    """One-time migration: rewrite stored 'gemini' default to 'local' (Ollama).
 
     Idempotent — runs on every startup but only mutates state when the stored
-    value is exactly 'local'. Safe across Uvicorn worker restarts: whichever
-    worker wins the first UPDATE observes `current == "local"` exactly once;
-    subsequent starts (same worker or new) observe 'gemini' and skip.
+    value is exactly 'gemini'. Safe across Uvicorn worker restarts: whichever
+    worker wins the first UPDATE observes `current == "gemini"` exactly once;
+    subsequent starts (same worker or new) observe 'local' and skip.
     Failures are logged and swallowed — migration MUST NOT block startup.
     """
     try:
         current = await get_setting("ai_provider")
-        if current == "local":
-            await set_setting("ai_provider", "gemini")
+        if current == "gemini":
+            await set_setting("ai_provider", "local")
             invalidate_cache()
             log_activity(
                 "system",
                 category="admin",
                 action="ai_provider_migrated",
-                target_label="gemini",
-                detail="old=local",
+                target_label="local",
+                detail="old=gemini",
             )
-            logger.info("spec 076: migrated ai_provider from 'local' to 'gemini'")
+            logger.info("Migrated ai_provider from 'gemini' to 'local' (Ollama)")
     except Exception as e:
-        logger.error(f"spec 076: ai_provider migration failed: {e}")
+        logger.error(f"ai_provider migration to local failed: {e}")
