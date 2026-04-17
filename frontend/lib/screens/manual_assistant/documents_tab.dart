@@ -81,7 +81,7 @@ class _DocumentsTabState extends State<DocumentsTab>
   Future<void> _handleUpload() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf'],
+      allowedExtensions: ['pdf', 'txt', 'md', 'docx'],
     );
 
     if (result == null || result.files.isEmpty) return;
@@ -97,7 +97,7 @@ class _DocumentsTabState extends State<DocumentsTab>
     }
 
     final displayNameController =
-        TextEditingController(text: file.name.replaceAll('.pdf', ''));
+        TextEditingController(text: file.name.replaceAll(RegExp(r'\.(pdf|txt|md|docx)$'), ''));
 
     final displayName = await showDialog<String>(
       context: context,
