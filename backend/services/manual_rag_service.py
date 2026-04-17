@@ -102,7 +102,8 @@ VALIDATED_QA_SYSTEM_PROMPT = (
 
 # --- System prompt for document-sourced RAG (spec 070) ---
 DOCUMENT_QA_SYSTEM_PROMPT = (
-    "You are a technical assistant for a civil aviation maintenance management system (CMMS).\n\n"
+    "You are a technical assistant for a civil aviation maintenance department.\n"
+    "The department uses multiple systems: CADAS-ATS, CADAS-IMS, AIDA-NG, IRTOS, and others.\n\n"
     "Your job is to answer maintenance and operations questions using ONLY the context provided below.\n"
     "The context comes from uploaded technical manuals.\n\n"
     "Rules:\n"
@@ -113,8 +114,12 @@ DOCUMENT_QA_SYSTEM_PROMPT = (
     "- When the context contains step-by-step procedures, list ALL steps in order. Do not summarize or skip steps.\n"
     "- When the context contains lists, thresholds, or specific values, include them exactly as written.\n"
     "- Use numbered steps for procedures, bullet points for lists.\n"
-    '- Cite the document and page (e.g. "According to CNMS Manual, page 58").\n'
-    "- If multiple sources are relevant, synthesize them into one clear answer."
+    '- Cite the document and section (e.g. "According to CADAS-ATS Admin, Section: Database Backup").\n'
+    "- If multiple sources are relevant, synthesize them into one clear answer.\n"
+    "- If the question is ambiguous about WHICH system it refers to and the conversation history "
+    "does not clarify, ask the user to specify which system they mean.\n"
+    "- If the conversation history already establishes which system is being discussed, "
+    "use that context — do NOT ask again."
 )
 
 # Sentinel phrases indicating an ungrounded answer (shared by single- and cross-manual paths)
@@ -160,6 +165,7 @@ def _build_prompt(
 
     parts.append(
         "You are a technical assistant for a civil aviation maintenance department.\n"
+        "The department uses multiple systems: CADAS-ATS, CADAS-IMS, AIDA-NG, IRTOS, and others.\n"
         "Answer the technician's question using ONLY the manual sections provided below.\n\n"
         "Rules:\n"
         "1. LEAD with the direct answer in 1-2 sentences. No preamble like "
@@ -170,7 +176,12 @@ def _build_prompt(
         "do not invent structure.\n"
         "4. If the answer is not found in the sections, reply exactly: "
         '"This information is not in the available manuals."\n'
-        "5. Reply in the same language as the question (Arabic or English)."
+        "5. Reply in the same language as the question (Arabic or English).\n"
+        "6. If the question is ambiguous about WHICH system it refers to (e.g. 'forgot the admin password' "
+        "without specifying CADAS-ATS or CADAS-IMS), AND the conversation history does not clarify, "
+        "ask the user to specify which system they mean. List the relevant systems you have documentation for.\n"
+        "7. If the conversation history already establishes which system is being discussed, "
+        "use that context — do NOT ask again."
     )
 
     if validated_context:
@@ -430,8 +441,11 @@ async def _rewrite_query(question: str, history: list[dict] | None) -> str:
         )
 
         rewrite_prompt = (
-            """You are a search query rewriter. Given a conversation history and a follow-up question, rewrite the follow-up question into a single self-contained search query. The rewritten query must:
+            """You are a search query rewriter for a civil aviation maintenance department that uses multiple systems (CADAS-ATS, CADAS-IMS, AIDA-NG, IRTOS, etc.).
+
+Given a conversation history and a follow-up question, rewrite the follow-up question into a single self-contained search query. The rewritten query must:
 - Resolve all pronouns and references (e.g., "it", "that", "the second point") using the conversation context
+- Include the specific system name if the conversation context makes it clear which system is being discussed
 - Be a complete, standalone question that would make sense without any conversation history
 - Preserve the original language (Arabic or English)
 - Be concise (one sentence)
@@ -993,11 +1007,45 @@ async def ask(
 
     # --- End Layer 2 ---
 
-    # No grounded answer from validated_qa or documents — return fallback.
+    # No grounded answer from validated_qa or documents.
     # Layer 3 (old manual-chunks pipeline) has been retired (spec 072 Phase 7).
+    # If the question seems like it could be about a specific system, ask for clarification
+    # instead of the generic "not in manuals" fallback.
+    fallback_answer = "This information is not in the available manuals."
+    try:
+        from services.ai_providers.resolver import generate as provider_generate
+
+        clarify_prompt = (
+            "You are a technical assistant for a civil aviation maintenance department.\n"
+            "The department uses these systems: CADAS-ATS, CADAS-IMS, AIDA-NG, IRTOS.\n\n"
+            "The user asked a question but the search returned no matching documentation.\n"
+            "This might be because:\n"
+            "1. The question is too vague and doesn't specify which system.\n"
+            "2. The information genuinely doesn't exist in the uploaded documents.\n\n"
+        )
+        if history:
+            history_block = "\n".join(
+                f"User: {turn['question']}\nAssistant: {turn['answer']}"
+                for turn in history[-3:]
+            )
+            clarify_prompt += f"CONVERSATION HISTORY:\n{history_block}\n\n"
+        clarify_prompt += (
+            f"USER QUESTION: {question}\n\n"
+            "If the question could apply to multiple systems and the conversation history "
+            "doesn't clarify which one, politely ask the user to specify the system.\n"
+            "If the conversation history already establishes the system, say you don't have "
+            "that specific information in the documentation for that system.\n"
+            "Keep your response to 1-2 sentences. Reply in the same language as the question."
+        )
+        clarify_result, _, _ = await provider_generate(clarify_prompt)
+        if clarify_result and clarify_result.strip():
+            fallback_answer = clarify_result.strip()
+    except Exception as e:
+        logger.warning("Clarification generation failed: %s", e)
+
     breakdown["total_ms"] = round((time.perf_counter() - _total_start) * 1000)
     return {
-        "answer": "This information is not in the available manuals.",
+        "answer": fallback_answer,
         "grounded": False,
         "sources": [],
         "session_summary": None,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
-import '../../models/manual.dart';
 import '../../models/manual_qa_answer.dart';
 import '../../services/manual_assistant_service.dart';
 import '../../services/ai_provider_service.dart';
@@ -40,13 +39,9 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
   final List<Map<String, String>> _history =
       []; // conversation memory (Layer 3)
   String? _sessionSummary;
-  List<Manual> _manuals = [];
   List<Map<String, dynamic>> _models = [];
-  String? _selectedManualId;
   String? _selectedModel;
   bool _loading = false;
-  bool _manualsLoading = true;
-  String? _loadError;
   String _providerDisplayName = 'Local (Ollama)';
   String? _lastResponseProviderDisplayName;
   bool _fallbackUsed = false;
@@ -54,7 +49,6 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
   @override
   void initState() {
     super.initState();
-    _loadManuals();
     _loadModels();
     _loadProvider();
   }
@@ -76,21 +70,6 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  Future<void> _loadManuals() async {
-    try {
-      final result = await _service.listManuals();
-      setState(() {
-        _manuals = result['manuals'] as List<Manual>;
-        _manualsLoading = false;
-      });
-    } catch (e) {
-      if (mounted)
-        setState(() {
-          _loadError = e.toString();
-          _manualsLoading = false;
-        });
-    }
-  }
 
   Future<void> _loadModels() async {
     final models = await _service.listModels();
@@ -101,8 +80,6 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
     final question = _questionController.text.trim();
     if (question.isEmpty) return;
 
-    final manualIdFilter = _selectedManualId;
-
     setState(() {
       _messages.add(ChatMessage(question: question, loading: true));
       _questionController.clear();
@@ -112,7 +89,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
     try {
       final email = Supabase.instance.client.auth.currentUser?.email ?? '';
       // Send full history (no truncation) with session summary for compression
-      final answer = await _service.askQuestion(question, manualIdFilter,
+      final answer = await _service.askQuestion(question, null,
           userEmail: email,
           model: _selectedModel,
           history: _history,
@@ -151,7 +128,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  bool get _canSend => !_loading && _manuals.isNotEmpty;
+  bool get _canSend => !_loading;
 
   Future<void> _handleRate(
       String questionText, ManualQaAnswer answer, String rating) async {
@@ -171,7 +148,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
         sourceChunks: sourceChunks,
         rating: rating,
         raterEmail: email,
-        manualId: _selectedManualId,
+        manualId: null,
         modelUsed: answer.model,
         validatedQaId: answer.verifiedSource?.validatedQaId,
       );
@@ -192,68 +169,41 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
     super.build(context);
     return Column(
       children: [
-        // Filter dropdowns
-        if (_manuals.isNotEmpty)
+        if (_models.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
             child: Row(
               children: [
-                Expanded(
+                const Spacer(),
+                SizedBox(
+                  width: 160,
                   child: DropdownButton<String?>(
-                    value: _selectedManualId,
-                    hint: const Text('All manuals',
-                        style: TextStyle(fontSize: 13)),
+                    value: _selectedModel,
+                    hint: const Text('Default model',
+                        style: TextStyle(fontSize: 12)),
                     isExpanded: true,
                     style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         color: Theme.of(context).textTheme.bodyMedium?.color),
                     items: [
                       const DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('All manuals'),
+                        child: Text('Default model'),
                       ),
-                      ..._manuals.map((m) => DropdownMenuItem<String?>(
-                            value: m.id,
-                            child:
-                                Text(m.title, overflow: TextOverflow.ellipsis),
+                      ..._models.map((m) => DropdownMenuItem<String?>(
+                            value: m['name'] as String,
+                            child: Text(
+                              '${m['name']} (${m['size_gb']}G)',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12),
+                            ),
                           )),
                     ],
                     onChanged: (value) {
-                      setState(() => _selectedManualId = value);
+                      setState(() => _selectedModel = value);
                     },
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (_models.isNotEmpty)
-                  SizedBox(
-                    width: 160,
-                    child: DropdownButton<String?>(
-                      value: _selectedModel,
-                      hint: const Text('Default model',
-                          style: TextStyle(fontSize: 12)),
-                      isExpanded: true,
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).textTheme.bodyMedium?.color),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('Default model'),
-                        ),
-                        ..._models.map((m) => DropdownMenuItem<String?>(
-                              value: m['name'] as String,
-                              child: Text(
-                                '${m['name']} (${m['size_gb']}G)',
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            )),
-                      ],
-                      onChanged: (value) {
-                        setState(() => _selectedModel = value);
-                      },
-                    ),
-                  ),
               ],
             ),
           ),
@@ -281,34 +231,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
         ),
         // Messages
         Expanded(
-          child: _manualsLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _loadError != null
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(_loadError!,
-                              style: const TextStyle(color: Colors.red)),
-                          const SizedBox(height: 8),
-                          ElevatedButton(
-                            onPressed: _loadManuals,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    )
-                  : _manuals.isEmpty
-                      ? const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Text(
-                              'No manuals uploaded yet. Visit the Manuals tab to upload one.',
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        )
-                      : SelectionArea(
+          child: SelectionArea(
                           child: ListView.builder(
                             itemCount: _messages.length,
                             itemBuilder: (context, index) {
@@ -411,8 +334,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
                         ),
         ),
         // Input
-        if (_manuals.isNotEmpty)
-          Padding(
+        Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
               children: [

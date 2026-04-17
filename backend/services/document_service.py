@@ -49,14 +49,19 @@ async def index_document(document_id: str, file_path: str) -> None:
         )
         document_title = doc_resp.data["display_name"] if doc_resp.data else ""
 
-        supabase.table("knowledge_documents").update({"status": "preprocessing"}).eq(
-            "id", document_id
-        ).execute()
+        # Skip AI preprocessing for text-based formats — already clean text
+        if ext in (".md", ".txt"):
+            logger.info("Skipping preprocessing for %s file", ext)
+            raw_mapping = {}
+        else:
+            supabase.table("knowledge_documents").update(
+                {"status": "preprocessing"}
+            ).eq("id", document_id).execute()
 
-        preprocessed_pages, raw_mapping = await preprocess_pages(
-            pages, document_title=document_title, document_id=document_id
-        )
-        pages = preprocessed_pages
+            preprocessed_pages, raw_mapping = await preprocess_pages(
+                pages, document_title=document_title, document_id=document_id
+            )
+            pages = preprocessed_pages
 
         supabase.table("knowledge_documents").update(
             {"status": "indexing", "preprocessing_progress": 0}
@@ -217,34 +222,46 @@ def _detect_sections(
         return _page_per_section(pages)
 
     # For text-based formats, try heading detection
-    heading_count = 0
+    md_heading_count = 0
+    numbered_heading_count = 0
     for _, page_text in pages:
         for line in page_text.split("\n"):
             stripped = line.strip()
             if not stripped:
                 continue
-            if re.match(r"^(\d+\.)+\d*\s+\S", stripped):
-                heading_count += 1
+            if re.match(r"^#{1,4}\s+\S", stripped):
+                md_heading_count += 1
+            elif re.match(r"^(\d+\.)+\d*\s+\S", stripped):
+                numbered_heading_count += 1
             elif re.match(r"^(Chapter|Section)\s+\d+", stripped, re.IGNORECASE):
-                heading_count += 1
-            elif re.match(r"^#{1,4}\s+\S", stripped):  # Markdown headings
-                heading_count += 1
+                numbered_heading_count += 1
 
+    heading_count = md_heading_count + numbered_heading_count
     min_headings = max(5, len(pages) // 3)
     logger.info(
-        "[chunker] text format=%s, heading_count=%d, threshold=%d",
+        "[chunker] text format=%s, md_headings=%d, numbered=%d, threshold=%d",
         file_ext,
-        heading_count,
+        md_heading_count,
+        numbered_heading_count,
         min_headings,
     )
     if heading_count >= min_headings:
-        return _heading_based_sections(pages)
+        # If document has markdown headings, only split on those —
+        # numbered lines are list items, not section boundaries
+        md_only = md_heading_count >= 3
+        return _heading_based_sections(pages, md_only=md_only)
 
     return _page_per_section(pages)
 
 
-def _heading_based_sections(pages: list[tuple[int, str]]) -> list[dict]:
-    """Split by detected headings (for structured documents with numbered sections)."""
+def _heading_based_sections(
+    pages: list[tuple[int, str]], md_only: bool = False
+) -> list[dict]:
+    """Split by detected headings.
+
+    md_only: when True, only split on markdown ## headings (numbered items are
+             treated as body text, not section boundaries).
+    """
     sections = []
     current_section = {"title": "Introduction", "content": "", "page_number": 1}
 
@@ -256,10 +273,14 @@ def _heading_based_sections(pages: list[tuple[int, str]]) -> list[dict]:
                 continue
 
             is_heading = False
-            if re.match(r"^(\d+\.)+\d*\s+\S", stripped):
+            if re.match(r"^#{1,4}\s+\S", stripped):  # Markdown headings
                 is_heading = True
-            elif re.match(r"^(Chapter|Section)\s+\d+", stripped, re.IGNORECASE):
-                is_heading = True
+                stripped = re.sub(r"^#+\s+", "", stripped)  # Remove ## prefix for title
+            elif not md_only:
+                if re.match(r"^(\d+\.)+\d*\s+\S", stripped):
+                    is_heading = True
+                elif re.match(r"^(Chapter|Section)\s+\d+", stripped, re.IGNORECASE):
+                    is_heading = True
 
             if is_heading and current_section["content"].strip():
                 sections.append(current_section)

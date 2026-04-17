@@ -6,7 +6,7 @@ One-time server setup (run on the server before using the feature):
 
 ```bash
 # Pull the embedding model
-ollama pull nomic-embed-text
+ollama pull nomic-embed-text-v2-moe
 ```
 
 Note: Gemma 4 must already be installed (`ollama pull gemma3:e2b` or similar).
