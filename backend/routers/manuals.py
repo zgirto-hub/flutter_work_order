@@ -15,6 +15,7 @@ import os
 import re
 import uuid
 import math
+import json
 from pydantic import BaseModel
 from db import supabase
 from utils.activity import log_activity
@@ -28,6 +29,7 @@ from prompts.paraphrase_prompt import (
     PARAPHRASE_PROMPT_TEMPLATE,
     parse_paraphrase_output,
 )
+from sse_starlette.sse import EventSourceResponse
 import logging
 
 router = APIRouter(tags=["manuals"])
@@ -37,7 +39,13 @@ logger = logging.getLogger(__name__)
 
 def _get_manual_title(manual_id: str) -> str:
     """Fetch title for contextual embedding prefix."""
-    resp = supabase.table("manuals").select("title").eq("id", manual_id).maybe_single().execute()
+    resp = (
+        supabase.table("manuals")
+        .select("title")
+        .eq("id", manual_id)
+        .maybe_single()
+        .execute()
+    )
     return resp.data.get("title", "") if resp.data else ""
 
 
@@ -338,6 +346,221 @@ async def delete_manual(
     return Response(status_code=204)
 
 
+@router.post("/manuals/ask/stream")
+async def ask_question_stream(request: AskRequest):
+    question = request.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail={"error": "question_required"})
+    if len(question) > 2000:
+        raise HTTPException(
+            status_code=400, detail={"error": "question_too_long", "limit": 2000}
+        )
+
+    _req_start = time.perf_counter()
+
+    if TRIVIAL_INPUT_PATTERN.match(question):
+        total_ms = round((time.perf_counter() - _req_start) * 1000)
+        return EventSourceResponse(
+            _trivial_stream_response(question, request.user_email, total_ms),
+            media_type="text/event-stream",
+        )
+
+    manual_id_filter = None
+    if request.manual_id:
+        manual_id_filter = UUID(request.manual_id)
+        check = (
+            supabase.table("manuals")
+            .select("id")
+            .eq("id", str(manual_id_filter))
+            .execute()
+        )
+        if not check.data:
+            raise HTTPException(status_code=404, detail={"error": "manual_not_found"})
+
+    from services.manual_rag_service import _empty_latency_breakdown
+
+    breakdown = _empty_latency_breakdown()
+
+    try:
+        history = [
+            {"question": h.question, "answer": h.answer} for h in request.history
+        ]
+
+        if agentic_tools._needs_tools(question):
+            result = await agentic_tools.run_agentic_loop(
+                question,
+                manual_id_filter,
+                model=request.model,
+                history=history,
+                session_summary=request.session_summary,
+                user_email=request.user_email,
+                latency_breakdown=breakdown,
+            )
+            breakdown["total_ms"] = round((time.perf_counter() - _req_start) * 1000)
+            result["latency_breakdown"] = breakdown
+
+            async def agentic_event_gen():
+                yield {"data": result["answer"]}
+                result["done"] = True
+                result["total_ms"] = breakdown["total_ms"]
+                yield {"event": "metadata", "data": json.dumps(result)}
+
+            return EventSourceResponse(
+                agentic_event_gen(), media_type="text/event-stream"
+            )
+
+        stream_meta: dict = {}
+        retrieval_info: dict = {
+            "detected_system": None,
+            "filtered_manual_ids": [],
+            "filter_applied": False,
+            "fallback_reason": None,
+        }
+        sources = []
+        grounded = False
+        confidence = "low"
+        provider_used = "local"
+        provider_display_name = "Local (Ollama)"
+        fallback_used = False
+        is_verified = False
+        verified_source = None
+        manuals_consulted = []
+        agentic = False
+        tools_used = []
+        session_summary = None
+        search_query = question
+
+        async def event_gen():
+            nonlocal \
+                grounded, \
+                confidence, \
+                sources, \
+                provider_used, \
+                provider_display_name, \
+                fallback_used, \
+                is_verified, \
+                verified_source, \
+                manuals_consulted, \
+                tools_used, \
+                search_query
+
+            try:
+                async for token in manual_rag_service.ask_stream(
+                    question,
+                    manual_id_filter,
+                    model=request.model,
+                    history=history,
+                    session_summary=request.session_summary,
+                    user_email=request.user_email,
+                    latency_breakdown=breakdown,
+                ):
+                    yield {"data": token}
+
+                if breakdown.get("generator_ms") is not None:
+                    breakdown["total_ms"] = round(
+                        (time.perf_counter() - _req_start) * 1000
+                    )
+
+                result = {
+                    "sources": sources,
+                    "grounded": grounded,
+                    "confidence": confidence,
+                    "total_tokens": sum(1 for _ in []),
+                    "done": True,
+                    "provider_used": stream_meta.get("provider_key", provider_used),
+                    "provider_display_name": stream_meta.get(
+                        "display_name", provider_display_name
+                    ),
+                    "fallback_used": stream_meta.get("fallback_used", fallback_used),
+                    "is_verified": is_verified,
+                    "verified_source": verified_source,
+                    "latency_breakdown": breakdown,
+                    "session_summary": session_summary,
+                    "manuals_consulted": manuals_consulted,
+                    "agentic": agentic,
+                    "tools_used": tools_used,
+                    "retrieval_info": retrieval_info,
+                }
+
+                yield {"event": "metadata", "data": json.dumps(result)}
+
+            except Exception as e:
+                logger.error(f"Streaming error: {e}")
+                error_data = {
+                    "error": "stream_failed",
+                    "message": str(e),
+                    "partial": grounded,
+                }
+                yield {"event": "error", "data": json.dumps(error_data)}
+
+        return EventSourceResponse(event_gen(), media_type="text/event-stream")
+
+    except Exception as e:
+        logger.error(f"SSE endpoint error: {e}")
+        error_data = {
+            "error": "stream_failed",
+            "message": str(e),
+            "partial": False,
+        }
+
+        async def error_event_gen():
+            yield {"event": "error", "data": json.dumps(error_data)}
+
+        return EventSourceResponse(error_event_gen(), media_type="text/event-stream")
+
+
+async def _trivial_stream_response(question: str, user_email: str, total_ms: int):
+    try:
+        log_activity(
+            user_email,
+            "file",
+            "asked_manual",
+            target_label=question[:200],
+            target_id="all",
+            detail="bypass=greeting",
+        )
+    except Exception:
+        pass
+
+    yield {"data": TRIVIAL_INPUT_REPLY}
+    yield {
+        "event": "metadata",
+        "data": json.dumps(
+            {
+                "sources": [],
+                "grounded": False,
+                "confidence": "low",
+                "total_tokens": 0,
+                "done": True,
+                "provider_used": "local",
+                "provider_display_name": "Local (Ollama)",
+                "fallback_used": False,
+                "is_verified": False,
+                "verified_source": None,
+                "latency_breakdown": {
+                    "embed_ms": None,
+                    "hyde_ms": None,
+                    "rewrite_ms": None,
+                    "retrieval_ms": None,
+                    "rerank_ms": None,
+                    "generator_ms": None,
+                    "total_ms": total_ms,
+                },
+                "session_summary": None,
+                "manuals_consulted": [],
+                "agentic": False,
+                "tools_used": [],
+                "retrieval_info": {
+                    "detected_system": None,
+                    "filtered_manual_ids": [],
+                    "filter_applied": False,
+                    "fallback_reason": None,
+                },
+            }
+        ),
+    }
+
+
 @router.post("/manuals/ask")
 async def ask_question(request: AskRequest):
     question = request.question.strip()
@@ -479,6 +702,7 @@ async def ask_question(request: AskRequest):
             _NOT_FOUND_MANUALS,
             _NOT_FOUND_KNOWLEDGE_BASE_AR,
         )
+
         _sentinel_phrases = [
             _NOT_FOUND_KNOWLEDGE_BASE.lower(),
             _NOT_FOUND_MANUALS.lower(),
@@ -988,7 +1212,9 @@ async def re_embed_all(
                     "id", chunk["id"]
                 ).execute()
             except Exception as e:
-                logger.warning("Re-embed failed for manual chunk %s: %s", chunk["id"], e)
+                logger.warning(
+                    "Re-embed failed for manual chunk %s: %s", chunk["id"], e
+                )
 
     if background_tasks:
         background_tasks.add_task(re_embed_worker, manual_id, title)
