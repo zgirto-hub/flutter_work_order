@@ -201,8 +201,21 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
   }
 
   void _cancelStream() {
+    final question = _messages.isNotEmpty ? _messages.last.question : '';
+    final partialAnswer = ManualQaAnswer(
+      answer: _partialAnswer.isNotEmpty ? _partialAnswer : 'Cancelled',
+      sources: [],
+      grounded: false,
+    );
     _service.cancelStream();
     setState(() {
+      if (_messages.isNotEmpty && _messages.last.loading) {
+        _messages.removeLast();
+      }
+      _messages.add(ChatMessage(
+        question: question,
+        answer: partialAnswer,
+      ));
       _streaming = false;
       _loading = false;
     });
@@ -391,7 +404,8 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
                       AnswerCard(
                         answer: msg.answer!,
                         questionText: msg.question,
-                        isStreaming: _streaming && index == _messages.length - 1,
+                        isStreaming:
+                            _streaming && index == _messages.length - 1,
                         onRate: (rating) => _handleRate(
                           msg.question,
                           msg.answer!,
@@ -418,15 +432,22 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
                     hintText: 'Ask a question...',
                     border: OutlineInputBorder(),
                   ),
-                  enabled: _canSend,
+                  enabled: !_loading,
                   onSubmitted: (_) => _sendQuestion(),
                 ),
               ),
               const SizedBox(width: 8),
-              IconButton(
-                onPressed: _canSend ? _sendQuestion : null,
-                icon: const Icon(Icons.send),
-              ),
+              _streaming
+                  ? IconButton(
+                      onPressed: _cancelStream,
+                      icon: const Icon(Icons.stop),
+                      color: Colors.red,
+                      tooltip: 'Stop streaming',
+                    )
+                  : IconButton(
+                      onPressed: _canSend ? _sendQuestion : null,
+                      icon: const Icon(Icons.send),
+                    ),
             ],
           ),
         ),
