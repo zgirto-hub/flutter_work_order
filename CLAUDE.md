@@ -100,6 +100,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - Python 3.10 (backend only — no Flutter/Dart changes) + FastAPI, Supabase Python client, httpx, existing `services.ollama_embedder`, existing `services.document_service`, existing `services.manual_rag_service` (075-contextual-embeddings)
 - Supabase (PostgreSQL) with pgvector — existing `document_chunks`, `manual_chunks`, `knowledge_documents`, `manuals` tables. No schema changes. (075-contextual-embeddings)
 - Python 3.10 (backend only — no Flutter/Dart changes) + FastAPI, existing `services.ollama_generator`, existing `services.ollama_embedder`, existing `services.ai_providers.resolver` (077-rag-pipeline-parallelize)
+- Python 3.10 + FastAPI, Supabase Python client (existing — no new deps) (078-diversity-aware-retrieval)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -122,9 +123,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 078-diversity-aware-retrieval: Added Python 3.10 + FastAPI, Supabase Python client (existing — no new deps)
 - 077-rag-pipeline-parallelize: Added Python 3.10 (backend only — no Flutter/Dart changes) + FastAPI, existing `services.ollama_generator`, existing `services.ollama_embedder`, existing `services.ai_providers.resolver`
 - 075-contextual-embeddings: Added Python 3.10 (backend only — no Flutter/Dart changes) + FastAPI, Supabase Python client, httpx, existing `services.ollama_embedder`, existing `services.document_service`, existing `services.manual_rag_service`
-- 076-gemini-default-generation: Added Python 3.10 (backend only — no Flutter/Dart changes this spec) + FastAPI, Supabase Python client, httpx, `google-generativeai` (all existing from spec 063), existing `services.ai_providers.resolver`, `services.ollama_generator`
 
 
 <!-- MANUAL ADDITIONS START -->
