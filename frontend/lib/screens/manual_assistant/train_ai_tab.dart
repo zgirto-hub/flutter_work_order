@@ -132,7 +132,7 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
   int _generatedCount = 0;
 
   List<Map<String, dynamic>> _candidates = [];
-  final Set<int> _approvedIndices = {};
+  Set<int> _approvedIndices = {};
   int _skippedCached = 0;
 
   final List<String> _sessionHistory = [];
