@@ -7,6 +7,7 @@ import 'rules_tab.dart';
 import 'alerts_tab.dart';
 import 'verified_answers_tab.dart';
 import 'documents_tab.dart';
+import 'train_ai_tab.dart';
 
 class ManualAssistantScreen extends StatefulWidget {
   final String userRole;
@@ -31,7 +32,7 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
     super.initState();
     _isAdmin = widget.userRole == 'admin';
     _userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
-    _tabController = TabController(length: _isAdmin ? 6 : 1, vsync: this);
+    _tabController = TabController(length: _isAdmin ? 7 : 1, vsync: this);
 
     if (_isAdmin) {
       _loadFlaggedCount();
@@ -146,6 +147,17 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
                   ],
                 ),
               ),
+            if (_isAdmin)
+              Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.psychology_outlined, size: 18),
+                    SizedBox(width: 4),
+                    Text('Train AI'),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -163,6 +175,7 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
           if (_isAdmin) AlertsTab(userEmail: _userEmail),
           if (_isAdmin) VerifiedAnswersTab(userEmail: _userEmail),
           if (_isAdmin) DocumentsTab(userEmail: _userEmail),
+          if (_isAdmin) TrainAiTab(userEmail: _userEmail, service: _service),
         ],
       ),
     );

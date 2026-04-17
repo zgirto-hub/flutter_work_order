@@ -1,4 +1,5 @@
 import time
+from datetime import datetime, timezone
 from fastapi import (
     APIRouter,
     HTTPException,
@@ -874,6 +875,10 @@ async def review_answer(request: ReviewAnswerRequest):
 class ParaphraseVariantsRequest(BaseModel):
     question_text: str
     rating_id: Optional[str] = None
+    lang: str = "en"
+
+
+ARABIC_PARAPHRASE_PROMPT = 'Translate this question to Arabic, then generate 3 natural Arabic paraphrase variants a maintenance technician might use. The variants must sound natural in Arabic, not like direct translations. Return JSON only — no preamble, no markdown: {{"variants": ["...", "...", "..."]}}\nQuestion: {q}'
 
 
 @router.post("/manuals/paraphrase-variants")
@@ -892,7 +897,10 @@ async def generate_paraphrase_variants(
             status_code=400, detail={"error": "question_text must be 1-500 chars"}
         )
 
-    prompt = PARAPHRASE_PROMPT_TEMPLATE.format(q=request.question_text)
+    if request.lang == "ar":
+        prompt = ARABIC_PARAPHRASE_PROMPT.format(q=request.question_text)
+    else:
+        prompt = PARAPHRASE_PROMPT_TEMPLATE.format(q=request.question_text)
 
     try:
         (
@@ -1038,6 +1046,7 @@ class CreateVerifiedAnswerRequest(BaseModel):
     question_text: str
     validated_answer: str
     editor_email: str
+    source_manual_id: Optional[str] = None
 
 
 @router.post("/manuals/verified-answers")
@@ -1060,6 +1069,7 @@ async def create_verified_answer(
             question_text=request.question_text.strip(),
             validated_answer=request.validated_answer.strip(),
             editor_email=request.editor_email,
+            source_manual_id=request.source_manual_id,
         )
         background_tasks.add_task(
             log_activity,
@@ -1124,6 +1134,454 @@ def _admin_check(user_email: str):
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
     if not user_resp.data or user_resp.data.get("user_type") != "admin":
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
+
+
+class GenerateQACandidatesRequest(BaseModel):
+    manual_id: str
+    max_candidates: int = 20
+
+
+@router.post("/manuals/generate-qa-candidates")
+async def generate_qa_candidates(
+    request: GenerateQACandidatesRequest,
+    user_email: str = Query(...),
+    background_tasks: BackgroundTasks = None,
+):
+    try:
+        _admin_check(user_email)
+    except Exception:
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+
+    # Cap max_candidates to prevent excessive API calls
+    max_candidates = min(request.max_candidates, 50)
+
+    manual_resp = (
+        supabase.table("manuals")
+        .select("id, title")
+        .eq("id", request.manual_id)
+        .maybe_single()
+        .execute()
+    )
+    if not manual_resp.data:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "not_found", "message": "Manual not found."},
+        )
+
+    manual_title = manual_resp.data["title"]
+
+    chunks_resp = (
+        supabase.table("manual_chunks")
+        .select("id, content, source_page, embedding")
+        .eq("manual_id", request.manual_id)
+        .order("chunk_index")
+        .execute()
+    )
+    if not chunks_resp.data:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "no_chunks",
+                "message": "This manual has no content chunks. Please process it first.",
+            },
+        )
+
+    chunks = chunks_resp.data
+    skipped_cached = 0
+    candidates = []
+    generated_embeddings = []
+
+    def cosine_similarity(a: List[float], b: List[float]) -> float:
+        dot = sum(x * y for x, y in zip(a, b))
+        norm_a = sum(x * x for x in a) ** 0.5
+        norm_b = sum(x * x for x in b) ** 0.5
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return dot / (norm_a * norm_b)
+
+    # Filter out chunks already cached (cosine >= 0.85 → distance < 0.15)
+    skipped_ids = set()
+    for chunk in chunks:
+        chunk_embedding = chunk.get("embedding")
+        if not chunk_embedding:
+            skipped_ids.add(chunk["id"])
+            continue
+
+        if isinstance(chunk_embedding, str):
+            try:
+                chunk_embedding = json.loads(chunk_embedding)
+            except Exception:
+                skipped_ids.add(chunk["id"])
+                continue
+
+        try:
+            rpc_resp = supabase.rpc(
+                "search_validated_qa",
+                {"q_embedding": chunk_embedding, "match_count": 1},
+            ).execute()
+            if rpc_resp.data and rpc_resp.data[0].get("distance", 1.0) < 0.15:
+                skipped_cached += 1
+                skipped_ids.add(chunk["id"])
+        except Exception as e:
+            logger.warning(f"RPC search_validated_qa failed (dedup skipped): {e}")
+
+    remaining_chunks = [c for c in chunks if c["id"] not in skipped_ids]
+    batches = [remaining_chunks[i : i + 3] for i in range(0, len(remaining_chunks), 3)]
+
+    for batch in batches:
+        if len(candidates) >= max_candidates:
+            break
+
+        batch_content = "\n\n---\n\n".join([c.get("content", "") for c in batch])
+        batch_chunk_ids = [c["id"] for c in batch]
+        source_pages = [c.get("source_page") for c in batch]
+        source_page = source_pages[0] if source_pages and source_pages[0] else 1
+
+        prompt = (
+            "Given these manual excerpts, generate ONE practical question a "
+            "maintenance technician would realistically ask, and a clear "
+            "step-by-step answer grounded ONLY in the provided text. Never "
+            "add information not present in the excerpts. Return JSON only — "
+            'no preamble, no markdown:\n'
+            '{"question": "...", "answer": "..."}\n\n'
+            f"Manual excerpts:\n{batch_content[:2000]}"
+        )
+
+        try:
+            (
+                answer_text,
+                provider_key,
+                display_name,
+                fallback_used,
+                fallback_info,
+            ) = await provider_generate(prompt, [])
+
+            try:
+                qa_data = json.loads(answer_text.strip())
+                question = qa_data.get("question", "").strip()
+                answer = qa_data.get("answer", "").strip()
+            except json.JSONDecodeError:
+                continue
+
+            if not question or not answer:
+                continue
+
+            # Embed once, then check dedup against all previously generated
+            question_embedding = await embed_single(question)
+            is_dup = any(
+                cosine_similarity(gen_emb, question_embedding) >= 0.85
+                for gen_emb in generated_embeddings
+            )
+            if is_dup:
+                continue
+
+            generated_embeddings.append(question_embedding)
+            candidates.append(
+                {
+                    "question": question,
+                    "answer": answer,
+                    "source_title": f"{manual_title} — Page {source_page}",
+                    "source_chunk_ids": batch_chunk_ids,
+                }
+            )
+
+        except Exception as e:
+            logger.warning(f"Q&A generation failed for batch: {e}")
+            continue
+
+    if background_tasks:
+        background_tasks.add_task(
+            log_activity,
+            user_email=user_email,
+            category="manual_assistant",
+            action="generated_qa_candidates",
+            details={
+                "manual_id": request.manual_id,
+                "manual_title": manual_title,
+                "total": len(candidates),
+                "skipped_cached": skipped_cached,
+            },
+        )
+
+    return {
+        "candidates": candidates,
+        "total": len(candidates),
+        "skipped_cached": skipped_cached,
+    }
+
+
+@router.get("/manuals/real-usage-suggestions")
+async def real_usage_suggestions(
+    user_email: str = Query(...),
+):
+    try:
+        _admin_check(user_email)
+    except Exception:
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+
+    try:
+        # Get positive ratings grouped by question+answer with count >= 2
+        ratings_resp = (
+            supabase.table("answer_ratings")
+            .select("question_text, answer_text, created_at")
+            .eq("rating", "positive")
+            .execute()
+        )
+
+        if not ratings_resp.data:
+            return {"suggestions": []}
+
+        # Group by question+answer
+        groups: dict = {}
+        for r in ratings_resp.data:
+            key = (r["question_text"], r["answer_text"])
+            if key not in groups:
+                groups[key] = {"count": 0, "last_asked_at": r["created_at"]}
+            groups[key]["count"] += 1
+            if r["created_at"] > groups[key]["last_asked_at"]:
+                groups[key]["last_asked_at"] = r["created_at"]
+
+        # Filter count >= 2
+        filtered = [
+            (q, a, g["count"], g["last_asked_at"])
+            for (q, a), g in groups.items()
+            if g["count"] >= 2
+        ]
+
+        # Sort by count descending, limit 50
+        filtered.sort(key=lambda x: x[2], reverse=True)
+        filtered = filtered[:50]
+
+        # Exclude questions already in validated_qa (similarity >= 0.80)
+        # Batch embed all questions for parallel processing
+        questions_to_check = [(q, a, c, la) for q, a, c, la in filtered]
+        
+        async def check_not_cached(question: str, answer: str, count: int, last_asked: str):
+            try:
+                q_embedding = await embed_single(question)
+                embedding_str = "[" + ",".join(str(x) for x in q_embedding) + "]"
+                rpc_resp = supabase.rpc(
+                    "search_validated_qa",
+                    {"q_embedding": embedding_str, "match_count": 1},
+                ).execute()
+                if rpc_resp.data and rpc_resp.data[0].get("distance", 1.0) < 0.20:
+                    return None  # Already cached
+                return {"question": question, "answer": answer, "rating_count": count, "last_asked_at": last_asked}
+            except Exception:
+                return {"question": question, "answer": answer, "rating_count": count, "last_asked_at": last_asked}
+
+        import asyncio
+        results = await asyncio.gather(*[
+            check_not_cached(q, a, c, la) for q, a, c, la in questions_to_check
+        ])
+        suggestions = [r for r in results if r is not None]
+
+        return {"suggestions": suggestions}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"Failed to fetch usage suggestions: {e}")
+        raise HTTPException(
+            status_code=500, detail={"error": "fetch_failed"}
+        )
+
+
+@router.get("/manuals/stale-cache-entries")
+async def stale_cache_entries(
+    user_email: str = Query(...),
+):
+    try:
+        _admin_check(user_email)
+    except Exception:
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+
+    try:
+        # Query validated_qa with source_manual_id joined to manuals
+        qa_resp = (
+            supabase.table("validated_qa")
+            .select("id, question_text, validated_answer, verified_at, source_manual_id")
+            .not_.is_("source_manual_id", "null")
+            .execute()
+        )
+
+        if not qa_resp.data:
+            return {"stale_entries": [], "total": 0}
+
+        # Get all referenced manuals
+        manual_ids = list(set(r["source_manual_id"] for r in qa_resp.data))
+        manuals_resp = (
+            supabase.table("manuals")
+            .select("id, title, updated_at")
+            .in_("id", manual_ids)
+            .execute()
+        )
+        manuals_map = {m["id"]: m for m in (manuals_resp.data or [])}
+
+        stale_entries = []
+
+
+        for qa in qa_resp.data:
+            manual = manuals_map.get(qa["source_manual_id"])
+            if not manual or not manual.get("updated_at"):
+                continue
+
+            manual_updated = datetime.fromisoformat(
+                manual["updated_at"].replace("Z", "+00:00")
+            )
+            verified = datetime.fromisoformat(
+                qa["verified_at"].replace("Z", "+00:00")
+            ) if qa.get("verified_at") else datetime.min.replace(tzinfo=timezone.utc)
+
+            if manual_updated > verified:
+                days = (datetime.now(timezone.utc) - manual_updated).days
+                stale_entries.append(
+                    {
+                        "qa_id": qa["id"],
+                        "question": qa["question_text"],
+                        "answer": qa["validated_answer"],
+                        "manual_title": manual.get("title", "Unknown"),
+                        "manual_updated_at": manual["updated_at"],
+                        "days_since_update": max(days, 0),
+                    }
+                )
+
+        return {"stale_entries": stale_entries, "total": len(stale_entries)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"Failed to fetch stale entries: {e}")
+        raise HTTPException(
+            status_code=500, detail={"error": "fetch_failed"}
+        )
+
+
+class MarkCacheReviewedRequest(BaseModel):
+    qa_id: str
+    action: str
+    updated_question: Optional[str] = None
+    updated_answer: Optional[str] = None
+
+
+@router.post("/manuals/mark-cache-reviewed")
+async def mark_cache_reviewed(
+    request: MarkCacheReviewedRequest,
+    user_email: str = Query(...),
+    background_tasks: BackgroundTasks = None,
+):
+    try:
+        _admin_check(user_email)
+    except Exception:
+        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+
+    if request.action not in ("confirm", "delete"):
+        raise HTTPException(
+            status_code=400, detail={"error": "invalid_action"}
+        )
+
+    # Fetch the target entry
+    qa_resp = (
+        supabase.table("validated_qa")
+        .select("id, rating_id")
+        .eq("id", request.qa_id)
+        .maybe_single()
+        .execute()
+    )
+    if not qa_resp.data:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "not_found", "message": "QA entry not found."},
+        )
+
+    target = qa_resp.data
+    target_rating_id = target.get("rating_id")
+
+    try:
+        if request.action == "confirm":
+            update_data = {"verified_at": "now()"}
+
+            # If question or answer updated, re-embed
+            if request.updated_question:
+                new_embedding = await embed_single(request.updated_question.strip())
+                embedding_str = "[" + ",".join(str(x) for x in new_embedding) + "]"
+                update_data["question_text"] = request.updated_question.strip()
+                update_data["question_embedding"] = embedding_str
+            if request.updated_answer:
+                update_data["validated_answer"] = request.updated_answer.strip()
+
+            supabase.table("validated_qa").update(update_data).eq(
+                "id", request.qa_id
+            ).execute()
+
+            # Also update variants sharing same rating_id
+            updated_count = 1
+            if target_rating_id:
+                variant_resp = (
+                    supabase.table("validated_qa")
+                    .update({"verified_at": "now()"})
+                    .eq("rating_id", target_rating_id)
+                    .neq("id", request.qa_id)
+                    .execute()
+                )
+                updated_count += len(variant_resp.data or [])
+
+            if background_tasks:
+                background_tasks.add_task(
+                    log_activity,
+                    user_email=user_email,
+                    category="manual_assistant",
+                    action="reviewed_stale_entry",
+                    details={"qa_id": request.qa_id, "action": "confirm"},
+                )
+
+            return {
+                "status": "confirmed",
+                "qa_id": request.qa_id,
+                "verified_at": "now",
+                "updated_count": updated_count,
+            }
+
+        else:  # delete
+            # Delete primary + all variants sharing same rating_id
+            deleted_count = 0
+
+            supabase.table("validated_qa").delete().eq(
+                "id", request.qa_id
+            ).execute()
+            deleted_count += 1
+
+            if target_rating_id:
+                variant_del = (
+                    supabase.table("validated_qa")
+                    .delete()
+                    .eq("rating_id", target_rating_id)
+                    .execute()
+                )
+                deleted_count += len(variant_del.data or [])
+
+            if background_tasks:
+                background_tasks.add_task(
+                    log_activity,
+                    user_email=user_email,
+                    category="manual_assistant",
+                    action="reviewed_stale_entry",
+                    details={"qa_id": request.qa_id, "action": "delete"},
+                )
+
+            return {"status": "deleted", "deleted_count": deleted_count}
+
+    except HTTPException:
+        raise
+    except EmbedderTimeoutError:
+        raise HTTPException(
+            status_code=504, detail={"error": "embedding_timeout"}
+        )
+    except Exception as e:
+        logger.warning(f"Mark cache reviewed failed: {e}")
+        raise HTTPException(
+            status_code=500, detail={"error": "review_failed"}
+        )
 
 
 def _reindex_chunks(manual_id: str):
@@ -1225,6 +1683,11 @@ async def re_embed_all(
         background_tasks.add_task(re_embed_worker, manual_id, title)
     else:
         await re_embed_worker(manual_id, title)
+
+    # Update manuals.updated_at for staleness detection (spec 080)
+    supabase.table("manuals").update(
+        {"updated_at": datetime.now(timezone.utc).isoformat()}
+    ).eq("id", manual_id).execute()
 
     log_activity(
         user_email,
