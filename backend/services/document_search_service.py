@@ -29,20 +29,20 @@ def _diversity_select(
         if not chunks:
             continue
 
+        # Sort once per document; reuse for scoring and chunk selection
         sorted_chunks = sorted(
             chunks, key=lambda c: c.get("similarity", 0), reverse=True
         )
         top_3 = sorted_chunks[:3]
         aggregate_score = sum(c.get("similarity", 0) for c in top_3)
-        max_chunk_score = top_3[0].get("similarity", 0) if top_3 else 0
+        max_chunk_score = sorted_chunks[0].get("similarity", 0)
 
         doc_scores.append(
             {
                 "document_id": doc_id,
-                "display_name": chunks[0].get("display_name", "Unknown"),
                 "aggregate_score": aggregate_score,
                 "max_chunk_score": max_chunk_score,
-                "chunks": chunks,
+                "sorted_chunks": sorted_chunks,
             }
         )
 
@@ -51,39 +51,29 @@ def _diversity_select(
         reverse=True,
     )
 
-    winning_docs = set(d["document_id"] for d in doc_scores[:top_docs_count])
-    floor_docs = set()
-
-    all_docs = [d for d in doc_scores if d["document_id"] not in winning_docs]
-    for doc in all_docs:
-        highest_sim = max((c.get("similarity", 0) for c in doc["chunks"]), default=0)
-        if highest_sim >= diversity_floor_threshold:
-            floor_docs.add(doc["document_id"])
-
-    result: dict[str, list[dict]] = {}
-    for doc in doc_scores[:top_docs_count]:
-        doc_id = doc["document_id"]
-        sorted_chunks = sorted(
-            doc["chunks"], key=lambda c: c.get("similarity", 0), reverse=True
-        )
-        result[doc_id] = sorted_chunks[:max_chunks_per_doc]
+    winning_doc_ids = set(d["document_id"] for d in doc_scores[:top_docs_count])
+    floor_doc_ids = set()
 
     for doc in doc_scores[top_docs_count:]:
-        doc_id = doc["document_id"]
-        if doc_id in floor_docs:
-            sorted_chunks = sorted(
-                doc["chunks"], key=lambda c: c.get("similarity", 0), reverse=True
-            )
-            result[doc_id] = [sorted_chunks[0]]
+        if doc["max_chunk_score"] >= diversity_floor_threshold:
+            floor_doc_ids.add(doc["document_id"])
+
+    # Build result: winning docs first (preserves rank order for max_documents truncation),
+    # then floor docs — so truncation drops floor docs before winners.
+    result: dict[str, list[dict]] = {}
+    for doc in doc_scores[:top_docs_count]:
+        result[doc["document_id"]] = doc["sorted_chunks"][:max_chunks_per_doc]
+
+    for doc in doc_scores[top_docs_count:]:
+        if doc["document_id"] in floor_doc_ids:
+            result[doc["document_id"]] = [doc["sorted_chunks"][0]]
 
     logger.info(
-        "Diversity selection: document scores %s",
-        {d["document_id"]: round(d["aggregate_score"], 2) for d in doc_scores},
-    )
-    logger.info(
-        "Diversity selection: winning docs %s, floor docs %s",
-        list(winning_docs),
-        list(floor_docs),
+        "Diversity selection: %d docs scored, %d winners, %d floor — scores: %s",
+        len(doc_scores),
+        len(winning_doc_ids),
+        len(floor_doc_ids),
+        {d["document_id"][:8]: round(d["aggregate_score"], 2) for d in doc_scores},
     )
 
     return result
@@ -142,6 +132,9 @@ async def retrieve_chunks_per_document(
         diversity_floor_threshold=diversity_floor_threshold,
     )
 
+    # Truncate to max_documents if needed. _diversity_select() inserts winning
+    # docs first (by rank) then floor docs, so truncation drops floor docs
+    # before winners. Relies on Python 3.7+ dict insertion-order guarantee.
     if len(qualified_docs) > max_documents:
         qualified_docs = dict(list(qualified_docs.items())[:max_documents])
 
