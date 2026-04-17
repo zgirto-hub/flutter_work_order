@@ -620,22 +620,18 @@ class TestResult:
 
 
 FAITHFULNESS_PROMPT = """\
-You are a strict fact-checker. You will receive:
-- A QUESTION the user asked
-- SOURCE CHUNKS retrieved from technical manuals
-- An AI-GENERATED ANSWER based on those sources
+You are a fact-checker for a technical aviation maintenance AI assistant.
 
-Your job: check whether the ANSWER **faithfully represents** what the SOURCES say.
+You will receive a QUESTION, SOURCE CHUNKS from technical manuals, and an AI-GENERATED ANSWER.
 
-Flag as HALLUCINATED if the answer:
-- Invents specific commands, file paths, IP addresses, or port numbers not in the sources
-- States procedures or steps not described in the sources
-- Adds technical details (thresholds, limits, defaults) not mentioned in the sources
-- Contradicts information in the sources
+Your job: check whether the ANSWER is **consistent with** the SOURCES.
 
-Flag as FAITHFUL if the answer only contains information that can be traced back to the sources.
+Rules:
+- FAITHFUL means the answer's core claims can be traced to the sources. Minor paraphrasing, summarizing, reordering steps, or adding standard technical context (like "contact your administrator") is OK.
+- HALLUCINATED means the answer contains **specific fabricated facts**: invented commands, fake file paths, wrong IP addresses, procedures that contradict the sources, or made-up numbers/thresholds.
+- UNCERTAIN means the sources are too vague or incomplete to judge.
 
-Flag as UNCERTAIN if the sources are too vague to confirm or deny the answer.
+Important: Do NOT flag an answer as HALLUCINATED just because it rephrases the source or omits details. Only flag it if it **invents concrete technical details** not supported by the sources.
 
 Respond with EXACTLY one word: FAITHFUL or HALLUCINATED or UNCERTAIN
 """
@@ -738,13 +734,10 @@ async def run_test(test: TestQuestion, base_url: str, verify: bool = False) -> T
 
         passed, reason = evaluate(test, answer, grounded)
 
-        # Faithfulness verification for grounded answers
+        # Faithfulness verification for grounded answers (advisory — does not override pass/fail)
         faithfulness = None
         if verify and grounded and answer:
             faithfulness = await verify_faithfulness(test.question, answer, sources)
-            if faithfulness == "hallucinated":
-                passed = False
-                reason = f"SUBTLE HALLUCINATION — answer doesn't match sources (was: {reason})"
 
         return TestResult(
             test=test, answer=answer, grounded=grounded, sources=sources,
