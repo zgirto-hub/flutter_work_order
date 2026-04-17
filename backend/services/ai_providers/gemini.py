@@ -19,11 +19,13 @@ class GeminiProvider(AIProvider):
         self._api_key = GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY")
         if self._api_key:
             import google.generativeai as genai
+
             genai.configure(api_key=self._api_key)
 
     async def _get_model_id(self) -> str:
         try:
             from utils.app_settings import get_setting
+
             model_id = await get_setting("gemini_model")
             if model_id and any(m["id"] == model_id for m in GEMINI_MODELS):
                 return model_id
@@ -70,6 +72,32 @@ class GeminiProvider(AIProvider):
                 raise GeneratorModelError("gemini", "quota_exceeded")
             logger.error(f"Gemini generation failed: {error_msg}")
             raise GeneratorModelError("gemini", error_msg[:100])
+
+    async def generate_stream(self, prompt: str, context_chunks: List[str]):
+        if not self._api_key:
+            raise GeneratorModelError("gemini", "missing_credentials")
+        from google.generativeai import GenerativeModel
+        import asyncio
+
+        model_id = await self._get_model_id()
+        model = GenerativeModel(model_id)
+        full_prompt = (
+            "You are a technical synthesis expert for civil aviation maintenance.\n"
+            "You have received relevant information from technical manuals below.\n\n"
+            + "\n\n".join(
+                f"[Context {i + 1}]\n{chunk}" for i, chunk in enumerate(context_chunks)
+            )
+            + f"\n\nQUESTION: {prompt}\n\n"
+            + "Please provide a clear, accurate answer based on the context provided."
+        )
+
+        def _stream():
+            return model.generate_content(full_prompt, stream=True)
+
+        response = await asyncio.to_thread(_stream)
+        for chunk in response:
+            if chunk.text:
+                yield chunk.text
 
     async def health_check(self) -> bool:
         if not self._api_key:
