@@ -908,9 +908,14 @@ async def ask(
     provider_display_name = "Local (Ollama)"
 
     try:
-        # HyDE: generate hypothetical answer for better embedding
-        with _StageTimer(breakdown, "hyde_ms"):
-            _layer2_hyde_text = await _generate_hypothetical_answer(search_query)
+        # Spec 077: Skip HyDE for direct lookups
+        if _is_direct_lookup(search_query):
+            _layer2_hyde_text = None
+            breakdown["hyde_ms"] = 0
+            logger.info("[spec-077] Skipping HyDE for direct lookup query")
+        else:
+            with _StageTimer(breakdown, "hyde_ms"):
+                _layer2_hyde_text = await _generate_hypothetical_answer(search_query)
         embed_input = _layer2_hyde_text if _layer2_hyde_text else search_query
         with _StageTimer(breakdown, "embed_ms"):
             _layer2_embedding = await embed_single(embed_input)
