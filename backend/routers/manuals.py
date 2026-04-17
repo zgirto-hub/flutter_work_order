@@ -429,9 +429,11 @@ async def ask_question_stream(request: AskRequest):
                     token_count += 1
                     yield {"data": token}
 
-                breakdown["total_ms"] = round(
-                    (time.perf_counter() - _req_start) * 1000
-                )
+                # Handle empty model response (no tokens)
+                if token_count == 0:
+                    yield {"data": "No answer generated"}
+
+                breakdown["total_ms"] = round((time.perf_counter() - _req_start) * 1000)
 
                 # Activity logging (constitution VI: Audit Everything)
                 try:
@@ -454,7 +456,9 @@ async def ask_question_stream(request: AskRequest):
                             fallback_info.get("user_email", request.user_email),
                             category="admin",
                             action="ai_provider_fallback",
-                            target_label=fallback_info.get("failed_provider", "unknown"),
+                            target_label=fallback_info.get(
+                                "failed_provider", "unknown"
+                            ),
                             target_id=fallback_info.get("fallback_provider", "unknown"),
                             detail=fallback_info.get("detail", "unknown"),
                         )
@@ -468,7 +472,9 @@ async def ask_question_stream(request: AskRequest):
                     "total_tokens": token_count,
                     "done": True,
                     "provider_used": stream_meta.get("provider_key", "local"),
-                    "provider_display_name": stream_meta.get("display_name", "Local (Ollama)"),
+                    "provider_display_name": stream_meta.get(
+                        "display_name", "Local (Ollama)"
+                    ),
                     "fallback_used": stream_meta.get("fallback_used", False),
                     "is_verified": stream_meta.get("is_verified", False),
                     "verified_source": stream_meta.get("verified_source"),
