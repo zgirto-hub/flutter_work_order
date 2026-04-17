@@ -579,6 +579,75 @@ TESTS: list[TestQuestion] = [
         category_name="MHS System Diagnosis",
     ),
 
+    # ── Category 12: Paraphrased Questions ───────────────────────────────
+    # Same topics as earlier categories but worded differently by a user
+    # Tests query rewrite (spec 042) and HyDE (spec 043) resilience
+
+    # Original: "How do I reset the CADAS-ATS administrator password?"
+    TestQuestion(
+        question="I forgot the admin password for ATS, how can I get back in?",
+        expect="grounded",
+        keywords=["password"],
+        category=12,
+        category_name="Paraphrased Questions",
+    ),
+    # Original: "How do I backup the CADAS-ATS database?"
+    TestQuestion(
+        question="What's the procedure to take a copy of the ATS database before maintenance?",
+        expect="grounded",
+        keywords=["backup", "database"],
+        category=12,
+        category_name="Paraphrased Questions",
+    ),
+    # Original: "How do I check disk usage on an AIDA-NG server?"
+    TestQuestion(
+        question="The AIDA server is running slow, how do I check if the disk is full?",
+        expect="grounded",
+        keywords=["df", "/var"],
+        category=12,
+        category_name="Paraphrased Questions",
+    ),
+    # Original: "How do I replace a defective SNL card in the Frequentis system?"
+    TestQuestion(
+        question="One of the serial network boards is broken, how do I swap it out?",
+        expect="grounded",
+        keywords=["SNL"],
+        category=12,
+        category_name="Paraphrased Questions",
+    ),
+    # Original: "What are the possible host states in CNMS?"
+    TestQuestion(
+        question="In the network monitoring system, what status can a host show?",
+        expect="grounded",
+        keywords=["UP", "DOWN"],
+        category=12,
+        category_name="Paraphrased Questions",
+    ),
+    # Original: "How do I remotely access the AMHS router?"
+    TestQuestion(
+        question="I need to get into the messaging router from my desk, how?",
+        expect="grounded",
+        keywords=["telnet"],
+        category=12,
+        category_name="Paraphrased Questions",
+    ),
+    # Original: "What is the IP address and hostname of the AIDA-NG server at the CMC site?"
+    TestQuestion(
+        question="What's the address of the AIDA machine at the operations center?",
+        expect="grounded",
+        keywords=["172.31"],
+        category=12,
+        category_name="Paraphrased Questions",
+    ),
+    # Original: "Walk me through the full procedure to resolve a CADAS-ATS split-brain situation."
+    TestQuestion(
+        question="Both ATS cluster nodes think they're the primary, what do I do?",
+        expect="grounded",
+        keywords=["split-brain"],
+        category=12,
+        category_name="Paraphrased Questions",
+    ),
+
     # ── Category 8: Ambiguous / Vague ──────────────────────────────────────
     TestQuestion(
         question="How do I fix the system?",
@@ -981,7 +1050,7 @@ async def run_all(base_url: str, category_filter: int | None = None, verify: boo
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="RAG Quality Test Suite")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="Backend base URL")
-    parser.add_argument("--category", type=int, default=None, help="Run only this category (1-11)")
+    parser.add_argument("--category", type=int, default=None, help="Run only this category (1-12)")
     parser.add_argument("--verify", action="store_true",
                         help="Enable LLM faithfulness check — detects subtle hallucinations "
                              "where the answer doesn't match the source chunks")
