@@ -1091,6 +1091,10 @@ async def ask(
 
     # --- End Layer 2 ---
 
+    # Spec 077: Log latency breakdown for debugging
+    logged_breakdown = {k: v for k, v in breakdown.items() if v is not None}
+    logger.info("[spec-077] latency_breakdown=%s", logged_breakdown)
+
     # No grounded answer from validated_qa or documents.
     # Layer 3 (old manual-chunks pipeline) has been retired (spec 072 Phase 7).
     # If the question seems like it could be about a specific system, ask for clarification
