@@ -248,7 +248,7 @@
   3. All `logger.info` messages use the `[spec-077]` prefix for easy log filtering
   4. The `_DIRECT_LOOKUP_RE` compiled regex is at module level (not inside a function)
   5. No changes to function signatures — `ask()`, `_rewrite_query()`, `_generate_hypothetical_answer()` keep the same signatures
-- [ ] T006 Run quickstart.md validation: start the backend and test these queries via the frontend AI assistant:
+- [x] T006 Run quickstart.md validation: start the backend and test these queries via the frontend AI assistant:
   1. Direct lookup: "what is as1-cont ip address?" — expect `hyde_ms: 0`, answer found
   2. Direct lookup with IP: "what is 172.31.11.1?" — expect `hyde_ms: 0`
   3. Ambiguous query: "how to restart the server?" — expect HyDE to run (hyde_ms > 0)
