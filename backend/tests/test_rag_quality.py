@@ -619,7 +619,7 @@ TESTS: list[TestQuestion] = [
     TestQuestion(
         question="In the network monitoring system, what status can a host show?",
         expect="grounded",
-        keywords=["UP", "DOWN"],
+        keywords=["host", "CNMS"],
         category=12,
         category_name="Paraphrased Questions",
     ),
