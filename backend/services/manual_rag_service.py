@@ -800,21 +800,21 @@ async def ask(
         breakdown["hyde_ms"] = 0
         logger.info("[spec-077] Skipping HyDE for direct lookup query")
     elif _needs_hyde:
-        # No history — skip rewrite, run HyDE only
+        # No history — skip rewrite, run HyDE only (will run in Layer 2)
         search_query = question
-        # HyDE will run later in Layer 2 section (existing flow)
-        _parallel_hyde_text = None  # Sentinel: run HyDE in Layer 2
+        breakdown["rewrite_ms"] = 0
+        _parallel_hyde_text = None
     else:
         # No history + direct lookup — skip both
         search_query = question
-        _parallel_hyde_text = None
         breakdown["hyde_ms"] = 0
-        if "rewrite_ms" not in breakdown:
-            breakdown["rewrite_ms"] = 0
+        breakdown["rewrite_ms"] = 0
         logger.info("[spec-077] Skipping both rewrite and HyDE")
+        _parallel_hyde_text = None
 
-    # Sentinel: None means run HyDE in Layer 2, non-None means use pre-computed
-    _layer2_hyde_from_parallel = _parallel_hyde_text if _parallel_executed else None
+    # Sentinel: _parallel_executed distinguishes "parallel ran, HyDE returned None"
+    # from "parallel didn't run, HyDE still needed in Layer 2"
+    _hyde_already_ran = _parallel_executed
 
     # Follow-up detection: if the original question had no system keyword but the
     # history-aware rewrite surfaced one (e.g. turn-1 "how to restart CADAS-ATS"
@@ -964,15 +964,16 @@ async def ask(
     provider_display_name = "Local (Ollama)"
 
     try:
-        # Use pre-computed HyDE from parallel execution if available
-        if _layer2_hyde_from_parallel is not None:
-            _layer2_hyde_text = _layer2_hyde_from_parallel
+        # Use pre-computed HyDE from parallel execution if available (spec 077)
+        if _hyde_already_ran:
+            _layer2_hyde_text = _parallel_hyde_text  # Could be None — means HyDE produced nothing
             # hyde_ms already set by parallel execution
-        elif not _is_direct_lookup(search_query):
-            # HyDE wasn't run in parallel (no history case) — run it now
+        elif _needs_hyde:
+            # No history case — HyDE wasn't run in parallel, run it now
             with _StageTimer(breakdown, "hyde_ms"):
                 _layer2_hyde_text = await _generate_hypothetical_answer(search_query)
         else:
+            # Direct lookup — skip HyDE
             _layer2_hyde_text = None
             if breakdown.get("hyde_ms") is None:
                 breakdown["hyde_ms"] = 0
