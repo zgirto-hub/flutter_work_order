@@ -103,6 +103,11 @@ def _is_direct_lookup(query: str) -> bool:
 RAG_CONFIDENCE_THRESHOLD = 0.70  # Minimum similarity to proceed to LLM
 RAG_HIGH_CONFIDENCE = 0.85  # Score >= this → confidence: "high"
 
+# --- Shared "not found" sentinel phrases (single source of truth) ---
+_NOT_FOUND_KNOWLEDGE_BASE = "I don't have that information in the knowledge base."
+_NOT_FOUND_MANUALS = "This information is not in the available manuals."
+_NOT_FOUND_KNOWLEDGE_BASE_AR = "المعلومات المطلوبة غير موجودة في الأدلة المتاحة"
+
 # --- Strict system prompt for validated QA RAG (spec 069) ---
 VALIDATED_QA_SYSTEM_PROMPT = (
     "You are a technical assistant for a civil aviation maintenance management system (CMMS).\n\n"
@@ -110,7 +115,7 @@ VALIDATED_QA_SYSTEM_PROMPT = (
     "Rules:\n"
     "- Answer ONLY from the provided context. Do not use outside knowledge.\n"
     "- If the answer is not clearly stated in the context, respond with exactly: "
-    '"I don\'t have that information in the knowledge base."\n'
+    f'"{_NOT_FOUND_KNOWLEDGE_BASE}"\n'
     "- Never guess, infer, or make up technical specifications, procedures, or values.\n"
     "- Be concise and direct. Use bullet points for procedures.\n"
     '- Always refer to the source when answering (e.g. "According to source 1...").\n'
@@ -126,7 +131,7 @@ DOCUMENT_QA_SYSTEM_PROMPT = (
     "Rules:\n"
     "- Answer ONLY from the provided context. Do not use outside knowledge.\n"
     "- If the answer is not clearly stated in the context, respond with exactly: "
-    '"I don\'t have that information in the knowledge base."\n'
+    f'"{_NOT_FOUND_KNOWLEDGE_BASE}"\n'
     "- Never guess, infer, or make up technical specifications, procedures, or values.\n"
     "- When the context contains step-by-step procedures, list ALL steps in order. Do not summarize or skip steps.\n"
     "- When the context contains lists, thresholds, or specific values, include them exactly as written.\n"
@@ -139,11 +144,11 @@ DOCUMENT_QA_SYSTEM_PROMPT = (
     "use that context — do NOT ask again."
 )
 
-# Sentinel phrases indicating an ungrounded answer (shared by single- and cross-manual paths)
+# Sentinel phrases indicating an ungrounded answer (derived from shared constants)
 _SENTINEL_PHRASES = [
-    "this information is not in the available manuals",
-    "i don't have that information in the knowledge base",
-    "المعلومات المطلوبة غير موجودة في الأدلة المتاحة",
+    _NOT_FOUND_MANUALS.lower(),
+    _NOT_FOUND_KNOWLEDGE_BASE.lower(),
+    _NOT_FOUND_KNOWLEDGE_BASE_AR,
 ]
 
 
@@ -193,7 +198,7 @@ def _build_prompt(
         "3. Keep procedures as numbered steps only when the manual itself presents steps; "
         "do not invent structure.\n"
         "4. If the answer is not found in the sections, reply exactly: "
-        '"This information is not in the available manuals."\n'
+        f'"{_NOT_FOUND_MANUALS}"\n'
         "5. Reply in the same language as the question (Arabic or English).\n"
         "6. If the question is ambiguous about WHICH system it refers to (e.g. 'forgot the admin password' "
         "without specifying CADAS-ATS or CADAS-IMS), AND the conversation history does not clarify, "
@@ -636,7 +641,7 @@ async def ask(
     )
     if not count_response.data or count_response.data[0]["manual_count"] == 0:
         return {
-            "answer": "This information is not in the available manuals.",
+            "answer": _NOT_FOUND_MANUALS,
             "grounded": False,
             "sources": [],
             "session_summary": None,
@@ -753,12 +758,63 @@ async def ask(
             e,
         )
 
-    # Rewrite query for better retrieval (uses conversation context for follow-up questions).
-    # NOTE: rewrite must happen BEFORE the validated_qa cache check so context-dependent
-    # follow-ups like "in english" get expanded into self-contained queries — otherwise
-    # a bare "in english" could match an unrelated validated answer across sessions.
-    with _StageTimer(breakdown, "rewrite_ms"):
-        search_query = await _rewrite_query(question, history)
+    # Spec 077: Parallel rewrite + HyDE when both are needed
+    _needs_rewrite = bool(history)
+    _needs_hyde = not _is_direct_lookup(question)  # Use original question for detection
+    _parallel_executed = False
+
+    if _needs_rewrite and _needs_hyde:
+        # Run both in parallel
+        _parallel_executed = True
+
+        async def _timed_rewrite():
+            with _StageTimer(breakdown, "rewrite_ms"):
+                return await _rewrite_query(question, history)
+
+        async def _timed_hyde():
+            with _StageTimer(breakdown, "hyde_ms"):
+                return await _generate_hypothetical_answer(question)
+
+        rewrite_result, hyde_result = await asyncio.gather(
+            _timed_rewrite(), _timed_hyde(), return_exceptions=True
+        )
+
+        # Handle rewrite result
+        if isinstance(rewrite_result, Exception):
+            logger.warning("[spec-077] Parallel rewrite failed: %s", rewrite_result)
+            search_query = question
+        else:
+            search_query = rewrite_result
+
+        # Handle HyDE result
+        if isinstance(hyde_result, Exception):
+            logger.warning("[spec-077] Parallel HyDE failed: %s", hyde_result)
+            _parallel_hyde_text = None
+        else:
+            _parallel_hyde_text = hyde_result
+    elif _needs_rewrite:
+        # Rewrite only (direct lookup — skip HyDE)
+        with _StageTimer(breakdown, "rewrite_ms"):
+            search_query = await _rewrite_query(question, history)
+        _parallel_hyde_text = None
+        breakdown["hyde_ms"] = 0
+        logger.info("[spec-077] Skipping HyDE for direct lookup query")
+    elif _needs_hyde:
+        # No history — skip rewrite, run HyDE only
+        search_query = question
+        # HyDE will run later in Layer 2 section (existing flow)
+        _parallel_hyde_text = None  # Sentinel: run HyDE in Layer 2
+    else:
+        # No history + direct lookup — skip both
+        search_query = question
+        _parallel_hyde_text = None
+        breakdown["hyde_ms"] = 0
+        if "rewrite_ms" not in breakdown:
+            breakdown["rewrite_ms"] = 0
+        logger.info("[spec-077] Skipping both rewrite and HyDE")
+
+    # Sentinel: None means run HyDE in Layer 2, non-None means use pre-computed
+    _layer2_hyde_from_parallel = _parallel_hyde_text if _parallel_executed else None
 
     # Follow-up detection: if the original question had no system keyword but the
     # history-aware rewrite surfaced one (e.g. turn-1 "how to restart CADAS-ATS"
@@ -908,14 +964,19 @@ async def ask(
     provider_display_name = "Local (Ollama)"
 
     try:
-        # Spec 077: Skip HyDE for direct lookups
-        if _is_direct_lookup(search_query):
-            _layer2_hyde_text = None
-            breakdown["hyde_ms"] = 0
-            logger.info("[spec-077] Skipping HyDE for direct lookup query")
-        else:
+        # Use pre-computed HyDE from parallel execution if available
+        if _layer2_hyde_from_parallel is not None:
+            _layer2_hyde_text = _layer2_hyde_from_parallel
+            # hyde_ms already set by parallel execution
+        elif not _is_direct_lookup(search_query):
+            # HyDE wasn't run in parallel (no history case) — run it now
             with _StageTimer(breakdown, "hyde_ms"):
                 _layer2_hyde_text = await _generate_hypothetical_answer(search_query)
+        else:
+            _layer2_hyde_text = None
+            if breakdown.get("hyde_ms") is None:
+                breakdown["hyde_ms"] = 0
+
         embed_input = _layer2_hyde_text if _layer2_hyde_text else search_query
         with _StageTimer(breakdown, "embed_ms"):
             _layer2_embedding = await embed_single(embed_input)
@@ -1034,7 +1095,7 @@ async def ask(
     # Layer 3 (old manual-chunks pipeline) has been retired (spec 072 Phase 7).
     # If the question seems like it could be about a specific system, ask for clarification
     # instead of the generic "not in manuals" fallback.
-    fallback_answer = "This information is not in the available manuals."
+    fallback_answer = _NOT_FOUND_MANUALS
     try:
         from services.ai_providers.resolver import generate as provider_generate
 
