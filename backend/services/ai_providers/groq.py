@@ -36,8 +36,7 @@ class GroqProvider(AIProvider):
             "You are a technical synthesis expert for civil aviation maintenance.\n"
             "You have received relevant information from technical manuals below.\n\n"
             + "\n\n".join(
-                f"[Context {i + 1}]\n{chunk}"
-                for i, chunk in enumerate(context_chunks)
+                f"[Context {i + 1}]\n{chunk}" for i, chunk in enumerate(context_chunks)
             )
             + f"\n\nQUESTION: {prompt}\n\n"
             + "Please provide a clear, accurate answer based on the context provided."
@@ -62,6 +61,31 @@ class GroqProvider(AIProvider):
                 raise GeneratorModelError("groq", "quota_exceeded")
             logger.error(f"Groq generation failed: {error_msg}")
             raise GeneratorModelError("groq", error_msg[:100])
+
+    async def generate_stream(self, prompt: str, context_chunks: List[str]):
+        if not self._api_key:
+            raise GeneratorModelError("groq", "missing_credentials")
+        from groq import AsyncGroq
+
+        full_prompt = (
+            "You are a technical synthesis expert for civil aviation maintenance.\n"
+            "You have received relevant information from technical manuals below.\n\n"
+            + "\n\n".join(
+                f"[Context {i + 1}]\n{chunk}" for i, chunk in enumerate(context_chunks)
+            )
+            + f"\n\nQUESTION: {prompt}\n\n"
+            + "Please provide a clear, accurate answer based on the context provided."
+        )
+        client = AsyncGroq(api_key=self._api_key)
+        stream = await client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{"role": "user", "content": full_prompt}],
+            stream=True,
+        )
+        async for chunk in stream:
+            content = chunk.choices[0].delta.content
+            if content:
+                yield content
 
     async def health_check(self) -> bool:
         if not self._api_key:
