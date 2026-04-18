@@ -597,46 +597,56 @@ class ManualAssistantService {
   Future<Map<String, dynamic>> reviewAnswerWithVariants({
     required String ratingId,
     required String action,
+    required String userEmail,
     String? correctedAnswer,
     String? existingValidatedQaId,
     required List<String> variants,
   }) async {
-    try {
-      final body = <String, dynamic>{
-        'rating_id': ratingId,
-        'action': action,
-        'variants': variants,
-      };
-      if (correctedAnswer != null) body['corrected_answer'] = correctedAnswer;
-      if (existingValidatedQaId != null) {
-        body['existing_validated_qa_id'] = existingValidatedQaId;
+    final body = <String, dynamic>{
+      'rating_id': ratingId,
+      'action': action,
+      'variants': variants,
+    };
+    if (correctedAnswer != null) body['corrected_answer'] = correctedAnswer;
+    if (existingValidatedQaId != null) {
+      body['existing_validated_qa_id'] = existingValidatedQaId;
+    }
+
+    final session = Supabase.instance.client.auth;
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    final token = session.currentSession?.accessToken;
+    if (token != null) headers['Authorization'] = 'Bearer $token';
+
+    final res = await http.post(
+      Uri.parse(
+          '${AppConfig.baseUrl}/manuals/review-answer-with-variants?user_email=${Uri.encodeComponent(userEmail)}'),
+      headers: headers,
+      body: jsonEncode(body),
+    );
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    } else if (res.statusCode == 403) {
+      throw Exception('Admin access required');
+    } else if (res.statusCode == 400) {
+      final err = jsonDecode(res.body);
+      final detail = err['detail'];
+      final msg = detail is Map ? (detail['message'] ?? detail['error'] ?? detail.toString()) : detail?.toString();
+      throw Exception(msg ?? 'Invalid request');
+    } else if (res.statusCode == 404) {
+      throw Exception('Rating not found');
+    } else {
+      String detail = 'HTTP ${res.statusCode}';
+      try {
+        final body = jsonDecode(res.body);
+        if (body is Map) {
+          final d = body['detail'];
+          detail = d is Map ? (d['message'] ?? d['error'] ?? d.toString()) : (d?.toString() ?? body.toString());
+        }
+      } catch (_) {
+        if (res.body.isNotEmpty) detail = res.body.substring(0, res.body.length.clamp(0, 200));
       }
-
-      final session = Supabase.instance.client.auth;
-      final headers = <String, String>{'Content-Type': 'application/json'};
-      final token = session.currentSession?.accessToken;
-      if (token != null) headers['Authorization'] = 'Bearer $token';
-
-      final res = await http.post(
-        Uri.parse('${AppConfig.baseUrl}/manuals/review-answer-with-variants'),
-        headers: headers,
-        body: jsonEncode(body),
-      );
-
-      if (res.statusCode == 200) {
-        return jsonDecode(res.body) as Map<String, dynamic>;
-      } else if (res.statusCode == 403) {
-        throw Exception('Admin access required');
-      } else if (res.statusCode == 400) {
-        final err = jsonDecode(res.body);
-        throw Exception(err['detail'] ?? 'Invalid request');
-      } else if (res.statusCode == 404) {
-        throw Exception('Rating not found');
-      } else {
-        throw Exception('Failed to review answer');
-      }
-    } catch (e) {
-      rethrow;
+      throw Exception('Failed to review answer: $detail');
     }
   }
 
@@ -1023,6 +1033,7 @@ class ManualAssistantService {
       await reviewAnswerWithVariants(
         ratingId: '',
         action: 'retro_expand',
+        userEmail: editorEmail,
         existingValidatedQaId: primaryQaId,
         variants: [...enVariants, ...arVariants],
       );

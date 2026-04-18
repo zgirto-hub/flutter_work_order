@@ -93,6 +93,7 @@ class ReviewQueueTabState extends State<ReviewQueueTab> {
       await _service.reviewAnswerWithVariants(
         ratingId: ratingId,
         action: 'approve',
+        userEmail: widget.userEmail,
         variants: selectedVariants,
       );
 
