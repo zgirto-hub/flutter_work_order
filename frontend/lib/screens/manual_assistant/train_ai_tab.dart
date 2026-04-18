@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../models/manual.dart';
 import '../../services/manual_assistant_service.dart';
 import 'widgets/qa_candidate_card.dart';
 import 'widgets/usage_suggestion_card.dart';
@@ -21,6 +22,7 @@ class TrainAiTab extends StatefulWidget {
 class _TrainAiTabState extends State<TrainAiTab> {
   int _selectedSection = 0;
   int _staleCount = 0;
+  final List<String> _sessionHistory = [];
 
   @override
   void initState() {
@@ -43,10 +45,6 @@ class _TrainAiTabState extends State<TrainAiTab> {
         setState(() {});
       }
     }
-  }
-
-  void _refreshStaleCount() {
-    _loadStaleCount();
   }
 
   @override
@@ -91,6 +89,8 @@ class _TrainAiTabState extends State<TrainAiTab> {
         return _FromManualsSection(
           userEmail: widget.userEmail,
           service: widget.service,
+          sessionHistory: _sessionHistory,
+          onHistoryChanged: () => setState(() {}),
         );
       case 1:
         return _FromRealUsageSection(
@@ -101,7 +101,7 @@ class _TrainAiTabState extends State<TrainAiTab> {
         return _NeedsReviewSection(
           userEmail: widget.userEmail,
           service: widget.service,
-          onRefresh: _refreshStaleCount,
+          onRefresh: _loadStaleCount,
         );
       default:
         return const Center(child: Text('Section A'));
@@ -112,10 +112,14 @@ class _TrainAiTabState extends State<TrainAiTab> {
 class _FromManualsSection extends StatefulWidget {
   final String userEmail;
   final ManualAssistantService service;
+  final List<String> sessionHistory;
+  final VoidCallback onHistoryChanged;
 
   const _FromManualsSection({
     required this.userEmail,
     required this.service,
+    required this.sessionHistory,
+    required this.onHistoryChanged,
   });
 
   @override
@@ -123,7 +127,7 @@ class _FromManualsSection extends StatefulWidget {
 }
 
 class _FromManualsSectionState extends State<_FromManualsSection> {
-  List<Map<String, dynamic>> _manuals = [];
+  List<Manual> _manuals = [];
   String? _selectedManualId;
   String? _selectedManualTitle;
   bool _loadingManuals = true;
@@ -135,8 +139,6 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
   Set<int> _approvedIndices = {};
   int _skippedCached = 0;
 
-  final List<String> _sessionHistory = [];
-
   @override
   void initState() {
     super.initState();
@@ -146,10 +148,7 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
   Future<void> _loadManuals() async {
     try {
       final result = await widget.service.listManuals();
-      final list = (result['manuals'] as List<dynamic>?)
-              ?.map((e) => Map<String, dynamic>.from(e))
-              .toList() ??
-          [];
+      final list = (result['manuals'] as List<dynamic>?)?.cast<Manual>() ?? [];
       if (mounted) {
         setState(() {
           _manuals = list;
@@ -237,12 +236,13 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
           '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
 
       if (savedCount > 0) {
-        _sessionHistory.add(
+        widget.sessionHistory.add(
           '$manualName — $savedCount pairs saved · $totalEmbeddings embeddings · $ts',
         );
-        if (_sessionHistory.length > 20) {
-          _sessionHistory.removeAt(0);
+        if (widget.sessionHistory.length > 20) {
+          widget.sessionHistory.removeAt(0);
         }
+        widget.onHistoryChanged();
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -287,9 +287,9 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
                         ),
                         items: _manuals.map((m) {
                           return DropdownMenuItem<String>(
-                            value: m['id'] as String,
+                            value: m.id,
                             child: Text(
-                              m['title'] as String? ?? 'Untitled',
+                              m.title,
                               overflow: TextOverflow.ellipsis,
                             ),
                           );
@@ -298,8 +298,8 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
                           setState(() {
                             _selectedManualId = val;
                             _selectedManualTitle = _manuals
-                                .firstWhere((m) => m['id'] == val)['title']
-                                as String?;
+                                .firstWhere((m) => m.id == val)
+                                .title;
                           });
                         },
                       ),
@@ -391,14 +391,14 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
                 ),
         ),
         // Session history
-        if (_sessionHistory.isNotEmpty)
+        if (widget.sessionHistory.isNotEmpty)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             color: Colors.green.shade50,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _sessionHistory
+              children: widget.sessionHistory
                   .map((h) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 2),
                         child: Row(

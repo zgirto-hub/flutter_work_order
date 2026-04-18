@@ -423,6 +423,8 @@ async def create_verified_answer(
     editor_email: str,
     source_manual_id: Optional[str] = None,
 ) -> dict:
+    import uuid as _uuid
+
     if not question_text.strip() or not validated_answer.strip():
         raise ValueError("question and answer required")
 
@@ -431,6 +433,11 @@ async def create_verified_answer(
 
     equipment_type = _extract_equipment_type(question_text)
     fault_code = _extract_fault_code(question_text)
+
+    # Synthetic rating_id groups primary + variants for cascade delete
+    # (spec 080 fix: variants copy rating_id via _retro_expand_multi,
+    # so using a fresh UUID groups them even without a real rating)
+    synthetic_rating_id = str(_uuid.uuid4())
 
     insert_data = {
         "question_text": question_text,
@@ -441,6 +448,7 @@ async def create_verified_answer(
         "fault_code": fault_code,
         "source_chunks": [],
         "manual_ids": [],
+        "rating_id": synthetic_rating_id,
     }
     if source_manual_id:
         insert_data["source_manual_id"] = source_manual_id

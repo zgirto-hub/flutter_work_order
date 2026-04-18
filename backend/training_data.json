@@ -1,6 +1,0 @@
-[
-  {
-    "question": "The AIDA NG disk space is high, what should I do?",
-    "answer": "When AIDA NG disk space is high, follow these steps:\n1. Check the disk usage by navigating to System > Storage in the AIDA NG admin panel.\n2. Clear old log files from /var/log/aida/ that are older than 30 days.\n3. Purge the temporary processing cache: run 'aida-admin clear-cache --older-than 7d'.\n4. Check if flight data archives need to be moved to external storage.\n5. Review the automatic cleanup schedule under System > Maintenance > Disk Cleanup.\n6. If disk usage is still above 85%, contact the IT infrastructure team to expand the partition or add additional storage.\n\nNote: Do NOT delete any files in /data/aida/active/ as these are live operational files."
-  }
-]
