@@ -8,6 +8,8 @@ class AnswerCard extends StatefulWidget {
   final ManualQaAnswer answer;
   final String questionText;
   final Function(String rating)? onRate;
+  final VoidCallback? onUnrate;
+  final String? ratingId;
   final bool isStreaming;
 
   const AnswerCard({
@@ -15,6 +17,8 @@ class AnswerCard extends StatefulWidget {
     required this.answer,
     this.questionText = '',
     this.onRate,
+    this.onUnrate,
+    this.ratingId,
     this.isStreaming = false,
   });
 
@@ -317,7 +321,11 @@ class _AnswerCardState extends State<AnswerCard>
   }
 
   void _handleRate(String rating) {
-    if (_selectedRating == rating) return;
+    if (_selectedRating == rating) {
+      setState(() => _selectedRating = null);
+      widget.onUnrate?.call();
+      return;
+    }
     setState(() => _selectedRating = rating);
     widget.onRate?.call(rating);
   }
