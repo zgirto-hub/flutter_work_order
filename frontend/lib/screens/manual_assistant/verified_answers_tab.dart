@@ -453,7 +453,7 @@ class _VerifiedAnswersTabState extends State<VerifiedAnswersTab>
                       Icon(Icons.verified_outlined,
                           size: 64, color: Colors.green.shade300),
                       const SizedBox(height: 16),
-Text(
+                      Text(
                         _searchController.text.isNotEmpty
                             ? 'No matching answers found.'
                             : (_sort == 'most_used'
