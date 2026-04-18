@@ -256,7 +256,7 @@ class _AnswerCardState extends State<AnswerCard>
                 }).toList(),
               ),
             ],
-            if (widget.answer.sources.isNotEmpty) ...[
+            if (!isVerified && widget.answer.sources.isNotEmpty) ...[
               const SizedBox(height: 12),
               ExpansionTile(
                 title: Text('Sources (${widget.answer.sources.length})'),
