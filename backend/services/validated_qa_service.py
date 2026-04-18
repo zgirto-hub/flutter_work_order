@@ -515,6 +515,56 @@ async def review_answer_multi(
     if action == "correct" and not corrected_answer:
         raise ValueError("corrected_answer required for 'correct' action")
 
+    # The Review Queue mixes two sources. If the rating_id is actually a
+    # validated_qa.id (reflagged entry), handle via retro_expand path —
+    # update the existing row + insert variants sharing its rating_id.
+    vqa_lookup = (
+        supabase.table("validated_qa").select("*").eq("id", rating_id).execute()
+    )
+    if vqa_lookup.data and vqa_lookup.data[0].get("is_reflagged"):
+        vqa_row = vqa_lookup.data[0]
+        new_answer = (
+            corrected_answer if action == "correct" else vqa_row["validated_answer"]
+        )
+        now = datetime.now(timezone.utc).isoformat()
+        new_embedding = await embed_single(vqa_row["question_text"])
+        embedding_str = "[" + ",".join(str(x) for x in new_embedding) + "]"
+        supabase.table("validated_qa").update(
+            {
+                "validated_answer": new_answer,
+                "question_embedding": embedding_str,
+                "validated_by": reviewer_email,
+                "validated_at": now,
+                "thumbs_up_count": 0,
+                "thumbs_down_count": 0,
+                "is_reflagged": False,
+                "updated_at": now,
+            }
+        ).eq("id", rating_id).execute()
+
+        # Expand with variants (they share the same rating_id as primary)
+        extra_ids: List[str] = []
+        if variant_texts:
+            variants_result = await _retro_expand_multi(
+                rating_id, reviewer_email, variant_texts
+            )
+            extra_ids = variants_result.get("validated_qa_ids", [])
+
+        log_activity(
+            reviewer_email,
+            "manual",
+            "reviewed_answer",
+            target_label=vqa_row["question_text"][:80],
+            detail=f"re-reviewed {action} with {len(extra_ids)} variants",
+        )
+
+        return {
+            "inserted_count": 1 + len(extra_ids),
+            "validated_qa_ids": [rating_id] + extra_ids,
+            "rating_id": vqa_row.get("rating_id"),
+            "status": "reviewed",
+        }
+
     # Lookup the answer_ratings row
     rating_resp = (
         supabase.table("answer_ratings")
