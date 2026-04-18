@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../models/manual.dart';
 import '../../services/manual_assistant_service.dart';
+import '../../services/document_service.dart';
 import 'widgets/qa_candidate_card.dart';
 import 'widgets/usage_suggestion_card.dart';
 import 'widgets/stale_entry_card.dart';
@@ -127,7 +127,8 @@ class _FromManualsSection extends StatefulWidget {
 }
 
 class _FromManualsSectionState extends State<_FromManualsSection> {
-  List<Manual> _manuals = [];
+  final DocumentService _docService = DocumentService();
+  List<Map<String, dynamic>> _manuals = [];
   String? _selectedManualId;
   String? _selectedManualTitle;
   bool _loadingManuals = true;
@@ -147,11 +148,13 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
 
   Future<void> _loadManuals() async {
     try {
-      final result = await widget.service.listManuals();
-      final list = (result['manuals'] as List<dynamic>?)?.cast<Manual>() ?? [];
+      // Train AI reads from knowledge_documents (spec 072 retired the legacy
+      // `manuals` table). Only show documents that finished indexing.
+      final docs = await _docService.listDocuments(widget.userEmail);
+      final ready = docs.where((d) => d['status'] == 'ready').toList();
       if (mounted) {
         setState(() {
-          _manuals = list;
+          _manuals = ready;
           _loadingManuals = false;
         });
       }
@@ -287,9 +290,9 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
                         ),
                         items: _manuals.map((m) {
                           return DropdownMenuItem<String>(
-                            value: m.id,
+                            value: m['id'] as String,
                             child: Text(
-                              m.title,
+                              (m['display_name'] as String?) ?? 'Untitled',
                               overflow: TextOverflow.ellipsis,
                             ),
                           );
@@ -298,8 +301,8 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
                           setState(() {
                             _selectedManualId = val;
                             _selectedManualTitle = _manuals
-                                .firstWhere((m) => m.id == val)
-                                .title;
+                                .firstWhere((m) => m['id'] == val)['display_name']
+                                as String?;
                           });
                         },
                       ),

@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from fastapi import (
     APIRouter,
     UploadFile,
@@ -870,6 +871,12 @@ async def re_embed_all_chunks(
                 supabase.table("document_chunks").update({"embedding_stale": True}).eq(
                     "id", chunk["id"]
                 ).execute()
+
+        # Spec 080: bump updated_at so validated_qa entries derived from
+        # this document surface in the "Needs Review" queue
+        supabase.table("knowledge_documents").update(
+            {"updated_at": datetime.now(timezone.utc).isoformat()}
+        ).eq("id", document_id).execute()
 
     background_tasks.add_task(_re_embed_task)
 

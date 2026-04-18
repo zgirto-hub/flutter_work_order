@@ -1155,9 +1155,11 @@ async def generate_qa_candidates(
     # Cap max_candidates to prevent excessive API calls
     max_candidates = min(request.max_candidates, 50)
 
+    # Read from knowledge_documents (live table) — the legacy `manuals` table
+    # was retired in spec 072 when the Knowledge tab replaced the Manual uploader
     manual_resp = (
-        supabase.table("manuals")
-        .select("id, title")
+        supabase.table("knowledge_documents")
+        .select("id, display_name")
         .eq("id", request.manual_id)
         .maybe_single()
         .execute()
@@ -1165,16 +1167,17 @@ async def generate_qa_candidates(
     if not manual_resp.data:
         raise HTTPException(
             status_code=404,
-            detail={"error": "not_found", "message": "Manual not found."},
+            detail={"error": "not_found", "message": "Document not found."},
         )
 
-    manual_title = manual_resp.data["title"]
+    manual_title = manual_resp.data["display_name"]
 
+    # Only child chunks have embeddings (parent chunks hold synthesis context)
     chunks_resp = (
-        supabase.table("manual_chunks")
-        .select("id, content, source_page, embedding")
-        .eq("manual_id", request.manual_id)
-        .order("chunk_index")
+        supabase.table("document_chunks")
+        .select("id, content, page_number, embedding")
+        .eq("document_id", request.manual_id)
+        .eq("chunk_type", "child")
         .execute()
     )
     if not chunks_resp.data:
@@ -1182,7 +1185,7 @@ async def generate_qa_candidates(
             status_code=400,
             detail={
                 "error": "no_chunks",
-                "message": "This manual has no content chunks. Please process it first.",
+                "message": "This document has no content chunks. Please process it first.",
             },
         )
 
@@ -1237,7 +1240,7 @@ async def generate_qa_candidates(
 
         batch_content = "\n\n---\n\n".join([c.get("content", "") for c in batch])
         batch_chunk_ids = [c["id"] for c in batch]
-        source_pages = [c.get("source_page") for c in batch]
+        source_pages = [c.get("page_number") for c in batch]
         source_page = source_pages[0] if source_pages and source_pages[0] else 1
 
         prompt = (
@@ -1411,11 +1414,11 @@ async def stale_cache_entries(
         if not qa_resp.data:
             return {"stale_entries": [], "total": 0}
 
-        # Get all referenced manuals
+        # Get all referenced documents from knowledge_documents (live table)
         manual_ids = list(set(r["source_manual_id"] for r in qa_resp.data))
         manuals_resp = (
-            supabase.table("manuals")
-            .select("id, title, updated_at")
+            supabase.table("knowledge_documents")
+            .select("id, display_name, updated_at")
             .in_("id", manual_ids)
             .execute()
         )
@@ -1443,7 +1446,7 @@ async def stale_cache_entries(
                         "qa_id": qa["id"],
                         "question": qa["question_text"],
                         "answer": qa["validated_answer"],
-                        "manual_title": manual.get("title", "Unknown"),
+                        "manual_title": manual.get("display_name", "Unknown"),
                         "manual_updated_at": manual["updated_at"],
                         "days_since_update": max(days, 0),
                     }
