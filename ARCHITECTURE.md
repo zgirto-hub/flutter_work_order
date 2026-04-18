@@ -566,6 +566,8 @@ routers/
   folders.py       Folder CRUD, move files/folders
   reports.py       GET /reports/closed-work-orders; POST /reports/monthly-tasks (reportlab PDF)
   recurring_inspections.py  Recurring inspection CRUD, calendar view, due-instance generation
+  manuals.py       Manual assistant RAG: ask, rate-answer, review-answer, real-usage-suggestions,
+                   DELETE /manuals/ratings/{rating_id} (spec 082), POST /manuals/ratings/bulk-delete (spec 082)
 assets/
   logo_civilaviation.png    Embedded in monthly task PDF header
   logo_emblem.png

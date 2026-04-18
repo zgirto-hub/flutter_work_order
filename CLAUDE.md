@@ -1,6 +1,6 @@
 ﻿# flutter_work_order Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-17
+Auto-generated from all feature plans. Last updated: 2026-04-18
 
 ## Active Technologies
 - Dart 3.x / Flutter 3.x + `pdf` ^3.10.7 (existing), `printing` ^5.12.0 (existing), `htmltopdfwidgets` (NEW) (002-use-html-css)
@@ -103,6 +103,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - Python 3.10 + FastAPI, Supabase Python client (existing — no new deps) (078-diversity-aware-retrieval)
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, supabase_flutter, Flutter Material (frontend) (080-train-ai-tab)
 - Supabase (PostgreSQL) with pgvector — `validated_qa`, `answer_ratings`, `manuals`, `manual_chunks` tables (080-train-ai-tab)
+- Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); `http`, `supabase_flutter`, Flutter Material, `shared_preferences` (existing) (frontend) (082-delete-ai-ratings)
+- Supabase (PostgreSQL) — existing `answer_ratings`, `validated_qa` tables. No schema changes. (082-delete-ai-ratings)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -125,9 +127,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 082-delete-ai-ratings: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); `http`, `supabase_flutter`, Flutter Material, `shared_preferences` (existing) (frontend)
 - 080-train-ai-tab: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, supabase_flutter, Flutter Material (frontend)
 - 078-diversity-aware-retrieval: Added Python 3.10 + FastAPI, Supabase Python client (existing — no new deps)
-- 077-rag-pipeline-parallelize: Added Python 3.10 (backend only — no Flutter/Dart changes) + FastAPI, existing `services.ollama_generator`, existing `services.ollama_embedder`, existing `services.ai_providers.resolver`
 
 
 <!-- MANUAL ADDITIONS START -->
