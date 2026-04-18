@@ -4,12 +4,14 @@ class ReviewEntryCard extends StatefulWidget {
   final Map<String, dynamic> entry;
   final Function(String ratingId) onApprove;
   final Function(String ratingId, String correctedAnswer) onCorrect;
+  final Function(String ratingId) onDelete;
 
   const ReviewEntryCard({
     super.key,
     required this.entry,
     required this.onApprove,
     required this.onCorrect,
+    required this.onDelete,
   });
 
   @override
@@ -173,6 +175,44 @@ class _ReviewEntryCardState extends State<ReviewEntryCard> {
                   label: Text(_showCorrection ? 'Cancel' : 'Correct'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.blue,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () async {
+                    final direction = Directionality.of(context);
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => Directionality(
+                        textDirection: direction,
+                        child: AlertDialog(
+                          title: const Text('Delete rating?'),
+                          content: const Text(
+                              'This thumbs-down will be removed and the answer will leave the review queue. The verified-answer cache (if any) is unaffected.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(true),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                    if (confirmed == true) {
+                      widget.onDelete(entryId);
+                    }
+                  },
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Delete'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red,
                   ),
                 ),
               ],

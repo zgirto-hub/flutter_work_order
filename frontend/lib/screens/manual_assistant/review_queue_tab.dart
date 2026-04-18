@@ -144,6 +144,39 @@ class ReviewQueueTabState extends State<ReviewQueueTab> {
     }
   }
 
+  Future<void> _handleDelete(String ratingId, int index) async {
+    final removed = _entries[index];
+    setState(() {
+      _entries.removeAt(index);
+    });
+    widget.onCountChanged?.call(_entries.length);
+
+    try {
+      await _service.deleteRating(ratingId: ratingId, userEmail: widget.userEmail);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Rating deleted.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _entries.insert(index, removed);
+      });
+      widget.onCountChanged?.call(_entries.length);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not delete rating — please try again.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -231,6 +264,7 @@ class ReviewQueueTabState extends State<ReviewQueueTab> {
                   entry: entry,
                   onApprove: _handleApprove,
                   onCorrect: _handleCorrect,
+                  onDelete: (id) => _handleDelete(id, index),
                 );
               },
             ),
