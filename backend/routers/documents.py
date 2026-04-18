@@ -649,7 +649,7 @@ async def split_chunk(
         .maybe_single()
         .execute()
     )
-    if not resp.data:
+    if resp is None or not resp.data:
         raise HTTPException(status_code=404, detail="Chunk not found")
 
     content = resp.data.get("content", "")
@@ -758,7 +758,7 @@ async def merge_chunk(
         .maybe_single()
         .execute()
     )
-    if not resp.data:
+    if resp is None or not resp.data:
         raise HTTPException(status_code=404, detail="Chunk not found")
 
     parent_id = resp.data.get("parent_id")
@@ -774,7 +774,7 @@ async def merge_chunk(
         .maybe_single()
         .execute()
     )
-    if not next_resp.data:
+    if next_resp is None or not next_resp.data:
         raise HTTPException(status_code=400, detail="No adjacent sibling to merge with")
     if next_resp.data.get("parent_id") != parent_id:
         raise HTTPException(
