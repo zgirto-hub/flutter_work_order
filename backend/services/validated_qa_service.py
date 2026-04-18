@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional, List
 from uuid import UUID
 from db import supabase
-from services.ollama_embedder import embed_single, EmbedderTimeoutError
+from services.ollama_embedder import embed_single
 from utils.activity import log_activity
 
 logging.basicConfig(level=logging.INFO)
@@ -622,7 +622,8 @@ async def reconcile_variants(
     ]
 
     # Step 5: pre-compute all embeddings for to_insert (FR-008a atomicity)
-    # FR-008a: if any embedding fails, propagate without any DB write
+    # FR-008a: any failure in this block maps to 503 so the router can signal
+    # "embedding service unavailable; retry safe" — no DB writes have run yet.
     try:
         embedded: dict[str, tuple[str, str]] = {}
         for text in to_insert:
@@ -630,9 +631,7 @@ async def reconcile_variants(
             emb_str = "[" + ",".join(str(x) for x in emb) + "]"
             embedded[text] = (emb_str, text)
     except Exception as e:
-        if "embedding" in str(e).lower() or isinstance(e, EmbedderTimeoutError):
-            raise EmbeddingUnavailable(str(e))
-        raise
+        raise EmbeddingUnavailable(str(e)) from e
 
     # Step 6: read shared fields from an existing sibling BEFORE deletes
     # (guard against reading the row being deleted)
