@@ -9,6 +9,7 @@ class UsageSuggestionCard extends StatefulWidget {
   final VoidCallback onAddToCache;
   final Function(String newQuestion, String newAnswer) onEditThenAdd;
   final VoidCallback onDismiss;
+  final VoidCallback onDeletePermanently;
 
   const UsageSuggestionCard({
     super.key,
@@ -20,6 +21,7 @@ class UsageSuggestionCard extends StatefulWidget {
     required this.onAddToCache,
     required this.onEditThenAdd,
     required this.onDismiss,
+    required this.onDeletePermanently,
   });
 
   @override
@@ -197,6 +199,54 @@ class _UsageSuggestionCardState extends State<UsageSuggestionCard> {
                     onPressed: () => setState(() => _isEditing = true),
                     icon: const Icon(Icons.edit_outlined, size: 18),
                     label: const Text('Edit then Add'),
+                  ),
+                  const SizedBox(width: 8),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 18),
+                    onSelected: (value) async {
+                      if (value == 'delete_permanent') {
+                        final direction = Directionality.of(context);
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => Directionality(
+                            textDirection: direction,
+                            child: AlertDialog(
+                              title: const Text('Delete permanently?'),
+                              content: Text(
+                                  'Permanently delete ${widget.ratingCount} positive ratings for this question? It will stop appearing here. Cannot be undone.'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(true),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                  ),
+                                  child: const Text('Delete permanently'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                        if (confirmed == true) {
+                          widget.onDeletePermanently();
+                        }
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      PopupMenuItem(
+                        value: 'delete_permanent',
+                        child: Row(
+                          children: const [
+                            Icon(Icons.delete_forever, color: Colors.red, size: 18),
+                            SizedBox(width: 8),
+                            Text('Delete permanently'),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(width: 8),
                   FilledButton.icon(

@@ -606,6 +606,34 @@ class _FromRealUsageSectionState extends State<_FromRealUsageSection> {
     }
   }
 
+  Future<void> _handleDeletePermanently(
+      Map<String, dynamic> suggestion, int index) async {
+    final snapshot = Map<String, dynamic>.from(suggestion);
+    setState(() => _suggestions.removeAt(index));
+
+    try {
+      final count = await widget.service.bulkDeleteRatings(
+        questionText: suggestion['question'] as String? ?? '',
+        answerText: suggestion['answer'] as String? ?? '',
+        userEmail: widget.userEmail,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Deleted $count ratings.')),
+        );
+      }
+    } catch (e) {
+      setState(() => _suggestions.insert(index, snapshot));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not delete suggestion — please try again.'),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _approveAll() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -700,6 +728,7 @@ class _FromRealUsageSectionState extends State<_FromRealUsageSection> {
                   onDismiss: () {
                     setState(() => _suggestions.removeAt(index));
                   },
+                  onDeletePermanently: () => _handleDeletePermanently(s, index),
                 );
               },
             ),
