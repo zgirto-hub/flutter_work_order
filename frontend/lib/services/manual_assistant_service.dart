@@ -811,6 +811,7 @@ class ManualAssistantService {
     String? search,
     int limit = 50,
     int offset = 0,
+    String sort = 'recent',
   }) async {
     try {
       final session = Supabase.instance.client.auth;
@@ -819,7 +820,7 @@ class ManualAssistantService {
       if (token != null) headers['Authorization'] = 'Bearer $token';
 
       var url =
-          '${AppConfig.baseUrl}/manuals/verified-answers?user_email=${Uri.encodeComponent(userEmail)}&limit=$limit&offset=$offset';
+          '${AppConfig.baseUrl}/manuals/verified-answers?user_email=${Uri.encodeComponent(userEmail)}&limit=$limit&offset=$offset&sort=${Uri.encodeComponent(sort)}';
       if (search != null && search.isNotEmpty) {
         url += '&search=${Uri.encodeComponent(search)}';
       }
