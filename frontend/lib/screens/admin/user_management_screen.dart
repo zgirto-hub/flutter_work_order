@@ -733,6 +733,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       ('calendar', 'Calendar'),
       ('doc_registry', 'Doc Registry'),
       ('payment_cert', 'Payment Cert'),
+      ('letters_v2', 'Letters V2'),
+      ('manual_assistant', 'Ask the AI'),
       ('system_status', 'System Status'),
       ('activity_log', 'Activity Log'),
       ('notifications', 'Notifications'),
