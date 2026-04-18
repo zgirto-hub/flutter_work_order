@@ -99,7 +99,7 @@ async def index_document(document_id: str, file_path: str) -> None:
         child_chunks = []
         for parent in parent_chunks:
             children = _split_into_children(sections[parent["section_index"]])
-            for child in children:
+            for child_idx, child in enumerate(children):
                 raw_content = (
                     raw_mapping.get(child["page_number"]) if raw_mapping else None
                 )
@@ -110,6 +110,7 @@ async def index_document(document_id: str, file_path: str) -> None:
                             "document_id": document_id,
                             "chunk_type": "child",
                             "parent_id": parent["id"],
+                            "chunk_index": child_idx,
                             "section_title": child["section_title"],
                             "content": child["content"],
                             "page_number": child["page_number"],
@@ -246,9 +247,11 @@ def _detect_sections(
         min_headings,
     )
     if heading_count >= min_headings:
-        # If document has markdown headings, only split on those —
-        # numbered lines are list items, not section boundaries
-        md_only = md_heading_count >= 3
+        # If the document has any markdown headings, trust them and ignore
+        # numbered lines (which are list items like "1. Step..." not section
+        # boundaries). Only fall back to numbered splitting when there are
+        # no markdown headings at all.
+        md_only = md_heading_count >= 1
         return _heading_based_sections(pages, md_only=md_only)
 
     return _page_per_section(pages)
