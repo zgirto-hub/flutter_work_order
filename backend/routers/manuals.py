@@ -869,7 +869,7 @@ async def get_flagged_answers(user_email: str = Query(...)):
         )
     except Exception:
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
-    if not user_resp.data or user_resp.data.get("user_type") != "admin":
+    if user_resp is None or not user_resp.data or user_resp.data.get("user_type") != "admin":
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
 
     try:
@@ -893,7 +893,7 @@ async def review_answer(request: ReviewAnswerRequest):
         )
     except Exception:
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
-    if not user_resp.data or user_resp.data.get("user_type") != "admin":
+    if user_resp is None or not user_resp.data or user_resp.data.get("user_type") != "admin":
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
 
     if request.action not in ("approve", "correct"):
@@ -1283,7 +1283,7 @@ def _admin_check(user_email: str):
         )
     except Exception:
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
-    if not user_resp.data or user_resp.data.get("user_type") != "admin":
+    if user_resp is None or not user_resp.data or user_resp.data.get("user_type") != "admin":
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
 
 
