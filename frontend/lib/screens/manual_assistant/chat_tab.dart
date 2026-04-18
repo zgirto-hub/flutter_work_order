@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 import '../../models/manual_qa_answer.dart';
@@ -12,13 +13,25 @@ class ChatMessage {
   final ManualQaAnswer? answer;
   final bool loading;
   final String? error;
+  final String? ratingId;
 
   ChatMessage({
     required this.question,
     this.answer,
     this.loading = false,
     this.error,
+    this.ratingId,
   });
+
+  ChatMessage copyWith({String? ratingId}) {
+    return ChatMessage(
+      question: question,
+      answer: answer,
+      loading: loading,
+      error: error,
+      ratingId: ratingId ?? this.ratingId,
+    );
+  }
 }
 
 class ChatTab extends StatefulWidget {
@@ -204,7 +217,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
   bool get _canSend => !_loading && !_streaming;
 
   Future<void> _handleRate(
-      String questionText, ManualQaAnswer answer, String rating) async {
+      String questionText, ManualQaAnswer answer, String rating, int messageIndex) async {
     final email = Supabase.instance.client.auth.currentUser?.email ?? '';
     final sourceChunks = answer.sources
         .map((s) => {
@@ -215,7 +228,7 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
         .toList();
 
     try {
-      await _service.rateAnswer(
+      final ratingId = await _service.rateAnswer(
         questionText: answer.searchQuery ?? questionText,
         answerText: answer.answer,
         sourceChunks: sourceChunks,
@@ -226,11 +239,66 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
         validatedQaId: answer.verifiedSource?.validatedQaId,
         sessionSummary: _sessionSummary,
       );
+
+      setState(() {
+        _messages[messageIndex] = _messages[messageIndex].copyWith(ratingId: ratingId);
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+      final hintKey = 'rating_undo_hint_shown_$email';
+      if (!prefs.containsKey(hintKey)) {
+        await prefs.setBool(hintKey, true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tap the thumb again to remove your rating.'),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Could not submit rating'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleUnrate(int messageIndex) async {
+    final msg = _messages[messageIndex];
+    final ratingId = msg.ratingId;
+    if (ratingId == null) return;
+
+    final email = Supabase.instance.client.auth.currentUser?.email ?? '';
+    final previousRatingId = ratingId;
+
+    setState(() {
+      _messages[messageIndex] = msg.copyWith(ratingId: null);
+    });
+
+    try {
+      await _service.deleteRating(ratingId: ratingId, userEmail: email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Rating removed.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _messages[messageIndex] = msg.copyWith(ratingId: previousRatingId);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not remove rating — please try again.'),
             duration: Duration(seconds: 2),
           ),
         );
@@ -384,13 +452,16 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
                       AnswerCard(
                         answer: msg.answer!,
                         questionText: msg.question,
+                        ratingId: msg.ratingId,
                         isStreaming:
                             _streaming && index == _messages.length - 1,
                         onRate: (rating) => _handleRate(
                           msg.question,
                           msg.answer!,
                           rating,
+                          index,
                         ),
+                        onUnrate: () => _handleUnrate(index),
                       ),
                     ],
                   );

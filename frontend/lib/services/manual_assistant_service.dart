@@ -475,6 +475,35 @@ class ManualAssistantService {
     }
   }
 
+  Future<bool> deleteRating({
+    required String ratingId,
+    required String userEmail,
+  }) async {
+    try {
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.delete(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/ratings/$ratingId?user_email=${Uri.encodeComponent(userEmail)}'),
+        headers: headers,
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['existed'] == true;
+      } else if (res.statusCode == 403) {
+        throw Exception('Admin access required');
+      } else {
+        throw Exception('Failed to remove rating');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getFlaggedAnswers(
       {required String userEmail}) async {
     try {
@@ -1055,6 +1084,40 @@ class ManualAssistantService {
       } catch (_) {
         // Best-effort cleanup; if delete fails, surface original error
       }
+      rethrow;
+    }
+  }
+
+  Future<int> bulkDeleteRatings({
+    required String questionText,
+    required String answerText,
+    required String userEmail,
+  }) async {
+    try {
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.post(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/ratings/bulk-delete?user_email=${Uri.encodeComponent(userEmail)}'),
+        headers: headers,
+        body: jsonEncode({
+          'question_text': questionText,
+          'answer_text': answerText,
+        }),
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['deleted_count'] as int;
+      } else if (res.statusCode == 403) {
+        throw Exception('Admin access required');
+      } else {
+        throw Exception('Failed to bulk delete ratings');
+      }
+    } catch (e) {
       rethrow;
     }
   }

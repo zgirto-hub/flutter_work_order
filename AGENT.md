@@ -659,6 +659,12 @@ Admin is excluded from the approval chain:
 - `frontend/lib/filters/file_filter_engine.dart` — client-side file filtering logic
 - `frontend/lib/config.dart` — base URL
 
+### Manual Assistant (RAG)
+- `backend/routers/manuals.py` — DELETE /manuals/ratings/{rating_id} (technician self-undo + admin single-delete); POST /manuals/ratings/bulk-delete (admin permanent delete of From-Real-Usage suggestions)
+- `backend/services/validated_qa_service.py` — delete_rating(), bulk_delete_ratings_by_qa()
+- `frontend/lib/services/manual_assistant_service.dart` — deleteRating(), bulkDeleteRatings()
+- Activity log actions (category `manual`): `unrated_answer` (rater self-undo), `admin_deleted_rating` (admin single-delete), `admin_bulk_deleted_ratings` (admin bulk-delete)
+
 ### Documentation
 - `ARCHITECTURE.md` — full system architecture reference
 - `AGENT.md` — this file
