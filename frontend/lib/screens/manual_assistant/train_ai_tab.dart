@@ -129,6 +129,8 @@ class _FromManualsSection extends StatefulWidget {
 class _FromManualsSectionState extends State<_FromManualsSection> {
   final DocumentService _docService = DocumentService();
   List<Map<String, dynamic>> _manuals = [];
+  int _totalDocsCount = 0;
+  String? _loadError;
   String? _selectedManualId;
   String? _selectedManualTitle;
   bool _loadingManuals = true;
@@ -147,6 +149,10 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
   }
 
   Future<void> _loadManuals() async {
+    setState(() {
+      _loadingManuals = true;
+      _loadError = null;
+    });
     try {
       // Train AI reads from knowledge_documents (spec 072 retired the legacy
       // `manuals` table). Only show documents that finished indexing.
@@ -155,11 +161,17 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
       if (mounted) {
         setState(() {
           _manuals = ready;
+          _totalDocsCount = docs.length;
           _loadingManuals = false;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _loadingManuals = false);
+      if (mounted) {
+        setState(() {
+          _loadError = e.toString();
+          _loadingManuals = false;
+        });
+      }
     }
   }
 
@@ -333,6 +345,61 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
             ],
           ),
         ),
+        if (_loadError != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, size: 16, color: Colors.red.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Failed to load documents: $_loadError',
+                      style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _loadManuals,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (_loadError == null && !_loadingManuals && _manuals.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: Colors.orange.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _totalDocsCount == 0
+                          ? 'No documents uploaded yet. Upload a document in the Documents tab first.'
+                          : 'No documents are ready for training. $_totalDocsCount document(s) found but none have status=ready. Check the Documents tab.',
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.orange.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         if (_generating)
           Padding(
             padding: const EdgeInsets.all(16),
