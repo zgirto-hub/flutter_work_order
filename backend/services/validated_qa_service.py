@@ -471,11 +471,21 @@ def delete_verified_answer(qa_id: str) -> str:
 
     rating_id = existing_resp.data["rating_id"]
 
-    supabase.table("validated_qa").delete().eq("id", qa_id).execute()
-
-    supabase.table("answer_ratings").update({"review_status": "pending"}).eq(
-        "id", rating_id
-    ).execute()
+    if rating_id:
+        supabase.table("validated_qa").delete().eq("rating_id", rating_id).execute()
+        rating_lookup = (
+            supabase.table("answer_ratings")
+            .select("id")
+            .eq("id", rating_id)
+            .maybe_single()
+            .execute()
+        )
+        if rating_lookup and rating_lookup.data:
+            supabase.table("answer_ratings").update(
+                {"review_status": "pending"}
+            ).eq("id", rating_id).execute()
+    else:
+        supabase.table("validated_qa").delete().eq("id", qa_id).execute()
 
     return qa_id
 
