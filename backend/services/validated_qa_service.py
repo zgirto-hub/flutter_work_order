@@ -695,6 +695,62 @@ async def review_answer_multi(
     }
 
 
+def bulk_delete_ratings_by_qa(question_text: str, answer_text: str) -> int:
+    """Delete all ratings matching the exact (question_text, answer_text) pair.
+
+    Returns the count of deleted rows. Empty match returns 0 (no orphan/DELETE run).
+    Let exceptions propagate; the router wraps them.
+    """
+    ids_resp = (
+        supabase.table("answer_ratings")
+        .select("id")
+        .eq("question_text", question_text)
+        .eq("answer_text", answer_text)
+        .execute()
+    )
+    ids = [r["id"] for r in ids_resp.data]
+    if not ids:
+        return 0
+
+    supabase.table("validated_qa").update({"rating_id": None}).in_(
+        "rating_id", ids
+    ).execute()
+    supabase.table("answer_ratings").delete().in_("id", ids).execute()
+
+    return len(ids)
+
+
+def delete_rating(rating_id: str) -> dict:
+    """Delete a single rating after orphaning any linked validated_qa entries.
+
+    Returns dict with existed, question_text, rating, rater_email.
+    Let exceptions propagate; the router wraps them.
+    """
+    supabase.table("validated_qa").update({"rating_id": None}).eq(
+        "rating_id", rating_id
+    ).execute()
+
+    row_resp = (
+        supabase.table("answer_ratings")
+        .select("question_text, rating, rater_email")
+        .eq("id", rating_id)
+        .maybe_single()
+        .execute()
+    )
+
+    if not row_resp.data:
+        return {"existed": False, "question_text": None, "rating": None, "rater_email": None}
+
+    supabase.table("answer_ratings").delete().eq("id", rating_id).execute()
+
+    return {
+        "existed": True,
+        "question_text": row_resp.data["question_text"],
+        "rating": row_resp.data["rating"],
+        "rater_email": row_resp.data["rater_email"],
+    }
+
+
 async def _retro_expand_multi(
     existing_validated_qa_id: str,
     reviewer_email: str,

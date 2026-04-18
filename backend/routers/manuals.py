@@ -807,6 +807,54 @@ async def rate_answer(request: RateAnswerRequest):
         )
 
 
+@router.delete("/manuals/ratings/{rating_id}")
+async def delete_rating(rating_id: str, user_email: str = Query(...)):
+    try:
+        row_resp = (
+            supabase.table("answer_ratings")
+            .select("rater_email, question_text, rating")
+            .eq("id", rating_id)
+            .maybe_single()
+            .execute()
+        )
+        if not row_resp.data:
+            return {"status": "deleted", "existed": False}
+
+        row = row_resp.data
+        if row["rater_email"] != user_email:
+            _admin_check(user_email)
+
+        result = validated_qa_service.delete_rating(rating_id)
+
+        try:
+            if user_email == row["rater_email"]:
+                log_activity(
+                    user_email,
+                    "manual",
+                    "unrated_answer",
+                    target_label=row["question_text"][:80],
+                    detail=row["rating"],
+                )
+            else:
+                log_activity(
+                    user_email,
+                    "manual",
+                    "admin_deleted_rating",
+                    target_label=row["question_text"][:80],
+                    detail=row["rater_email"],
+                )
+        except Exception:
+            pass
+
+        return {"status": "deleted", "existed": result["existed"]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail={"error": "delete_failed", "message": str(e)}
+        )
+
+
 @router.get("/manuals/flagged-answers")
 async def get_flagged_answers(user_email: str = Query(...)):
     try:
@@ -1150,10 +1198,7 @@ async def delete_verified_answer(
     qa_id: str,
     editor_email: str = Query(...),
 ):
-    try:
-        _admin_check(editor_email)
-    except Exception:
-        raise HTTPException(status_code=403, detail={"error": "admin_required"})
+    _admin_check(user_email)
 
     try:
         validated_qa_service.delete_verified_answer(qa_id)
@@ -1466,6 +1511,43 @@ async def real_usage_suggestions(
         logger.warning(f"Failed to fetch usage suggestions: {e}")
         raise HTTPException(
             status_code=500, detail={"error": "fetch_failed"}
+        )
+
+
+class BulkDeleteRatingsRequest(BaseModel):
+    question_text: str
+    answer_text: str
+
+
+@router.post("/manuals/ratings/bulk-delete")
+async def bulk_delete_ratings(
+    request: BulkDeleteRatingsRequest,
+    user_email: str = Query(...),
+):
+    _admin_check(user_email)
+
+    try:
+        deleted = validated_qa_service.bulk_delete_ratings_by_qa(
+            request.question_text, request.answer_text
+        )
+
+        try:
+            log_activity(
+                user_email,
+                "manual",
+                "admin_bulk_deleted_ratings",
+                target_label=request.question_text[:80],
+                detail=f"count={deleted}",
+            )
+        except Exception:
+            pass
+
+        return {"deleted_count": deleted}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail={"error": "bulk_delete_failed", "message": str(e)}
         )
 
 
