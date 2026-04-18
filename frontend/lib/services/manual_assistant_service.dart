@@ -332,6 +332,39 @@ class ManualAssistantService {
       }
 
       String eventType = 'message';
+      final List<String> dataLines = [];
+
+      void dispatchEvent() {
+        if (dataLines.isEmpty) {
+          eventType = 'message';
+          return;
+        }
+        // SSE spec: join consecutive data: lines with '\n' on dispatch.
+        final data = dataLines.join('\n');
+        dataLines.clear();
+
+        if (eventType == 'metadata') {
+          try {
+            final metadata = jsonDecode(data) as Map<String, dynamic>;
+            controller.add(SseEvent.metadata(metadata));
+          } catch (e) {
+            controller.add(SseEvent.error('Failed to parse metadata'));
+          }
+        } else if (eventType == 'error') {
+          try {
+            final error = jsonDecode(data) as Map<String, dynamic>;
+            controller
+                .add(SseEvent.error(error['message'] ?? 'Unknown error'));
+          } catch (e) {
+            controller.add(SseEvent.error(data));
+          }
+        } else {
+          if (data.isNotEmpty) {
+            controller.add(SseEvent.token(data));
+          }
+        }
+        eventType = 'message';
+      }
 
       response.stream
           .transform(utf8.decoder)
@@ -348,29 +381,9 @@ class ManualAssistantService {
             if (data.startsWith(' ')) {
               data = data.substring(1);
             }
-            if (eventType == 'metadata') {
-              try {
-                final metadata = jsonDecode(data) as Map<String, dynamic>;
-                controller.add(SseEvent.metadata(metadata));
-              } catch (e) {
-                controller.add(SseEvent.error('Failed to parse metadata'));
-              }
-            } else if (eventType == 'error') {
-              try {
-                final error = jsonDecode(data) as Map<String, dynamic>;
-                controller
-                    .add(SseEvent.error(error['message'] ?? 'Unknown error'));
-              } catch (e) {
-                controller.add(SseEvent.error(data));
-              }
-            } else {
-              if (data.isNotEmpty) {
-                controller.add(SseEvent.token(data));
-              }
-            }
-            eventType = 'message';
+            dataLines.add(data);
           } else if (line.isEmpty) {
-            eventType = 'message';
+            dispatchEvent();
           }
         },
         onError: (e) {
