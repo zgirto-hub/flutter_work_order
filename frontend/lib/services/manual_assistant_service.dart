@@ -1193,6 +1193,76 @@ class ManualAssistantService {
     }
   }
 
+  Future<Map<String, dynamic>> getVerifiedAnswerVariants({
+    required String qaId,
+    required String userEmail,
+  }) async {
+    try {
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.get(
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/verified-answers/$qaId/variants?user_email=${Uri.encodeComponent(userEmail)}'),
+        headers: headers,
+      );
+
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      } else if (res.statusCode == 403) {
+        throw Exception('Admin access required');
+      } else if (res.statusCode == 404) {
+        throw Exception('Answer not found');
+      } else {
+        throw Exception('Failed to get verified answer variants');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> updateVerifiedAnswerVariants({
+    required String qaId,
+    required String userEmail,
+    required List<String> variants,
+  }) async {
+    try {
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final res = await http.put(
+        Uri.parse('${AppConfig.baseUrl}/manuals/verified-answers/$qaId/variants'),
+        headers: headers,
+        body: jsonEncode({
+          'user_email': userEmail,
+          'variants': variants,
+        }),
+      );
+
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      } else if (res.statusCode == 403) {
+        throw Exception('Admin access required');
+      } else if (res.statusCode == 404) {
+        throw Exception('Answer not found');
+      } else if (res.statusCode == 400) {
+        final data = jsonDecode(res.body);
+        final detail = data['detail'];
+        throw Exception(detail is Map ? (detail['error'] ?? detail.toString()) : (detail?.toString() ?? 'Invalid request'));
+      } else if (res.statusCode == 503) {
+        throw Exception('embedding service unavailable — please retry');
+      } else {
+        throw Exception('Failed to update verified answer variants');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> markCacheReviewed({
     required String qaId,
     required String action,

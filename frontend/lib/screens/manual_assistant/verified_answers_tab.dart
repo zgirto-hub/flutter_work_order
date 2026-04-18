@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/manual_assistant_service.dart';
+import 'widgets/variants_modal.dart';
 
 class VerifiedAnswersTab extends StatefulWidget {
   final String userEmail;
@@ -150,6 +151,10 @@ class _VerifiedAnswersTabState extends State<VerifiedAnswersTab>
             tooltip: 'Delete',
           ),
           TextButton(
+            onPressed: () => _openVariantsFlow(entry, questionCtrl),
+            child: const Text('Generate variants'),
+          ),
+          TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
@@ -194,6 +199,89 @@ class _VerifiedAnswersTabState extends State<VerifiedAnswersTab>
             : 'Failed to update: $e';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
+        );
+      }
+    }
+  }
+
+  String _normalize(String s) => s.trim().toLowerCase();
+
+  Future<void> _openVariantsFlow(
+      Map<String, dynamic> entry, TextEditingController questionCtrl) async {
+    final notice =
+        'AI paraphrases are unavailable right now. You can still edit, add or remove variants and save.';
+
+    List<Map<String, dynamic>> siblings = [];
+    List<String> paraphraseVariants = [];
+
+    try {
+      final variantsResult = await _service.getVerifiedAnswerVariants(
+        qaId: entry['id'] as String,
+        userEmail: widget.userEmail,
+      );
+      siblings = (variantsResult['variants'] as List<dynamic>?)
+              ?.map((v) => Map<String, dynamic>.from(v))
+              .toList() ??
+          [];
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load variants: $e')),
+        );
+      }
+      return;
+    }
+
+    try {
+      paraphraseVariants = await _service.generateParaphraseVariants(
+        questionText: questionCtrl.text,
+        userEmail: widget.userEmail,
+      );
+    } catch (_) {
+      paraphraseVariants = [];
+    }
+
+    final existingTexts =
+        siblings.map((s) => s['question_text'] as String).toList();
+    final paraphraseSet = paraphraseVariants.toSet();
+    final savedNormalized =
+        siblings.map((s) => _normalize(s['question_text'] as String)).toSet();
+
+    final allVariants = [...existingTexts];
+    for (final p in paraphraseSet) {
+      if (!allVariants.any((v) => _normalize(v) == _normalize(p))) {
+        allVariants.add(p);
+      }
+    }
+
+    final showNotice = paraphraseVariants.isEmpty ? notice : null;
+
+    final result = await showVariantsModal(
+      context: context,
+      originalQuestion: entry['question_text'] as String,
+      generatedVariants: allVariants,
+      notice: showNotice,
+      savedVariantNormalizedTexts: savedNormalized,
+    );
+
+    if (result == null) return;
+
+    try {
+      await _service.updateVerifiedAnswerVariants(
+        qaId: entry['id'] as String,
+        userEmail: widget.userEmail,
+        variants: result,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Verified answer variants updated')),
+        );
+        _loadEntries();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save variants: $e')),
         );
       }
     }

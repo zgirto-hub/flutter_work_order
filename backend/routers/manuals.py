@@ -1220,6 +1220,57 @@ async def delete_verified_answer(
         raise HTTPException(status_code=500, detail={"error": "delete_failed"})
 
 
+@router.get("/manuals/verified-answers/{qa_id}/variants")
+async def get_verified_answer_variants(
+    qa_id: str,
+    user_email: str = Query(...),
+):
+    _admin_check(user_email)
+
+    try:
+        result = await validated_qa_service.get_variants_group(qa_id)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail={"error": str(e)})
+    except Exception:
+        raise HTTPException(status_code=500, detail={"error": "fetch_failed"})
+
+
+class UpdateVerifiedAnswerVariantsRequest(BaseModel):
+    user_email: str
+    variants: List[str]
+
+
+@router.put("/manuals/verified-answers/{qa_id}/variants")
+async def update_verified_answer_variants(
+    qa_id: str,
+    request: UpdateVerifiedAnswerVariantsRequest,
+):
+    _admin_check(request.user_email)
+
+    try:
+        result = await validated_qa_service.reconcile_variants(
+            qa_id=qa_id,
+            submitted_variants=request.variants,
+            editor_email=request.user_email,
+        )
+        return result
+    except ValueError as e:
+        msg = str(e)
+        if msg == "not found":
+            raise HTTPException(status_code=404, detail={"error": "not found"})
+        if msg in ("at least one variant required", "variant exceeds 500 characters"):
+            raise HTTPException(status_code=400, detail={"error": msg})
+        raise HTTPException(status_code=400, detail={"error": msg})
+    except validated_qa_service.EmbeddingUnavailable as e:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "embedding service unavailable; please retry"},
+        )
+    except Exception:
+        raise HTTPException(status_code=500, detail={"error": "update_failed"})
+
+
 def _admin_check(user_email: str):
     """Shared admin check pattern."""
     try:
