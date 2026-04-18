@@ -1215,15 +1215,18 @@ async def generate_qa_candidates(
                 continue
 
         try:
+            embedding_arg = chunk_embedding
+            if isinstance(embedding_arg, list):
+                embedding_arg = "[" + ",".join(str(x) for x in embedding_arg) + "]"
             rpc_resp = supabase.rpc(
                 "search_validated_qa",
-                {"q_embedding": chunk_embedding, "match_count": 1},
+                {"q_embedding": embedding_arg, "match_count": 1},
             ).execute()
             if rpc_resp.data and rpc_resp.data[0].get("distance", 1.0) < 0.15:
                 skipped_cached += 1
                 skipped_ids.add(chunk["id"])
         except Exception as e:
-            logger.warning(f"RPC search_validated_qa failed (dedup skipped): {e}")
+            logger.warning(f"Cache dedup check failed for chunk {chunk.get('id')}: {e}")
 
     remaining_chunks = [c for c in chunks if c["id"] not in skipped_ids]
     batches = [remaining_chunks[i : i + 3] for i in range(0, len(remaining_chunks), 3)]
@@ -1499,7 +1502,8 @@ async def mark_cache_reviewed(
 
     try:
         if request.action == "confirm":
-            update_data = {"verified_at": "now()"}
+            now_iso = datetime.now(timezone.utc).isoformat()
+            update_data = {"verified_at": now_iso}
 
             # If question or answer updated, re-embed
             if request.updated_question:
@@ -1519,7 +1523,7 @@ async def mark_cache_reviewed(
             if target_rating_id:
                 variant_resp = (
                     supabase.table("validated_qa")
-                    .update({"verified_at": "now()"})
+                    .update({"verified_at": now_iso})
                     .eq("rating_id", target_rating_id)
                     .neq("id", request.qa_id)
                     .execute()
@@ -1538,7 +1542,7 @@ async def mark_cache_reviewed(
             return {
                 "status": "confirmed",
                 "qa_id": request.qa_id,
-                "verified_at": "now",
+                "verified_at": now_iso,
                 "updated_count": updated_count,
             }
 

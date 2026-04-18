@@ -964,15 +964,17 @@ class ManualAssistantService {
     required String editorEmail,
     String? sourceManualId,
   }) async {
-    try {
-      final result = await createVerifiedAnswer(
-        questionText: question,
-        validatedAnswer: answer,
-        editorEmail: editorEmail,
-        sourceManualId: sourceManualId,
-      );
-      final primaryQaId = result['id'] as String;
+    // Step 1: create primary entry
+    final result = await createVerifiedAnswer(
+      questionText: question,
+      validatedAnswer: answer,
+      editorEmail: editorEmail,
+      sourceManualId: sourceManualId,
+    );
+    final primaryQaId = result['id'] as String;
 
+    // Steps 2-4: rollback primary on any failure
+    try {
       final enVariants = await generateParaphraseVariants(
         questionText: question,
         lang: 'en',
@@ -997,6 +999,15 @@ class ManualAssistantService {
         'totalEmbeddings': enVariants.length + arVariants.length,
       };
     } catch (e) {
+      // Rollback: remove the orphaned primary
+      try {
+        await deleteVerifiedAnswer(
+          qaId: primaryQaId,
+          editorEmail: editorEmail,
+        );
+      } catch (_) {
+        // Best-effort cleanup; if delete fails, surface original error
+      }
       rethrow;
     }
   }
