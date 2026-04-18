@@ -25,6 +25,7 @@ class _VerifiedAnswersTabState extends State<VerifiedAnswersTab>
   String? _error;
   int _offset = 0;
   final int _limit = 50;
+  String _sort = 'recent';
   int _currentRequestId = 0;
 
   final TextEditingController _searchController = TextEditingController();
@@ -68,6 +69,7 @@ class _VerifiedAnswersTabState extends State<VerifiedAnswersTab>
         search: searchQuery,
         limit: _limit,
         offset: append ? _offset : 0,
+        sort: _sort,
       );
 
       if (!mounted || localRequestId != _currentRequestId) return;
@@ -386,6 +388,38 @@ class _VerifiedAnswersTabState extends State<VerifiedAnswersTab>
                 onChanged: _onSearchChanged,
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+              child: Row(
+                children: [
+                  const Text('Sort:', style: TextStyle(fontSize: 13)),
+                  const SizedBox(width: 8),
+                  DropdownButton<String>(
+                    value: _sort,
+                    isDense: true,
+                    items: const [
+                      DropdownMenuItem(value: 'recent', child: Text('Most recent')),
+                      DropdownMenuItem(value: 'most_used', child: Text('Most used')),
+                      DropdownMenuItem(
+                        value: 'most_problematic',
+                        child: Text('Most problematic'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value == null || value == _sort) return;
+                      setState(() {
+                        _sort = value;
+                        _offset = 0;
+                        _loading = true;
+                        _entries = [];
+                        _totalCount = 0;
+                      });
+                      _loadEntries();
+                    },
+                  ),
+                ],
+              ),
+            ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               color: Theme.of(context)
@@ -422,9 +456,13 @@ class _VerifiedAnswersTabState extends State<VerifiedAnswersTab>
                       Text(
                         _searchController.text.isNotEmpty
                             ? 'No matching answers found.'
-                            : 'No verified answers yet.',
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                            : (_sort == 'most_used'
+                                ? 'No verified answers have thumbs-up votes yet.'
+                                : _sort == 'most_problematic'
+                                    ? 'No verified answers have thumbs-down votes yet.'
+                                    : 'No verified answers yet.'),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),

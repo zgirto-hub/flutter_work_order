@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 REFLAG_THRESHOLD = 0.30
 REFLAG_MIN_TOTAL = 3
+_ALLOWED_SORTS = {"recent", "most_used", "most_problematic"}
 
 # Simple patterns for equipment type and fault code extraction (FR-019)
 _EQUIPMENT_PATTERNS = [
@@ -358,24 +359,48 @@ def update_validated_rating(validated_qa_id: str, rating: str) -> None:
 
 
 def get_all_verified_answers(
-    search: Optional[str] = None, limit: int = 50, offset: int = 0
+    search: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    sort: str = "recent",
 ) -> dict:
+    if sort not in _ALLOWED_SORTS:
+        raise ValueError(f"Invalid sort: {sort}")
+
     columns = (
         "id, question_text, validated_answer, equipment_type, fault_code, "
         "validated_by, validated_at, thumbs_up_count, thumbs_down_count, "
         "is_reflagged, updated_at"
     )
     query = supabase.table("validated_qa").select(columns)
+    count_query = supabase.table("validated_qa").select("id", count="exact")
 
+    # Apply vote-count filter based on sort
+    if sort == "most_used":
+        query = query.gt("thumbs_up_count", 0)
+        count_query = count_query.gt("thumbs_up_count", 0)
+    elif sort == "most_problematic":
+        query = query.gt("thumbs_down_count", 0)
+        count_query = count_query.gt("thumbs_down_count", 0)
+
+    # Apply search filter (ANDed with sort filter)
     if search:
         query = query.ilike("question_text", f"%{search}%")
-
-    query = query.order("updated_at", desc=True).range(offset, offset + limit - 1)
-    data = query.execute().data
-
-    count_query = supabase.table("validated_qa").select("id", count="exact")
-    if search:
         count_query = count_query.ilike("question_text", f"%{search}%")
+
+    # Apply ordering
+    if sort == "most_used":
+        query = query.order("thumbs_up_count", desc=True).order(
+            "updated_at", desc=True
+        )
+    elif sort == "most_problematic":
+        query = query.order("thumbs_down_count", desc=True).order(
+            "updated_at", desc=True
+        )
+    else:  # recent
+        query = query.order("updated_at", desc=True)
+
+    data = query.range(offset, offset + limit - 1).execute().data
     count = count_query.execute().count
 
     return {"items": data, "count": count}

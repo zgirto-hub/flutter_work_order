@@ -2,7 +2,7 @@ name: work_order
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.17.9+194
+version: 1.17.10+195
 
 environment:
   sdk: ^3.3.0
