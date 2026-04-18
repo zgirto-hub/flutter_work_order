@@ -207,6 +207,7 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
     int totalEnglish = 0;
     int totalArabic = 0;
     int failCount = 0;
+    String? lastError;
 
     for (final idx in _approvedIndices.toList()) {
       final candidate = _candidates[idx];
@@ -222,6 +223,7 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
         totalArabic += (result['arabicCount'] as int?) ?? 3;
       } catch (e) {
         failCount++;
+        lastError = e.toString();
       }
     }
 
@@ -248,14 +250,20 @@ class _FromManualsSectionState extends State<_FromManualsSection> {
         widget.onHistoryChanged();
       }
 
+      final failDetail = failCount > 0 && lastError != null
+          ? ' · $failCount failed — $lastError'
+          : (failCount > 0 ? ' · $failCount failed' : '');
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             '$savedCount Q&A pairs saved · $totalEmbeddings embeddings created '
-            '($totalEnglish English + $totalArabic Arabic)'
-            '${failCount > 0 ? ' · $failCount failed' : ''}',
+            '($totalEnglish English + $totalArabic Arabic)$failDetail',
           ),
-          duration: const Duration(seconds: 5),
+          duration: Duration(seconds: failCount > 0 ? 10 : 5),
+          backgroundColor: failCount > 0
+              ? Theme.of(context).colorScheme.errorContainer
+              : null,
         ),
       );
     }
