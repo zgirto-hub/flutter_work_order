@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional, List
 from uuid import UUID
 from db import supabase
-from services.ollama_embedder import embed_single, EmbedderTimeoutError
+from services.ollama_embedder import embed_single
 from utils.activity import log_activity
 
 logging.basicConfig(level=logging.INFO)
@@ -481,6 +481,221 @@ async def create_verified_answer(
     result = supabase.table("validated_qa").insert(insert_data).execute()
 
     return result.data[0]
+
+
+class EmbeddingUnavailable(RuntimeError):
+    pass
+
+
+async def get_variants_group(qa_id: str) -> dict:
+    """Load the target row, return variants group for the shared-rating group.
+
+    Returns {qa_id, rating_id, question_text, validated_answer,
+             variants: [{id, question_text}]} sorted by question_text ASC.
+    If rating_id IS NULL, variants is a list of one (the target row itself).
+    Raises ValueError("not found") if qa_id has no row.
+    No embedding calls, no writes, no audit log.
+    """
+    target_resp = (
+        supabase.table("validated_qa")
+        .select("*")
+        .eq("id", qa_id)
+        .maybe_single()
+        .execute()
+    )
+    if not target_resp.data:
+        raise ValueError("not found")
+
+    target = target_resp.data
+    rating_id = target.get("rating_id")
+
+    if rating_id:
+        siblings_resp = (
+            supabase.table("validated_qa")
+            .select("id, question_text")
+            .eq("rating_id", rating_id)
+            .order("question_text")
+            .execute()
+        )
+        variants = [
+            {"id": r["id"], "question_text": r["question_text"]}
+            for r in siblings_resp.data
+        ]
+    else:
+        variants = [{"id": target["id"], "question_text": target["question_text"]}]
+
+    return {
+        "qa_id": qa_id,
+        "rating_id": rating_id,
+        "question_text": target["question_text"],
+        "validated_answer": target["validated_answer"],
+        "variants": variants,
+    }
+
+
+async def reconcile_variants(
+    qa_id: str,
+    submitted_variants: list[str],
+    editor_email: str,
+) -> dict:
+    """Full-replace reconcile of the variant set for a verified answer's rating_id group.
+
+    Input validation:
+      - Dedupe by strip().casefold(), preserving first-seen original casing.
+      - Empty after dedupe -> ValueError("at least one variant required")
+      - Any variant > 500 chars after trim -> ValueError("variant exceeds 500 characters")
+
+    If rating_id IS NULL on target, generates a fresh UUID and backfills BEFORE proceeding.
+
+    Pre-computes ALL embeddings for to_insert before any DB write (fail-fast atomicity).
+    Deletes to_delete by id, then inserts to_insert rows.
+
+    Does NOT modify validated_answer (INV-A).
+    Fire-and-forget log_activity on completion.
+    """
+    # Step 1: normalize and dedupe submitted variants
+    seen_norm: dict[str, str] = {}
+    for v in submitted_variants:
+        norm = v.strip().casefold()
+        if norm not in seen_norm:
+            seen_norm[norm] = v.strip()
+
+    submitted = list(seen_norm.values())
+    if not submitted:
+        raise ValueError("at least one variant required")
+
+    for v in submitted:
+        if len(v) > 500:
+            raise ValueError("variant exceeds 500 characters")
+
+    # Step 2: load target row
+    target_resp = (
+        supabase.table("validated_qa")
+        .select("*")
+        .eq("id", qa_id)
+        .maybe_single()
+        .execute()
+    )
+    if not target_resp.data:
+        raise ValueError("not found")
+
+    target = target_resp.data
+    validated_answer = target["validated_answer"]
+    rating_id = target.get("rating_id")
+
+    # Step 3: backfill rating_id if NULL (FR-009)
+    if not rating_id:
+        import uuid as _uuid
+
+        rating_id = str(_uuid.uuid4())
+        supabase.table("validated_qa").update(
+            {"rating_id": rating_id}
+        ).eq("id", qa_id).execute()
+        # Reload to get the updated row for shared field reads
+        target_resp = (
+            supabase.table("validated_qa")
+            .select("*")
+            .eq("id", qa_id)
+            .maybe_single()
+            .execute()
+        )
+        target = target_resp.data
+
+    # Step 4: load all siblings with this rating_id
+    siblings_resp = (
+        supabase.table("validated_qa")
+        .select("*")
+        .eq("rating_id", rating_id)
+        .execute()
+    )
+    siblings = siblings_resp.data or []
+
+    stored_by_norm = {r["question_text"].strip().casefold(): r for r in siblings}
+    submitted_norm_set = {v.strip().casefold() for v in submitted}
+
+    to_delete = [
+        r for norm, r in stored_by_norm.items() if norm not in submitted_norm_set
+    ]
+    to_insert = [
+        original for norm, original in seen_norm.items()
+        if norm not in stored_by_norm
+    ]
+
+    # Step 5: pre-compute all embeddings for to_insert (FR-008a atomicity)
+    # FR-008a: any failure in this block maps to 503 so the router can signal
+    # "embedding service unavailable; retry safe" — no DB writes have run yet.
+    try:
+        embedded: dict[str, tuple[str, str]] = {}
+        for text in to_insert:
+            emb = await embed_single(text)
+            emb_str = "[" + ",".join(str(x) for x in emb) + "]"
+            embedded[text] = (emb_str, text)
+    except Exception as e:
+        raise EmbeddingUnavailable(str(e)) from e
+
+    # Step 6: read shared fields from an existing sibling BEFORE deletes
+    # (guard against reading the row being deleted)
+    ref_row = (
+        siblings[0] if siblings else target
+    )
+    now_iso = datetime.now(timezone.utc).isoformat()
+    shared = {
+        "validated_answer": validated_answer,
+        "rating_id": rating_id,
+        "manual_ids": ref_row.get("manual_ids", []),
+        "source_chunks": ref_row.get("source_chunks", []),
+        "is_reflagged": ref_row.get("is_reflagged", False),
+    }
+
+    # Step 7: execute deletes
+    if to_delete:
+        ids_to_delete = [r["id"] for r in to_delete]
+        supabase.table("validated_qa").delete().in_("id", ids_to_delete).execute()
+
+    # Step 8: execute inserts
+    if embedded:
+        rows_to_insert = []
+        for text, (emb_str, _) in embedded.items():
+            rows_to_insert.append({
+                **shared,
+                "question_text": text,
+                "question_embedding": emb_str,
+                "validated_by": editor_email,
+                "validated_at": now_iso,
+                "equipment_type": _extract_equipment_type(text),
+                "fault_code": _extract_fault_code(text),
+            })
+        supabase.table("validated_qa").insert(rows_to_insert).execute()
+
+    # Step 9: log activity
+    final_variants_resp = (
+        supabase.table("validated_qa")
+        .select("id, question_text")
+        .eq("rating_id", rating_id)
+        .order("question_text")
+        .execute()
+    )
+    final_variants = [
+        {"id": r["id"], "question_text": r["question_text"]}
+        for r in final_variants_resp.data
+    ]
+
+    log_activity(
+        editor_email,
+        category="admin",
+        action="updated_verified_answer_variants",
+        target_label=target["question_text"][:80],
+        target_id=qa_id,
+        detail=f"added={len(to_insert)}, removed={len(to_delete)}, final={len(final_variants)}",
+    )
+
+    return {
+        "qa_id": qa_id,
+        "rating_id": rating_id,
+        "added_count": len(to_insert),
+        "removed_count": len(to_delete),
+        "variants": final_variants,
+    }
 
 
 def delete_verified_answer(qa_id: str) -> str:

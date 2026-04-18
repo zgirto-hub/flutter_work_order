@@ -87,20 +87,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_private_network=True,
 )
-
-
-# Chrome's Private Network Access (PNA) policy requires this header in
-# OPTIONS preflight responses when the client is on localhost and the server
-# is on a private/CGNAT IP (e.g. 100.x.x.x Tailscale range). Without it,
-# POST/PUT/DELETE with Content-Type: application/json fail silently
-# ("Failed to fetch") even though CORS is otherwise configured correctly.
-@app.middleware("http")
-async def private_network_access_header(request: Request, call_next):
-    response = await call_next(request)
-    if request.method == "OPTIONS":
-        response.headers["Access-Control-Allow-Private-Network"] = "true"
-    return response
 
 
 app.include_router(files.router, prefix="/api")
