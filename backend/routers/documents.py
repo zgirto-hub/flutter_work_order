@@ -657,7 +657,7 @@ async def split_chunk(
         raise HTTPException(status_code=400, detail="Invalid split position")
 
     parent_id = resp.data.get("parent_id")
-    current_index = resp.data.get("chunk_index", 0)
+    current_index = resp.data.get("chunk_index") or 0
     first_content = content[:split_position]
     second_content = content[split_position:]
 
@@ -762,7 +762,7 @@ async def merge_chunk(
         raise HTTPException(status_code=404, detail="Chunk not found")
 
     parent_id = resp.data.get("parent_id")
-    current_index = resp.data.get("chunk_index", 0)
+    current_index = resp.data.get("chunk_index") or 0
 
     # Find next sibling with same parent
     next_resp = (
