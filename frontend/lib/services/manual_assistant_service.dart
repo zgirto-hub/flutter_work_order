@@ -539,52 +539,58 @@ class ManualAssistantService {
     }
   }
 
+  /// Returns the paraphrase variants. If the backend generation failed but
+  /// returned 200 with an empty list + error message, throws with that
+  /// message so callers can surface the real reason. Non-2xx responses
+  /// also throw with parsed detail.
   Future<List<String>> generateParaphraseVariants({
     required String questionText,
     required String userEmail,
     String? ratingId,
     String lang = 'en',
   }) async {
-    try {
-      final session = Supabase.instance.client.auth;
-      final headers = <String, String>{'Content-Type': 'application/json'};
-      final token = session.currentSession?.accessToken;
-      if (token != null) headers['Authorization'] = 'Bearer $token';
+    final session = Supabase.instance.client.auth;
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    final token = session.currentSession?.accessToken;
+    if (token != null) headers['Authorization'] = 'Bearer $token';
 
-      final res = await http.post(
-        Uri.parse(
-            '${AppConfig.baseUrl}/manuals/paraphrase-variants?user_email=${Uri.encodeComponent(userEmail)}'),
-        headers: headers,
-        body: jsonEncode({
-          'question_text': questionText,
-          if (ratingId != null) 'rating_id': ratingId,
-          'lang': lang,
-        }),
-      );
+    final res = await http.post(
+      Uri.parse(
+          '${AppConfig.baseUrl}/manuals/paraphrase-variants?user_email=${Uri.encodeComponent(userEmail)}'),
+      headers: headers,
+      body: jsonEncode({
+        'question_text': questionText,
+        if (ratingId != null) 'rating_id': ratingId,
+        'lang': lang,
+      }),
+    );
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        return (data['variants'] as List<dynamic>?)
-                ?.map((e) => e.toString())
-                .toList() ??
-            [];
-      } else if (res.statusCode == 403) {
-        throw Exception('Admin access required');
-      } else {
-        String detail = 'HTTP ${res.statusCode}';
-        try {
-          final body = jsonDecode(res.body);
-          if (body is Map) {
-            final d = body['detail'];
-            detail = d is Map ? (d['message'] ?? d['error'] ?? d.toString()) : (d?.toString() ?? body.toString());
-          }
-        } catch (_) {
-          if (res.body.isNotEmpty) detail = res.body.substring(0, res.body.length.clamp(0, 200));
-        }
-        throw Exception('Failed to generate variants: $detail');
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final variants = (data['variants'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [];
+      // Backend returns {variants: [], error: "..."} when AI provider failed
+      // after retry. Surface the reason instead of silently returning empty.
+      if (variants.isEmpty && data['error'] != null) {
+        throw Exception(data['error'].toString());
       }
-    } catch (e) {
-      rethrow;
+      return variants;
+    } else if (res.statusCode == 403) {
+      throw Exception('Admin access required');
+    } else {
+      String detail = 'HTTP ${res.statusCode}';
+      try {
+        final body = jsonDecode(res.body);
+        if (body is Map) {
+          final d = body['detail'];
+          detail = d is Map ? (d['message'] ?? d['error'] ?? d.toString()) : (d?.toString() ?? body.toString());
+        }
+      } catch (_) {
+        if (res.body.isNotEmpty) detail = res.body.substring(0, res.body.length.clamp(0, 200));
+      }
+      throw Exception('Failed to generate variants: $detail');
     }
   }
 

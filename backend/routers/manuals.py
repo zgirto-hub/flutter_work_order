@@ -902,19 +902,64 @@ async def generate_paraphrase_variants(
     else:
         prompt = PARAPHRASE_PROMPT_TEMPLATE.format(q=request.question_text)
 
+    import asyncio as _asyncio
+
+    async def _try_once() -> tuple[list[str], str | None, str | None]:
+        """Returns (variants, provider_used, error_message)."""
+        try:
+            (
+                answer_text,
+                provider_key,
+                display_name,
+                fallback_used,
+                fallback_info,
+            ) = await provider_generate(prompt, [])
+            if request.lang == "ar":
+                # Arabic prompt asks for JSON — parse that shape
+                variants = _parse_json_variants(answer_text)
+            else:
+                variants = parse_paraphrase_output(answer_text, request.question_text)
+            return variants, display_name, None
+        except Exception as e:
+            return [], None, str(e)
+
+    # First attempt
+    variants, provider, err = await _try_once()
+
+    # Retry once on transient failure (empty result OR exception)
+    if not variants:
+        logging.warning(
+            f"Paraphrase attempt 1 failed (lang={request.lang}, err={err}); retrying..."
+        )
+        await _asyncio.sleep(1.5)
+        variants, provider, err = await _try_once()
+
+    if variants:
+        return {"variants": variants, "provider": provider}
+
+    # Surface the real reason so the UI can tell admins why it failed
+    reason = err or "Model returned no parseable variants"
+    logging.warning(
+        f"Paraphrase generation failed after retry (lang={request.lang}): {reason}"
+    )
+    return {"variants": [], "error": reason}
+
+
+def _parse_json_variants(raw: str) -> list[str]:
+    """Extract variants from JSON-shaped model output (Arabic prompt)."""
+    import re as _re
     try:
-        (
-            answer_text,
-            provider_key,
-            display_name,
-            fallback_used,
-            fallback_info,
-        ) = await provider_generate(prompt, [])
-        variants = parse_paraphrase_output(answer_text, request.question_text)
-        return {"variants": variants}
-    except Exception as e:
-        logging.warning(f"Paraphrase generation failed: {e}")
-        return {"variants": []}
+        cleaned = raw.strip()
+        # Strip markdown fences if the model added them despite "no markdown"
+        if cleaned.startswith("```"):
+            cleaned = _re.sub(r"^```[a-zA-Z]*\n?", "", cleaned)
+            cleaned = _re.sub(r"\n?```$", "", cleaned).strip()
+        data = json.loads(cleaned)
+        variants = data.get("variants", [])
+        return [v.strip() for v in variants if isinstance(v, str) and v.strip()][:5]
+    except Exception:
+        # Fallback: try line-split parsing if JSON failed
+        return parse_paraphrase_output(raw, "")
 
 
 class ReviewAnswerWithVariantsRequest(BaseModel):

@@ -76,7 +76,9 @@ class ReviewQueueTabState extends State<ReviewQueueTab> {
         }
       } catch (e) {
         variants = [];
-        notice = 'Automatic variants could not be generated.';
+        // Strip "Exception: " prefix Dart adds
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        notice = 'Automatic variants could not be generated — $msg';
       }
 
       final selectedVariants = await showVariantsModal(
