@@ -949,9 +949,24 @@ class ManualAssistantService {
         throw Exception('not_found');
       } else if (res.statusCode == 400) {
         final data = jsonDecode(res.body);
-        throw Exception(data['error'] ?? 'no_chunks');
+        final detail = data['detail'];
+        final err = detail is Map ? (detail['message'] ?? detail['error']) : data['error'];
+        throw Exception(err ?? 'no_chunks');
       } else {
-        throw Exception('generation_failed');
+        // Surface server error body so we can see what actually broke
+        String detail = 'HTTP ${res.statusCode}';
+        try {
+          final body = jsonDecode(res.body);
+          if (body is Map) {
+            final d = body['detail'];
+            detail = d is Map ? (d['message'] ?? d['error'] ?? d.toString()) : (d?.toString() ?? body.toString());
+          } else {
+            detail = body.toString();
+          }
+        } catch (_) {
+          if (res.body.isNotEmpty) detail = res.body.substring(0, res.body.length.clamp(0, 300));
+        }
+        throw Exception('generation_failed: $detail');
       }
     } catch (e) {
       rethrow;

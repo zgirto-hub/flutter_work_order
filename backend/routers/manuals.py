@@ -1148,6 +1148,25 @@ async def generate_qa_candidates(
     background_tasks: BackgroundTasks = None,
 ):
     try:
+        return await _generate_qa_candidates_impl(
+            request, user_email, background_tasks
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"generate-qa-candidates failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "generation_failed", "message": str(e)},
+        )
+
+
+async def _generate_qa_candidates_impl(
+    request: GenerateQACandidatesRequest,
+    user_email: str,
+    background_tasks: BackgroundTasks,
+):
+    try:
         _admin_check(user_email)
     except Exception:
         raise HTTPException(status_code=403, detail={"error": "admin_required"})
@@ -1202,9 +1221,13 @@ async def generate_qa_candidates(
             return 0.0
         return dot / (norm_a * norm_b)
 
+    # Cap dedup pre-filter to avoid timing out on large docs — we only need
+    # enough non-cached chunks to fill max_candidates batches of 3
+    dedup_cap = min(len(chunks), max_candidates * 6)
+
     # Filter out chunks already cached (cosine >= 0.85 → distance < 0.15)
     skipped_ids = set()
-    for chunk in chunks:
+    for chunk in chunks[:dedup_cap]:
         chunk_embedding = chunk.get("embedding")
         if not chunk_embedding:
             skipped_ids.add(chunk["id"])
@@ -1231,7 +1254,7 @@ async def generate_qa_candidates(
         except Exception as e:
             logger.warning(f"Cache dedup check failed for chunk {chunk.get('id')}: {e}")
 
-    remaining_chunks = [c for c in chunks if c["id"] not in skipped_ids]
+    remaining_chunks = [c for c in chunks[:dedup_cap] if c["id"] not in skipped_ids]
     batches = [remaining_chunks[i : i + 3] for i in range(0, len(remaining_chunks), 3)]
 
     for batch in batches:
