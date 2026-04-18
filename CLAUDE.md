@@ -105,6 +105,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-18
 - Supabase (PostgreSQL) with pgvector — `validated_qa`, `answer_ratings`, `manuals`, `manual_chunks` tables (080-train-ai-tab)
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); `http`, `supabase_flutter`, Flutter Material, `shared_preferences` (existing) (frontend) (082-delete-ai-ratings)
 - Supabase (PostgreSQL) — existing `answer_ratings`, `validated_qa` tables. No schema changes. (082-delete-ai-ratings)
+- Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, primarily web target) + FastAPI, Supabase Python client, existing `services.manual_rag_service`, existing `services.validated_qa_service`, existing `utils.activity.log_activity`, existing `services.ai_providers.resolver` (touched only to **not** invoke on verbatim path). Flutter Material. **No new dependencies.** (083-verbatim-verified-answers)
+- Supabase (PostgreSQL with pgvector) — existing `validated_qa` and `user_activity_log` tables. **No schema changes, no migrations.** (083-verbatim-verified-answers)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -127,9 +129,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 083-verbatim-verified-answers: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, primarily web target) + FastAPI, Supabase Python client, existing `services.manual_rag_service`, existing `services.validated_qa_service`, existing `utils.activity.log_activity`, existing `services.ai_providers.resolver` (touched only to **not** invoke on verbatim path). Flutter Material. **No new dependencies.**
 - 082-delete-ai-ratings: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); `http`, `supabase_flutter`, Flutter Material, `shared_preferences` (existing) (frontend)
 - 080-train-ai-tab: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, supabase_flutter, Flutter Material (frontend)
-- 078-diversity-aware-retrieval: Added Python 3.10 + FastAPI, Supabase Python client (existing — no new deps)
 
 
 <!-- MANUAL ADDITIONS START -->

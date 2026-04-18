@@ -86,6 +86,8 @@ class ManualQaAnswer {
   final LatencyBreakdown? latencyBreakdown;
   final String? sourceType;
   final String? searchQuery;
+  final String? verificationMode;
+  final int? verifiedSourceCount;
 
   const ManualQaAnswer({
     required this.answer,
@@ -107,6 +109,8 @@ class ManualQaAnswer {
     this.latencyBreakdown,
     this.sourceType,
     this.searchQuery,
+    this.verificationMode,
+    this.verifiedSourceCount,
   });
 
   factory ManualQaAnswer.fromJson(Map<String, dynamic> json) {
@@ -161,6 +165,8 @@ class ManualQaAnswer {
       latencyBreakdown: latencyBreakdown,
       sourceType: json['source_type'] as String?,
       searchQuery: json['search_query'] as String?,
+      verificationMode: json['verification_mode'] as String?,
+      verifiedSourceCount: (json['verified_source_count'] as num?)?.toInt(),
     );
   }
 

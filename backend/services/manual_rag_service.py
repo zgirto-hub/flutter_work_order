@@ -102,6 +102,103 @@ def _is_direct_lookup(query: str) -> bool:
 # --- Validated QA confidence thresholds (spec 069) ---
 RAG_CONFIDENCE_THRESHOLD = 0.75  # Minimum similarity to proceed to LLM
 RAG_HIGH_CONFIDENCE = 0.85  # Score >= this → confidence: "high"
+VERBATIM_MIN_SIMILARITY = 0.85  # top-1 floor for verbatim short-circuit (FR-001)
+VERBATIM_DOMINANCE_GAP = 0.05   # required gap between top-1 and top-2 (FR-001)
+
+
+def _should_return_verbatim(matches: list[dict]) -> bool:
+    """
+    Return True iff the top-1 match is strong enough (>= VERBATIM_MIN_SIMILARITY)
+    AND clearly dominates the top-2 (gap >= VERBATIM_DOMINANCE_GAP), OR is a lone
+    match at/above the floor. Pure function of the similarity scores — no side
+    effects, no I/O.
+
+    Callers MUST have already confirmed the entry gate (max score >=
+    RAG_CONFIDENCE_THRESHOLD) before consulting this helper.
+    """
+    if not matches:
+        return False
+    top1 = matches[0]["similarity"]
+    if top1 < VERBATIM_MIN_SIMILARITY:
+        return False
+    if len(matches) == 1:
+        return True
+    top2 = matches[1]["similarity"]
+    return (top1 - top2) >= VERBATIM_DOMINANCE_GAP
+
+
+def _count_distinct_sources(matches: list[dict]) -> int:
+    """Count distinct underlying curated answers (spec 068 variants share text)."""
+    return len({m["validated_answer"] for m in matches}) if matches else 0
+
+
+def _log_verified_served(
+    user_email: str,
+    question: str,
+    verification_mode: str,
+    top1: float,
+    top2: float,
+) -> None:
+    """Fire-and-forget telemetry write per FR-014. Never blocks the response path."""
+    try:
+        from utils.activity import log_activity
+        log_activity(
+            user_email=user_email,
+            category="manual",
+            action="verified_answer_served",
+            target_label=question[:80],
+            target_id="",
+            detail=f"mode={verification_mode};top1={top1:.3f};top2={top2:.3f}",
+        )
+    except Exception as e:
+        logger.warning("verified_answer_served telemetry failed: %s", e)
+
+
+def _build_verbatim_payload(
+    matches: list[dict],
+    *,
+    search_query: str,
+    retrieval_info: dict | None,
+    latency_breakdown: dict | None,
+) -> dict:
+    """Build response dict for the verbatim path — NO LLM call."""
+    top1 = matches[0]["similarity"]
+    confidence = "high" if top1 >= RAG_HIGH_CONFIDENCE else "medium"
+    if latency_breakdown is not None:
+        latency_breakdown["generator_ms"] = 0
+    return {
+        "answer": matches[0]["validated_answer"],
+        "grounded": True,
+        "sources": [
+            {"id": m["id"], "question_text": m["question_text"], "score": m["similarity"]}
+            for m in matches
+        ],
+        "confidence": confidence,
+        "score": top1,
+        "model": "Verbatim (no generation)",
+        "provider_display_name": "Verbatim (no generation)",
+        "duration_seconds": 0.0,
+        "is_verified": True,
+        "verified_source": {
+            "validated_qa_id": str(matches[0]["id"]),
+            "validated_by": matches[0]["validated_by"],
+            "validated_at": (
+                matches[0]["validated_at"].isoformat()
+                if hasattr(matches[0]["validated_at"], "isoformat")
+                else str(matches[0]["validated_at"])
+            ),
+            "similarity": top1,
+        },
+        "verification_mode": "verbatim",
+        "verified_source_count": 1,
+        "retrieval_info": retrieval_info,
+        "provider_used": "verbatim",
+        "fallback_used": False,
+        "session_summary": None,
+        "search_query": search_query,
+        "latency_breakdown": latency_breakdown,
+        "source_type": "validated_qa",
+    }
 
 # --- Shared "not found" sentinel phrases (single source of truth) ---
 _NOT_FOUND_KNOWLEDGE_BASE = "I don't have that information in the knowledge base."
@@ -729,8 +826,43 @@ async def ask_stream(
         )
         vqa_matches = pre_rewrite_match.get("matches", [])
         if vqa_matches:
-            max_score = max(m["similarity"] for m in vqa_matches)
-            if max_score >= RAG_CONFIDENCE_THRESHOLD:
+            top1 = vqa_matches[0]["similarity"]
+            top2 = vqa_matches[1]["similarity"] if len(vqa_matches) > 1 else 0.0
+            if top1 >= RAG_CONFIDENCE_THRESHOLD:
+                max_score = top1
+                is_verbatim = _should_return_verbatim(vqa_matches)
+                verification_mode = "verbatim" if is_verbatim else "synthesized"
+                verified_source_count = 1 if is_verbatim else _count_distinct_sources(vqa_matches)
+                _log_verified_served(user_email, question, verification_mode, top1, top2)
+                if is_verbatim:
+                    stream_meta.update({
+                        "sources": [
+                            {"id": m["id"], "question_text": m["question_text"], "score": m["similarity"]}
+                            for m in vqa_matches
+                        ],
+                        "grounded": True,
+                        "confidence": "high" if top1 >= RAG_HIGH_CONFIDENCE else "medium",
+                        "is_verified": True,
+                        "verified_source": {
+                            "validated_qa_id": str(vqa_matches[0]["id"]),
+                            "validated_by": vqa_matches[0]["validated_by"],
+                            "validated_at": (
+                                vqa_matches[0]["validated_at"].isoformat()
+                                if hasattr(vqa_matches[0]["validated_at"], "isoformat")
+                                else str(vqa_matches[0]["validated_at"])
+                            ),
+                            "similarity": top1,
+                        },
+                        "verification_mode": "verbatim",
+                        "verified_source_count": 1,
+                        "provider_key": "verbatim",
+                        "display_name": "Verbatim (no generation)",
+                        "fallback_used": False,
+                    })
+                    if breakdown is not None:
+                        breakdown["generator_ms"] = 0
+                    yield vqa_matches[0]["validated_answer"]
+                    return
                 context_parts = [
                     f"[Source {i + 1}]\n{m['validated_answer']}"
                     for i, m in enumerate(vqa_matches)
@@ -763,6 +895,8 @@ async def ask_stream(
                         ),
                         "similarity": max_score,
                     },
+                    "verification_mode": "synthesized",
+                    "verified_source_count": verified_source_count,
                 })
                 async for token in provider_generate_stream(
                     prompt, [], user_email,
@@ -823,8 +957,43 @@ async def ask_stream(
         )
         vqa_matches = match_result.get("matches", [])
         if vqa_matches:
-            max_score = max(m["similarity"] for m in vqa_matches)
-            if max_score >= RAG_CONFIDENCE_THRESHOLD:
+            top1 = vqa_matches[0]["similarity"]
+            top2 = vqa_matches[1]["similarity"] if len(vqa_matches) > 1 else 0.0
+            if top1 >= RAG_CONFIDENCE_THRESHOLD:
+                max_score = top1
+                is_verbatim = _should_return_verbatim(vqa_matches)
+                verification_mode = "verbatim" if is_verbatim else "synthesized"
+                verified_source_count = 1 if is_verbatim else _count_distinct_sources(vqa_matches)
+                _log_verified_served(user_email, search_query, verification_mode, top1, top2)
+                if is_verbatim:
+                    stream_meta.update({
+                        "sources": [
+                            {"id": m["id"], "question_text": m["question_text"], "score": m["similarity"]}
+                            for m in vqa_matches
+                        ],
+                        "grounded": True,
+                        "confidence": "high" if top1 >= RAG_HIGH_CONFIDENCE else "medium",
+                        "is_verified": True,
+                        "verified_source": {
+                            "validated_qa_id": str(vqa_matches[0]["id"]),
+                            "validated_by": vqa_matches[0]["validated_by"],
+                            "validated_at": (
+                                vqa_matches[0]["validated_at"].isoformat()
+                                if hasattr(vqa_matches[0]["validated_at"], "isoformat")
+                                else str(vqa_matches[0]["validated_at"])
+                            ),
+                            "similarity": top1,
+                        },
+                        "verification_mode": "verbatim",
+                        "verified_source_count": 1,
+                        "provider_key": "verbatim",
+                        "display_name": "Verbatim (no generation)",
+                        "fallback_used": False,
+                    })
+                    if breakdown is not None:
+                        breakdown["generator_ms"] = 0
+                    yield vqa_matches[0]["validated_answer"]
+                    return
                 context_parts = [
                     f"[Source {i + 1}]\n{m['validated_answer']}"
                     for i, m in enumerate(vqa_matches)
@@ -857,6 +1026,8 @@ async def ask_stream(
                         ),
                         "similarity": max_score,
                     },
+                    "verification_mode": "synthesized",
+                    "verified_source_count": verified_source_count,
                 })
                 async for token in provider_generate_stream(
                     prompt, [], user_email,
@@ -993,14 +1164,27 @@ async def ask(
         vqa_matches = pre_rewrite_match.get("matches", [])
 
         if vqa_matches:
-            max_score = max(m["similarity"] for m in vqa_matches)
+            top1 = vqa_matches[0]["similarity"]
+            top2 = vqa_matches[1]["similarity"] if len(vqa_matches) > 1 else 0.0
             logger.info(
                 "[validated-qa] pre-rewrite check: max_similarity=%.2f threshold=%.2f",
-                max_score,
+                top1,
                 RAG_CONFIDENCE_THRESHOLD,
             )
 
-            if max_score >= RAG_CONFIDENCE_THRESHOLD:
+            if top1 >= RAG_CONFIDENCE_THRESHOLD:
+                max_score = top1
+                is_verbatim = _should_return_verbatim(vqa_matches)
+                verification_mode = "verbatim" if is_verbatim else "synthesized"
+                verified_source_count = 1 if is_verbatim else _count_distinct_sources(vqa_matches)
+                _log_verified_served(user_email, question, verification_mode, top1, top2)
+                if is_verbatim:
+                    return _build_verbatim_payload(
+                        vqa_matches,
+                        search_query=search_query,
+                        retrieval_info=retrieval_info,
+                        latency_breakdown=breakdown,
+                    )
                 # Build combined context from top 3 matches
                 context_parts = []
                 for i, m in enumerate(vqa_matches):
@@ -1068,6 +1252,8 @@ async def ask(
                         else str(vqa_matches[0]["validated_at"]),
                         "similarity": max_score,
                     },
+                    "verification_mode": "synthesized",
+                    "verified_source_count": verified_source_count,
                     "retrieval_info": retrieval_info,
                     "provider_used": vqa_provider_used,
                     "fallback_used": vqa_fallback_used,
@@ -1080,7 +1266,7 @@ async def ask(
                 # Below threshold - continue to post-rewrite check
                 logger.info(
                     "[validated-qa] pre-rewrite below threshold (%.2f < %.2f), trying post-rewrite",
-                    max_score,
+                    top1,
                     RAG_CONFIDENCE_THRESHOLD,
                 )
         else:
@@ -1175,14 +1361,27 @@ async def ask(
         vqa_matches = match_result.get("matches", [])
 
         if vqa_matches:
-            max_score = max(m["similarity"] for m in vqa_matches)
+            top1 = vqa_matches[0]["similarity"]
+            top2 = vqa_matches[1]["similarity"] if len(vqa_matches) > 1 else 0.0
             logger.info(
                 "[validated-qa] post-rewrite check: max_similarity=%.2f threshold=%.2f",
-                max_score,
+                top1,
                 RAG_CONFIDENCE_THRESHOLD,
             )
 
-            if max_score >= RAG_CONFIDENCE_THRESHOLD:
+            if top1 >= RAG_CONFIDENCE_THRESHOLD:
+                max_score = top1
+                is_verbatim = _should_return_verbatim(vqa_matches)
+                verification_mode = "verbatim" if is_verbatim else "synthesized"
+                verified_source_count = 1 if is_verbatim else _count_distinct_sources(vqa_matches)
+                _log_verified_served(user_email, search_query, verification_mode, top1, top2)
+                if is_verbatim:
+                    return _build_verbatim_payload(
+                        vqa_matches,
+                        search_query=search_query,
+                        retrieval_info=retrieval_info,
+                        latency_breakdown=breakdown,
+                    )
                 # Build combined context from top 3 matches
                 context_parts = []
                 for i, m in enumerate(vqa_matches):
@@ -1259,6 +1458,8 @@ async def ask(
                         else str(vqa_matches[0]["validated_at"]),
                         "similarity": max_score,
                     },
+                    "verification_mode": "synthesized",
+                    "verified_source_count": verified_source_count,
                     "retrieval_info": retrieval_info,
                     "provider_used": vqa_provider_used,
                     "fallback_used": vqa_fallback_used,
@@ -1271,7 +1472,7 @@ async def ask(
                 # Below threshold - let flow continue to manual-chunks pipeline
                 logger.info(
                     "[validated-qa] post-rewrite below threshold (%.2f < %.2f), falling through to manual-chunks",
-                    max_score,
+                    top1,
                     RAG_CONFIDENCE_THRESHOLD,
                 )
         else:

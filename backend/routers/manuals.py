@@ -480,6 +480,8 @@ async def ask_question_stream(request: AskRequest):
                     "fallback_used": stream_meta.get("fallback_used", False),
                     "is_verified": stream_meta.get("is_verified", False),
                     "verified_source": stream_meta.get("verified_source"),
+                    "verification_mode": stream_meta.get("verification_mode"),
+                    "verified_source_count": stream_meta.get("verified_source_count"),
                     "latency_breakdown": breakdown,
                     "session_summary": stream_meta.get("session_summary"),
                     "manuals_consulted": stream_meta.get("manuals_consulted", []),
