@@ -762,27 +762,29 @@ async def merge_chunk(
         raise HTTPException(status_code=404, detail="Chunk not found")
 
     parent_id = resp.data.get("parent_id")
-    current_index = resp.data.get("chunk_index") or 0
 
-    # Find next sibling with same parent
-    next_resp = (
+    # Find next sibling by visual order (chunk_index can be NULL or gapped;
+    # fetch all same-parent chunks ordered the same way the UI renders them,
+    # then take the one after the current chunk by position).
+    siblings_resp = (
         supabase.table("document_chunks")
-        .select("id, content, parent_id")
+        .select("id, content, chunk_index")
         .eq("document_id", document_id)
         .eq("parent_id", parent_id)
-        .eq("chunk_index", current_index + 1)
-        .maybe_single()
+        .order("chunk_index")
+        .order("id")
         .execute()
     )
-    if next_resp is None or not next_resp.data:
+    siblings = siblings_resp.data or []
+    current_pos = next((i for i, s in enumerate(siblings) if s["id"] == chunk_id), None)
+    if current_pos is None:
+        raise HTTPException(status_code=404, detail="Chunk not found among siblings")
+    if current_pos + 1 >= len(siblings):
         raise HTTPException(status_code=400, detail="No adjacent sibling to merge with")
-    if next_resp.data.get("parent_id") != parent_id:
-        raise HTTPException(
-            status_code=400, detail="Cannot merge chunks from different parents"
-        )
+    next_sibling = siblings[current_pos + 1]
 
     # Combine content
-    combined_content = resp.data["content"] + "\n\n" + next_resp.data["content"]
+    combined_content = resp.data["content"] + "\n\n" + next_sibling["content"]
 
     # Embed combined content with contextual prefix
     embedding_str = None
@@ -806,7 +808,7 @@ async def merge_chunk(
     supabase.table("document_chunks").update(update_data).eq("id", chunk_id).execute()
 
     # Delete the second chunk
-    supabase.table("document_chunks").delete().eq("id", next_resp.data["id"]).execute()
+    supabase.table("document_chunks").delete().eq("id", next_sibling["id"]).execute()
 
     # Reindex siblings
     _reindex_siblings(document_id, parent_id)
