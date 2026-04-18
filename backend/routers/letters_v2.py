@@ -144,6 +144,30 @@ def _generate_barcode_data_uri(value: str) -> str | None:
         return None
 
 
+def _normalize_tarikh_for_db(value: str) -> str:
+    """Frontend sends tarikh as DD/MM/YYYY for PDF display; column is `date`."""
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    if not value:
+        return today
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(value, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return today
+
+
+def _format_tarikh_for_display(value: str) -> str:
+    if not value:
+        return ""
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(value, fmt).strftime("%d/%m/%Y")
+        except ValueError:
+            continue
+    return value
+
+
 class AttachmentItem(BaseModel):
     name: str
     data: str  # base64-encoded file content
@@ -515,7 +539,7 @@ async def preview_saved_letter_html(letter_id: str):
     fmt = _coalesce_letter_format(rec)
     body = LetterBodyV2(
         ishara=rec["ishara"],
-        tarikh=rec.get("tarikh", ""),
+        tarikh=_format_tarikh_for_display(rec.get("tarikh", "")),
         alsayed=rec["alsayed"],
         almawdoo=rec["almawdoo"],
         body_html=rec.get("body_text", ""),
@@ -545,9 +569,7 @@ async def generate_letter_v2(data: LetterBodyV2):
     # Save letter record to Supabase
     record = {
         "ishara": data.ishara,
-        "tarikh": data.tarikh
-        if data.tarikh
-        else datetime.utcnow().strftime("%Y-%m-%d"),
+        "tarikh": _normalize_tarikh_for_db(data.tarikh),
         "alsayed": data.alsayed,
         "almawdoo": data.almawdoo,
         "body_text": data.body_html,
@@ -685,9 +707,7 @@ async def update_letter_v2(letter_id: str, data: LetterBodyV2):
 
     update_data = {
         "ishara": data.ishara,
-        "tarikh": data.tarikh
-        if data.tarikh
-        else datetime.utcnow().strftime("%Y-%m-%d"),
+        "tarikh": _normalize_tarikh_for_db(data.tarikh),
         "alsayed": data.alsayed,
         "almawdoo": data.almawdoo,
         "body_text": data.body_html,
@@ -766,7 +786,7 @@ async def regenerate_letter_v2(letter_id: str):
     fmt = _coalesce_letter_format(rec)
     body = LetterBodyV2(
         ishara=rec["ishara"],
-        tarikh=rec.get("tarikh", ""),
+        tarikh=_format_tarikh_for_display(rec.get("tarikh", "")),
         alsayed=rec["alsayed"],
         almawdoo=rec["almawdoo"],
         body_html=rec.get("body_text", ""),
