@@ -132,6 +132,16 @@ class _AnswerCardState extends State<AnswerCard>
               widget.answer.answer,
               style: const TextStyle(fontSize: 14),
             ),
+            if (isVerified && widget.answer.verificationMode == 'synthesized') ...[
+              const SizedBox(height: 8),
+              Text(
+                'Synthesized from ${widget.answer.verifiedSourceCount ?? widget.answer.sources.length} verified sources',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
             if (widget.answer.manualsConsulted.isNotEmpty) ...[
               const SizedBox(height: 8),
               Container(
