@@ -541,6 +541,7 @@ class ManualAssistantService {
 
   Future<List<String>> generateParaphraseVariants({
     required String questionText,
+    required String userEmail,
     String? ratingId,
     String lang = 'en',
   }) async {
@@ -551,7 +552,8 @@ class ManualAssistantService {
       if (token != null) headers['Authorization'] = 'Bearer $token';
 
       final res = await http.post(
-        Uri.parse('${AppConfig.baseUrl}/manuals/paraphrase-variants'),
+        Uri.parse(
+            '${AppConfig.baseUrl}/manuals/paraphrase-variants?user_email=${Uri.encodeComponent(userEmail)}'),
         headers: headers,
         body: jsonEncode({
           'question_text': questionText,
@@ -569,7 +571,17 @@ class ManualAssistantService {
       } else if (res.statusCode == 403) {
         throw Exception('Admin access required');
       } else {
-        throw Exception('Failed to generate variants');
+        String detail = 'HTTP ${res.statusCode}';
+        try {
+          final body = jsonDecode(res.body);
+          if (body is Map) {
+            final d = body['detail'];
+            detail = d is Map ? (d['message'] ?? d['error'] ?? d.toString()) : (d?.toString() ?? body.toString());
+          }
+        } catch (_) {
+          if (res.body.isNotEmpty) detail = res.body.substring(0, res.body.length.clamp(0, 200));
+        }
+        throw Exception('Failed to generate variants: $detail');
       }
     } catch (e) {
       rethrow;
@@ -992,11 +1004,13 @@ class ManualAssistantService {
     try {
       final enVariants = await generateParaphraseVariants(
         questionText: question,
+        userEmail: editorEmail,
         lang: 'en',
       );
 
       final arVariants = await generateParaphraseVariants(
         questionText: question,
+        userEmail: editorEmail,
         lang: 'ar',
       );
 

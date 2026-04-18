@@ -68,6 +68,7 @@ class ReviewQueueTabState extends State<ReviewQueueTab> {
       try {
         variants = await _service.generateParaphraseVariants(
           questionText: questionText,
+          userEmail: widget.userEmail,
           ratingId: ratingId,
         );
         if (variants.isEmpty) {
