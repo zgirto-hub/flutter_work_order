@@ -77,10 +77,11 @@ TRIVIAL_INPUT_PATTERN = re.compile(
 )
 
 TRIVIAL_INPUT_REPLY = (
-    "Hi! Ask me a technical question about the manuals — "
-    'for example: "how do I reset the X400 after a fault?" or '
-    '"what are the APU start procedures?"'
+    "I can help you with manuals, work orders, and verified Q&A. "
+    "What would you like to know?"
 )
+
+_ALLOWED_VERIFIED_SORTS = {"recent", "most_used", "most_problematic"}
 
 
 class HistoryTurn(BaseModel):
@@ -1040,12 +1041,19 @@ async def get_verified_answers(
     search: Optional[str] = Query(None),
     limit: int = Query(50),
     offset: int = Query(0),
+    sort: str = Query("recent"),
 ):
     _admin_check(user_email)
 
+    if sort not in _ALLOWED_VERIFIED_SORTS:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "invalid_sort", "allowed": sorted(_ALLOWED_VERIFIED_SORTS)},
+        )
+
     try:
         result = validated_qa_service.get_all_verified_answers(
-            search=search, limit=limit, offset=offset
+            search=search, limit=limit, offset=offset, sort=sort
         )
         return result
     except Exception:

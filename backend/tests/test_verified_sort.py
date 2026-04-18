@@ -117,3 +117,83 @@ class TestGetAllVerifiedAnswersSort:
         with patch.object(validated_qa_service, "supabase", mock_client):
             with pytest.raises(ValueError, match="Invalid sort"):
                 validated_qa_service.get_all_verified_answers(sort="bogus")
+
+
+class TestVerifiedAnswersRoute:
+    """Route-layer tests for /manuals/verified-answers sort validation."""
+
+    @pytest.mark.asyncio
+    async def test_invalid_sort_returns_400(self):
+        """Route must reject unrecognized sort values with HTTP 400."""
+        from fastapi.testclient import TestClient
+        from fastapi import FastAPI
+        from routers.manuals import router as manuals_router
+
+        app = FastAPI()
+        app.include_router(manuals_router)
+
+        with patch(
+            "routers.manuals._admin_check", return_value=None
+        ), patch(
+            "routers.manuals.validated_qa_service.get_all_verified_answers"
+        ) as mock_get:
+            mock_get.return_value = {"items": [], "count": 0}
+            client = TestClient(app)
+            resp = client.get(
+                "/manuals/verified-answers",
+                params={"user_email": "admin@test.com", "sort": "bogus"},
+            )
+
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "invalid_sort"
+        mock_get.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_valid_sort_reaches_service(self):
+        from fastapi.testclient import TestClient
+        from fastapi import FastAPI
+        from routers.manuals import router as manuals_router
+
+        app = FastAPI()
+        app.include_router(manuals_router)
+
+        with patch(
+            "routers.manuals._admin_check", return_value=None
+        ), patch(
+            "routers.manuals.validated_qa_service.get_all_verified_answers"
+        ) as mock_get:
+            mock_get.return_value = {"items": [], "count": 0}
+            client = TestClient(app)
+            resp = client.get(
+                "/manuals/verified-answers",
+                params={"user_email": "admin@test.com", "sort": "most_used"},
+            )
+
+        assert resp.status_code == 200
+        mock_get.assert_called_once()
+        assert mock_get.call_args.kwargs.get("sort") == "most_used"
+
+    @pytest.mark.asyncio
+    async def test_default_sort_is_recent(self):
+        """Omitting the sort param defaults to 'recent'."""
+        from fastapi.testclient import TestClient
+        from fastapi import FastAPI
+        from routers.manuals import router as manuals_router
+
+        app = FastAPI()
+        app.include_router(manuals_router)
+
+        with patch(
+            "routers.manuals._admin_check", return_value=None
+        ), patch(
+            "routers.manuals.validated_qa_service.get_all_verified_answers"
+        ) as mock_get:
+            mock_get.return_value = {"items": [], "count": 0}
+            client = TestClient(app)
+            resp = client.get(
+                "/manuals/verified-answers",
+                params={"user_email": "admin@test.com"},
+            )
+
+        assert resp.status_code == 200
+        assert mock_get.call_args.kwargs.get("sort") == "recent"
