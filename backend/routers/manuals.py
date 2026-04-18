@@ -1200,7 +1200,7 @@ async def delete_verified_answer(
     qa_id: str,
     editor_email: str = Query(...),
 ):
-    _admin_check(user_email)
+    _admin_check(editor_email)
 
     try:
         validated_qa_service.delete_verified_answer(qa_id)
