@@ -1,0 +1,4306 @@
+{
+  "timestamp": "2026-04-19 23:42:48",
+  "base_url": "https://zorin.taila92fe8.ts.net",
+  "provider": "Ollama (local)",
+  "gen_model": "deepseek-r1:7b",
+  "embed_model": "nomic-embed-text-v2-moe:latest",
+  "total_passed": 50,
+  "total_failed": 37,
+  "hallucination_count": 0,
+  "subtle_hallucination_count": 0,
+  "verify_mode": false,
+  "total_tests": 87,
+  "score_pct": 57.5,
+  "avg_latency_sec": 36.2,
+  "total_elapsed_sec": 3148.5,
+  "results": [
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "lost ats admin pw, how to reset",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 62.5,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "where are ats log files",
+      "expected": "grounded",
+      "answer": "CADAS-ATS log files are accessible via the Scientific Linux Menu Bar (Document Source 3).\n\nThe documentation also specifies information regarding the location and types of CADAS-ATS Log Files (Document Source 1).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Log Files — Location and Types",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Diagnosis — Terminal Log",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Log File Access — Via the Scientific Linux Menu Bar",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Flight Plan (FPL) Management",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS System Overview",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Core Capabilities: AFTN Terminal and AMHS User Agent",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Log File Locations by Product – CCMS, Cluster, AIDA, CADAS-ATS, CADIR, CNMS, Linux",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Log File Analysis – Overview and Importance",
+          "page_number": null,
+          "score": 0.55
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 43.6,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "start/stop ims services",
+      "expected": "grounded",
+      "answer": "To stop and start CADAS-IMS and CADIR services via the command line, follow the procedure described in Document Source 5.\n\nProcedure for Stopping/Starting Services:\n1.  Use the command line to stop and start the CADAS-IMS and CADIR services. (Source 5)",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Starting and Stopping Services via Command Line (CADAS-IMS and CADIR)",
+          "page_number": null,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Starting and Stopping Services via Command Line (AIDA-NG and CADAS-ATS)",
+          "page_number": null,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Restarting Services via Applications Menu (CADAS-ATS Example)",
+          "page_number": null,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Stop and Start Services via GUI",
+          "page_number": null,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Stop and Start CADAS-IMS and CADIR Services via Command Line",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Stop and Start CADAS-ATS Services via Command Line",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – How to Submit an Incident Report to FCO",
+          "page_number": null,
+          "score": 0.5
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG CSS Restart and Shutdown – How to Restart or Shut Down the Core System via the OSS",
+          "page_number": null,
+          "score": 0.47
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Restart and Shutdown – How to Restart Subsystems via the Linux Applications Menu",
+          "page_number": null,
+          "score": 0.47
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 34.4,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "backup ats database",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 43.3,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "linux cmd to restart ats servers",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 42.1,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "ims db backup and restore",
+      "expected": "grounded",
+      "answer": "Backup and Restoration Procedures for CADAS-IMS:\n\nBackup Procedure:\n1. Use the script `cadas_backup` on the servers.\n2. Ensure the user account used has the necessary Unix group permissions.\n3. Select the desired backup option:\n    * Store the complete CADAS-IMS database (default option).\n    * Store only the parameter databases (`--parameters`), which excludes dynamic data (traffic, events, statistics, active databases).\n    * Store only the essential parameters (`--min`), which includes users, groups, mailboxes, profiles, and system parameters.\n4. Backup files can be stored on the local file system (default option) or via CD/DVD (`--cd` or `--dvd`).\n\nRestore Procedure (According to Source 1, 2):\nNOTICE: When you restore the database, all existing CADAS-IMS databases are overwritten, and all current data is removed!\nProcedure:\n1. Open a terminal window and log in as any user.\n2. Change to the directory that contains the database backup.\n3. Execute the restore command, specifying the necessary options and IP addresses: `sh restore_cadas_backup.sh <options> <IP addresses>`\n4. If the terminal servers and message handlers are installed on different servers, you must specify the IP addresses of the terminal servers and the message handler servers: `msghdl <message handlers>`\n\nSource: CADAS-IMS Manual, Section: Database Backup and Restoration Procedures",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "97054be2-e765-4f7f-9bf5-f8ac3ea3f11b",
+          "display_name": "CADAS-IMS Manual",
+          "section_title": "Database Backup and Restoration Procedures",
+          "page_number": null,
+          "score": 0.71
+        },
+        {
+          "type": "document",
+          "document_id": "97054be2-e765-4f7f-9bf5-f8ac3ea3f11b",
+          "display_name": "CADAS-IMS Manual",
+          "section_title": "Restarting CADAS-IMS After a System Failure",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "97054be2-e765-4f7f-9bf5-f8ac3ea3f11b",
+          "display_name": "CADAS-IMS Manual",
+          "section_title": "CADAS-IMS System Architecture and Components",
+          "page_number": null,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Database Restoration — Procedure",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Database Backup — Overview and Options",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Database Backup — Command Examples",
+          "page_number": null,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG RSS Failure – How to Repair Corrupt RSS Databases",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG RSS Failure – How to Boot a Redundant System in Single RSS Mode (Emergency Workaround)",
+          "page_number": null,
+          "score": 0.45
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG CSS Failure – How to Recover from Failure of Both CSSs",
+          "page_number": null,
+          "score": 0.45
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 38.6,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "what is cnms, what does it monitor",
+      "expected": "grounded",
+      "answer": "CNMS (Frequentis Comsoft Network Management System) is the platform deployed for the Kuwait DGCA, composed of multiple integrated software components covering aeronautical message switching, data management, AIP publication, charting, directory services, configuration management, network monitoring, and workflow management (Document Source 4). It also includes specific monitoring of CADAS-ATS Message Handler Status (Document Source 2) and CADAS-ATS Terminal Server Status (Document Source 3).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS System Overview and Purpose",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Application Monitoring: CADAS-ATS Message Handler Status",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Application Monitoring: CADAS-ATS Terminal Server Status",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CNMS (Frequentis Comsoft Network Management System)",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG SNMP Parameters – Overview and Monitoring Principles",
+          "page_number": null,
+          "score": 0.45
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['Nagios']",
+      "latency_sec": 33.3,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "cnms host states?",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 33.7,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "ccms log paths",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 37.1,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 1,
+      "category_name": "Direct Retrieval",
+      "question": "check disk usage on aida server",
+      "expected": "grounded",
+      "answer": "To check disk usage on the AIDA-NG server, follow these steps:\n\n1.  Run the command `df -h /var` to check disk usage on the `/var` partition (AIDA-NG_Disk_Procedure, Section 2).\n2.  Verify that disk usage has dropped by running the command again (AIDA-NG_Disk_Procedure, Section 6).\n3.  Look at the `Use%` column in the output of the command to analyze the usage (AIDA-NG_Disk_Procedure, Section 3).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "773fd9a4-6885-4365-a89f-c070ea70157a",
+          "display_name": "AIDA-NG_Disk_Procedure",
+          "section_title": "2. Run the following command to check disk usage on the `/var` partition:",
+          "page_number": null,
+          "score": 0.73
+        },
+        {
+          "type": "document",
+          "document_id": "773fd9a4-6885-4365-a89f-c070ea70157a",
+          "display_name": "AIDA-NG_Disk_Procedure",
+          "section_title": "6. Verify that disk usage has dropped by running `df -h /var` again:",
+          "page_number": null,
+          "score": 0.68
+        },
+        {
+          "type": "document",
+          "document_id": "773fd9a4-6885-4365-a89f-c070ea70157a",
+          "display_name": "AIDA-NG_Disk_Procedure",
+          "section_title": "3. Look at the `Use%` column in the output:",
+          "page_number": null,
+          "score": 0.65
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG Diagnostics – Platforms Category",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG Diagnostics – Overview of the Diagnosis Window",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG RSS (Replication Storage System) State Reference",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Log File Analysis – Analyzing the AIDA-NG Log File (aida-ng.log)",
+          "page_number": null,
+          "score": 0.55
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 37.2,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "ats terminal server wont start after config change, recovery steps",
+      "expected": "grounded",
+      "answer": "The provided documentation mentions that the CADAS-ATS Terminal Server cannot start after a configuration file change (Document Source 1). However, the specific recovery steps for this situation are not detailed in the provided context.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Terminal Server Cannot Start — Configuration File Changed",
+          "page_number": null,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Database Restoration — Procedure",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Subsystem Restarts — Linux Commands for Single Servers",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Reinstallation of a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Restarting Services via Applications Menu (CADAS-ATS Example)",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Replacement on a Spare Server (Physical Hardware Swap)",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Reinstalling a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Stop and Start Services via GUI",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Replacing a Defective Server with a Spare Server",
+          "page_number": null,
+          "score": 0.56
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 37.5,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "import aixm data into ims and verify it worked",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 35.4,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "configure amhs mailbox security in ats",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 34.3,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "ats split-brain, full recovery steps",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 36.8,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "customize ats web page",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 33.3,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "replace defective snl card on frequentis",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 38.6,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "replace failed hdd on hp server, procedure",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 35.1,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "aida disk full, how to free space",
+      "expected": "grounded",
+      "answer": "To free space in AIDA-NG, you need to review disk usage and delete the largest dated folders in the AutoArchives directory.\n\nProcedure for Disk Relief:\n1. Navigate to the AutoArchives directory (AIDA-NG_Disk_Procedure, Section 1).\n2. Review the output to identify the largest dated folder, which will be your deletion target (AIDA-NG_Disk_Procedure, Section 3).\n3. Delete the identified large folder to free space.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "773fd9a4-6885-4365-a89f-c070ea70157a",
+          "display_name": "AIDA-NG_Disk_Procedure",
+          "section_title": "AIDA-NG Disk Relief — Delete Large AutoArchives Folder",
+          "page_number": null,
+          "score": 0.6
+        },
+        {
+          "type": "document",
+          "document_id": "773fd9a4-6885-4365-a89f-c070ea70157a",
+          "display_name": "AIDA-NG_Disk_Procedure",
+          "section_title": "3. Review the output and identify the largest dated folder — this is your deletion target:",
+          "page_number": null,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "773fd9a4-6885-4365-a89f-c070ea70157a",
+          "display_name": "AIDA-NG_Disk_Procedure",
+          "section_title": "1. Navigate to the AutoArchives directory:",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG RSS Failure – How to Repair Corrupt RSS Databases",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – General Troubleshooting Steps",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – How to Submit an Incident Report to FCO",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "2544739f-04b5-421b-82ed-638953120aa5",
+          "display_name": "AIDA-NG_Delete_Loop_Message",
+          "section_title": "1. Navigate to System Parameters > LA Parameters.",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "2544739f-04b5-421b-82ed-638953120aa5",
+          "display_name": "AIDA-NG_Delete_Loop_Message",
+          "section_title": "9. Delete all alarm messages from the alarm queue box.",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "2544739f-04b5-421b-82ed-638953120aa5",
+          "display_name": "AIDA-NG_Delete_Loop_Message",
+          "section_title": "5. Select all messages in the misrouted queue and discard them.",
+          "page_number": null,
+          "score": 0.52
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 33.9,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "how to add new user in aida",
+      "expected": "grounded",
+      "answer": "To add a new user in AIDA-NG, follow these steps:\n\n1.  Select **Site & User Parameters > User Table** to open the User Table.\n2.  Click **Add** to create a new user, or select an existing user and click **Change** to edit it. The User Settings window will open.\n3.  Define the user options, which include: User Name, Log Name, Auto Logout Time (minutes), and User Account status (Enabled or Disabled).\n4.  Click **Select** under Assigned Groups to assign the user to one or more groups.\n5.  Click **Save** to save the user settings.\n\n(Source: AIDA-NG_User_Management_RAG, How to Add or Edit a User in AIDA-NG)",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "b0664368-344f-4559-9a50-e33a451ece05",
+          "display_name": "AIDA-NG_User_Management_RAG",
+          "section_title": "How to Add or Edit a User in AIDA-NG",
+          "page_number": null,
+          "score": 0.74
+        },
+        {
+          "type": "document",
+          "document_id": "b0664368-344f-4559-9a50-e33a451ece05",
+          "display_name": "AIDA-NG_User_Management_RAG",
+          "section_title": "How to Add or Edit a Group in AIDA-NG",
+          "page_number": null,
+          "score": 0.68
+        },
+        {
+          "type": "document",
+          "document_id": "b0664368-344f-4559-9a50-e33a451ece05",
+          "display_name": "AIDA-NG_User_Management_RAG",
+          "section_title": "How to Import or Export a User Set in AIDA-NG",
+          "page_number": null,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Users — Account Creation and Configuration",
+          "page_number": null,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Administrator Password Reset — Forgotten Password",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Pilot Portal — Required Profile Settings",
+          "page_number": null,
+          "score": 0.49
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG Diagnostics – Creating Custom Diagnosis Views",
+          "page_number": null,
+          "score": 0.5
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG SNMP Parameters – How to Configure Global SNMP Settings",
+          "page_number": null,
+          "score": 0.5
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG Technical Events – How to Monitor Events Online",
+          "page_number": null,
+          "score": 0.49
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 39.0,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "how to add new mailbox in cadas ats",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 34.0,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 2,
+      "category_name": "Procedural / Multi-Step",
+      "question": "how to add new host in cnms",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 29.4,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 3,
+      "category_name": "Cross-Manual Synthesis",
+      "question": "ats vs ims admin, what's the difference",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 34.3,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 3,
+      "category_name": "Cross-Manual Synthesis",
+      "question": "keycloak on ats vs ims, how does it differ",
+      "expected": "grounded",
+      "answer": "The provided documentation outlines separate functional areas for CADAS-ATS and CADAS-IMS, with Keycloak specifically referenced in the context of user and role management within CADAS-IMS.\n\nCADAS-ATS documentation details group management, mailbox sharing, and user rights within the ATS system (Document Source 1, 2, 3). The CADAS-IMS Manual references Keycloak in the context of User and Role Management (Document Source 4) and General Configuration (Document Source 5).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Keycloak Connection — Configuration",
+          "page_number": null,
+          "score": 0.65
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS System Parameters — Configuration Areas",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Aircraft Operators — ORM Copy Configuration",
+          "page_number": null,
+          "score": 0.5
+        },
+        {
+          "type": "document",
+          "document_id": "97054be2-e765-4f7f-9bf5-f8ac3ea3f11b",
+          "display_name": "CADAS-IMS Manual",
+          "section_title": "User and Role Management with Keycloak",
+          "page_number": null,
+          "score": 0.65
+        },
+        {
+          "type": "document",
+          "document_id": "97054be2-e765-4f7f-9bf5-f8ac3ea3f11b",
+          "display_name": "CADAS-IMS Manual",
+          "section_title": "CADAS-IMS AWI — General Configuration",
+          "page_number": null,
+          "score": 0.47
+        },
+        {
+          "type": "document",
+          "document_id": "97054be2-e765-4f7f-9bf5-f8ac3ea3f11b",
+          "display_name": "CADAS-IMS Manual",
+          "section_title": "Data Administration — Overview",
+          "page_number": null,
+          "score": 0.46
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CADAS-ATS (Aeronautical Data Access System – Air Traffic Services)",
+          "page_number": null,
+          "score": 0.5
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Hardware Components – Operational System KCMC (OPS)",
+          "page_number": null,
+          "score": 0.49
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.46
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 37.8,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 3,
+      "category_name": "Cross-Manual Synthesis",
+      "question": "how does cnms monitor ats, and what states",
+      "expected": "grounded",
+      "answer": "CNMS monitors the CADAS-ATS system through application monitoring of its components.\n\nMonitoring Status:\n*   CNMS monitors the status of the CADAS-ATS Message Handler.\n*   CNMS monitors the status of the CADAS-ATS Terminal Server.\n\n(Source: CNMS Application Monitoring: CADAS-ATS Message Handler Status; CNMS Application Monitoring: CADAS-ATS Terminal Server Status)",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS System Overview and Purpose",
+          "page_number": null,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Application Monitoring: CADAS-ATS Message Handler Status",
+          "page_number": null,
+          "score": 0.6
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Application Monitoring: CADAS-ATS Terminal Server Status",
+          "page_number": null,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CNMS (Frequentis Comsoft Network Management System)",
+          "page_number": null,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CADAS-ATS (Aeronautical Data Access System – Air Traffic Services)",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS System Overview",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Flight Plan (FPL) Management",
+          "page_number": null,
+          "score": 0.55
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['MsgHandler']",
+      "latency_sec": 35.5,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 3,
+      "category_name": "Cross-Manual Synthesis",
+      "question": "aida ip addresses, cmc vs mtb",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 35.2,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 3,
+      "category_name": "Cross-Manual Synthesis",
+      "question": "aida subsystem failure, diagnose using cnms + frequentis docs",
+      "expected": "grounded",
+      "answer": "System diagnosis for Frequentis Comsoft Messaging Handling Systems (MHS), including AIDA-NG and CNMS, requires performing a system diagnosis first to isolate the problem to one of three subsystems: hardware, software, or network.\n\nThe primary aim is to determine whether the root cause of the failure is a hardware problem, a software problem, or a network problem.\n\nThe relevant systems covered in this diagnosis are:\n*   CCMS\n*   AIDA-NG\n*   CADAS-ATS\n*   CADIR\n*   CADAS-IMS\n*   CNMS",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Log File Analysis — Analyzing the AIDA-NG Log (aida-ng.log)",
+          "page_number": null,
+          "score": 0.65
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Network Troubleshooting — Network Link Problems",
+          "page_number": null,
+          "score": 0.6
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Log File Analysis – Analyzing the AIDA-NG Log File (aida-ng.log)",
+          "page_number": null,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Network Troubleshooting – Network Link Problems",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – General Troubleshooting Steps",
+          "page_number": null,
+          "score": 0.65
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG RSS Failure – How to Repair Corrupt RSS Databases",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG CSS Failure – How to Recover from Failure of Both CSSs",
+          "page_number": null,
+          "score": 0.56
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 36.7,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "ats cluster went split-brain, first step",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 34.5,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "ims aixm import log shows ERROR, what to check",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 36.5,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "users cant get into ats terminal server, whats wrong",
+      "expected": "grounded",
+      "answer": "The CADAS-ATS terminal server may fail to start due to configuration file changes or a port conflict.\n\nPossible causes and related information:\n\n*   **Configuration File Change:** The CADAS-ATS terminal server may fail to start if the configuration file has been changed (CADAS-ATS Admin, Section: CADAS-ATS Terminal Server Cannot Start — Configuration File Changed).\n*   **Port Conflict:** The terminal server may fail to start if there is a conflict on Port 80 (CADAS-ATS Admin, Section: CADAS-ATS Terminal Server Cannot Start — Port 80 Conflict).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Network Troubleshooting — Network Link Problems",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Replacing a Defective Server with a Spare Server",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Reinstalling a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Network Troubleshooting – Network Link Problems",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Reinstallation of a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Replacement on a Spare Server (Physical Hardware Swap)",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Terminal Server Cannot Start — Configuration File Changed",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Terminal Server Cannot Start — Port 80 Conflict",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Diagnosis — Useful Tips",
+          "page_number": null,
+          "score": 0.51
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 37.2,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "aida css in warning on cnms, what does it mean",
+      "expected": "grounded",
+      "answer": "The overall status of AIDA-NG, including the CSS status, is visible in the OSS main window. The OSS status bar uses color-coded indicators to show the status of the subsystems (CSS, RSS, and OSS):\n\n*   Green means connected.\n*   Yellow means logged out.\n*   Red means disconnected.\n\nThe ALARMS field indicates the number of active system alarms associated with internal events (Document Source 7, 8, 9).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Application Monitoring: AIDA-NG CSS (Core Sub-System) Status Mapping",
+          "page_number": null,
+          "score": 0.65
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Application Monitoring: AIDA-NG Overview",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Application Monitoring: AIDA-NG OSS Status Mapping",
+          "page_number": null,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG CSS Failure – How to Recover from Failure of Both CSSs",
+          "page_number": null,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – General Troubleshooting Steps",
+          "page_number": null,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Split Brain Avoidance – Connectivity Check Script Behavior",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG CSS (Core Switching System) State Reference",
+          "page_number": null,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG Debug – Overview and Safety Warning",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG SNMP Parameters – Overview and Monitoring Principles",
+          "page_number": null,
+          "score": 0.57
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['Warning', 'operational']",
+      "latency_sec": 36.0,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "operator display frozen, troubleshooting steps",
+      "expected": "grounded",
+      "answer": "To troubleshoot an unresponsive application or frozen display in the Frequentis Comsoft Messaging Handling Systems (MHS), you must first perform a system diagnosis to isolate the problem to one of three subsystems: hardware, software, or network (MHS_SystemDiagnosis_StandardTroubleshooting, Section: System Diagnosis Overview – MHS Troubleshooting Approach).\n\nThe troubleshooting approach is as follows:\n1. Perform a system diagnosis first to isolate the problem to a specific subsystem.\n2. Determine whether the root cause is a hardware problem, a software problem, or a network problem.\n\nIf the issue is related to AIDA-NG switchover, the manual specifies the following steps to initiate a manual switchover:\n1. Navigate to System Commands > Switchover.\n2. Execute the switchover and report the internal event `OPERATOR: INITIATED CORE SWITCHOVER`.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Unresponsive Application or Frozen Display",
+          "page_number": null,
+          "score": 0.7
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Hardware Troubleshooting — Other Hardware Components",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Reinstalling a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Unresponsive or Frozen Application or Workstation",
+          "page_number": null,
+          "score": 0.7
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Reinstallation of a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Hardware Troubleshooting – Other Hardware Components (Power Supply, KVM, Network Devices)",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – General Troubleshooting Steps",
+          "page_number": null,
+          "score": 0.54
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['freeze']",
+      "latency_sec": 38.2,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "aida /var at 85%, what now",
+      "expected": "grounded",
+      "answer": "The context does not provide the specific procedure for addressing a `/var` disk space alert in AIDA-NG. However, the documentation indicates that system diagnosis for MHS systems, including AIDA-NG, should involve isolating the problem to a hardware, software, or network issue, and analyzing log files.\n\nTo proceed with troubleshooting, you should perform a system diagnosis first to isolate the problem to a specific subsystem (hardware, software, or network) (MHS_SystemDiagnosis_StandardTroubleshooting). You can analyze the AIDA-NG log file (`aida-ng.log`) for further details (MHS_SystemDiagnosis_StandardTroubleshooting, Analyzing the AIDA-NG Log File (aida-ng.log)).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Linux Server Monitored Parameters: CPU Usage",
+          "page_number": null,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Linux Server Monitored Parameters: Memory",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Linux Server Monitored Parameters: Free Disk Space",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Log File Analysis – Overview and Importance",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Log File Analysis – Analyzing the AIDA-NG Log File (aida-ng.log)",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD",
+          "page_number": null,
+          "score": 0.5
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Log File Analysis — Overview and Purpose",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Log File Analysis — Analyzing the AIDA-NG Log (aida-ng.log)",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Diagnostic Tools — Command-Line Status and Diagnosis Tools",
+          "page_number": null,
+          "score": 0.49
+        }
+      ],
+      "passed": false,
+      "reason": "No keywords found. Missing: ['70%', 'AutoArchives']",
+      "latency_sec": 46.4,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "ats terminal server not responding",
+      "expected": "grounded",
+      "answer": "The CADAS-ATS Terminal Server cannot start due to a Port 80 conflict (CADAS-ATS Admin, Section: CADAS-ATS Groups — Overview and Purpose).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Unresponsive Application or Frozen Display",
+          "page_number": null,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Replacing a Defective Server with a Spare Server",
+          "page_number": null,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Reinstalling a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Unresponsive or Frozen Application or Workstation",
+          "page_number": null,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Reinstallation of a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Troubleshooting — General Precautions",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Diagnosis — Useful Tips",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Terminal Server Cannot Start — Port 80 Conflict",
+          "page_number": null,
+          "score": 0.53
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 30.9,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "aida-ng not responding, what to check",
+      "expected": "grounded",
+      "answer": "Check the overall status in the OSS main window, as this displays the status of the CSS, RSS, and OSS subsystems. The OSS status bar provides color-coded indicators: green means connected, yellow means logged out, and red means disconnected (AIDA-NG_System_Inspection, Section: AIDA-NG Overall System Status – OSS Main Window).\n\nFor further troubleshooting, you should perform a system diagnosis first to isolate the problem to one of three subsystems: hardware, software, or network (MHS_SystemDiagnosis_StandardTroubleshooting, Section: System Diagnosis Overview – MHS Troubleshooting Approach).\n\nSpecific troubleshooting steps include:\n*   Analyzing the AIDA-NG log file (`aida-ng.log`) (frequentis_system_diagnosis, Section: Log File Analysis — Analyzing the AIDA-NG Log (aida-ng.log)).\n*   Stopping and starting AIDA-NG services via the command line (frequentis_system_diagnosis, Section: Software Troubleshooting — Stop and Start AIDA-NG Services via Command Line).\n*   Using Diagnostic CLI Tools for System Status (e.g., for CCMS, AIDA-NG, CADAS-ATS) (MHS_SystemDiagnosis_StandardTroubleshooting, Section: Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – General Troubleshooting Steps",
+          "page_number": null,
+          "score": 0.75
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG RSS Failure – How to Repair Corrupt RSS Databases",
+          "page_number": null,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG RSS Failure – How to Recover from Failure of One RSS",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Network Troubleshooting — Network Link Problems",
+          "page_number": null,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Log File Analysis — Analyzing the AIDA-NG Log (aida-ng.log)",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Stop and Start AIDA-NG Services via Command Line",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Log File Analysis – Analyzing the AIDA-NG Log File (aida-ng.log)",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Network Troubleshooting – Network Link Problems",
+          "page_number": null,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG Diagnostics – Overview of the Diagnosis Window",
+          "page_number": null,
+          "score": 0.61
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 45.9,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "amhs router not reachable",
+      "expected": "grounded",
+      "answer": "To verify connectivity with the AMHS Router and Switch, you should ping the relevant configured IP address (Collect log files, Section 9).\n\nFor broader troubleshooting of the Messaging Handling System (MHS), the recommended approach is to perform a system diagnosis first to isolate the problem to a specific subsystem, determining whether the root cause is a hardware problem, a software problem, or a network problem (MHS\\_SystemDiagnosis\\_StandardTroubleshooting, System Diagnosis Overview).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "99c8931a-91af-4d06-80f1-06ab164c7cf4",
+          "display_name": "How to Remotely Access the AMHS Router and Switch",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.7
+        },
+        {
+          "type": "document",
+          "document_id": "99c8931a-91af-4d06-80f1-06ab164c7cf4",
+          "display_name": "How to Remotely Access the AMHS Router and Switch",
+          "section_title": "5. Elevate to root on the remote machine by typing `su` and entering the password `root` when prompted.",
+          "page_number": null,
+          "score": 0.67
+        },
+        {
+          "type": "document",
+          "document_id": "99c8931a-91af-4d06-80f1-06ab164c7cf4",
+          "display_name": "How to Remotely Access the AMHS Router and Switch",
+          "section_title": "7. To access the switch instead, connect via Telnet by typing `telnet 10.48.161.3`, then log in with username `salah` and password `salah`.",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Network Troubleshooting – Network Link Problems",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Hardware Troubleshooting – Replacing a Broken SNL Card in the RCS Rack",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "ab52730c-a813-4a40-873a-59b99411be1e",
+          "display_name": "Collect log files",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "ab52730c-a813-4a40-873a-59b99411be1e",
+          "display_name": "Collect log files",
+          "section_title": "9. To verify connectivity, ping the relevant configured IP address:",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "ab52730c-a813-4a40-873a-59b99411be1e",
+          "display_name": "Collect log files",
+          "section_title": "5. In the remote terminal, type `su` then enter the password \"root\" to become admin.",
+          "page_number": null,
+          "score": 0.48
+        }
+      ],
+      "passed": false,
+      "reason": "No keywords found. Missing: ['telnet', '10.48.161.1']",
+      "latency_sec": 38.4,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 4,
+      "category_name": "Reasoning / Inference",
+      "question": "cnms host showing DOWN, what now",
+      "expected": "grounded",
+      "answer": "The status of the CNMS host should be checked by reviewing the CNMS Host States documentation.\n\nThe provided documentation includes information regarding:\n*   CNMS Host States (Document Source 2).\n*   General system diagnosis procedures for MHS systems, which include CNMS, CADAS-ATS, CADIR, CADAS-IMS, and CNMS (Document Source 7, 8, 9).\n*   Actions related to scheduling downtime for a host or service (Document Source 1).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Action: Scheduling a Downtime for a Host or Service",
+          "page_number": null,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Host States",
+          "page_number": null,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Application Monitoring: CADAS-ATS Terminal Server Status",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Unresponsive or Frozen Application or Workstation",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Reinstallation of a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Unresponsive Application or Frozen Display",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Replacing a Defective Server with a Spare Server",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Reinstalling a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – General Troubleshooting Steps",
+          "page_number": null,
+          "score": 0.6
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 40.0,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 5,
+      "category_name": "CADAS-ATS Advanced",
+      "question": "ats + keycloak auth, how does it work",
+      "expected": "grounded",
+      "answer": "The provided context includes documentation regarding \"User and Role Management with Keycloak\" within the CADAS-IMS Manual, which addresses the configuration aspects of Keycloak integration with the system.\n\nCADAS-IMS Manual, Section: User and Role Management with Keycloak",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Keycloak Connection — Configuration",
+          "page_number": null,
+          "score": 0.69
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Aircraft Operators — ORM Copy Configuration",
+          "page_number": null,
+          "score": 0.46
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Profiles — Access Rights Configuration",
+          "page_number": null,
+          "score": 0.45
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CADAS-ATS (Aeronautical Data Access System – Air Traffic Services)",
+          "page_number": null,
+          "score": 0.47
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Hardware Components – Operational System KCMC (OPS)",
+          "page_number": null,
+          "score": 0.46
+        },
+        {
+          "type": "document",
+          "document_id": "97054be2-e765-4f7f-9bf5-f8ac3ea3f11b",
+          "display_name": "CADAS-IMS Manual",
+          "section_title": "User and Role Management with Keycloak",
+          "page_number": null,
+          "score": 0.6
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 33.9,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 5,
+      "category_name": "CADAS-ATS Advanced",
+      "question": "scheduled rpls in ats, how to configure",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 36.1,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 5,
+      "category_name": "CADAS-ATS Advanced",
+      "question": "amhs capabilities in ats",
+      "expected": "grounded",
+      "answer": "The KW-DGCA-AIM-AMHS system, which includes the AIM and AMHS platform, covers multiple integrated software components related to aeronautical message switching, data management, AIP publication, charting, directory services, configuration management, network monitoring, and workflow management (Document Source 4). CADAS-ATS functions as part of this overall system (Document Source 7).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS AMHS Capabilities",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS AMHS System Parameters",
+          "page_number": null,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Diagnosis — Technical Events (AMHS)",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CADAS-ATS (Aeronautical Data Access System – Air Traffic Services)",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Hardware Components – Contingency System nATC (CONT)",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Core Capabilities: AFTN Terminal and AMHS User Agent",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS System Overview",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Flight Plan (FPL) Management",
+          "page_number": null,
+          "score": 0.49
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 40.1,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 5,
+      "category_name": "CADAS-ATS Advanced",
+      "question": "check app status in ats diagnostics",
+      "expected": "grounded",
+      "answer": "The CADAS-ATS system status includes information regarding groups, mailboxes, and templates.\n\nInformation available from the CADAS-ATS Admin Manual includes:\n*   **CADAS-ATS Groups — Overview and Purpose:** Details that users in a group can share mailboxes and templates, and can monitor any mailbox assigned to the group, depending on their configured user rights (Document Source 1, 2, 3).\n\nThe context does not provide specific command-line or application steps for checking the general application status.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Diagnosis — System Status",
+          "page_number": null,
+          "score": 0.65
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Diagnosis — Useful Tips",
+          "page_number": null,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Diagnosis — Application Status",
+          "page_number": null,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Restarting Services via Applications Menu (CADAS-ATS Example)",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG Diagnostics – Overview of the Diagnosis Window",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG Diagnostics – System Category",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Diagnostic Tools — Command-Line Status and Diagnosis Tools",
+          "page_number": null,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "97054be2-e765-4f7f-9bf5-f8ac3ea3f11b",
+          "display_name": "CADAS-IMS Manual",
+          "section_title": "AWI Diagnosis — System Status",
+          "page_number": null,
+          "score": 0.6
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['diagnosis']",
+      "latency_sec": 37.9,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "configure ats for sita network",
+      "expected": "ungrounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": true,
+      "reason": "Correctly refused (not in manuals)",
+      "latency_sec": 30.6,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "max users ats supports",
+      "expected": "ungrounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": true,
+      "reason": "Correctly refused (not in manuals)",
+      "latency_sec": 31.2,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "setup cnms email alerts",
+      "expected": "ungrounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": true,
+      "reason": "Correctly refused (not in manuals)",
+      "latency_sec": 31.0,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "cnms rest api endpoint for host status",
+      "expected": "ungrounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": true,
+      "reason": "Correctly refused (not in manuals)",
+      "latency_sec": 30.4,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "frequentis firmware update steps",
+      "expected": "ungrounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": true,
+      "reason": "Correctly refused (not in manuals)",
+      "latency_sec": 30.3,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "what is username password of cadas-ats admin",
+      "expected": "ungrounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": true,
+      "reason": "Correctly refused (not in manuals)",
+      "latency_sec": 29.0,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "default login for cnms",
+      "expected": "ungrounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": true,
+      "reason": "Correctly refused (not in manuals)",
+      "latency_sec": 34.6,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "aida ng root password",
+      "expected": "ungrounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": true,
+      "reason": "Correctly refused (not in manuals)",
+      "latency_sec": 35.7,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 6,
+      "category_name": "Hallucination Resistance",
+      "question": "amhs router login credentials",
+      "expected": "ungrounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": true,
+      "reason": "Correctly refused (not in manuals)",
+      "latency_sec": 33.0,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 7,
+      "category_name": "CNMS & Frequentis & Network",
+      "question": "how do cnms graphical maps work",
+      "expected": "grounded",
+      "answer": "CNMS graphical maps are detailed in the CNMS Knowledge Base regarding graphical views and top-level map structure.\n\nThe provided documentation includes sections detailing:\n*   CNMS Graphical Views (Maps) Overview (Document Source 1).\n*   CNMS Top Level Map Structure (Document Source 2).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Graphical Views (Maps) Overview",
+          "page_number": null,
+          "score": 0.6
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Top Level Map Structure",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS System Overview and Purpose",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CNMS (Frequentis Comsoft Network Management System)",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CADAS-ATS (Aeronautical Data Access System – Air Traffic Services)",
+          "page_number": null,
+          "score": 0.5
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CADAS-AIMDB (Aeronautical Data Access System – Aeronautical Information Management Database)",
+          "page_number": null,
+          "score": 0.47
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Flight Plan (FPL) Management",
+          "page_number": null,
+          "score": 0.49
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS System Overview",
+          "page_number": null,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Message Forms",
+          "page_number": null,
+          "score": 0.48
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 34.6,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 7,
+      "category_name": "CNMS & Frequentis & Network",
+      "question": "what snmp traps does cnms handle",
+      "expected": "grounded",
+      "answer": "CNMS handles SNMP Traps related to Passive Monitoring and supports them via the Event Console.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Passive Monitoring (SNMP Traps) Explained",
+          "page_number": null,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS System Overview and Purpose",
+          "page_number": null,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Event Console: Supported SNMP Traps",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CNMS (Frequentis Comsoft Network Management System)",
+          "page_number": null,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG SNMP Parameters – Overview and Monitoring Principles",
+          "page_number": null,
+          "score": 0.6
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['Link']",
+      "latency_sec": 30.6,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 7,
+      "category_name": "CNMS & Frequentis & Network",
+      "question": "ack a problem in cnms",
+      "expected": "grounded",
+      "answer": "To acknowledge a problem in CNMS, consult the relevant knowledge base sections:\n\n*   **Acknowledging a Problem:** Refer to the CNMS Knowledge Base section on \"CNMS Action: Acknowledging a Problem\" (Document Source 4).\n*   **Acknowledging SNMP Traps and Events:** Refer to the CNMS Knowledge Base section on \"CNMS Action: Acknowledging SNMP Traps and Events\" (Document Source 5).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.6
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Restarting Services via Applications Menu (CADAS-ATS Example)",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Action: Acknowledging a Problem",
+          "page_number": null,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Action: Acknowledging SNMP Traps and Events",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Action: Scheduling a Downtime for a Host or Service",
+          "page_number": null,
+          "score": 0.49
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "System Diagnosis Approach",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Diagnostic Tools — Command-Line Status and Diagnosis Tools",
+          "page_number": null,
+          "score": 0.51
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 34.6,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 7,
+      "category_name": "CNMS & Frequentis & Network",
+      "question": "schedule downtime in cnms to mute alerts",
+      "expected": "grounded",
+      "answer": "To schedule downtime in CNMS for a host or service, follow these steps:\n\n1.  Access the CNMS Action section.\n2.  Schedule the required downtime.\n\nSource: CNMS_Knowledge_Base, Section: CNMS Action: Scheduling a Downtime for a Host or Service",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Action: Scheduling a Downtime for a Host or Service",
+          "page_number": null,
+          "score": 0.76
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Application Monitoring: CADAS-ATS Message Handler Status",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Action: Filtering Events in the Event Console",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Alarm Configuration",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG Technical Events – How to Monitor Events Online",
+          "page_number": null,
+          "score": 0.51
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['notification']",
+      "latency_sec": 33.6,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 7,
+      "category_name": "CNMS & Frequentis & Network",
+      "question": "hp dl380p gen8 led meanings",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 32.4,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 7,
+      "category_name": "CNMS & Frequentis & Network",
+      "question": "start/stop aida subsystems from cli",
+      "expected": "grounded",
+      "answer": "Services can be started and stopped via the Command Line for AIDA-NG and CADAS-ATS systems (MHS_SystemDiagnosis_StandardTroubleshooting, Software Troubleshooting – Starting and Stopping Services via Command Line (AIDA-NG and CADAS-ATS)).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Stop and Start AIDA-NG Services via Command Line",
+          "page_number": null,
+          "score": 0.68
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Stop and Start Services via GUI",
+          "page_number": null,
+          "score": 0.6
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Diagnostic Tools — Command-Line Status and Diagnosis Tools",
+          "page_number": null,
+          "score": 0.6
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Restart and Shutdown – How to Restart Subsystems via the Linux Applications Menu",
+          "page_number": null,
+          "score": 0.68
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – General Troubleshooting Steps",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – How to Submit an Incident Report to FCO",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Starting and Stopping Services via Command Line (AIDA-NG and CADAS-ATS)",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD",
+          "page_number": null,
+          "score": 0.6
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Restarting Services via Applications Menu (CADAS-ATS Example)",
+          "page_number": null,
+          "score": 0.58
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['/home/oper/aida-ng']",
+      "latency_sec": 35.3,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 7,
+      "category_name": "CNMS & Frequentis & Network",
+      "question": "aida server ip and hostname at cmc",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 36.9,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 7,
+      "category_name": "CNMS & Frequentis & Network",
+      "question": "aftn/amhs terminal hostnames and ips",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 40.6,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 7,
+      "category_name": "CNMS & Frequentis & Network",
+      "question": "remote access amhs router",
+      "expected": "grounded",
+      "answer": "To remotely access the AMHS router or switch, you can use VNC for remote desktop sessions and standard terminal commands.\n\nProcedure for Remote Access:\n1.  Launch the VNC remote desktop session by typing `vncviewer as1-cont` and entering the password `cs9497` when prompted (Document Source 2).\n2.  To elevate privileges on the remote machine, type `su` and enter the password `root` when prompted (Document Source 3).\n3.  Alternatively, in the remote terminal, you can type `su` and then enter the password \"root\" to become admin (Document Source 6).\n4.  To verify connectivity, ping the relevant configured IP address (Document Source 5).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "99c8931a-91af-4d06-80f1-06ab164c7cf4",
+          "display_name": "How to Remotely Access the AMHS Router and Switch",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.71
+        },
+        {
+          "type": "document",
+          "document_id": "99c8931a-91af-4d06-80f1-06ab164c7cf4",
+          "display_name": "How to Remotely Access the AMHS Router and Switch",
+          "section_title": "3. Launch the VNC remote desktop session by typing `vncviewer as1-cont` and entering the password `cs9497` when prompted.",
+          "page_number": null,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "99c8931a-91af-4d06-80f1-06ab164c7cf4",
+          "display_name": "How to Remotely Access the AMHS Router and Switch",
+          "section_title": "5. Elevate to root on the remote machine by typing `su` and entering the password `root` when prompted.",
+          "page_number": null,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "ab52730c-a813-4a40-873a-59b99411be1e",
+          "display_name": "Collect log files",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.68
+        },
+        {
+          "type": "document",
+          "document_id": "ab52730c-a813-4a40-873a-59b99411be1e",
+          "display_name": "Collect log files",
+          "section_title": "9. To verify connectivity, ping the relevant configured IP address:",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "ab52730c-a813-4a40-873a-59b99411be1e",
+          "display_name": "Collect log files",
+          "section_title": "5. In the remote terminal, type `su` then enter the password \"root\" to become admin.",
+          "page_number": null,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS AMHS System Parameters",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Mailboxes — AMHS Security",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS AMHS Addresses — Adding and Managing Entries",
+          "page_number": null,
+          "score": 0.5
+        }
+      ],
+      "passed": false,
+      "reason": "No keywords found. Missing: ['telnet', '10.48.161.1']",
+      "latency_sec": 36.7,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 7,
+      "category_name": "CNMS & Frequentis & Network",
+      "question": "cmc-mbm led meanings",
+      "expected": "grounded",
+      "answer": "The document references the procedure for \"CMC-MBM LED Assignments\" but does not provide the actual meanings of the individual LEDs.\n\nDocument Source 1, Section: Hardware Inspection – CMC-MBM LED Assignments.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Hardware Inspection – CMC-MBM LED Assignments",
+          "page_number": null,
+          "score": 0.68
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Hardware Inspection – CC (Cascading Controller) LED Assignments",
+          "page_number": null,
+          "score": 0.67
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Hardware Inspection – CISCO Switch Front LED Indicators",
+          "page_number": null,
+          "score": 0.65
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Hardware Inspection — CMC-MBM LED Assignments",
+          "page_number": null,
+          "score": 0.68
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Hardware Inspection — CC (Cascading Controller) LED Assignments",
+          "page_number": null,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Hardware Inspection — CISCO Switch Front LEDs",
+          "page_number": null,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Status Icons on Maps",
+          "page_number": null,
+          "score": 0.54
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 34.4,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 9,
+      "category_name": "CADAS-ATS Knowledge Base",
+      "question": "ats terminal app types",
+      "expected": "grounded",
+      "answer": "CADAS-ATS Terminal Application Types are documented in the CADAS-ATS Knowledge Base.\n\nSource: CADAS-ATS_Knowledge_Base, Section: CADAS-ATS Terminal Application Types",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Terminal Application Types",
+          "page_number": null,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Core Capabilities: AFTN Terminal and AMHS User Agent",
+          "page_number": null,
+          "score": 0.47
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS System Overview",
+          "page_number": null,
+          "score": 0.46
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CADAS-ATS (Aeronautical Data Access System – Air Traffic Services)",
+          "page_number": null,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Hardware Components – Operational System KCMC (OPS)",
+          "page_number": null,
+          "score": 0.46
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Diagnosis — Terminal Log",
+          "page_number": null,
+          "score": 0.46
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Diagnostic Capabilities — Overview",
+          "page_number": null,
+          "score": 0.45
+        }
+      ],
+      "passed": false,
+      "reason": "No keywords found. Missing: ['Administration', 'Center']",
+      "latency_sec": 33.3,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 9,
+      "category_name": "CADAS-ATS Knowledge Base",
+      "question": "ats client/server architecture",
+      "expected": "grounded",
+      "answer": "The CADAS-ATS Client/Server Architecture is documented in the CADAS-ATS Knowledge Base.\n\nThe system components are covered by the following sections:\n*   CADAS-ATS Client/Server Architecture (Source 1)\n*   CADAS-ATS System Overview (Source 2)\n*   CADAS-ATS Server Subsystems (Source 3)",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Client/Server Architecture",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS System Overview",
+          "page_number": null,
+          "score": 0.63
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Server Subsystems",
+          "page_number": null,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CADAS-ATS (Aeronautical Data Access System – Air Traffic Services)",
+          "page_number": null,
+          "score": 0.6
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "System Architecture – Message Flow",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Hardware Components – Operational System KCMC (OPS)",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Static Data — Overview",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS System Parameters — Configuration Areas",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS AMHS Capabilities",
+          "page_number": null,
+          "score": 0.54
+        }
+      ],
+      "passed": false,
+      "reason": "No keywords found. Missing: ['Terminal Server', 'Message Handler', 'cluster']",
+      "latency_sec": 36.5,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 9,
+      "category_name": "CADAS-ATS Knowledge Base",
+      "question": "how do mailboxes work in ats",
+      "expected": "grounded",
+      "answer": "Mailboxes in CADAS-ATS are linked to groups, which define user access and sharing permissions.\n\n*   Each user in CADAS-ATS is assigned to a group, and each mailbox is also assigned to a group.\n*   Users within a group have the ability to share mailboxes and templates.\n*   Users belonging to a group can monitor any mailbox assigned to that group, depending on their configured user rights.\n\nSource: CADAS-ATS Admin, Sections: CADAS-ATS Mailboxes — Configuration and Settings, CADAS-ATS Static Data — Overview, CADAS-ATS AMHS Mailbox Configuration.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Mailbox Concept",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS System Overview",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Flight Plan (FPL) Management",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Mailboxes — Configuration and Settings",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Static Data — Overview",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS AMHS Mailbox Configuration",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CADAS-ATS (Aeronautical Data Access System – Air Traffic Services)",
+          "page_number": null,
+          "score": 0.6
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['incoming']",
+      "latency_sec": 35.5,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 9,
+      "category_name": "CADAS-ATS Knowledge Base",
+      "question": "configure alarm notifications in ats",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 36.7,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 9,
+      "category_name": "CADAS-ATS Knowledge Base",
+      "question": "ats amhs user agent capabilities",
+      "expected": "grounded",
+      "answer": "The CADAS-ATS system includes capabilities related to the AMHS User Agent, which is part of the broader KW-DGCA-AIM-AMHS system.\n\nThe KW-DGCA-AIM-AMHS system encompasses multiple integrated software components covering:\n*   aeronautical message switching\n*   data management\n*   AIP publication\n*   charting\n*   directory services\n*   configuration management\n*   network monitoring\n*   workflow management (Document Source 7, 8, 9)\n\nThe CADAS-ATS Knowledge Base references the AMHS User Agent within its Core Capabilities section (Document Source 4).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS AMHS Capabilities",
+          "page_number": null,
+          "score": 0.69
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS AMHS System Parameters",
+          "page_number": null,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS MTS Client Configuration",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Core Capabilities: AFTN Terminal and AMHS User Agent",
+          "page_number": null,
+          "score": 0.7
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS System Overview",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Client/Server Architecture",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CADAS-ATS (Aeronautical Data Access System – Air Traffic Services)",
+          "page_number": null,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – AIDA-NG (Aeronautical Integrated Data Exchange Agent – Next Generation)",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.55
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['AFTN']",
+      "latency_sec": 35.4,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 9,
+      "category_name": "CADAS-ATS Knowledge Base",
+      "question": "what are ats perspectives and how to switch",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 36.7,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 10,
+      "category_name": "KW-DGCA System & Installation",
+      "question": "kw-dgca aim-amhs components",
+      "expected": "grounded",
+      "answer": "The KW-DGCA-AIM-AMHS system is composed of multiple integrated software components covering the following functions:\n\n*   Aeronautical message switching\n*   Data management\n*   AIP publication\n*   Charting\n*   Directory services\n*   Configuration management\n*   Network monitoring\n*   Workflow management\n\nSource: KW_DGCA_AIM_AMHS_CustomerSystemIntroduction, Section: Introduction",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.71
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CADAS-AIMDB (Aeronautical Data Access System – Aeronautical Information Management Database)",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CADAS-AIP (Aeronautical Data Access System – AIP)",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS AMHS System Parameters",
+          "page_number": null,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS AMHS Capabilities",
+          "page_number": null,
+          "score": 0.46
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Core Capabilities: AFTN Terminal and AMHS User Agent",
+          "page_number": null,
+          "score": 0.47
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.45
+        }
+      ],
+      "passed": false,
+      "reason": "No keywords found. Missing: ['AIDA-NG', 'CADAS-ATS', 'CNMS']",
+      "latency_sec": 33.1,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 10,
+      "category_name": "KW-DGCA System & Installation",
+      "question": "kw-dgca message flow",
+      "expected": "grounded",
+      "answer": "The KW-DGCA-AIM-AMHS system is the Frequentis Comsoft AIM and AMHS platform deployed for Kuwait DGCA and is composed of multiple integrated software components covering aeronautical message switching, data management, AIP publication, charting, directory services, configuration management, network monitoring, and workflow management.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "System Architecture – Message Flow",
+          "page_number": null,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Software Component – CADAS-WFM (Aeronautical Data Access System – Workflow Management)",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "bea7d47a-3f41-4a44-97a5-fd1b3528b9f8",
+          "display_name": "AIDA-NG_LAs_RAG",
+          "section_title": "AIDA-NG Advanced AFTN Parameters — Message Layout",
+          "page_number": null,
+          "score": 0.47
+        },
+        {
+          "type": "document",
+          "document_id": "bea7d47a-3f41-4a44-97a5-fd1b3528b9f8",
+          "display_name": "AIDA-NG_LAs_RAG",
+          "section_title": "AIDA-NG Advanced AFTN Parameters — Incoming Message Detection and Line Interruption Handling",
+          "page_number": null,
+          "score": 0.46
+        },
+        {
+          "type": "document",
+          "document_id": "bea7d47a-3f41-4a44-97a5-fd1b3528b9f8",
+          "display_name": "AIDA-NG_LAs_RAG",
+          "section_title": "AIDA-NG Legacy TCP LA — Frame Indicator and Application Protocol Settings",
+          "page_number": null,
+          "score": 0.46
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Flight Plan (FPL) Management",
+          "page_number": null,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Message Forms",
+          "page_number": null,
+          "score": 0.46
+        }
+      ],
+      "passed": false,
+      "reason": "No keywords found. Missing: ['AIDA-NG', 'CADAS-ATS']",
+      "latency_sec": 37.2,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 10,
+      "category_name": "KW-DGCA System & Installation",
+      "question": "redundancy modes per component in kw-dgca",
+      "expected": "grounded",
+      "answer": "The documentation explicitly addresses the redundancy and high availability for the CADAS-ATS component.\n\nThe provided context mentions that there is a section dedicated to:\n*   CADAS-ATS Redundancy and High Availability (CADAS-ATS_Knowledge_Base).\n\nInformation regarding the specific redundancy modes for all other components within the KW-DGCA-AIM-AMHS system is not specified in the provided context.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "System Architecture – Redundancy Design for KW-DGCA-AIM-AMHS",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.5
+        },
+        {
+          "type": "document",
+          "document_id": "46d74039-2e55-4edc-9742-8247240fb64c",
+          "display_name": "KW_DGCA_AIM_AMHS_CustomerSystemIntroduction",
+          "section_title": "Hardware Components – Operational System KCMC (OPS)",
+          "page_number": null,
+          "score": 0.47
+        },
+        {
+          "type": "document",
+          "document_id": "33d38274-23a7-4eb6-aad8-67af946766cf",
+          "display_name": "CADAS-ATS_Knowledge_Base",
+          "section_title": "CADAS-ATS Redundancy and High Availability",
+          "page_number": null,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Hardware Troubleshooting — Other Hardware Components",
+          "page_number": null,
+          "score": 0.47
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['AIDA-NG']",
+      "latency_sec": 37.9,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 10,
+      "category_name": "KW-DGCA System & Installation",
+      "question": "ops at kcmc vs cont at natc, difference",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 30.1,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 10,
+      "category_name": "KW-DGCA System & Installation",
+      "question": "install ccms via kickstart dvd",
+      "expected": "grounded",
+      "answer": "The installation procedure for the Frequentis Comsoft CCMS platform via the Kickstart CD/DVD/Flash Drive involves two main phases: OS installation and platform installation (Document Source 1, 2, 3).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "34305c7d-1ad0-4927-ad8f-f8bbc426717d",
+          "display_name": "KW_INDRA_AIM_AMHS_Installation",
+          "section_title": "Booting from the Kickstart CD/DVD/Flash Drive",
+          "page_number": null,
+          "score": 0.67
+        },
+        {
+          "type": "document",
+          "document_id": "34305c7d-1ad0-4927-ad8f-f8bbc426717d",
+          "display_name": "KW_INDRA_AIM_AMHS_Installation",
+          "section_title": "Platform Installation After OS Setup",
+          "page_number": null,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "34305c7d-1ad0-4927-ad8f-f8bbc426717d",
+          "display_name": "KW_INDRA_AIM_AMHS_Installation",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Reinstallation of a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Restarting Services via Applications Menu (CADAS-ATS Example)",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Reinstalling a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Replacing a Defective Server with a Spare Server",
+          "page_number": null,
+          "score": 0.48
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 38.3,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 10,
+      "category_name": "KW-DGCA System & Installation",
+      "question": "scientific linux install from kickstart, what happens",
+      "expected": "grounded",
+      "answer": "The installation procedure using the Kickstart CD/DVD/Flash Drive involves two main phases: OS installation and platform installation (Document Source 1, 2, 3).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "34305c7d-1ad0-4927-ad8f-f8bbc426717d",
+          "display_name": "KW_INDRA_AIM_AMHS_Installation",
+          "section_title": "OS Installation Using Scientific Linux 7.9",
+          "page_number": null,
+          "score": 0.71
+        },
+        {
+          "type": "document",
+          "document_id": "34305c7d-1ad0-4927-ad8f-f8bbc426717d",
+          "display_name": "KW_INDRA_AIM_AMHS_Installation",
+          "section_title": "OS Boot Verification After Scientific Linux Installation",
+          "page_number": null,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "34305c7d-1ad0-4927-ad8f-f8bbc426717d",
+          "display_name": "KW_INDRA_AIM_AMHS_Installation",
+          "section_title": "Booting from the Kickstart CD/DVD/Flash Drive",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Reinstallation of a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Replacement on a Spare Server (Physical Hardware Swap)",
+          "page_number": null,
+          "score": 0.47
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Starting and Stopping Services via Command Line (AIDA-NG and CADAS-ATS)",
+          "page_number": null,
+          "score": 0.46
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Reinstalling a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Replacing a Defective Server with a Spare Server",
+          "page_number": null,
+          "score": 0.47
+        }
+      ],
+      "passed": false,
+      "reason": "No keywords found. Missing: ['Scientific Linux', 'GRUB']",
+      "latency_sec": 33.2,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 11,
+      "category_name": "MHS System Diagnosis",
+      "question": "first step before mhs troubleshooting",
+      "expected": "grounded",
+      "answer": "Always perform a system diagnosis first to isolate the problem to a specific subsystem (hardware, software, or network) before starting any troubleshooting on the Messaging Handling System (MHS).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Standard Troubleshooting – Overview and Scope",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Reinstallation of a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.49
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "System Diagnosis Approach",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Standard Troubleshooting Overview",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Replacing a Defective Server with a Spare Server",
+          "page_number": null,
+          "score": 0.48
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Troubleshooting — General Precautions",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Diagnosis — Useful Tips",
+          "page_number": null,
+          "score": 0.54
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 38.3,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 11,
+      "category_name": "MHS System Diagnosis",
+      "question": "ccms + cluster log file paths",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 36.3,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 11,
+      "category_name": "MHS System Diagnosis",
+      "question": "investigate aida subsystem failures via logs",
+      "expected": "grounded",
+      "answer": "System diagnosis, including log file analysis, must be performed first to isolate the problem to a specific subsystem (hardware, software, or network) before starting any troubleshooting on the Messaging Handling System (MHS).\n\nLog file analysis is utilized for diagnosing AIDA-NG system issues:\n*   Analyzing the AIDA-NG log file (`aida-ng.log`) is a part of the system diagnosis procedure (Document Source 1, 4).\n\nThe overall system diagnosis approach requires:\n1.  Perform a system diagnosis first to isolate the problem to a specific subsystem.\n2.  Determine whether the root cause is a hardware problem, a software problem, or a network problem.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Log File Analysis – Analyzing the AIDA-NG Log File (aida-ng.log)",
+          "page_number": null,
+          "score": 0.75
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Network Troubleshooting – Network Link Problems",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Log File Analysis — Analyzing the AIDA-NG Log (aida-ng.log)",
+          "page_number": null,
+          "score": 0.72
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Network Troubleshooting — Network Link Problems",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Stop and Start AIDA-NG Services via Command Line",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – General Troubleshooting Steps",
+          "page_number": null,
+          "score": 0.65
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG CSS Failure – How to Recover from Failure of Both CSSs",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG RSS Failure – How to Repair Corrupt RSS Databases",
+          "page_number": null,
+          "score": 0.56
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 41.8,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 11,
+      "category_name": "MHS System Diagnosis",
+      "question": "replace defective server with spare, procedure",
+      "expected": "grounded",
+      "answer": "To replace a defective server with a spare server, follow the system diagnosis and standard troubleshooting procedure.\n\nProcedure for Replacing a Defective Server with a Spare Server (Frequentis Comsoft Messaging Handling Systems):\n\n1. Perform a system diagnosis first to isolate a problem to one of three subsystems: hardware, software, or network.\n2. Proceed with the standard troubleshooting steps.\n\n(Source: frequentis_system_diagnosis, Software Troubleshooting — Replacing a Defective Server with a Spare Server)",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Replacement on a Spare Server (Physical Hardware Swap)",
+          "page_number": null,
+          "score": 0.79
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Hardware Troubleshooting – Replacing a Broken Hard Drive in the Server",
+          "page_number": null,
+          "score": 0.66
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Reinstallation of a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Replacing a Defective Server with a Spare Server",
+          "page_number": null,
+          "score": 0.81
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Reinstalling a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.64
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Hardware Troubleshooting — Replacing a Broken Hard Drive",
+          "page_number": null,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – General Troubleshooting Steps",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG RSS Failure – How to Repair Corrupt RSS Databases",
+          "page_number": null,
+          "score": 0.47
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['disconnect']",
+      "latency_sec": 38.1,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 11,
+      "category_name": "MHS System Diagnosis",
+      "question": "clean software reinstall on standby server",
+      "expected": "grounded",
+      "answer": "The provided documentation outlines a system diagnosis approach before troubleshooting or performing actions on messaging handling systems, but it does not contain the specific procedure for a clean software reinstall on a standby server.\n\nThe recommended procedure for troubleshooting the Messaging Handling System (MHS) involves:\n\n1.  Performing a system diagnosis first to isolate the problem to a specific subsystem (hardware, software, or network).\n2.  This diagnosis should be performed before starting any troubleshooting on the Messaging Handling System. (Document Source 1, 2, 3, 4, 5, 6)",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Reinstallation of a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.76
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Replacement on a Spare Server (Physical Hardware Swap)",
+          "page_number": null,
+          "score": 0.61
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Hardware Troubleshooting – Replacing a Broken Hard Drive in the Server",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Reinstalling a Standby Server or Workstation",
+          "page_number": null,
+          "score": 0.74
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Replacing a Defective Server with a Spare Server",
+          "page_number": null,
+          "score": 0.62
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Hardware Troubleshooting — Replacing a Broken Hard Drive",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "34305c7d-1ad0-4927-ad8f-f8bbc426717d",
+          "display_name": "KW_INDRA_AIM_AMHS_Installation",
+          "section_title": "Platform Installation Completion and Reboot",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "34305c7d-1ad0-4927-ad8f-f8bbc426717d",
+          "display_name": "KW_INDRA_AIM_AMHS_Installation",
+          "section_title": "Booting from the Kickstart CD/DVD/Flash Drive",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "34305c7d-1ad0-4927-ad8f-f8bbc426717d",
+          "display_name": "KW_INDRA_AIM_AMHS_Installation",
+          "section_title": "Platform Installation After OS Setup",
+          "page_number": null,
+          "score": 0.52
+        }
+      ],
+      "passed": true,
+      "reason": "Partial — missing keywords: ['network cable']",
+      "latency_sec": 40.9,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 12,
+      "category_name": "Paraphrased Questions",
+      "question": "forgot ats admin pw, locked out",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 33.1,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 12,
+      "category_name": "Paraphrased Questions",
+      "question": "need to copy ats db before maint, how",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 33.7,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 12,
+      "category_name": "Paraphrased Questions",
+      "question": "aida slow, is the disk full?",
+      "expected": "grounded",
+      "answer": "To check the disk usage status on AIDA-NG, you can run the following commands:\n\n1.  To check disk usage on the `/var` partition, run the command: `df -h /var` (AIDA-NG_Disk_Procedure, Section: 2).\n2.  To view the disk usage health check, look at the `Use%` column in the output (AIDA-NG_Disk_Procedure, Section: 3).\n3.  After checking the usage, verify that the disk usage has dropped by running `df -h /var` again (AIDA-NG_Disk_Procedure, Section: 6).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "773fd9a4-6885-4365-a89f-c070ea70157a",
+          "display_name": "AIDA-NG_Disk_Procedure",
+          "section_title": "3. Look at the `Use%` column in the output:",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "773fd9a4-6885-4365-a89f-c070ea70157a",
+          "display_name": "AIDA-NG_Disk_Procedure",
+          "section_title": "2. Run the following command to check disk usage on the `/var` partition:",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "773fd9a4-6885-4365-a89f-c070ea70157a",
+          "display_name": "AIDA-NG_Disk_Procedure",
+          "section_title": "6. Verify that disk usage has dropped by running `df -h /var` again:",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG RSS (Replication Storage System) State Reference",
+          "page_number": null,
+          "score": 0.59
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG Diagnostics – Platforms Category",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG Diagnostics – Overview of the Diagnosis Window",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – General Troubleshooting Steps",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG RSS Failure – How to Repair Corrupt RSS Databases",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "31d0f362-1452-4e4b-b246-33e0266e6c95",
+          "display_name": "AIDA-NG_Maintenance_Procedures",
+          "section_title": "AIDA-NG Emergency Situation Management – How to Submit an Incident Report to FCO",
+          "page_number": null,
+          "score": 0.51
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 35.9,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 12,
+      "category_name": "Paraphrased Questions",
+      "question": "serial network board broken, swap it",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 34.4,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 12,
+      "category_name": "Paraphrased Questions",
+      "question": "host statuses on the monitoring tool?",
+      "expected": "grounded",
+      "answer": "System status and monitoring are achieved through system diagnosis and specialized monitoring tools for various systems.\n\nFor systems including CCMS, AIDA-NG, CADAS-ATS, CADIR, CADAS-IMS, and CNMS, diagnosis is performed first to isolate the problem to a hardware, software, or network subsystem (Document Source 4, 5, 6).\n\nSpecific tools for status checking include:\n*   Diagnostic CLI Tools for System Status are available for CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, and DRBD (Document Source 2).\n*   CNMS (COMSOFT Network Management System) includes features for Hardware Monitoring (Document Source 7) and Active Monitoring (Polling) (Document Source 8).\n*   CNMS Object Types include Hosts and Services (Document Source 9).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Hardware Inspection – HP DL380p Gen8 Server Front Panel LED Status",
+          "page_number": null,
+          "score": 0.57
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD",
+          "page_number": null,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Hardware Inspection – FAN Unit LED Status",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Diagnostic Tools — Command-Line Status and Diagnosis Tools",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Hardware Inspection — DL380p Gen8 Server Front Panel LEDs and Buttons",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Hardware Inspection — CMC-MBM LED Assignments",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS HP Server Hardware Monitoring",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Active Monitoring (Polling) Explained",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "080ba5e1-3c85-4430-809f-dc8ade25f049",
+          "display_name": "CNMS_Knowledge_Base",
+          "section_title": "CNMS Object Types: Hosts and Services",
+          "page_number": null,
+          "score": 0.53
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 41.2,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 12,
+      "category_name": "Paraphrased Questions",
+      "question": "get into the messaging router from my desk",
+      "expected": "grounded",
+      "answer": "You can remotely access the AMHS router or switch using Telnet or by using the `su` command for elevated access.\n\nTo access the switch via Telnet:\n1. Type `telnet 10.48.161.3`.\n2. Log in with the username `salah` and password `salah` (Document Source 2).\n\nTo elevate to root on the remote machine:\n1. Type `su` and enter the password `root` when prompted (Document Source 3).",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "99c8931a-91af-4d06-80f1-06ab164c7cf4",
+          "display_name": "How to Remotely Access the AMHS Router and Switch",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.56
+        },
+        {
+          "type": "document",
+          "document_id": "99c8931a-91af-4d06-80f1-06ab164c7cf4",
+          "display_name": "How to Remotely Access the AMHS Router and Switch",
+          "section_title": "7. To access the switch instead, connect via Telnet by typing `telnet 10.48.161.3`, then log in with username `salah` and password `salah`.",
+          "page_number": null,
+          "score": 0.5
+        },
+        {
+          "type": "document",
+          "document_id": "99c8931a-91af-4d06-80f1-06ab164c7cf4",
+          "display_name": "How to Remotely Access the AMHS Router and Switch",
+          "section_title": "5. Elevate to root on the remote machine by typing `su` and entering the password `root` when prompted.",
+          "page_number": null,
+          "score": 0.5
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Hardware Inspection – CMC-MBM LED Assignments",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Hardware Inspection – HP DL380p Gen8 Server Front Panel LED Status",
+          "page_number": null,
+          "score": 0.49
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG Diagnostics – Routing Category",
+          "page_number": null,
+          "score": 0.51
+        },
+        {
+          "type": "document",
+          "document_id": "0fb1514b-5bba-4b75-af4a-9547a78c020f",
+          "display_name": "AIDA-NG_System_Inspection",
+          "section_title": "AIDA-NG Diagnostics – Protocols Category",
+          "page_number": null,
+          "score": 0.49
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 34.8,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 12,
+      "category_name": "Paraphrased Questions",
+      "question": "address of aida box at ops center",
+      "expected": "grounded",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": false,
+      "reason": "Expected grounded answer, got ungrounded",
+      "latency_sec": 34.5,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 12,
+      "category_name": "Paraphrased Questions",
+      "question": "both ats nodes think they're primary, now what",
+      "expected": "grounded",
+      "answer": "To resolve a CADAS-ATS Split-Brain in a Dual Node Cluster, you must follow the resolution procedure outlined in the Admin Manual.\n\nProcedure for CADAS-ATS Split-Brain Resolution:\n1.  Refer to the CADAS-ATS Admin Manual, Section: CADAS-ATS Split-Brain in Dual Node Cluster — Resolution.",
+      "grounded": true,
+      "sources": [
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Diagnosis — Useful Tips",
+          "page_number": null,
+          "score": 0.58
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Split-Brain in Dual Node Cluster — Resolution",
+          "page_number": null,
+          "score": 0.55
+        },
+        {
+          "type": "document",
+          "document_id": "d2ce6e3d-c324-4c7c-b81c-eb23839d56a2",
+          "display_name": "CADAS-ATS Admin",
+          "section_title": "CADAS-ATS Troubleshooting — General Precautions",
+          "page_number": null,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Introduction",
+          "page_number": 1,
+          "score": 0.54
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Diagnostic CLI Tools for System Status – CCMS, AIDA-NG, CADAS-ATS, CADIR, Linux HA, DRBD",
+          "page_number": null,
+          "score": 0.53
+        },
+        {
+          "type": "document",
+          "document_id": "1ab884f2-a350-4e93-b21f-ce47ce2e5250",
+          "display_name": "MHS_SystemDiagnosis_StandardTroubleshooting",
+          "section_title": "Software Troubleshooting – Restarting Services via Applications Menu (CADAS-ATS Example)",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "System Diagnosis Approach",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Diagnostic Tools — Command-Line Status and Diagnosis Tools",
+          "page_number": null,
+          "score": 0.52
+        },
+        {
+          "type": "document",
+          "document_id": "1b1b0ad2-ea69-4818-a9ab-e390cd46125b",
+          "display_name": "frequentis_system_diagnosis",
+          "section_title": "Software Troubleshooting — Replacing a Defective Server with a Spare Server",
+          "page_number": null,
+          "score": 0.52
+        }
+      ],
+      "passed": true,
+      "reason": "All keywords found",
+      "latency_sec": 34.0,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 8,
+      "category_name": "Ambiguous / Vague",
+      "question": "how do i fix the system",
+      "expected": "either",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": true,
+      "reason": "Ambiguous — grounded=False",
+      "latency_sec": 35.9,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 8,
+      "category_name": "Ambiguous / Vague",
+      "question": "whats the pw",
+      "expected": "either",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": true,
+      "reason": "Ambiguous — grounded=False",
+      "latency_sec": 32.6,
+      "error": null,
+      "faithfulness": null
+    },
+    {
+      "category": 8,
+      "category_name": "Ambiguous / Vague",
+      "question": "how to restart the server",
+      "expected": "either",
+      "answer": "This information is not in the available manuals.",
+      "grounded": false,
+      "sources": [],
+      "passed": true,
+      "reason": "Ambiguous — grounded=False",
+      "latency_sec": 39.5,
+      "error": null,
+      "faithfulness": null
+    }
+  ]
+}
