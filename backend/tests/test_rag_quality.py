@@ -867,6 +867,7 @@ async def run_test(test: TestQuestion, base_url: str, verify: bool = False) -> T
         "question": test.question,
         "user_email": USER_EMAIL,
         "history": [],
+        "source": "test_suite",
     }
 
     start = time.perf_counter()

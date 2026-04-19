@@ -5,7 +5,7 @@ import time
 
 from db import supabase
 from services.ollama_generator import generate, get_default_model
-from services.manual_rag_service import ask as manual_rag_ask, _StageTimer
+from services.manual_rag_service import ask as manual_rag_ask, _StageTimer, _record_stage
 
 logger = logging.getLogger(__name__)
 
@@ -231,6 +231,7 @@ async def execute_manuals_tool(
             session_summary=session_summary,
             user_email=user_email,
             latency_breakdown=latency_breakdown,
+            diagnostic=diagnostic,
         )
 
         data = {
@@ -337,6 +338,7 @@ async def run_agentic_loop(
     session_summary=None,
     user_email: str | None = None,
     latency_breakdown: dict | None = None,
+    diagnostic: dict | None = None,
 ) -> dict:
     """
     Core agentic loop that decides whether to call tools and executes them.
@@ -367,6 +369,7 @@ async def run_agentic_loop(
             session_summary=session_summary,
             user_email=user_email,
             latency_breakdown=latency_breakdown,
+            diagnostic=diagnostic,
         )
         if latency_breakdown is not None:
             result["latency_breakdown"] = latency_breakdown
@@ -437,6 +440,7 @@ User: {question}"""
                     session_summary=session_summary,
                     user_email=user_email,
                     latency_breakdown=latency_breakdown,
+                    diagnostic=diagnostic,
                 )
                 fallback_result["agentic"] = False
                 fallback_result["tools_used"] = []
@@ -483,6 +487,7 @@ User: {question}"""
                         session_summary=session_summary,
                         user_email=user_email,
                         latency_breakdown=latency_breakdown,
+                        diagnostic=diagnostic,
                     )
                     fallback_result["agentic"] = False
                     fallback_result["tools_used"] = []

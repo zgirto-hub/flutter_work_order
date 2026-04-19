@@ -57,6 +57,12 @@ class _StageTimer:
         return False
 
 
+def _record_stage(diagnostic: dict | None, stage: str, data: dict) -> None:
+    if diagnostic is None:
+        return
+    diagnostic[stage] = data
+
+
 def _empty_latency_breakdown() -> dict:
     return {
         "embed_ms": None,
@@ -595,7 +601,7 @@ async def upload_manual(
     }
 
 
-async def _rewrite_query(question: str, history: list[dict] | None) -> str:
+async def _rewrite_query(question: str, history: list[dict] | None, diagnostic: dict | None = None) -> str:
     # Spec 076: Intentionally hardcoded to Ollama — NOT routed through provider resolver
     """Rewrite a follow-up question into a self-contained search query using conversation context."""
     from services.ollama_generator import generate
@@ -634,10 +640,13 @@ FOLLOW-UP QUESTION: """
         rewritten = result.strip().strip('"').strip("'").strip()
         if not rewritten:
             logger.warning("Query rewrite returned empty, using original query")
+            _record_stage(diagnostic, "rewrite", {"ran": True, "output_query": question, "input_turns": len(history)})
             return question
+        _record_stage(diagnostic, "rewrite", {"ran": True, "output_query": rewritten, "input_turns": len(history)})
         return rewritten
     except Exception as e:
         logger.warning("Query rewrite failed, using original query: %s", e)
+        _record_stage(diagnostic, "rewrite", {"ran": True, "output_query": question, "input_turns": len(history or []), "failed": True})
         return question
 
 
@@ -705,7 +714,7 @@ async def _compress_history(
         return None
 
 
-async def _generate_hypothetical_answer(query: str) -> str | None:
+async def _generate_hypothetical_answer(query: str, diagnostic: dict | None = None) -> str | None:
     # Spec 076: Intentionally hardcoded to Ollama — NOT routed through provider resolver
     """Generate a hypothetical document passage for better retrieval (HyDE)."""
     from services.ollama_generator import generate
@@ -727,13 +736,16 @@ MANUAL PASSAGE:
             logger.warning(
                 "HyDE generation returned empty, falling back to direct query embedding"
             )
+            _record_stage(diagnostic, "hyde", {"ran": True, "failed": True})
             return None
         logger.info("HyDE generated hypothetical answer (%d chars)", len(result))
+        _record_stage(diagnostic, "hyde", {"ran": True, "output_doc": result[:500], "failed": False})
         return result
     except Exception as e:
         logger.warning(
             "HyDE generation failed, falling back to direct query embedding: %s", e
         )
+        _record_stage(diagnostic, "hyde", {"ran": True, "failed": True})
         return None
 
 
@@ -1112,6 +1124,7 @@ async def ask(
     session_summary: str | None = None,
     user_email: str | None = None,
     latency_breakdown: dict | None = None,
+    diagnostic: dict | None = None,
 ) -> dict:
     from services.ollama_embedder import embed_single, EmbedderTimeoutError
     from services.ollama_generator import generate, GeneratorTimeoutError
@@ -1288,11 +1301,11 @@ async def ask(
 
         async def _timed_rewrite():
             with _StageTimer(breakdown, "rewrite_ms"):
-                return await _rewrite_query(question, history)
+                return await _rewrite_query(question, history, diagnostic=diagnostic)
 
         async def _timed_hyde():
             with _StageTimer(breakdown, "hyde_ms"):
-                return await _generate_hypothetical_answer(question)
+                return await _generate_hypothetical_answer(question, diagnostic=diagnostic)
 
         rewrite_result, hyde_result = await asyncio.gather(
             _timed_rewrite(), _timed_hyde(), return_exceptions=True
@@ -1314,7 +1327,7 @@ async def ask(
     elif _needs_rewrite:
         # Rewrite only (direct lookup — skip HyDE)
         with _StageTimer(breakdown, "rewrite_ms"):
-            search_query = await _rewrite_query(question, history)
+            search_query = await _rewrite_query(question, history, diagnostic=diagnostic)
         _parallel_hyde_text = None
         breakdown["hyde_ms"] = 0
         logger.info("[spec-077] Skipping HyDE for direct lookup query")
@@ -1508,7 +1521,7 @@ async def ask(
         elif _needs_hyde:
             # No history case — HyDE wasn't run in parallel, run it now
             with _StageTimer(breakdown, "hyde_ms"):
-                _layer2_hyde_text = await _generate_hypothetical_answer(search_query)
+                _layer2_hyde_text = await _generate_hypothetical_answer(search_query, diagnostic=diagnostic)
         else:
             # Direct lookup — skip HyDE
             _layer2_hyde_text = None
@@ -1526,6 +1539,26 @@ async def ask(
             "[document-search] found %d documents with chunks",
             len(chunks_by_doc) if chunks_by_doc else 0,
         )
+
+        # Spec 088: Record retrieval candidates in diagnostic dict
+        if diagnostic is not None:
+            retrieval_candidates = []
+            total_chunks = 0
+            for doc_id, doc_chunks in (chunks_by_doc.items() if chunks_by_doc else []):
+                for c in doc_chunks:
+                    total_chunks += 1
+                    retrieval_candidates.append({
+                        "chunk_id": c.get("id", ""),
+                        "manual_title": c.get("section_title", ""),
+                        "document_name": c.get("document_id", ""),
+                        "score_vector": c.get("similarity", 0),
+                        "score_hybrid": c.get("similarity", 0),
+                        "preview": (c.get("content", "") or "")[:120],
+                    })
+            _record_stage(diagnostic, "retrieval", {
+                "candidates": retrieval_candidates[:10],
+                "k": total_chunks,
+            })
 
         if not chunks_by_doc:
             logger.info(
@@ -1553,6 +1586,30 @@ async def ask(
             grounded = answer and not any(
                 phrase in answer.lower() for phrase in _SENTINEL_PHRASES
             )
+
+            # Spec 088: Record rerank and grounding diagnostic stages
+            if diagnostic is not None:
+                all_chunks_flat = [
+                    c for doc_chunks in chunks_by_doc.values() for c in doc_chunks
+                ]
+                scored = sorted(all_chunks_flat, key=lambda c: c.get("similarity", 0), reverse=True)
+                top_score = scored[0].get("similarity", 0) if scored else 0
+                _record_stage(diagnostic, "rerank", {
+                    "scored": [{"chunk_id": c.get("id", ""), "rerank_score": c.get("similarity", 0)} for c in scored[:10]],
+                    "top_score": top_score,
+                    "threshold_applied": MAX_CHUNK_DISTANCE,
+                })
+                _record_stage(diagnostic, "grounding", {
+                    "verbatim_match": False,
+                    "verbatim_top_similarity": top_score,
+                    "sentinel_phrase_detected": not grounded,
+                    "sentinel_match": None,
+                })
+                _record_stage(diagnostic, "generator", {
+                    "produced_answer": bool(answer),
+                    "answer_length_chars": len(answer) if answer else 0,
+                    "refused_by_sentinel": not grounded,
+                })
 
             if grounded:
                 max_score = max(

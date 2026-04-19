@@ -35,6 +35,7 @@ from routers import (
     systems,
     ai_providers,
     documents,
+    admin_rag_diagnostics,
 )
 
 
@@ -115,6 +116,7 @@ app.include_router(settings.router, prefix="/api")
 app.include_router(asset_registry.router, prefix="/api")
 app.include_router(systems.router, prefix="/api", tags=["systems"])
 app.include_router(documents.router, prefix="/api", tags=["documents"])
+app.include_router(admin_rag_diagnostics.router, prefix="/api")
 
 
 @app.get("/api/reset-password")

@@ -23,6 +23,7 @@ from utils.activity import log_activity
 import services.manual_rag_service as manual_rag_service
 import services.agentic_tools as agentic_tools
 import services.validated_qa_service as validated_qa_service
+from services.rag_diagnostic_service import classify_reason_code, schedule_persist
 from services.ollama_embedder import embed_single, embed_many, EmbedderTimeoutError
 from services.ai_providers.resolver import generate as provider_generate
 from services.contextual_prefix import apply_contextual_prefix
@@ -96,6 +97,7 @@ class AskRequest(BaseModel):
     model: Optional[str] = None
     history: List[HistoryTurn] = []
     session_summary: Optional[str] = None
+    source: Optional[Literal["user", "test_suite", "internal"]] = "user"
 
 
 @router.get("/manuals/models")
@@ -580,6 +582,9 @@ async def ask_question(request: AskRequest):
             status_code=400, detail={"error": "question_too_long", "limit": 2000}
         )
 
+    # Spec 088: per-request diagnostic dict
+    diagnostic: dict = {}
+
     # F2.1: Add request start timer at very beginning
     _req_start = time.perf_counter()
 
@@ -598,6 +603,25 @@ async def ask_question(request: AskRequest):
 
         # F2.2: Fix total_ms to be elapsed, not raw counter
         total_ms = round((time.perf_counter() - _req_start) * 1000)
+        trivial_breakdown = {
+            "embed_ms": None,
+            "hyde_ms": None,
+            "rewrite_ms": None,
+            "retrieval_ms": None,
+            "rerank_ms": None,
+            "generator_ms": None,
+            "total_ms": total_ms,
+        }
+        schedule_persist(
+            diagnostic={},
+            answer=TRIVIAL_INPUT_REPLY,
+            grounded=True,
+            user_email=request.user_email,
+            source=request.source,
+            question_raw=question,
+            latency_breakdown=trivial_breakdown,
+            provider_used=None,
+        )
         return {
             "answer": TRIVIAL_INPUT_REPLY,
             "sources": [],
@@ -605,15 +629,7 @@ async def ask_question(request: AskRequest):
             "agentic": False,
             "tools_used": [],
             "bypass": "greeting",
-            "latency_breakdown": {
-                "embed_ms": None,
-                "hyde_ms": None,
-                "rewrite_ms": None,
-                "retrieval_ms": None,
-                "rerank_ms": None,
-                "generator_ms": None,
-                "total_ms": total_ms,
-            },
+            "latency_breakdown": trivial_breakdown,
         }
 
     manual_id_filter = None
@@ -646,6 +662,8 @@ async def ask_question(request: AskRequest):
             user_email=request.user_email,
             # F1.4: Pass the breakdown dict into run_agentic_loop
             latency_breakdown=breakdown,
+            # Spec 088: pass diagnostic dict into agentic loop
+            diagnostic=diagnostic,
         )
 
         # F3.1-3.3: Stop synthesizing - use the dict that was passed through
@@ -653,6 +671,21 @@ async def ask_question(request: AskRequest):
         result["latency_breakdown"] = breakdown
 
     except manual_rag_service.EmbedderUnavailableError:
+        try:
+            breakdown["total_ms"] = round((time.perf_counter() - _req_start) * 1000)
+            diagnostic.setdefault("grounding", {})["pipeline_error"] = "EmbedderUnavailableError"
+            schedule_persist(
+                diagnostic=diagnostic,
+                answer=None,
+                grounded=False,
+                user_email=request.user_email,
+                source=request.source,
+                question_raw=question,
+                latency_breakdown=breakdown,
+                provider_used=None,
+            )
+        except Exception:
+            pass
         raise HTTPException(
             status_code=504,
             detail={
@@ -661,6 +694,21 @@ async def ask_question(request: AskRequest):
             },
         )
     except manual_rag_service.GeneratorUnavailableError:
+        try:
+            breakdown["total_ms"] = round((time.perf_counter() - _req_start) * 1000)
+            diagnostic.setdefault("grounding", {})["pipeline_error"] = "GeneratorUnavailableError"
+            schedule_persist(
+                diagnostic=diagnostic,
+                answer=None,
+                grounded=False,
+                user_email=request.user_email,
+                source=request.source,
+                question_raw=question,
+                latency_breakdown=breakdown,
+                provider_used=None,
+            )
+        except Exception:
+            pass
         raise HTTPException(
             status_code=504,
             detail={
@@ -670,6 +718,23 @@ async def ask_question(request: AskRequest):
         )
     except Exception as e:
         from services.ollama_generator import GeneratorModelError
+
+        # Spec 088: Persist diagnostic on pipeline error
+        try:
+            diagnostic.setdefault("grounding", {})["pipeline_error"] = str(e)[:200]
+            breakdown["total_ms"] = round((time.perf_counter() - _req_start) * 1000)
+            schedule_persist(
+                diagnostic=diagnostic,
+                answer=None,
+                grounded=False,
+                user_email=request.user_email,
+                source=request.source,
+                question_raw=question,
+                latency_breakdown=breakdown,
+                provider_used=None,
+            )
+        except Exception:
+            pass
 
         if isinstance(e, GeneratorModelError):
             raise HTTPException(
@@ -720,6 +785,11 @@ async def ask_question(request: AskRequest):
         answer_lower = result["answer"].strip().lower()
         if any(phrase in answer_lower for phrase in _sentinel_phrases):
             result["grounded"] = False
+            # Spec 088: Flag sentinel detection for the classifier
+            diagnostic.setdefault("grounding", {})["sentinel_phrase_detected"] = True
+            diagnostic.setdefault("grounding", {})["sentinel_match"] = next(
+                (p for p in _sentinel_phrases if p in answer_lower), None
+            )
 
     result.setdefault("provider_used", "local")
     result.setdefault("fallback_used", False)
@@ -740,6 +810,21 @@ async def ask_question(request: AskRequest):
             pass
 
     result.pop("_fallback_info", None)
+
+    # Spec 088: Persist diagnostic entry (fire-and-forget)
+    try:
+        schedule_persist(
+            diagnostic=diagnostic,
+            answer=result.get("answer", ""),
+            grounded=result.get("grounded", False),
+            user_email=request.user_email,
+            source=request.source,
+            question_raw=question,
+            latency_breakdown=result.get("latency_breakdown", {}),
+            provider_used=result.get("provider_used"),
+        )
+    except Exception:
+        pass
 
     return result
 
