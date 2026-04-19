@@ -671,6 +671,21 @@ async def ask_question(request: AskRequest):
         result["latency_breakdown"] = breakdown
 
     except manual_rag_service.EmbedderUnavailableError:
+        try:
+            breakdown["total_ms"] = round((time.perf_counter() - _req_start) * 1000)
+            diagnostic.setdefault("grounding", {})["pipeline_error"] = "EmbedderUnavailableError"
+            schedule_persist(
+                diagnostic=diagnostic,
+                answer=None,
+                grounded=False,
+                user_email=request.user_email,
+                source=request.source,
+                question_raw=question,
+                latency_breakdown=breakdown,
+                provider_used=None,
+            )
+        except Exception:
+            pass
         raise HTTPException(
             status_code=504,
             detail={
@@ -679,6 +694,21 @@ async def ask_question(request: AskRequest):
             },
         )
     except manual_rag_service.GeneratorUnavailableError:
+        try:
+            breakdown["total_ms"] = round((time.perf_counter() - _req_start) * 1000)
+            diagnostic.setdefault("grounding", {})["pipeline_error"] = "GeneratorUnavailableError"
+            schedule_persist(
+                diagnostic=diagnostic,
+                answer=None,
+                grounded=False,
+                user_email=request.user_email,
+                source=request.source,
+                question_raw=question,
+                latency_breakdown=breakdown,
+                provider_used=None,
+            )
+        except Exception:
+            pass
         raise HTTPException(
             status_code=504,
             detail={
