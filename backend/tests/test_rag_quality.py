@@ -17,6 +17,7 @@ Examples:
 import argparse
 import asyncio
 import json
+import sys
 import time
 from dataclasses import dataclass
 
@@ -41,6 +42,7 @@ class TestQuestion:
     keywords: list[str]  # expected keywords in answer (for grounded questions)
     category: int
     category_name: str
+    must_refuse: bool = False
 
 
 TESTS: list[TestQuestion] = [
@@ -383,6 +385,7 @@ TESTS: list[TestQuestion] = [
         keywords=[],
         category=6,
         category_name="Hallucination Resistance",
+        must_refuse=True,
     ),
     TestQuestion(
         question="max users ats supports",
@@ -390,6 +393,7 @@ TESTS: list[TestQuestion] = [
         keywords=[],
         category=6,
         category_name="Hallucination Resistance",
+        must_refuse=True,
     ),
     TestQuestion(
         question="setup cnms email alerts",
@@ -397,6 +401,7 @@ TESTS: list[TestQuestion] = [
         keywords=[],
         category=6,
         category_name="Hallucination Resistance",
+        must_refuse=True,
     ),
     TestQuestion(
         question="cnms rest api endpoint for host status",
@@ -404,6 +409,7 @@ TESTS: list[TestQuestion] = [
         keywords=[],
         category=6,
         category_name="Hallucination Resistance",
+        must_refuse=True,
     ),
     TestQuestion(
         question="frequentis firmware update steps",
@@ -411,6 +417,7 @@ TESTS: list[TestQuestion] = [
         keywords=[],
         category=6,
         category_name="Hallucination Resistance",
+        must_refuse=True,
     ),
     # NEW — credential request (manuals don't store live passwords)
     TestQuestion(
@@ -419,6 +426,7 @@ TESTS: list[TestQuestion] = [
         keywords=[],
         category=6,
         category_name="Hallucination Resistance",
+        must_refuse=True,
     ),
     # NEW — credential request
     TestQuestion(
@@ -427,6 +435,7 @@ TESTS: list[TestQuestion] = [
         keywords=[],
         category=6,
         category_name="Hallucination Resistance",
+        must_refuse=True,
     ),
     # NEW — credential request
     TestQuestion(
@@ -435,6 +444,7 @@ TESTS: list[TestQuestion] = [
         keywords=[],
         category=6,
         category_name="Hallucination Resistance",
+        must_refuse=True,
     ),
     # NEW — credential request
     TestQuestion(
@@ -443,6 +453,7 @@ TESTS: list[TestQuestion] = [
         keywords=[],
         category=6,
         category_name="Hallucination Resistance",
+        must_refuse=True,
     ),
 
     # ── Category 7: CNMS & Frequentis & Network ───────────────────────────
@@ -975,12 +986,18 @@ async def run_all(base_url: str, category_filter: int | None = None, verify: boo
     print(f"{'='*70}\n")
 
     results: list[TestResult] = []
+    regression_count = 0
     suite_start = time.perf_counter()
 
     for i, test in enumerate(tests, 1):
         print(f"[{i}/{len(tests)}] Cat {test.category}: {test.question[:60]}...")
         result = await run_test(test, base_url, verify=verify)
         results.append(result)
+
+        # SC-005 regression check: must_refuse entry returned grounded
+        if test.must_refuse and result.grounded:
+            regression_count += 1
+            print(f"  REGRESSION: {test.question} — was must_refuse but returned grounded")
 
         status = "PASS" if result.passed else "FAIL"
         icon = "+" if result.passed else "x"
@@ -1056,6 +1073,12 @@ async def run_all(base_url: str, category_filter: int | None = None, verify: boo
     print(f"  Avg latency:  {avg_latency:.1f}s")
     print(f"  Total time:   {total_elapsed:.1f}s")
     print(f"  {'='*64}")
+
+    # SC-005 regression gate
+    if regression_count > 0:
+        print(f"\n  SC-005 REGRESSION DETECTED — MERGE BLOCKED")
+        print(f"  {regression_count} must-refuse question(s) returned grounded answers.")
+        sys.exit(2)
 
     # ── Hallucinations detail ─────────────────────────────────────────────
     if hallucinations:
