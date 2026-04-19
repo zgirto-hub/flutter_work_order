@@ -39,6 +39,8 @@ CREATE INDEX IF NOT EXISTS rag_diagnostic_log_created_at_idx
 
 ALTER TABLE rag_diagnostic_log ENABLE ROW LEVEL SECURITY;
 
+-- Idempotent policy creation: drop-and-recreate so repeat applies succeed.
+DROP POLICY IF EXISTS rag_diagnostic_log_admin_select ON rag_diagnostic_log;
 CREATE POLICY rag_diagnostic_log_admin_select ON rag_diagnostic_log
     FOR SELECT
     USING (auth.jwt() ->> 'role' = 'admin');
@@ -47,6 +49,15 @@ CREATE POLICY rag_diagnostic_log_admin_select ON rag_diagnostic_log
 -- Refused/errored entries: 30 days
 -- Grounded entries: 7 days
 CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+-- Idempotent schedule: unschedule existing job by name (if any) before re-registering,
+-- otherwise cron.schedule inserts a duplicate row and fires the prune twice daily.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'rag-diagnostic-prune') THEN
+        PERFORM cron.unschedule('rag-diagnostic-prune');
+    END IF;
+END $$;
 
 SELECT cron.schedule(
     'rag-diagnostic-prune',
