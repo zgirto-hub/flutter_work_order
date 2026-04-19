@@ -96,6 +96,7 @@ class AskRequest(BaseModel):
     model: Optional[str] = None
     history: List[HistoryTurn] = []
     session_summary: Optional[str] = None
+    source: Optional[Literal["user", "test_suite", "internal"]] = "user"
 
 
 @router.get("/manuals/models")
