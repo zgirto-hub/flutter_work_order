@@ -615,7 +615,7 @@ async def ask_question(request: AskRequest):
         schedule_persist(
             diagnostic={},
             answer=TRIVIAL_INPUT_REPLY,
-            grounded=False,
+            grounded=True,
             user_email=request.user_email,
             source=request.source,
             question_raw=question,
