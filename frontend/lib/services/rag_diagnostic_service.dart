@@ -28,7 +28,7 @@ class RagDiagnosticService {
     final params = <String, String>{
       'limit': limit.toString(),
       'offset': offset.toString(),
-      'user_email': Uri.encodeComponent(userEmail),
+      'user_email': userEmail,
     };
     if (source != null) params['source'] = source;
     if (decision != null) params['decision'] = decision;
@@ -51,7 +51,7 @@ class RagDiagnosticService {
   }
 
   Future<RagDiagnosticEntry> fetchDetail(String id, {required String userEmail}) async {
-    final uri = Uri.parse('$_baseUrl/admin/rag-diagnostics/$id').replace(queryParameters: {'user_email': Uri.encodeComponent(userEmail)});
+    final uri = Uri.parse('$_baseUrl/admin/rag-diagnostics/$id').replace(queryParameters: {'user_email': userEmail});
     final resp = await http.get(uri, headers: _headers());
 
     if (resp.statusCode == 404) throw Exception('Diagnostic entry not found');
