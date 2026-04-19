@@ -1670,8 +1670,10 @@ async def _generate_qa_candidates_impl(
             "Given these manual excerpts, generate ONE practical question a "
             "maintenance technician would realistically ask, and a clear "
             "step-by-step answer grounded ONLY in the provided text. Never "
-            "add information not present in the excerpts. Return JSON only — "
-            'no preamble, no markdown:\n'
+            "add information not present in the excerpts. Write the question "
+            "and answer in English only — if the source text is in another "
+            "language (e.g. Arabic), translate the technical content into "
+            "English. Return JSON only — no preamble, no markdown:\n"
             '{"question": "...", "answer": "..."}\n\n'
             f"Manual excerpts:\n{batch_content[:2000]}"
         )
