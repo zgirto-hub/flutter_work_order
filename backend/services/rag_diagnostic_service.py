@@ -28,24 +28,11 @@ def classify_reason_code(
         if answer is None or (isinstance(answer, str) and answer.strip() == ""):
             return ("error", "pipeline_error", "Pipeline raised an exception or produced no answer")
 
-        answer_lower = answer.strip().lower()
-        sentinel_detected = diagnostic.get("grounding", {}).get("sentinel_phrase_detected", False)
-
         retrieval = diagnostic.get("retrieval", {})
         candidates = retrieval.get("candidates") if isinstance(retrieval, dict) else None
 
         if candidates is not None and len(candidates) == 0:
             return ("ungrounded", "no_chunks_retrieved", "Hybrid search returned zero candidates")
-        if sentinel_detected or any(p in answer_lower for p in _SENTINEL_PHRASES):
-            rerank = diagnostic.get("rerank", {})
-            top_score = rerank.get("top_score") if isinstance(rerank, dict) else None
-            threshold = rerank.get("threshold_applied") if isinstance(rerank, dict) else None
-            if candidates is not None and len(candidates) > 0:
-                note = f"Generator refused despite {len(candidates)} candidate(s)"
-                if top_score is not None:
-                    note += f"; top rerank={top_score}"
-                return ("ungrounded", "generator_refused_with_chunks", note)
-            return ("ungrounded", "generator_refused_with_chunks", "Generator refused with no retrieved chunks")
 
         rerank = diagnostic.get("rerank", {})
         top_score = rerank.get("top_score") if isinstance(rerank, dict) else None
@@ -56,6 +43,17 @@ def classify_reason_code(
                 "rerank_below_threshold",
                 f"Top rerank score {top_score:.2f} below threshold {threshold:.2f}",
             )
+
+        answer_lower = answer.strip().lower()
+        sentinel_detected = diagnostic.get("grounding", {}).get("sentinel_phrase_detected", False)
+        if sentinel_detected or any(p in answer_lower for p in _SENTINEL_PHRASES):
+            if candidates is not None and len(candidates) > 0:
+                note = f"Generator refused despite {len(candidates)} candidate(s)"
+                if top_score is not None:
+                    note += f"; top rerank={top_score}"
+                return ("ungrounded", "generator_refused_with_chunks", note)
+            return ("ungrounded", "generator_refused_with_chunks", "Generator refused with no retrieved chunks")
+
         return ("ungrounded", "generator_refused_with_chunks", "Ungrounded but no single refusal trigger identified")
 
     if diagnostic.get("grounding", {}).get("verbatim_match"):
