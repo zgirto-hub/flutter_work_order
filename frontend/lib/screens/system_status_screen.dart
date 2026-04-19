@@ -1244,6 +1244,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                       ..._history.map(
                         (r) => _HistoryCard(
                           report: r,
+                          onTap: () => _showIssueDetailsSheet(r),
                           onEdit: () => _showEditIssueSheet(r),
                           onDelete: () => _confirmDelete(r),
                         ),
@@ -1345,11 +1346,13 @@ class _SystemCard extends StatelessWidget {
 
 class _HistoryCard extends StatelessWidget {
   final SystemStatusReport report;
+  final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _HistoryCard({
     required this.report,
+    required this.onTap,
     required this.onEdit,
     required this.onDelete,
   });
@@ -1357,7 +1360,10 @@ class _HistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isResolved = report.isResolved;
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 5),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
@@ -1497,6 +1503,7 @@ class _HistoryCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
