@@ -130,6 +130,21 @@ class SystemStatusService {
     return SystemStatusReport.fromJson(data['report']);
   }
 
+  Future<void> unresolveIssue({required String reportId}) async {
+    final res = await http.patch(
+      Uri.parse('${AppConfig.baseUrl}/system-status/$reportId/unresolve'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (res.statusCode == 409) {
+      throw Exception(
+          'Another unresolved issue already exists for this system on that date');
+    }
+    if (res.statusCode != 200) {
+      throw Exception('Failed to reopen issue');
+    }
+  }
+
   Future<void> deleteIssue({required String reportId}) async {
     final res = await http.delete(
       Uri.parse('${AppConfig.baseUrl}/system-status/$reportId'),
