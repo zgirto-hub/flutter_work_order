@@ -293,6 +293,10 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
   // ── Issue Details ─────────────────────────────────────────────────────────
 
   void _showIssueDetailsSheet(SystemStatusReport report) {
+    final isResolved = report.isResolved;
+    final dotColor = isResolved
+        ? const Color(0xFF15803D)
+        : const Color(0xFFB91C1C);
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.bgSurface,
@@ -310,8 +314,8 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                 Container(
                   width: 10,
                   height: 10,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFB91C1C),
+                  decoration: BoxDecoration(
+                    color: dotColor,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -339,6 +343,16 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                   ? report.reportedByName
                   : report.reportedBy,
             ),
+            if (isResolved) ...[
+              _detailRow(
+                'Resolved on',
+                report.resolvedAt!.split('T').first,
+              ),
+              if (report.resolvedNotes.isNotEmpty)
+                _detailRow('Resolve comment', report.resolvedNotes),
+              if ((report.resolvedBy ?? '').isNotEmpty)
+                _detailRow('Resolved by', report.resolvedBy!),
+            ],
             const SizedBox(height: 20),
             // Action buttons row
             Row(
@@ -383,26 +397,47 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Resolve button
+                // Resolve / Unresolve button
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _showResolveSheet(report);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF15803D),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text(
-                      'Resolve',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
+                  child: isResolved
+                      ? OutlinedButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _confirmUnresolve(report);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFD97706),
+                            side: const BorderSide(color: Color(0xFFD97706)),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'Unresolve',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        )
+                      : ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _showResolveSheet(report);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF15803D),
+                            foregroundColor: Colors.white,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'Resolve',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -410,6 +445,45 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _confirmUnresolve(SystemStatusReport report) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reopen issue?'),
+        content: Text(
+          'Reopen ${report.assetName != null ? '${report.systemName} \u{2192} ${report.assetName}' : report.systemName} on ${report.reportDate}? The resolve date and comment will be cleared.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFD97706),
+            ),
+            child: const Text('Unresolve'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _service.unresolveIssue(reportId: report.id);
+      if (!mounted) return;
+      _load();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Issue reopened')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$e')));
+    }
   }
 
   // ── Resolve Issue ─────────────────────────────────────────────────────────

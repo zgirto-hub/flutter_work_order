@@ -287,6 +287,63 @@ async def resolve_issue(report_id: str, body: ResolveIssueBody):
     return {"report": updated}
 
 
+@router.patch("/system-status/{report_id}/unresolve")
+async def unresolve_issue(report_id: str):
+    """Reopen a resolved issue by clearing its resolution fields."""
+    existing = (
+        supabase.table("system_status_reports")
+        .select("id, resolved_at, report_date, system_id, asset_id")
+        .eq("id", report_id)
+        .execute()
+    )
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Report not found")
+    existing_report = existing.data[0]
+    if not existing_report.get("resolved_at"):
+        raise HTTPException(status_code=400, detail="Issue is not resolved")
+
+    dup = (
+        supabase.table("system_status_reports")
+        .select("id, asset_id")
+        .eq("system_id", existing_report["system_id"])
+        .eq("report_date", existing_report["report_date"])
+        .is_("resolved_at", "null")
+        .neq("id", report_id)
+        .execute()
+    )
+    asset_id = existing_report.get("asset_id")
+    conflicts = [
+        r for r in (dup.data or [])
+        if (asset_id is None and r.get("asset_id") is None)
+        or r.get("asset_id") == asset_id
+    ]
+    if conflicts:
+        raise HTTPException(
+            status_code=409,
+            detail="Another unresolved issue already exists for this system on that date",
+        )
+
+    result = (
+        supabase.table("system_status_reports")
+        .update(
+            {
+                "resolved_at": None,
+                "resolved_by": None,
+                "resolved_notes": "",
+            }
+        )
+        .eq("id", report_id)
+        .execute()
+    )
+
+    updated = result.data[0] if result.data else None
+    if updated:
+        asset_ids = [updated["asset_id"]] if updated.get("asset_id") else []
+        assets_by_id = await _fetch_assets_by_id(asset_ids)
+        await _attach_asset_name(updated, assets_by_id)
+    return {"report": updated}
+
+
 @router.put("/system-status/{report_id}")
 async def update_issue(report_id: str, body: UpdateIssueBody):
     """Update an issue's notes and/or date."""
