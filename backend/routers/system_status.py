@@ -1,3 +1,4 @@
+from collections import Counter
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
@@ -21,6 +22,7 @@ async def _get_active_systems():
 
 class ReportIssueBody(BaseModel):
     system_name: str
+    asset_id: Optional[str] = None
     report_date: str  # YYYY-MM-DD
     notes: Optional[str] = ""
     reported_by: str
@@ -37,6 +39,24 @@ class ResolveIssueBody(BaseModel):
     resolved_by: str
     resolved_notes: Optional[str] = ""
     resolved_at: Optional[str] = None
+
+
+async def _attach_asset_name(report: dict, assets_by_id: dict) -> dict:
+    asset_id = report.get("asset_id")
+    report["asset_name"] = assets_by_id.get(asset_id) if asset_id else None
+    return report
+
+
+async def _fetch_assets_by_id(asset_ids: list[str]) -> dict[str, str]:
+    if not asset_ids:
+        return {}
+    result = (
+        supabase.table("assets")
+        .select("id, name")
+        .in_("id", asset_ids)
+        .execute()
+    )
+    return {r["id"]: r["name"] for r in (result.data or [])}
 
 
 @router.get("/system-status/today")
@@ -59,16 +79,30 @@ async def get_today_status(target_date: Optional[str] = Query(None)):
         .is_("resolved_at", "null")
         .execute()
     )
-    active_reports = {r["system_id"]: r for r in (result.data or [])}
+    rows = result.data or []
+
+    system_level = {r["system_id"]: r for r in rows if r.get("asset_id") is None}
+    asset_counts_by_system: dict[str, int] = {}
+    for r in rows:
+        if r.get("asset_id") is not None:
+            sid = r["system_id"]
+            asset_counts_by_system[sid] = asset_counts_by_system.get(sid, 0) + 1
+
+    assets_by_id = await _fetch_assets_by_id(
+        [r["asset_id"] for r in rows if r.get("asset_id")]
+    )
 
     systems = []
     for sys in systems_list:
-        report = active_reports.get(sys["id"])
+        report = system_level.get(sys["id"])
+        enriched = await _attach_asset_name(report, assets_by_id) if report else None
         systems.append(
             {
+                "system_id": sys["id"],
                 "system_name": sys["name"],
                 "status": "issue" if report else "operational",
-                "active_report": report,
+                "active_report": enriched,
+                "asset_issues_count": asset_counts_by_system.get(sys["id"], 0),
             }
         )
 
@@ -83,7 +117,7 @@ async def get_history(
     """Get issue history, optionally filtered by system."""
     query = (
         supabase.table("system_status_reports")
-        .select("*, systems(name)")
+        .select("*, systems(name), assets(name)")
         .order("created_at", desc=True)
         .limit(limit)
     )
@@ -102,11 +136,17 @@ async def get_history(
     result = query.execute()
     reports = result.data or []
 
+    asset_ids = [r["asset_id"] for r in reports if r.get("asset_id")]
+    assets_by_id = await _fetch_assets_by_id(asset_ids)
+
     for r in reports:
         if "systems" in r and r["systems"]:
             r["system_name"] = r["systems"]["name"]
         if "systems" in r:
             del r["systems"]
+        if "assets" in r:
+            del r["assets"]
+        await _attach_asset_name(r, assets_by_id)
 
     return {"reports": reports}
 
@@ -123,6 +163,30 @@ async def report_issue(body: ReportIssueBody):
         )
     system_id = sys_lookup.data[0]["id"]
 
+    asset_name = None
+    if body.asset_id:
+        asset_lookup = (
+            supabase.table("assets").select("id, name").eq("id", body.asset_id).execute()
+        )
+        if not asset_lookup.data:
+            raise HTTPException(
+                status_code=400, detail=f"Unknown asset: {body.asset_id}"
+            )
+        asset_name = asset_lookup.data[0]["name"]
+
+        link_lookup = (
+            supabase.table("asset_system_links")
+            .select("id")
+            .eq("system_id", system_id)
+            .eq("asset_id", body.asset_id)
+            .execute()
+        )
+        if not link_lookup.data:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Asset {asset_name} is not linked to system {body.system_name}",
+            )
+
     existing = (
         supabase.table("system_status_reports")
         .select("id")
@@ -131,23 +195,35 @@ async def report_issue(body: ReportIssueBody):
         .is_("resolved_at", "null")
         .execute()
     )
-    if existing.data:
-        raise HTTPException(
-            status_code=409,
-            detail=f"An unresolved issue already exists for {body.system_name} on {body.report_date}",
+    if body.asset_id:
+        existing = [
+            r for r in existing.data
+            if r.get("asset_id") == body.asset_id or r.get("asset_id") is None
+        ]
+    else:
+        existing = [r for r in existing.data if r.get("asset_id") is None]
+
+    if existing:
+        msg = (
+            f"An unresolved issue already exists for {asset_name or body.system_name} on {body.report_date}"
+            if body.asset_id
+            else f"An unresolved issue already exists for {body.system_name} on {body.report_date}"
         )
+        raise HTTPException(status_code=409, detail=msg)
+
+    insert_payload = {
+        "system_id": system_id,
+        "report_date": body.report_date,
+        "notes": body.notes or "",
+        "reported_by": body.reported_by,
+        "reported_by_name": body.reported_by_name or "",
+    }
+    if body.asset_id:
+        insert_payload["asset_id"] = body.asset_id
 
     result = (
         supabase.table("system_status_reports")
-        .insert(
-            {
-                "system_id": system_id,
-                "report_date": body.report_date,
-                "notes": body.notes or "",
-                "reported_by": body.reported_by,
-                "reported_by_name": body.reported_by_name or "",
-            }
-        )
+        .insert(insert_payload)
         .execute()
     )
 
@@ -155,6 +231,7 @@ async def report_issue(body: ReportIssueBody):
         raise HTTPException(status_code=500, detail="Failed to create report")
 
     result.data[0]["system_name"] = body.system_name
+    await _attach_asset_name(result.data[0], {body.asset_id: asset_name} if asset_name else {})
     return {"report": result.data[0]}
 
 
@@ -163,7 +240,7 @@ async def resolve_issue(report_id: str, body: ResolveIssueBody):
     """Mark an issue as resolved."""
     existing = (
         supabase.table("system_status_reports")
-        .select("id, resolved_at, report_date")
+        .select("id, resolved_at, report_date, asset_id")
         .eq("id", report_id)
         .execute()
     )
@@ -202,7 +279,12 @@ async def resolve_issue(report_id: str, body: ResolveIssueBody):
         .execute()
     )
 
-    return {"report": result.data[0] if result.data else None}
+    updated = result.data[0] if result.data else None
+    if updated:
+        asset_ids = [updated["asset_id"]] if updated.get("asset_id") else []
+        assets_by_id = await _fetch_assets_by_id(asset_ids)
+        await _attach_asset_name(updated, assets_by_id)
+    return {"report": updated}
 
 
 @router.put("/system-status/{report_id}")
@@ -224,6 +306,7 @@ async def update_issue(report_id: str, body: UpdateIssueBody):
         else ""
     )
     system_id = old_report.get("system_id")
+    old_asset_id = old_report.get("asset_id")
 
     updates = {}
     if body.notes is not None:
@@ -232,14 +315,18 @@ async def update_issue(report_id: str, body: UpdateIssueBody):
         if body.report_date != old_report["report_date"]:
             dup = (
                 supabase.table("system_status_reports")
-                .select("id")
+                .select("id, asset_id")
                 .eq("system_id", system_id)
                 .eq("report_date", body.report_date)
                 .is_("resolved_at", "null")
                 .neq("id", report_id)
                 .execute()
             )
-            if dup.data:
+            if old_asset_id:
+                dup = [r for r in dup.data if r.get("asset_id") == old_asset_id]
+            else:
+                dup = [r for r in dup.data if r.get("asset_id") is None]
+            if dup:
                 raise HTTPException(
                     status_code=409,
                     detail=f"An unresolved issue already exists for {system_name} on {body.report_date}",
@@ -277,8 +364,12 @@ async def update_issue(report_id: str, body: UpdateIssueBody):
     )
 
     updated = result.data[0] if result.data else None
-    if updated and system_name:
-        updated["system_name"] = system_name
+    if updated:
+        if system_name:
+            updated["system_name"] = system_name
+        asset_ids = [updated["asset_id"]] if updated.get("asset_id") else []
+        assets_by_id = await _fetch_assets_by_id(asset_ids)
+        await _attach_asset_name(updated, assets_by_id)
     return {"report": updated}
 
 
@@ -371,11 +462,87 @@ async def get_uptime_report(
 
     report_data = []
     for sn in systems_to_check:
+        sid = system_ids[sn]
         days_with_issues = len(issues_by_system.get(sn, set()))
         downtime_pct = (
             round((days_with_issues / total_days) * 100, 1) if total_days > 0 else 0
         )
         uptime_pct = round(100 - downtime_pct, 1)
+
+        asset_links_result = (
+            supabase.table("asset_system_links")
+            .select("asset_id, role, site")
+            .eq("system_id", sid)
+            .execute()
+        )
+        asset_links = asset_links_result.data or []
+        asset_ids = [l["asset_id"] for l in asset_links]
+        assets_by_id = await _fetch_assets_by_id(asset_ids)
+
+        if not asset_ids:
+            report_data.append(
+                {
+                    "system_name": sn,
+                    "total_days": total_days,
+                    "days_with_issues": days_with_issues,
+                    "uptime_pct": uptime_pct,
+                    "downtime_pct": downtime_pct,
+                    "assets": [],
+                }
+            )
+            continue
+
+        asset_reports_result = (
+            supabase.table("system_status_reports")
+            .select("asset_id, report_date, resolved_at")
+            .eq("system_id", sid)
+            .in_("asset_id", asset_ids)
+            .lte("report_date", end_date)
+            .or_(f"resolved_at.gte.{start_date},resolved_at.is.null")
+            .execute()
+        )
+        asset_reports = asset_reports_result.data or []
+
+        issues_by_asset: dict[str, set[date]] = {}
+        for r in asset_reports:
+            aid = r.get("asset_id")
+            if not aid:
+                continue
+            if aid not in issues_by_asset:
+                issues_by_asset[aid] = set()
+            issue_start = max(date.fromisoformat(r["report_date"]), sd)
+            if r.get("resolved_at"):
+                resolved_date = date.fromisoformat(r["resolved_at"][:10])
+                issue_end = min(resolved_date, ed)
+            else:
+                issue_end = min(date.today(), ed)
+            d = issue_start
+            while d <= issue_end:
+                issues_by_asset[aid].add(d)
+                d += timedelta(days=1)
+
+        asset_uptime_list = []
+        for link in asset_links:
+            aid = link["asset_id"]
+            a_days_with_issues = len(issues_by_asset.get(aid, set()))
+            a_downtime_pct = (
+                round((a_days_with_issues / total_days) * 100, 1)
+                if total_days > 0
+                else 0
+            )
+            asset_uptime_list.append(
+                {
+                    "asset_id": aid,
+                    "asset_name": assets_by_id.get(aid),
+                    "role": link.get("role", ""),
+                    "site": link.get("site", ""),
+                    "total_days": total_days,
+                    "days_with_issues": a_days_with_issues,
+                    "uptime_pct": round(100 - a_downtime_pct, 1),
+                    "downtime_pct": a_downtime_pct,
+                }
+            )
+
         report_data.append(
             {
                 "system_name": sn,
@@ -383,7 +550,73 @@ async def get_uptime_report(
                 "days_with_issues": days_with_issues,
                 "uptime_pct": uptime_pct,
                 "downtime_pct": downtime_pct,
+                "assets": asset_uptime_list,
             }
         )
 
     return {"start_date": start_date, "end_date": end_date, "systems": report_data}
+
+
+@router.get("/system-status/systems/{system_id}/assets")
+async def get_system_assets(system_id: str):
+    """Return assets linked to a system with their current status."""
+    sys_lookup = (
+        supabase.table("systems").select("id, name").eq("id", system_id).execute()
+    )
+    if not sys_lookup.data:
+        raise HTTPException(status_code=404, detail="System not found")
+    system_name = sys_lookup.data[0]["name"]
+
+    links_result = (
+        supabase.table("asset_system_links")
+        .select("asset_id, role, site, assets(name)")
+        .eq("system_id", system_id)
+        .execute()
+    )
+    links = links_result.data or []
+
+    asset_ids = [link["asset_id"] for link in links]
+    assets_by_id = await _fetch_assets_by_id(asset_ids)
+
+    if not asset_ids:
+        return {"system_id": system_id, "system_name": system_name, "assets": []}
+
+    open_reports_result = (
+        supabase.table("system_status_reports")
+        .select("*")
+        .eq("system_id", system_id)
+        .is_("resolved_at", "null")
+        .in_("asset_id", asset_ids)
+        .order("created_at", desc=False)
+        .execute()
+    )
+    open_reports = open_reports_result.data or []
+    oldest_open: dict[str, dict] = {}
+    for r in open_reports:
+        aid = r.get("asset_id")
+        if aid and aid not in oldest_open:
+            oldest_open[aid] = r
+
+    for r in open_reports:
+        await _attach_asset_name(r, assets_by_id)
+
+    role_order = {"primary": 0, "standby": 1, "client": 2}
+    assets = []
+    for link in sorted(
+        links,
+        key=lambda l: (role_order.get(l.get("role", ""), 3), assets_by_id.get(l["asset_id"], "")),
+    ):
+        aid = link["asset_id"]
+        active = oldest_open.get(aid)
+        assets.append(
+            {
+                "asset_id": aid,
+                "asset_name": assets_by_id.get(aid),
+                "role": link.get("role", ""),
+                "site": link.get("site", ""),
+                "status": "issue" if active else "operational",
+                "active_report": active,
+            }
+        )
+
+    return {"system_id": system_id, "system_name": system_name, "assets": assets}
