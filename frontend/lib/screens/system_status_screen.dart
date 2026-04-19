@@ -1391,8 +1391,28 @@ class _HistoryCard extends StatelessWidget {
                 Row(
                   children: [
                     Flexible(
-                      child: Text(
-                        report.systemName,
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(text: report.systemName),
+                            if ((report.assetName ?? '').isNotEmpty) ...[
+                              TextSpan(
+                                text: '  ·  ',
+                                style: TextStyle(
+                                  color: AppColors.textTertiary,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                              TextSpan(
+                                text: report.assetName,
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
