@@ -25,6 +25,19 @@ def classify_reason_code(
     answer: Optional[str],
     grounded: bool,
 ) -> tuple[str, str, str]:
+    # Spec 090 hotfix — defense in depth: if the caller claims grounded=True
+    # but the answer text actually contains a refusal sentinel, flip to ungrounded.
+    # This catches streaming-path bugs (fixed separately in manuals.py) and any
+    # future caller that forgets to run the sentinel override before us.
+    if grounded and isinstance(answer, str) and answer.strip():
+        _sp_lower = answer.strip().lower()
+        if any(p in _sp_lower for p in _SENTINEL_PHRASES):
+            grounded = False
+            diagnostic.setdefault("grounding", {})["sentinel_phrase_detected"] = True
+            diagnostic.setdefault("grounding", {})["sentinel_match"] = next(
+                (p for p in _SENTINEL_PHRASES if p in _sp_lower), None
+            )
+
     if not grounded:
         if answer is None or (isinstance(answer, str) and answer.strip() == ""):
             return ("error", "pipeline_error", "Pipeline raised an exception or produced no answer")
