@@ -139,20 +139,21 @@ Append immediately after the ANSWERING RULES block. **Source 3 of the 4 examples
 
 Query `validated_qa` for 3 rows that together cover the three target patterns:
 
-1. **Terse procedural question** — informal phrasing, multi-step answer (e.g., password reset, disk cleanup, restart procedure). Prefer a row where `question_text` is ≤ 10 words and `answer_text` has 3+ numbered steps.
+1. **Terse procedural question** — informal phrasing, multi-step answer (e.g., password reset, disk cleanup, restart procedure). Prefer a row where `question_text` is ≤ 10 words and `validated_answer` has 3+ numbered steps.
 2. **Partial-information question** — question asks for a value, answer references where the value lives without stating it (e.g., "credentials documented in site password sheet"). This teaches the model to flag gaps instead of inventing.
 3. **Paraphrased / alias-heavy question** — question uses acronyms or shorthand (ATS, pw, cmd); answer resolves to the formal system name in the manual. This teaches alias bridging.
 
 Preference order when choosing the 3 rows:
-- Highest `approval_count` (most-validated)
+- Highest `(thumbs_up_count - thumbs_down_count)` (most-validated net score)
 - Then most recent `created_at`
-- Manually confirm each row's `answer_text` does NOT begin with "This information is not in the available manuals" (those rows are not instructive)
+- Exclude any row where `is_reflagged = TRUE`
+- Manually confirm each row's `validated_answer` does NOT begin with any of `_NOT_FOUND_KNOWLEDGE_BASE`, `_NOT_FOUND_MANUALS`, or `_NOT_FOUND_KNOWLEDGE_BASE_AR` (those rows are refusal-shaped and not instructive)
 
 Record the chosen `validated_qa.id` values in the PR description for traceability.
 
 #### 5.2.2 Example block shape
 
-Format each example as literal Q/Chunks/A triples. **The A: field must be the exact `answer_text` from `validated_qa`** (verbatim, including any source citation it already has). The Q: field is the `question_text` from the same row. The Chunks: field is a 1-line summary of the manual section(s) the row's answer draws from — implementer writes this summary from the chunk retrieval results for that question (may be approximated).
+Format each example as literal Q/Chunks/A triples. **The A: field must be the exact `validated_answer` from `validated_qa`** (verbatim, including any source citation it already has). The Q: field is the `question_text` from the same row. The Chunks: field is a 1-line summary of the manual section(s) the row's answer draws from — implementer writes this summary from the chunk retrieval results for that question (may be approximated).
 
 Concrete block:
 

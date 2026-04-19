@@ -111,6 +111,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-19
 - Supabase (PostgreSQL). Existing `system_status_reports`, `systems`, `assets`, `asset_system_links` tables. One migration adds `asset_id` column + adjusts partial unique index on `system_status_reports`. (086-per-asset-status)
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, web target) + FastAPI, Supabase Python client, existing `services.manual_rag_service`, existing `services.agentic_tools`, existing `utils.activity.log_activity` (backend); `http`, `supabase_flutter`, Flutter Material (frontend). **No new dependencies on either side.** (088-rag-refusal-diagnostic)
 - Supabase (PostgreSQL) — one new table `rag_diagnostic_log` with JSONB payload columns for per-stage data. One migration. Existing `user_activity_log` gets a short heartbeat row per diagnostic write. (088-rag-refusal-diagnostic)
+- Python 3.10 (backend only — no Flutter/Dart changes this spec) + FastAPI (existing), Supabase Python client (existing), `services.ai_providers.resolver` (spec 063, existing), `services.manual_rag_service.DOCUMENT_QA_SYSTEM_PROMPT` (existing, target of edit), `services.ollama_generator` (existing). **No new dependencies.** (089-generator-prompt-tuning)
+- Supabase (PostgreSQL + pgvector). Existing `validated_qa` table (spec 083) read-only for few-shot sourcing. Existing `rag_diagnostic_log` table (spec 088) read-only for SC-007 verification. **No schema changes, no migrations.** (089-generator-prompt-tuning)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -133,9 +135,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 089-generator-prompt-tuning: Added Python 3.10 (backend only — no Flutter/Dart changes this spec) + FastAPI (existing), Supabase Python client (existing), `services.ai_providers.resolver` (spec 063, existing), `services.manual_rag_service.DOCUMENT_QA_SYSTEM_PROMPT` (existing, target of edit), `services.ollama_generator` (existing). **No new dependencies.**
 - 088-rag-refusal-diagnostic: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, web target) + FastAPI, Supabase Python client, existing `services.manual_rag_service`, existing `services.agentic_tools`, existing `utils.activity.log_activity` (backend); `http`, `supabase_flutter`, Flutter Material (frontend). **No new dependencies on either side.**
 - 086-per-asset-status: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, web target) + FastAPI, Supabase Python client (backend, existing); `http`, `fl_chart`, `supabase_flutter`, Flutter Material (frontend, existing). **No new dependencies on either side.**
-- 083-verbatim-verified-answers: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, primarily web target) + FastAPI, Supabase Python client, existing `services.manual_rag_service`, existing `services.validated_qa_service`, existing `utils.activity.log_activity`, existing `services.ai_providers.resolver` (touched only to **not** invoke on verbatim path). Flutter Material. **No new dependencies.**
 
 
 <!-- MANUAL ADDITIONS START -->
