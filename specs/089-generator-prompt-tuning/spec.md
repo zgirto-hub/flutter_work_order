@@ -1,7 +1,18 @@
 # Spec 089 — Generator Prompt Tuning (RAG Over-Refusal Fix)
 
 ## Status
-`DRAFT — awaiting clarifications`
+`CLARIFIED — ready for /speckit.plan`
+
+---
+
+## Clarifications
+
+### Session 2026-04-19
+- Q: Generator model target (Gemma vs. Gemini vs. model-neutral)? → A: Model-neutral — prompt targets the active provider from `services.ai_providers.resolver`; validation uses whichever provider that returns at runtime.
+- Q: Few-shot example content authenticity (invented vs. verified vs. validated_qa)? → A: Source few-shot examples from existing `validated_qa` rows (human-verified via spec 083 verbatim path); zero fabrication risk, authentic training signal.
+- Q: Should `rag_diagnostic_log` reason-code drop be a hard SC or advisory? → A: Hard tertiary SC (SC-007) — `generator_refused_with_chunks` post-run ≤ 15 on the 87-question test_suite run; catches silent deployment / prompt-caching bugs that aggregate score can mask.
+- Q: Where does the SC-005 must-refuse assertion script live? → A: Extend `test_rag_quality.py` with a `must_refuse: true` flag on specific entries; keeps merge-blocking pass/fail logic co-located with the existing suite.
+- Q: Iteration cap exit path (3 iterations without meeting floors)? → A: Revert the branch and immediately spin up spec 090 (acronym expansion); residual bottleneck after prompt tuning is almost certainly query-side vocabulary mismatch, not further prompt-level work.
 
 ---
 
@@ -41,6 +52,7 @@ Rewrite the generator prompt so Gemma synthesizes answers from retrieved chunks 
 | SC-004 | Cat 12 Paraphrased | ≥ 4/8 | 6/8 |
 | SC-005 | Must-refuse regression (§6.3) | 0 violations | — |
 | SC-006 | No new hallucinations | 0 new Cat 6 failures | — |
+| SC-007 | `rag_diagnostic_log` causal signal (§6.5) | `generator_refused_with_chunks` ≤ 15 on the post-run test_suite batch | ≤ 8 |
 
 **Merge gate: all floors must be green simultaneously.** If any floor is red, iterate — do not ship.
 
@@ -53,6 +65,10 @@ Rewrite the generator prompt so Gemma synthesizes answers from retrieved chunks 
 
 **Possibly also:**
 - `backend/services/ollama_generator.py` — if the grounded-answer prompt also lives here
+
+### 3.2 Model-neutrality constraint
+
+The prompt is consumed via `services.ai_providers.resolver` (spec 063), which may return Gemma 4 E2B, Gemini, or a future provider depending on `app_settings.ai_provider`. The rewritten prompt **MUST be phrased in a model-neutral way** — no Gemma-specific or Gemini-specific phrasing (e.g., no "<bos>"-style tokens, no Gemini-specific "I'll help you with..." preambles). Validation runs the 87-question suite against whichever provider the resolver returns at the time of test; drift across providers is acceptable as long as all SC floors are met.
 
 ### 3.1 Required first step (mandatory before editing)
 
@@ -115,46 +131,58 @@ chunk says and flag the gap verbatim:
 the system directly or the site password sheet."
 ```
 
-### 5.2 Add few-shot examples (literal answer format)
+### 5.2 Add few-shot examples (sourced from `validated_qa`)
 
-Append immediately after the ANSWERING RULES block. Use actual-answer format, not meta-commentary:
+Append immediately after the ANSWERING RULES block. **Source 3 of the 4 examples from existing `validated_qa` rows** (human-verified accurate answers via spec 083 verbatim path) — do NOT invent procedure content. The 4th example (the must-refuse case) is synthetic because no `validated_qa` row will exist for genuinely unanswerable questions.
+
+#### 5.2.1 Selection protocol
+
+Query `validated_qa` for 3 rows that together cover the three target patterns:
+
+1. **Terse procedural question** — informal phrasing, multi-step answer (e.g., password reset, disk cleanup, restart procedure). Prefer a row where `question_text` is ≤ 10 words and `answer_text` has 3+ numbered steps.
+2. **Partial-information question** — question asks for a value, answer references where the value lives without stating it (e.g., "credentials documented in site password sheet"). This teaches the model to flag gaps instead of inventing.
+3. **Paraphrased / alias-heavy question** — question uses acronyms or shorthand (ATS, pw, cmd); answer resolves to the formal system name in the manual. This teaches alias bridging.
+
+Preference order when choosing the 3 rows:
+- Highest `approval_count` (most-validated)
+- Then most recent `created_at`
+- Manually confirm each row's `answer_text` does NOT begin with "This information is not in the available manuals" (those rows are not instructive)
+
+Record the chosen `validated_qa.id` values in the PR description for traceability.
+
+#### 5.2.2 Example block shape
+
+Format each example as literal Q/Chunks/A triples. **The A: field must be the exact `answer_text` from `validated_qa`** (verbatim, including any source citation it already has). The Q: field is the `question_text` from the same row. The Chunks: field is a 1-line summary of the manual section(s) the row's answer draws from — implementer writes this summary from the chunk retrieval results for that question (may be approximated).
+
+Concrete block:
 
 ```
 EXAMPLES
 ========
 
-Q: lost ats admin pw, how to reset
-Chunks: [Section "CADAS-ATS Administrator Password Lost" — shows the
-admin-console reset procedure with 4 steps.]
-A: To reset a lost CADAS-ATS administrator password:
-1. Open the admin console as a secondary admin or via recovery login.
-2. Navigate to User Management → Administrators.
-3. Select the locked admin account and click Reset Password.
-4. Enter a new password meeting the complexity policy and save.
-(Source: CADAS-ATS Administrator Guide, "Administrator Password Lost")
+Q: <validated_qa row 1, question_text — terse procedural>
+Chunks: [<1-line summary of source manual section>]
+A: <validated_qa row 1, answer_text — verbatim>
 
-Q: aida disk full, how to free space
-Chunks: [AIDA-NG maintenance section on /var partition with cleanup
-steps: rotate logs, clear temp files, archive old reports.]
-A: When AIDA-NG reports disk full (typically /var at high usage):
-1. Rotate system logs via the maintenance utility.
-2. Clear /var/tmp of files older than 7 days.
-3. Archive reports older than the retention window to the backup volume.
-(Source: AIDA-NG Maintenance Guide, "Disk Space Management")
+Q: <validated_qa row 2, question_text — partial-info / gap-flagging>
+Chunks: [<1-line summary of source manual section>]
+A: <validated_qa row 2, answer_text — verbatim>
 
-Q: amhs router login credentials
-Chunks: [Router management section with IP address 10.x.x.x and VNC
-access method, but NO passwords listed.]
-A: The AMHS router is reachable at the management IP documented in
-Section X via VNC. The manual references this but does not specify
-the password — consult the system directly or the site password sheet.
-(Source: AMHS Router Management Guide)
+Q: <validated_qa row 3, question_text — paraphrased / alias-heavy>
+Chunks: [<1-line summary of source manual section>]
+A: <validated_qa row 3, answer_text — verbatim>
 
 Q: best practices for cloud database scaling
 Chunks: [CADAS-ATS and AIDA-NG maintenance procedures — unrelated to
 cloud databases.]
 A: This information is not in the available manuals.
 ```
+
+The 4th example is synthetic and remains as shown — it teaches the refusal-on-genuinely-unrelated-topic behavior that no `validated_qa` row can demonstrate.
+
+#### 5.2.3 Fallback if `validated_qa` has insufficient rows
+
+If fewer than 3 `validated_qa` rows meet the above selection criteria at implementation time, halt and flag for re-scoping — the prompt landing depends on an authentic training signal. Do NOT substitute invented examples; raise with the spec owner to decide between (a) curating `validated_qa` first, or (b) deferring 089 behind a corpus/curation prerequisite.
 
 ### 5.3 Preserve unchanged
 
@@ -197,9 +225,50 @@ These questions MUST remain `ungrounded` because the required data is NOT in the
 | `ats vs ims admin, what's the difference` | Only refuse if both topics absent from chunks |
 | Any question where chunks truly don't contain an answer | Prompt must preserve genuine refusal |
 
-Script this as a post-run assertion — fail if any of these comes back with `grounded=True`.
+**Implementation:** extend `backend/tests/test_rag_quality.py` with a new per-entry flag:
 
-### 6.4 Iteration protocol
+```python
+{
+    "question": "amhs router login credentials",
+    "expected": "ungrounded",
+    "must_refuse": True,  # NEW — hard-fails the run if answer flips to grounded
+    "category": "Hallucination Resistance",
+    ...
+}
+```
+
+Assertion in the test runner: for any entry with `must_refuse=True`, if the response comes back `grounded=True`, log it as a **REGRESSION** (distinct from ordinary FAILURE) and cause the script to exit with non-zero status after the summary block. This makes CI / manual runs fail-loud rather than requiring human eyeballing of the results file.
+
+Minimum `must_refuse: true` entries to flag at implementation time:
+- All Cat 6 (Hallucination Resistance) entries — they already exist as `expected: ungrounded`; just promote them
+- `amhs router login credentials` specifically (was the one hallucinating in the 2026-04-19 baseline)
+
+### 6.4 Causal-signal verification (SC-007)
+
+Immediately after each suite run, query `rag_diagnostic_log` for the run's reason-code distribution:
+
+```sql
+SELECT reason_code, COUNT(*) AS n
+FROM rag_diagnostic_log
+WHERE source = 'test_suite'
+  AND created_at > now() - INTERVAL '2 hours'
+GROUP BY reason_code
+ORDER BY n DESC;
+```
+
+**Baseline (pre-089, from 2026-04-19 run):**
+- `generator_refused_with_chunks`: 50
+- `rerank_below_threshold`: 7
+- `no_chunks_retrieved`: 1
+- `grounded_answer`: 29
+
+**Merge floor:** `generator_refused_with_chunks` ≤ 15 (≥ 70% reduction). Stretch: ≤ 8.
+
+If aggregate score improves but `generator_refused_with_chunks` does not drop materially → the prompt change did NOT actually take effect on the runtime path. Likely causes: deployment missed a restart, provider caching, wrong prompt file edited. Debug before merge.
+
+Record the post-run distribution in the PR description alongside the SC table.
+
+### 6.5 Iteration protocol
 
 After each iteration, compare to all 6 SCs:
 
@@ -207,7 +276,7 @@ After each iteration, compare to all 6 SCs:
 - **Cat 6 < 8/9** → prompt too loose. Strengthen `NEVER INVENT` (add "re-read chunks before asserting a value"). Re-run. Do NOT weaken ANSWERING RULES.
 - **Overall < 48/87** → prompt too tight. Soften the "partial information" clause with an additional few-shot. Re-run.
 - **Must-refuse violation** → prompt too loose on credentials specifically. Add explicit "never synthesize credentials" to NEVER INVENT. Re-run.
-- **≥ 3 iterations without reaching all floors** → stop, flag as needing a different approach (e.g., move to spec 090 acronym expansion first), do not ship.
+- **≥ 3 iterations without reaching all floors** → **revert the branch** (`git checkout main && git branch -D 089-generator-prompt-tuning`) and **immediately scaffold spec 090** (query-time acronym expansion + rewrite-prompt edit). Rationale: after 3 prompt iterations, the remaining failures are almost certainly vocabulary-mismatch on retrieval, not generator-side caution; 090 is the right lever. Do not ship a half-fix of 089.
 
 ---
 
@@ -252,7 +321,7 @@ Residual risks:
 
 ## 10. Definition of Done
 
-- [ ] All 6 SC floors green on a single suite run
+- [ ] All 7 SC floors green on a single suite run (SC-001 through SC-007)
 - [ ] PR description contains current-prompt quote + diff + results JSON + SC pass table
 - [ ] Claude Code / CodeRabbit review passed
 - [ ] No `AI_ASSISTANT_FEATURES.md` changes needed (prompt tuning is behavioral, not architectural)
