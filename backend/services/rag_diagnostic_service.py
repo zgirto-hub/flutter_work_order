@@ -1,5 +1,6 @@
 import asyncio
 import sys
+import time
 import uuid
 from collections import deque
 from datetime import datetime, timezone
@@ -89,9 +90,6 @@ def get_failure_stats() -> dict:
         "in_process_write_failures_last_hour": len(_write_failure_timestamps),
         "last_successful_write_at": _last_successful_write_at.isoformat() if _last_successful_write_at else None,
     }
-
-
-import time
 
 
 def schedule_persist(
