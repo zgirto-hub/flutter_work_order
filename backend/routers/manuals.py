@@ -10,14 +10,14 @@ from fastapi import (
     Query,
     BackgroundTasks,
 )
-from typing import Optional, List
+from typing import Literal, Optional, List
 from uuid import UUID
 import os
 import re
 import uuid
 import math
 import json
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from db import supabase
 from utils.activity import log_activity
 import services.manual_rag_service as manual_rag_service
@@ -803,6 +803,47 @@ async def rate_answer(request: RateAnswerRequest):
             pass
 
         return {"id": rating_id, "status": "saved"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail={"error": "save_failed", "message": str(e)}
+        )
+
+
+class RatingFeedbackRequest(BaseModel):
+    feedback_reason: Literal[
+        "inaccurate", "incomplete", "outdated", "wrong_source", "unclear"
+    ]
+    feedback_comment: Optional[str] = Field(None, max_length=2000)
+    user_email: str
+
+
+@router.patch("/manuals/ratings/{rating_id}/feedback")
+async def patch_rating_feedback(rating_id: str, request: RatingFeedbackRequest):
+    try:
+        result = validated_qa_service.update_rating_feedback(
+            rating_id=rating_id,
+            reason=request.feedback_reason,
+            comment=request.feedback_comment,
+            user_email=request.user_email,
+        )
+        return {
+            "status": "saved",
+            "rating_id": rating_id,
+            "feedback_reason": result["feedback_reason"],
+            "feedback_comment": result["feedback_comment"],
+        }
+    except validated_qa_service.RatingNotFound:
+        raise HTTPException(
+            status_code=404, detail={"error": "rating_not_found"}
+        )
+    except validated_qa_service.NotOwner:
+        raise HTTPException(
+            status_code=403, detail={"error": "not_owner"}
+        )
+    except validated_qa_service.NotNegativeRating:
+        raise HTTPException(
+            status_code=400, detail={"error": "not_negative_rating"}
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500, detail={"error": "save_failed", "message": str(e)}
