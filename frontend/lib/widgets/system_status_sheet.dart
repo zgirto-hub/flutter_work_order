@@ -53,6 +53,7 @@ class _SystemStatusSheetState extends State<SystemStatusSheet> {
         _response = data;
         _loading = false;
       });
+      widget.onChange?.call();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -115,7 +116,6 @@ class _SystemStatusSheetState extends State<SystemStatusSheet> {
               child: _SystemLevelSection(
                 system: widget.system,
                 onReportIssue: widget.onReportSystemIssue,
-                onShowDetails: widget.onShowIssueDetails,
                 onEdit: widget.onEditIssue,
                 onResolve: widget.onResolveIssue,
                 onDelete: widget.onDeleteIssue,
@@ -174,7 +174,6 @@ class _SystemStatusSheetState extends State<SystemStatusSheet> {
 class _SystemLevelSection extends StatelessWidget {
   final SystemStatus system;
   final VoidCallback onReportIssue;
-  final void Function(SystemStatusReport) onShowDetails;
   final void Function(SystemStatusReport) onEdit;
   final void Function(SystemStatusReport) onResolve;
   final void Function(SystemStatusReport) onDelete;
@@ -182,7 +181,6 @@ class _SystemLevelSection extends StatelessWidget {
   const _SystemLevelSection({
     required this.system,
     required this.onReportIssue,
-    required this.onShowDetails,
     required this.onEdit,
     required this.onResolve,
     required this.onDelete,
@@ -197,7 +195,6 @@ class _SystemLevelSection extends StatelessWidget {
           _IssueDetailCard(
             label: 'System-level issue',
             report: system.activeReport!,
-            onShowDetails: () => onShowDetails(system.activeReport!),
             onEdit: () => onEdit(system.activeReport!),
             onResolve: () => onResolve(system.activeReport!),
             onDelete: () => onDelete(system.activeReport!),
@@ -229,7 +226,6 @@ class _SystemLevelSection extends StatelessWidget {
 class _IssueDetailCard extends StatelessWidget {
   final String label;
   final SystemStatusReport report;
-  final VoidCallback onShowDetails;
   final VoidCallback onEdit;
   final VoidCallback onResolve;
   final VoidCallback onDelete;
@@ -237,7 +233,6 @@ class _IssueDetailCard extends StatelessWidget {
   const _IssueDetailCard({
     required this.label,
     required this.report,
-    required this.onShowDetails,
     required this.onEdit,
     required this.onResolve,
     required this.onDelete,

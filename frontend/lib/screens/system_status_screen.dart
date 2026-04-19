@@ -1723,9 +1723,7 @@ class _SystemUptimeCard extends StatelessWidget {
               ),
             )
           else
-            ...report.assets
-                .toList()
-                .reversed
+            ...([...report.assets]..sort((a, b) => a.uptimePct.compareTo(b.uptimePct)))
                 .map((a) => _AssetUptimeRow(asset: a)),
         ],
       ),
