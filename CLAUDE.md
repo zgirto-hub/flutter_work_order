@@ -107,6 +107,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-18
 - Supabase (PostgreSQL) — existing `answer_ratings`, `validated_qa` tables. No schema changes. (082-delete-ai-ratings)
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, primarily web target) + FastAPI, Supabase Python client, existing `services.manual_rag_service`, existing `services.validated_qa_service`, existing `utils.activity.log_activity`, existing `services.ai_providers.resolver` (touched only to **not** invoke on verbatim path). Flutter Material. **No new dependencies.** (083-verbatim-verified-answers)
 - Supabase (PostgreSQL with pgvector) — existing `validated_qa` and `user_activity_log` tables. **No schema changes, no migrations.** (083-verbatim-verified-answers)
+- Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, web target) + FastAPI, Supabase Python client (backend, existing); `http`, `fl_chart`, `supabase_flutter`, Flutter Material (frontend, existing). **No new dependencies on either side.** (086-per-asset-status)
+- Supabase (PostgreSQL). Existing `system_status_reports`, `systems`, `assets`, `asset_system_links` tables. One migration adds `asset_id` column + adjusts partial unique index on `system_status_reports`. (086-per-asset-status)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -129,9 +131,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 086-per-asset-status: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, web target) + FastAPI, Supabase Python client (backend, existing); `http`, `fl_chart`, `supabase_flutter`, Flutter Material (frontend, existing). **No new dependencies on either side.**
 - 083-verbatim-verified-answers: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend, primarily web target) + FastAPI, Supabase Python client, existing `services.manual_rag_service`, existing `services.validated_qa_service`, existing `utils.activity.log_activity`, existing `services.ai_providers.resolver` (touched only to **not** invoke on verbatim path). Flutter Material. **No new dependencies.**
 - 082-delete-ai-ratings: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend); `http`, `supabase_flutter`, Flutter Material, `shared_preferences` (existing) (frontend)
-- 080-train-ai-tab: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, supabase_flutter, Flutter Material (frontend)
 
 
 <!-- MANUAL ADDITIONS START -->
