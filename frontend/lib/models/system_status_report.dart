@@ -115,12 +115,14 @@ class SystemAssetsResponse {
 }
 
 class SystemStatus {
+  final String systemId;
   final String systemName;
   final String status;
   final SystemStatusReport? activeReport;
   final int assetIssuesCount;
 
   const SystemStatus({
+    required this.systemId,
     required this.systemName,
     required this.status,
     this.activeReport,
@@ -129,6 +131,7 @@ class SystemStatus {
 
   factory SystemStatus.fromJson(Map<String, dynamic> json) {
     return SystemStatus(
+      systemId: json['system_id'] ?? '',
       systemName: json['system_name'] ?? '',
       status: json['status'] ?? 'operational',
       activeReport: json['active_report'] != null

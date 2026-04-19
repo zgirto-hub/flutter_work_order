@@ -95,9 +95,10 @@ async def get_today_status(target_date: Optional[str] = Query(None)):
     systems = []
     for sys in systems_list:
         report = system_level.get(sys["id"])
-        enriched = await _attach_asset_name(report, assets_by_id) if report else {"asset_id": None, "asset_name": None}
+        enriched = await _attach_asset_name(report, assets_by_id) if report else None
         systems.append(
             {
+                "system_id": sys["id"],
                 "system_name": sys["name"],
                 "status": "issue" if report else "operational",
                 "active_report": enriched,
@@ -478,6 +479,19 @@ async def get_uptime_report(
         asset_ids = [l["asset_id"] for l in asset_links]
         assets_by_id = await _fetch_assets_by_id(asset_ids)
 
+        if not asset_ids:
+            report_data.append(
+                {
+                    "system_name": sn,
+                    "total_days": total_days,
+                    "days_with_issues": days_with_issues,
+                    "uptime_pct": uptime_pct,
+                    "downtime_pct": downtime_pct,
+                    "assets": [],
+                }
+            )
+            continue
+
         asset_reports_result = (
             supabase.table("system_status_reports")
             .select("asset_id, report_date, resolved_at")
@@ -563,6 +577,9 @@ async def get_system_assets(system_id: str):
 
     asset_ids = [link["asset_id"] for link in links]
     assets_by_id = await _fetch_assets_by_id(asset_ids)
+
+    if not asset_ids:
+        return {"system_id": system_id, "system_name": system_name, "assets": []}
 
     open_reports_result = (
         supabase.table("system_status_reports")

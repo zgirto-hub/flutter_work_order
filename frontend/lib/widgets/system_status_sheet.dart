@@ -47,7 +47,7 @@ class _SystemStatusSheetState extends State<SystemStatusSheet> {
       _error = null;
     });
     try {
-      final data = await _service.fetchSystemAssets(systemId: widget.system.systemName);
+      final data = await _service.fetchSystemAssets(systemId: widget.system.systemId);
       if (!mounted) return;
       setState(() {
         _response = data;
