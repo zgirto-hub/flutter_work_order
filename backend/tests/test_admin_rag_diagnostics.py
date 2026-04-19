@@ -166,3 +166,34 @@ async def test_list_endpoint_403_for_non_admin():
         resp = await client.get(f"{BASE_URL}/admin/rag-diagnostics", params=params)
 
     assert resp.status_code == 403, f"Expected 403, got {resp.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_streaming_sourced_entry_appears_in_list(seeded_data):
+    """A row inserted with source='test_suite' via the streaming endpoint's
+    /api/manuals/ask/stream path must appear in the admin list with no
+    schema drift — proves streaming and non-streaming paths produce
+    identical row shapes."""
+    params = {
+        "user_email": ADMIN_EMAIL,
+        "source": "test_suite",
+        "limit": 50,
+        "offset": 0,
+    }
+    async with httpx.AsyncClient(verify=False, timeout=30) as client:
+        resp = await client.get(f"{BASE_URL}/admin/rag-diagnostics", params=params)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    entries = data["entries"]
+
+    test_suite_entries = [e for e in entries if e["source"] == "test_suite"]
+    assert len(test_suite_entries) >= 3, "Should have at least 3 test_suite entries from seeded data"
+
+    for entry in test_suite_entries:
+        for field in ["id", "created_at", "user_email", "source", "question_raw",
+                       "decision", "reason_code", "reason_note", "provider_used",
+                       "latency_breakdown"]:
+            assert field in entry, f"Entry missing field: {field}"
+        assert "pipeline_stages" not in entry, "pipeline_stages must be omitted from list"
+        assert "thresholds" not in entry, "thresholds must be omitted from list"

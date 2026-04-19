@@ -362,8 +362,33 @@ async def ask_question_stream(request: AskRequest):
 
     _req_start = time.perf_counter()
 
+    # Spec 088: per-request diagnostic dict
+    diagnostic: dict = {}
+
     if TRIVIAL_INPUT_PATTERN.match(question):
         total_ms = round((time.perf_counter() - _req_start) * 1000)
+        trivial_breakdown = {
+            "embed_ms": None,
+            "hyde_ms": None,
+            "rewrite_ms": None,
+            "retrieval_ms": None,
+            "rerank_ms": None,
+            "generator_ms": None,
+            "total_ms": total_ms,
+        }
+        try:
+            schedule_persist(
+                diagnostic={},
+                answer=TRIVIAL_INPUT_REPLY,
+                grounded=True,
+                user_email=request.user_email,
+                source=request.source,
+                question_raw=question,
+                latency_breakdown=trivial_breakdown,
+                provider_used=None,
+            )
+        except Exception:
+            pass
         return EventSourceResponse(
             _trivial_stream_response(question, request.user_email, total_ms),
             media_type="text/event-stream",
@@ -399,9 +424,45 @@ async def ask_question_stream(request: AskRequest):
                 session_summary=request.session_summary,
                 user_email=request.user_email,
                 latency_breakdown=breakdown,
+                diagnostic=diagnostic,
             )
             breakdown["total_ms"] = round((time.perf_counter() - _req_start) * 1000)
             result["latency_breakdown"] = breakdown
+
+            # Spec 088: Sentinel-phrase override (mirrors non-streaming path)
+            if result.get("grounded") and result.get("answer"):
+                from services.manual_rag_service import (
+                    _NOT_FOUND_KNOWLEDGE_BASE,
+                    _NOT_FOUND_MANUALS,
+                    _NOT_FOUND_KNOWLEDGE_BASE_AR,
+                )
+                _sentinel_phrases_stream = [
+                    _NOT_FOUND_KNOWLEDGE_BASE.lower(),
+                    _NOT_FOUND_MANUALS.lower(),
+                    _NOT_FOUND_KNOWLEDGE_BASE_AR,
+                ]
+                answer_lower_stream = result["answer"].strip().lower()
+                if any(phrase in answer_lower_stream for phrase in _sentinel_phrases_stream):
+                    result["grounded"] = False
+                    diagnostic.setdefault("grounding", {})["sentinel_phrase_detected"] = True
+                    diagnostic.setdefault("grounding", {})["sentinel_match"] = next(
+                        (p for p in _sentinel_phrases_stream if p in answer_lower_stream), None
+                    )
+
+            # Spec 088: Persist diagnostic for agentic path (fire-and-forget)
+            try:
+                schedule_persist(
+                    diagnostic=diagnostic,
+                    answer=result.get("answer", ""),
+                    grounded=result.get("grounded", False),
+                    user_email=request.user_email,
+                    source=request.source,
+                    question_raw=question,
+                    latency_breakdown=breakdown,
+                    provider_used=result.get("provider_used"),
+                )
+            except Exception:
+                pass
 
             async def agentic_event_gen():
                 yield {"data": result["answer"]}
@@ -429,6 +490,7 @@ async def ask_question_stream(request: AskRequest):
                     user_email=request.user_email,
                     latency_breakdown=breakdown,
                     stream_meta=stream_meta,
+                    diagnostic=diagnostic,
                 ):
                     token_count += 1
                     yield {"data": token}
@@ -492,10 +554,56 @@ async def ask_question_stream(request: AskRequest):
                     "retrieval_info": stream_meta.get("retrieval_info"),
                 }
 
+                # Spec 088: Sentinel-phrase override for streaming path
+                if result.get("grounded") and result.get("answer"):
+                    from services.manual_rag_service import (
+                        _NOT_FOUND_KNOWLEDGE_BASE as _NFKB_S,
+                        _NOT_FOUND_MANUALS as _NFM_S,
+                        _NOT_FOUND_KNOWLEDGE_BASE_AR as _NFKB_AR_S,
+                    )
+                    _sp_lower = result["answer"].strip().lower()
+                    _sp_list = [_NFKB_S.lower(), _NFM_S.lower(), _NFKB_AR_S]
+                    if any(phrase in _sp_lower for phrase in _sp_list):
+                        result["grounded"] = False
+                        diagnostic.setdefault("grounding", {})["sentinel_phrase_detected"] = True
+                        diagnostic.setdefault("grounding", {})["sentinel_match"] = next(
+                            (p for p in _sp_list if p in _sp_lower), None
+                        )
+
+                # Spec 088: Persist diagnostic for streaming path (fire-and-forget)
+                try:
+                    schedule_persist(
+                        diagnostic=diagnostic,
+                        answer=result.get("answer", ""),
+                        grounded=result.get("grounded", False),
+                        user_email=request.user_email,
+                        source=request.source,
+                        question_raw=question,
+                        latency_breakdown=breakdown,
+                        provider_used=result.get("provider_used"),
+                    )
+                except Exception:
+                    pass
+
                 yield {"event": "metadata", "data": json.dumps(result)}
 
             except Exception as e:
                 logger.error(f"Streaming error: {e}")
+                try:
+                    diagnostic.setdefault("grounding", {})["pipeline_error"] = str(e)[:200]
+                    breakdown["total_ms"] = round((time.perf_counter() - _req_start) * 1000)
+                    schedule_persist(
+                        diagnostic=diagnostic,
+                        answer=None,
+                        grounded=False,
+                        user_email=request.user_email,
+                        source=request.source,
+                        question_raw=question,
+                        latency_breakdown=breakdown,
+                        provider_used=None,
+                    )
+                except Exception:
+                    pass
                 error_data = {
                     "error": "stream_failed",
                     "message": str(e),
@@ -507,6 +615,21 @@ async def ask_question_stream(request: AskRequest):
 
     except Exception as e:
         logger.error(f"SSE endpoint error: {e}")
+        try:
+            diagnostic.setdefault("grounding", {})["pipeline_error"] = str(e)[:200]
+            breakdown["total_ms"] = round((time.perf_counter() - _req_start) * 1000)
+            schedule_persist(
+                diagnostic=diagnostic,
+                answer=None,
+                grounded=False,
+                user_email=request.user_email,
+                source=request.source,
+                question_raw=question,
+                latency_breakdown=breakdown,
+                provider_used=None,
+            )
+        except Exception:
+            pass
         error_data = {
             "error": "stream_failed",
             "message": str(e),

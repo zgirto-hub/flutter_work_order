@@ -770,6 +770,7 @@ async def ask_stream(
     user_email: str | None = None,
     latency_breakdown: dict | None = None,
     stream_meta: dict | None = None,
+    diagnostic: dict | None = None,
 ) -> AsyncIterator[str]:
     """Streaming version of ask() — runs the full RAG pipeline, then streams generation.
 
@@ -930,11 +931,11 @@ async def ask_stream(
 
         async def _timed_rewrite():
             with _StageTimer(breakdown, "rewrite_ms"):
-                return await _rewrite_query(question, history)
+                return await _rewrite_query(question, history, diagnostic=diagnostic)
 
         async def _timed_hyde():
             with _StageTimer(breakdown, "hyde_ms"):
-                return await _generate_hypothetical_answer(question)
+                return await _generate_hypothetical_answer(question, diagnostic=diagnostic)
 
         rewrite_result, hyde_result = await asyncio.gather(
             _timed_rewrite(), _timed_hyde(), return_exceptions=True,
@@ -945,7 +946,7 @@ async def ask_stream(
             _parallel_hyde_text = hyde_result
     elif _needs_rewrite:
         with _StageTimer(breakdown, "rewrite_ms"):
-            search_query = await _rewrite_query(question, history)
+            search_query = await _rewrite_query(question, history, diagnostic=diagnostic)
         breakdown["hyde_ms"] = 0
     elif _needs_hyde:
         breakdown["rewrite_ms"] = 0
@@ -1057,7 +1058,7 @@ async def ask_stream(
             _layer2_hyde_text = _parallel_hyde_text
         elif _needs_hyde:
             with _StageTimer(breakdown, "hyde_ms"):
-                _layer2_hyde_text = await _generate_hypothetical_answer(search_query)
+                _layer2_hyde_text = await _generate_hypothetical_answer(search_query, diagnostic=diagnostic)
         else:
             _layer2_hyde_text = None
             if breakdown.get("hyde_ms") is None:
@@ -1069,6 +1070,26 @@ async def ask_stream(
         embedding_str = "[" + ",".join(str(x) for x in _layer2_embedding) + "]"
 
         chunks_by_doc = await retrieve_chunks_per_document(embedding_str)
+
+        # Spec 088: Record retrieval candidates in diagnostic dict
+        if diagnostic is not None:
+            retrieval_candidates = []
+            total_chunks = 0
+            for doc_id, doc_chunks in chunks_by_doc.items():
+                for c in doc_chunks:
+                    total_chunks += 1
+                    retrieval_candidates.append({
+                        "chunk_id": c.get("id", ""),
+                        "manual_title": c.get("section_title", ""),
+                        "document_name": c.get("document_id", ""),
+                        "score_vector": c.get("similarity", 0),
+                        "score_hybrid": c.get("similarity", 0),
+                        "preview": (c.get("content", "") or "")[:120],
+                    })
+            _record_stage(diagnostic, "retrieval", {
+                "candidates": retrieval_candidates[:10],
+                "k": total_chunks,
+            })
 
         if chunks_by_doc:
             prompt, sources, docs_consulted = build_direct_generation_prompt(
@@ -1102,6 +1123,30 @@ async def ask_stream(
                 "confidence": _confidence,
                 "manuals_consulted": docs_consulted,
             })
+
+            # Spec 088: Record rerank and grounding diagnostic stages for streaming path
+            if diagnostic is not None:
+                all_chunks_flat = [
+                    c for doc_chunks in chunks_by_doc.values() for c in doc_chunks
+                ]
+                scored = sorted(all_chunks_flat, key=lambda c: c.get("similarity", 0), reverse=True)
+                top_score = scored[0].get("similarity", 0) if scored else 0
+                _record_stage(diagnostic, "rerank", {
+                    "scored": [{"chunk_id": c.get("id", ""), "rerank_score": c.get("similarity", 0)} for c in scored[:10]],
+                    "top_score": top_score,
+                    "threshold_applied": MAX_CHUNK_DISTANCE,
+                })
+                _record_stage(diagnostic, "grounding", {
+                    "verbatim_match": False,
+                    "verbatim_top_similarity": top_score,
+                    "sentinel_phrase_detected": False,
+                    "sentinel_match": None,
+                })
+                _record_stage(diagnostic, "generator", {
+                    "produced_answer": True,
+                    "answer_length_chars": 0,
+                    "refused_by_sentinel": False,
+                })
 
             async for token in provider_generate_stream(
                 prompt, [], user_email,
