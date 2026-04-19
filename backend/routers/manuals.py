@@ -476,6 +476,7 @@ async def ask_question_stream(request: AskRequest):
 
         stream_meta: dict = {}
         token_count = 0
+        accumulated_answer_parts: list[str] = []
 
         async def event_gen():
             nonlocal token_count
@@ -493,6 +494,7 @@ async def ask_question_stream(request: AskRequest):
                     diagnostic=diagnostic,
                 ):
                     token_count += 1
+                    accumulated_answer_parts.append(token)
                     yield {"data": token}
 
                 # Handle empty model response (no tokens)
@@ -554,14 +556,23 @@ async def ask_question_stream(request: AskRequest):
                     "retrieval_info": stream_meta.get("retrieval_info"),
                 }
 
+                # Spec 090 hotfix: accumulate streamed tokens into the full answer
+                # text so the sentinel-phrase override + classifier have real content
+                # to inspect. Previously `result` had no "answer" key (tokens were
+                # yielded one at a time and never collected), so the override at
+                # lines below silently did nothing and every streamed refusal was
+                # misclassified as grounded_answer.
+                accumulated_answer = "".join(accumulated_answer_parts)
+                result["answer"] = accumulated_answer
+
                 # Spec 088: Sentinel-phrase override for streaming path
-                if result.get("grounded") and result.get("answer"):
+                if result.get("grounded") and accumulated_answer:
                     from services.manual_rag_service import (
                         _NOT_FOUND_KNOWLEDGE_BASE as _NFKB_S,
                         _NOT_FOUND_MANUALS as _NFM_S,
                         _NOT_FOUND_KNOWLEDGE_BASE_AR as _NFKB_AR_S,
                     )
-                    _sp_lower = result["answer"].strip().lower()
+                    _sp_lower = accumulated_answer.strip().lower()
                     _sp_list = [_NFKB_S.lower(), _NFM_S.lower(), _NFKB_AR_S]
                     if any(phrase in _sp_lower for phrase in _sp_list):
                         result["grounded"] = False
@@ -574,7 +585,7 @@ async def ask_question_stream(request: AskRequest):
                 try:
                     schedule_persist(
                         diagnostic=diagnostic,
-                        answer=result.get("answer", ""),
+                        answer=accumulated_answer,
                         grounded=result.get("grounded", False),
                         user_email=request.user_email,
                         source=request.source,
