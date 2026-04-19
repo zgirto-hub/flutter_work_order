@@ -72,6 +72,7 @@ class RagDiagnosticsTabState extends State<RagDiagnosticsTab> {
     });
     try {
       final (entries, total) = await _service.fetchEntries(
+        userEmail: widget.userEmail,
         source: _sourceFilter,
         decision: _decisionFilter,
         reasonCode: _reasonCodeFilter,
@@ -103,7 +104,7 @@ class RagDiagnosticsTabState extends State<RagDiagnosticsTab> {
       builder: (ctx) => const Center(child: CircularProgressIndicator()),
     );
     try {
-      final detail = await _service.fetchDetail(entry.id);
+      final detail = await _service.fetchDetail(entry.id, userEmail: widget.userEmail);
       if (mounted) {
         Navigator.of(context).pop();
         showAppBottomSheet(
