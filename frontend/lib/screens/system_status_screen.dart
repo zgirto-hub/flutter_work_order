@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../theme/app_theme.dart';
 import '../models/system_status_report.dart';
 import '../services/system_status_service.dart';
+import '../widgets/system_status_sheet.dart';
 
 class SystemStatusScreen extends StatefulWidget {
   const SystemStatusScreen({super.key});
@@ -70,11 +71,58 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
     }
   }
 
-  // ── Report Issue ──────────────────────────────────────────────────────────
+  // ── Report Issue ──────────────────────────────────────────────────────────────
 
-  void _showReportIssueSheet(SystemStatus system) {
-    if (system.hasIssue) {
-      _showIssueDetailsSheet(system);
+  void _showDrillInSheet(SystemStatus system) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgSurface,
+      transitionAnimationController: AnimationController(
+        vsync: Navigator.of(context),
+        duration: const Duration(milliseconds: 350),
+      ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SystemStatusSheet(
+        system: system,
+        onReportSystemIssue: () {
+          Navigator.pop(ctx);
+          _showReportIssueSheet(system);
+        },
+        onShowIssueDetails: (report) {
+          Navigator.pop(ctx);
+          _showIssueDetailsSheet(report);
+        },
+        onEditIssue: (report) {
+          Navigator.pop(ctx);
+          _showEditIssueSheet(report);
+        },
+        onResolveIssue: (report) {
+          Navigator.pop(ctx);
+          _showResolveSheet(report);
+        },
+        onDeleteIssue: (report) {
+          Navigator.pop(ctx);
+          _confirmDelete(report);
+        },
+        onReportAssetIssue: (asset) {
+          Navigator.pop(ctx);
+          _showReportIssueSheet(system, asset: asset);
+        },
+        onChange: _load,
+      ),
+    );
+  }
+
+  void _showReportIssueSheet(SystemStatus system, {AssetStatusEntry? asset}) {
+    if (asset != null && asset.hasIssue) {
+      _showIssueDetailsSheet(asset.activeReport!);
+      return;
+    }
+    if (asset == null && system.hasIssue) {
+      _showIssueDetailsSheet(system.activeReport!);
       return;
     }
 
@@ -100,7 +148,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
             20,
             MediaQuery.of(ctx).viewInsets.bottom + 20,
           ),
-          child: Column(
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -114,7 +162,9 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
               ),
               const SizedBox(height: 4),
               Text(
-                system.systemName,
+                asset != null
+                    ? '${system.systemName} \u{2192} ${asset.assetName}'
+                    : system.systemName,
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 20),
@@ -204,6 +254,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                         notes: notesController.text.trim(),
                         reportedBy: _email,
                         reportedByName: _userName,
+                        assetId: asset?.assetId,
                       );
                       if (!mounted) return;
                       Navigator.pop(ctx);
@@ -241,8 +292,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
 
   // ── Issue Details ─────────────────────────────────────────────────────────
 
-  void _showIssueDetailsSheet(SystemStatus system) {
-    final report = system.activeReport!;
+  void _showIssueDetailsSheet(SystemStatusReport report) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.bgSurface,
@@ -268,7 +318,9 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    system.systemName,
+                    report.assetName != null
+                        ? '${report.systemName} \u{2192} ${report.assetName}'
+                        : report.systemName,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -411,7 +463,9 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
               ),
               const SizedBox(height: 4),
               Text(
-                report.systemName,
+                report.assetName != null
+                    ? '${report.systemName} \u{2192} ${report.assetName}'
+                    : report.systemName,
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 20),
@@ -590,7 +644,9 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
               ),
               const SizedBox(height: 4),
               Text(
-                report.systemName,
+                report.assetName != null
+                    ? '${report.systemName} \u{2192} ${report.assetName}'
+                    : report.systemName,
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 20),
@@ -792,7 +848,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
           ),
         ),
         content: Text(
-          'Delete the issue report for ${report.systemName} on ${report.reportDate}? This cannot be undone.',
+          'Delete the issue report for ${report.assetName != null ? '${report.systemName} \u{2192} ${report.assetName}' : report.systemName} on ${report.reportDate}? This cannot be undone.',
           style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         actions: [
@@ -1094,7 +1150,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                       itemCount: _systems.length,
                       itemBuilder: (context, i) => _SystemCard(
                         system: _systems[i],
-                        onTap: () => _showReportIssueSheet(_systems[i]),
+                        onTap: () => _showDrillInSheet(_systems[i]),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -1143,6 +1199,7 @@ class _SystemCard extends StatelessWidget {
     final isIssue = system.hasIssue;
     final statusColor =
         isIssue ? const Color(0xFFB91C1C) : const Color(0xFF15803D);
+    final badge = system.assetIssuesCount > 0;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1176,6 +1233,24 @@ class _SystemCard extends StatelessWidget {
                 color: statusColor,
               ),
             ),
+            if (badge) ...[
+              const SizedBox(width: 3),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: Text(
+                  '\u{26A0} ${system.assetIssuesCount}',
+                  style: const TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFD97706),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(width: 4),
             Container(
               width: 7,
@@ -1531,78 +1606,196 @@ class _SystemUptimeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.bgSurface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border2, width: 0.5),
+    final allOperational = report.daysWithIssues == 0 &&
+        report.assets.every((a) => a.daysWithIssues == 0);
+
+    return Theme(
+      data: Theme.of(context).copyWith(
+        dividerColor: Colors.transparent,
+        splashColor: Colors.transparent,
       ),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        collapsedIconColor: AppColors.textTertiary,
+        iconColor: AppColors.textSecondary,
+        title: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.bgSurface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.border2, width: 0.5),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 52,
+                height: 52,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    PieChart(
+                      PieChartData(
+                        sectionsSpace: 1,
+                        centerSpaceRadius: 16,
+                        sections: [
+                          PieChartSectionData(
+                            value: report.uptimePct,
+                            color: const Color(0xFF15803D),
+                            radius: 8,
+                            showTitle: false,
+                          ),
+                          PieChartSectionData(
+                            value: report.downtimePct,
+                            color: const Color(0xFFB91C1C),
+                            radius: 8,
+                            showTitle: false,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '${report.uptimePct.toStringAsFixed(0)}%',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      report.systemName,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      report.daysWithIssues == 0
+                          ? 'No issues in ${report.totalDays} days'
+                          : '${report.daysWithIssues} day${report.daysWithIssues > 1 ? 's' : ''} with issues out of ${report.totalDays}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.expand_more,
+                size: 18,
+                color: AppColors.textTertiary,
+              ),
+            ],
+          ),
+        ),
+        children: [
+          if (report.assets.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                'No linked assets',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            )
+          else if (allOperational)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                'All assets operational for the period',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            )
+          else
+            ...report.assets
+                .toList()
+                .reversed
+                .map((a) => _AssetUptimeRow(asset: a)),
+        ],
+      ),
+    );
+  }
+}
+
+class _AssetUptimeRow extends StatelessWidget {
+  final AssetUptimeReport asset;
+
+  const _AssetUptimeRow({required this.asset});
+
+  Color get _severityColor {
+    if (asset.daysWithIssues == 0) return const Color(0xFF15803D);
+    if (asset.uptimePct >= 95.0) return const Color(0xFFD97706);
+    return const Color(0xFFB91C1C);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
-          // Small donut chart
-          SizedBox(
-            width: 52,
-            height: 52,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                PieChart(
-                  PieChartData(
-                    sectionsSpace: 1,
-                    centerSpaceRadius: 16,
-                    sections: [
-                      PieChartSectionData(
-                        value: report.uptimePct,
-                        color: const Color(0xFF15803D),
-                        radius: 8,
-                        showTitle: false,
-                      ),
-                      PieChartSectionData(
-                        value: report.downtimePct,
-                        color: const Color(0xFFB91C1C),
-                        radius: 8,
-                        showTitle: false,
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  '${report.uptimePct.toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
+          Container(
+            width: 4,
+            height: 36,
+            decoration: BoxDecoration(
+              color: _severityColor,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 8),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: _severityColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  report.systemName,
+                  asset.assetName,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 3),
                 Text(
-                  report.daysWithIssues == 0
-                      ? 'No issues in ${report.totalDays} days'
-                      : '${report.daysWithIssues} day${report.daysWithIssues > 1 ? 's' : ''} with issues out of ${report.totalDays}',
+                  '${asset.role} · ${asset.site}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10,
                     color: AppColors.textSecondary,
                   ),
                 ),
               ],
+            ),
+          ),
+          Text(
+            '${asset.uptimePct.toStringAsFixed(1)}%',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _severityColor,
             ),
           ),
         ],
