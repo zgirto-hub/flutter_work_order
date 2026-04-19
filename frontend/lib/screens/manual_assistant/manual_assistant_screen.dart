@@ -8,6 +8,8 @@ import 'alerts_tab.dart';
 import 'verified_answers_tab.dart';
 import 'documents_tab.dart';
 import 'train_ai_tab.dart';
+import 'rag_diagnostics_tab.dart';
+import '../../services/rag_diagnostic_service.dart';
 
 class ManualAssistantScreen extends StatefulWidget {
   final String userRole;
@@ -32,7 +34,7 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
     super.initState();
     _isAdmin = widget.userRole == 'admin';
     _userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
-    _tabController = TabController(length: _isAdmin ? 7 : 1, vsync: this);
+    _tabController = TabController(length: _isAdmin ? 8 : 1, vsync: this);
 
     if (_isAdmin) {
       _loadFlaggedCount();
@@ -158,6 +160,17 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
                   ],
                 ),
               ),
+            if (_isAdmin)
+              Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.analytics_outlined, size: 18),
+                    SizedBox(width: 4),
+                    Text('RAG Logs'),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -176,6 +189,7 @@ class _ManualAssistantScreenState extends State<ManualAssistantScreen>
           if (_isAdmin) VerifiedAnswersTab(userEmail: _userEmail),
           if (_isAdmin) DocumentsTab(userEmail: _userEmail),
           if (_isAdmin) TrainAiTab(userEmail: _userEmail, service: _service),
+            if (_isAdmin) RagDiagnosticsTab(userEmail: _userEmail, service: RagDiagnosticService()),
         ],
       ),
     );
