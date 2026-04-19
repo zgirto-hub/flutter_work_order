@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 const _colorInaccurate = Color(0xFFE57373);
 const _colorIncomplete = Color(0xFFFFB74D);
 const _colorOutdated = Color(0xFFFFCA28);
-const _colorWrongSource = Color(0xFFBA68C8);
+const _colorWrongSource = Color(0xFF7E57C2);
 const _colorUnclear = Color(0xFF90A4AE);
 
 enum FeedbackReason {
