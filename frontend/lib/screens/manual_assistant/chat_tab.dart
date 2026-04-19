@@ -7,6 +7,7 @@ import '../../services/manual_assistant_service.dart';
 import '../../services/ai_provider_service.dart';
 import '../../widgets/ai_provider_chip.dart';
 import 'widgets/answer_card.dart';
+import 'widgets/feedback_reason_sheet.dart';
 
 class ChatMessage {
   final String question;
@@ -243,6 +244,29 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
       setState(() {
         _messages[messageIndex] = _messages[messageIndex].copyWith(ratingId: ratingId);
       });
+
+      if (rating == 'negative' && mounted) {
+        final result = await FeedbackReasonSheet.show(context);
+        if (result != null) {
+          try {
+            await _service.saveFeedback(
+              ratingId: ratingId,
+              feedbackReason: result.reason,
+              userEmail: email,
+              feedbackComment: result.comment,
+            );
+          } catch (_) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Could not save feedback'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          }
+        }
+      }
 
       final prefs = await SharedPreferences.getInstance();
       final hintKey = 'rating_undo_hint_shown_$email';

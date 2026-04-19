@@ -14,6 +14,18 @@ REFLAG_THRESHOLD = 0.30
 REFLAG_MIN_TOTAL = 3
 _ALLOWED_SORTS = {"recent", "most_used", "most_problematic"}
 
+
+class RatingNotFound(Exception):
+    pass
+
+
+class NotOwner(Exception):
+    pass
+
+
+class NotNegativeRating(Exception):
+    pass
+
 # Simple patterns for equipment type and fault code extraction (FR-019)
 _EQUIPMENT_PATTERNS = [
     re.compile(
@@ -146,6 +158,50 @@ def get_flagged_answers() -> List[dict]:
 
     items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     return items
+
+
+def update_rating_feedback(
+    rating_id: str,
+    reason: str,
+    comment: Optional[str],
+    user_email: str,
+) -> dict:
+    row_resp = (
+        supabase.table("answer_ratings")
+        .select("id, question_text, rating, rater_email")
+        .eq("id", rating_id)
+        .maybe_single()
+        .execute()
+    )
+    if not row_resp.data:
+        raise RatingNotFound(f"Rating {rating_id} not found")
+    row = row_resp.data
+    if row["rater_email"] != user_email:
+        raise NotOwner(f"User {user_email} is not the owner of this rating")
+    if row["rating"] != "negative":
+        raise NotNegativeRating("Feedback can only be saved for negative ratings")
+
+    update_data: dict = {"feedback_reason": reason}
+    if comment is not None:
+        update_data["feedback_comment"] = comment
+
+    supabase.table("answer_ratings").update(update_data).eq("id", rating_id).execute()
+
+    try:
+        log_activity(
+            user_email,
+            "manual",
+            "rated_answer_feedback",
+            target_label=row["question_text"][:80],
+            detail=reason,
+        )
+    except Exception:
+        pass
+
+    return {
+        "feedback_reason": reason,
+        "feedback_comment": comment,
+    }
 
 
 async def review_answer(

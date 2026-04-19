@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'feedback_reason_sheet.dart';
 
 class ReviewEntryCard extends StatefulWidget {
   final Map<String, dynamic> entry;
@@ -77,6 +78,16 @@ class _ReviewEntryCardState extends State<ReviewEntryCard> {
               ),
               const SizedBox(height: 8),
             ],
+            Row(
+              children: [
+                _buildReasonChip(widget.entry['feedback_reason'] as String?),
+                if (widget.entry['feedback_comment'] != null) ...[
+                  const SizedBox(width: 8),
+                  Flexible(child: _buildCommentPreview(widget.entry['feedback_comment'] as String?)),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
             Text(
               questionText,
               style: const TextStyle(
@@ -243,6 +254,44 @@ class _ReviewEntryCardState extends State<ReviewEntryCard> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReasonChip(String? reason) {
+    final feedbackReason = FeedbackReason.fromValue(reason);
+    if (feedbackReason == null) {
+      return Chip(
+        label: const Text('No reason given', style: TextStyle(fontSize: 11)),
+        backgroundColor: Colors.grey.shade300,
+        side: BorderSide.none,
+        padding: EdgeInsets.zero,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      );
+    }
+    return Chip(
+      label: Text(feedbackReason.label, style: const TextStyle(fontSize: 11)),
+      backgroundColor: feedbackReason.color.withValues(alpha: 0.2),
+      side: BorderSide(color: feedbackReason.color),
+      padding: EdgeInsets.zero,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+  }
+
+  Widget _buildCommentPreview(String? comment) {
+    if (comment == null || comment.isEmpty) return const SizedBox.shrink();
+    final display = comment.length > 100
+        ? '${comment.substring(0, 100)}…'
+        : comment;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        display,
+        style: TextStyle(
+          fontSize: 12,
+          fontStyle: FontStyle.italic,
+          color: Colors.grey.shade600,
         ),
       ),
     );

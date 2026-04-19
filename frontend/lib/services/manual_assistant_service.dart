@@ -517,6 +517,38 @@ class ManualAssistantService {
     }
   }
 
+  Future<void> saveFeedback({
+    required String ratingId,
+    required String feedbackReason,
+    required String userEmail,
+    String? feedbackComment,
+  }) async {
+    try {
+      final session = Supabase.instance.client.auth;
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      final token = session.currentSession?.accessToken;
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final body = <String, dynamic>{
+        'feedback_reason': feedbackReason,
+        'user_email': userEmail,
+      };
+      if (feedbackComment != null) body['feedback_comment'] = feedbackComment;
+
+      final res = await http.patch(
+        Uri.parse('${AppConfig.baseUrl}/manuals/ratings/$ratingId/feedback'),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+
+      if (res.statusCode != 200) {
+        throw Exception('Failed to save feedback');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getFlaggedAnswers(
       {required String userEmail}) async {
     try {
