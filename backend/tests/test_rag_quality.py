@@ -45,9 +45,11 @@ class TestQuestion:
 
 TESTS: list[TestQuestion] = [
     # ── Category 1: Direct Retrieval (Easy) ────────────────────────────────
+    # Questions rewritten in realistic technician voice: short, terse, abbreviations,
+    # informal tone, occasional missing punctuation — how a shift engineer actually types.
     # Source: CADAS-ATS Admin — "CADAS-ATS Administrator Password Lost"
     TestQuestion(
-        question="How do I reset the CADAS-ATS administrator password?",
+        question="lost ats admin pw, how to reset",
         expect="grounded",
         keywords=["password", "admin"],
         category=1,
@@ -55,7 +57,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS Admin — "Log Files" / "Log File Access"
     TestQuestion(
-        question="Where are the CADAS-ATS log files located?",
+        question="where are ats log files",
         expect="grounded",
         keywords=["log"],
         category=1,
@@ -63,7 +65,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-IMS Manual — "Restart CADAS-IMS"
     TestQuestion(
-        question="How do I start and stop CADAS-IMS services?",
+        question="start/stop ims services",
         expect="grounded",
         keywords=["stop", "start"],
         category=1,
@@ -71,7 +73,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS Admin — "Database Backup & Restoration"
     TestQuestion(
-        question="How do I backup the CADAS-ATS database?",
+        question="backup ats database",
         expect="grounded",
         keywords=["backup", "database"],
         category=1,
@@ -79,7 +81,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS Admin — "Linux Commands to Restart"
     TestQuestion(
-        question="What are the Linux commands to restart CADAS-ATS servers?",
+        question="linux cmd to restart ats servers",
         expect="grounded",
         keywords=["restart", "linux"],
         category=1,
@@ -87,7 +89,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-IMS Manual — "Database Backup and Restoration"
     TestQuestion(
-        question="How do I backup and restore the CADAS-IMS database?",
+        question="ims db backup and restore",
         expect="grounded",
         keywords=["backup", "restore"],
         category=1,
@@ -95,7 +97,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CNMS_Knowledge_Base — "Introduction to CNMS"
     TestQuestion(
-        question="What is CNMS and what does it monitor?",
+        question="what is cnms, what does it monitor",
         expect="grounded",
         keywords=["CNMS", "monitor", "Nagios"],
         category=1,
@@ -103,7 +105,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CNMS_Knowledge_Base — "Host States"
     TestQuestion(
-        question="What are the possible host states in CNMS?",
+        question="cnms host states?",
         expect="grounded",
         keywords=["UP", "DOWN", "UNREACHABLE"],
         category=1,
@@ -111,7 +113,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: frequentis_system_diagnosis — "Log File Paths"
     TestQuestion(
-        question="What are the primary log file paths for CCMS?",
+        question="ccms log paths",
         expect="grounded",
         keywords=["log", "/var"],
         category=1,
@@ -119,7 +121,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: AIDA-NG_Disk_Procedure — "Disk Usage Health Check"
     TestQuestion(
-        question="How do I check disk usage on an AIDA-NG server?",
+        question="check disk usage on aida server",
         expect="grounded",
         keywords=["df", "/var"],
         category=1,
@@ -129,7 +131,7 @@ TESTS: list[TestQuestion] = [
     # ── Category 2: Procedural / Multi-Step (Medium) ───────────────────────
     # Source: CADAS-ATS Admin — "Cannot Start Terminal Server – Configuration File Changed"
     TestQuestion(
-        question="What are the steps to recover when the CADAS-ATS terminal server cannot start due to a configuration file change?",
+        question="ats terminal server wont start after config change, recovery steps",
         expect="grounded",
         keywords=["config", "terminal"],
         category=2,
@@ -137,7 +139,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-IMS Manual — "Import and Export Static Data (AIXM 4.5)"
     TestQuestion(
-        question="How do I import AIXM static data into CADAS-IMS and verify the import was successful?",
+        question="import aixm data into ims and verify it worked",
         expect="grounded",
         keywords=["AIXM", "import"],
         category=2,
@@ -145,7 +147,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS Admin — "AMHS Mailbox Configuration" / "AMHS Security"
     TestQuestion(
-        question="How do I configure AMHS mailbox security settings in CADAS-ATS?",
+        question="configure amhs mailbox security in ats",
         expect="grounded",
         keywords=["AMHS", "security", "certificate"],
         category=2,
@@ -153,7 +155,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS Admin — "Split-brain in Dual Node Cluster"
     TestQuestion(
-        question="Walk me through the full procedure to resolve a CADAS-ATS split-brain situation.",
+        question="ats split-brain, full recovery steps",
         expect="grounded",
         keywords=["victim", "database", "synchroni"],
         category=2,
@@ -161,7 +163,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS Admin — "Web Page Tailoring"
     TestQuestion(
-        question="How do I customize the CADAS-ATS web page?",
+        question="customize ats web page",
         expect="grounded",
         keywords=["web", "tailor"],
         category=2,
@@ -169,7 +171,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: frequentis_system_diagnosis — "SNL Card Replacement"
     TestQuestion(
-        question="How do I replace a defective SNL card in the Frequentis system?",
+        question="replace defective snl card on frequentis",
         expect="grounded",
         keywords=["SNL", "hot-swap"],
         category=2,
@@ -177,7 +179,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: frequentis_system_diagnosis — "Hard Drive Replacement"
     TestQuestion(
-        question="What is the procedure to replace a failed hard drive on the HP server?",
+        question="replace failed hdd on hp server, procedure",
         expect="grounded",
         keywords=["hard drive", "hot-swap"],
         category=2,
@@ -185,9 +187,33 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: AIDA-NG_Disk_Procedure — "Disk Relief – Delete AutoArchives"
     TestQuestion(
-        question="What is the full procedure to relieve disk space on an AIDA-NG server?",
+        question="aida disk full, how to free space",
         expect="grounded",
         keywords=["AutoArchives", "du"],
+        category=2,
+        category_name="Procedural / Multi-Step",
+    ),
+    # NEW — feature procedure: user management (likely in CADAS-ATS Admin / Keycloak)
+    TestQuestion(
+        question="how to add new user in aida",
+        expect="grounded",
+        keywords=["user"],
+        category=2,
+        category_name="Procedural / Multi-Step",
+    ),
+    # NEW — feature procedure: AMHS mailbox creation (CADAS-ATS Admin)
+    TestQuestion(
+        question="how to add new mailbox in cadas ats",
+        expect="grounded",
+        keywords=["mailbox"],
+        category=2,
+        category_name="Procedural / Multi-Step",
+    ),
+    # NEW — feature procedure: host config in CNMS / Nagios
+    TestQuestion(
+        question="how to add new host in cnms",
+        expect="grounded",
+        keywords=["host"],
         category=2,
         category_name="Procedural / Multi-Step",
     ),
@@ -195,7 +221,7 @@ TESTS: list[TestQuestion] = [
     # ── Category 3: Cross-Manual Synthesis (Hard) ──────────────────────────
     # Needs: CADAS-ATS Admin + CADAS-IMS Manual
     TestQuestion(
-        question="What is the difference between CADAS-ATS and CADAS-IMS in terms of administration?",
+        question="ats vs ims admin, what's the difference",
         expect="grounded",
         keywords=["CADAS-ATS", "CADAS-IMS"],
         category=3,
@@ -203,7 +229,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Needs: CADAS-ATS Admin + CADAS-IMS Manual — both use Keycloak
     TestQuestion(
-        question="How does Keycloak integration differ between CADAS-ATS and CADAS-IMS?",
+        question="keycloak on ats vs ims, how does it differ",
         expect="grounded",
         keywords=["Keycloak"],
         category=3,
@@ -211,7 +237,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Needs: CNMS_Knowledge_Base + CADAS-ATS Admin — CNMS monitors CADAS-ATS
     TestQuestion(
-        question="How does CNMS monitor the CADAS-ATS system, and what states does it track?",
+        question="how does cnms monitor ats, and what states",
         expect="grounded",
         keywords=["CNMS", "CADAS-ATS", "MsgHandler"],
         category=3,
@@ -219,7 +245,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Needs: Kcmc-mtb-servers-ip + Addresses_of_Workstations — network overview
     TestQuestion(
-        question="What are the IP addresses for AIDA-NG servers at the CMC site versus the MTB site?",
+        question="aida ip addresses, cmc vs mtb",
         expect="grounded",
         keywords=["172.31", "CMC", "MTB"],
         category=3,
@@ -227,7 +253,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Needs: frequentis_system_diagnosis + CNMS_Knowledge_Base — AIDA-NG monitoring
     TestQuestion(
-        question="How do you diagnose an AIDA-NG subsystem failure using both CNMS monitoring and the Frequentis troubleshooting procedures?",
+        question="aida subsystem failure, diagnose using cnms + frequentis docs",
         expect="grounded",
         keywords=["AIDA-NG", "CNMS"],
         category=3,
@@ -237,7 +263,7 @@ TESTS: list[TestQuestion] = [
     # ── Category 4: Reasoning / Inference (Hard) ───────────────────────────
     # Source: CADAS-ATS Admin — "Split-brain in Dual Node Cluster"
     TestQuestion(
-        question="A CADAS-ATS dual-node cluster has entered a split-brain situation. What should I do first?",
+        question="ats cluster went split-brain, first step",
         expect="grounded",
         keywords=["split-brain", "victim", "database"],
         category=4,
@@ -245,7 +271,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-IMS Manual — "Import and Export Static Data"
     TestQuestion(
-        question="If I see ERROR severity in the CADAS-IMS AIXM import log, what should I check?",
+        question="ims aixm import log shows ERROR, what to check",
         expect="grounded",
         keywords=["ERROR", "import"],
         category=4,
@@ -253,7 +279,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS Admin — "Cannot Start Terminal Server – Conflict with Port"
     TestQuestion(
-        question="Users cannot access the CADAS-ATS terminal server. What could be wrong?",
+        question="users cant get into ats terminal server, whats wrong",
         expect="grounded",
         keywords=["terminal", "port"],
         category=4,
@@ -261,7 +287,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CNMS_Knowledge_Base — "CSS Status in CNMS"
     TestQuestion(
-        question="The AIDA-NG CSS is showing Warning status in CNMS. What does this mean?",
+        question="aida css in warning on cnms, what does it mean",
         expect="grounded",
         keywords=["CSS", "Warning", "operational"],
         category=4,
@@ -269,7 +295,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: frequentis_system_diagnosis — "Frozen Display Recovery"
     TestQuestion(
-        question="An operator workstation display has frozen. What troubleshooting steps should I follow?",
+        question="operator display frozen, troubleshooting steps",
         expect="grounded",
         keywords=["freeze", "display"],
         category=4,
@@ -277,9 +303,41 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: AIDA-NG_Disk_Procedure — "Disk Usage Thresholds"
     TestQuestion(
-        question="The AIDA-NG server /var partition is at 85% usage. What action should I take?",
+        question="aida /var at 85%, what now",
         expect="grounded",
         keywords=["70%", "AutoArchives"],
+        category=4,
+        category_name="Reasoning / Inference",
+    ),
+    # NEW — "X not responding" type
+    TestQuestion(
+        question="ats terminal server not responding",
+        expect="grounded",
+        keywords=["terminal", "port"],
+        category=4,
+        category_name="Reasoning / Inference",
+    ),
+    # NEW — "X not responding" type
+    TestQuestion(
+        question="aida-ng not responding, what to check",
+        expect="grounded",
+        keywords=["aida", "log"],
+        category=4,
+        category_name="Reasoning / Inference",
+    ),
+    # NEW — "X not responding" type
+    TestQuestion(
+        question="amhs router not reachable",
+        expect="grounded",
+        keywords=["telnet", "10.48.161.1"],
+        category=4,
+        category_name="Reasoning / Inference",
+    ),
+    # NEW — "X not responding" type
+    TestQuestion(
+        question="cnms host showing DOWN, what now",
+        expect="grounded",
+        keywords=["host", "DOWN"],
         category=4,
         category_name="Reasoning / Inference",
     ),
@@ -287,7 +345,7 @@ TESTS: list[TestQuestion] = [
     # ── Category 5: CADAS-ATS Advanced Features ───────────────────────────
     # Source: CADAS-ATS Admin — "Configure Keycloak Connection"
     TestQuestion(
-        question="How does CADAS-ATS integrate with Keycloak for user authentication?",
+        question="ats + keycloak auth, how does it work",
         expect="grounded",
         keywords=["Keycloak"],
         category=5,
@@ -295,7 +353,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS Admin — "Parameter > Scheduled RPLs"
     TestQuestion(
-        question="What are scheduled RPLs in CADAS-ATS and how do I configure them?",
+        question="scheduled rpls in ats, how to configure",
         expect="grounded",
         keywords=["RPL", "schedule"],
         category=5,
@@ -303,7 +361,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS Admin — "AMHS Capabilities in CADAS-ATS"
     TestQuestion(
-        question="What are the AMHS capabilities in CADAS-ATS?",
+        question="amhs capabilities in ats",
         expect="grounded",
         keywords=["AMHS"],
         category=5,
@@ -311,7 +369,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS Admin — "Diagnosis > Application Status"
     TestQuestion(
-        question="How do I check the application status in CADAS-ATS diagnostics?",
+        question="check app status in ats diagnostics",
         expect="grounded",
         keywords=["diagnosis", "application", "status"],
         category=5,
@@ -320,35 +378,67 @@ TESTS: list[TestQuestion] = [
 
     # ── Category 6: Hallucination Resistance (Trick Questions) ─────────────
     TestQuestion(
-        question="How do I configure CADAS-ATS for SITA network connectivity?",
+        question="configure ats for sita network",
         expect="ungrounded",
         keywords=[],
         category=6,
         category_name="Hallucination Resistance",
     ),
     TestQuestion(
-        question="What is the maximum number of users CADAS-ATS supports?",
+        question="max users ats supports",
         expect="ungrounded",
         keywords=[],
         category=6,
         category_name="Hallucination Resistance",
     ),
     TestQuestion(
-        question="How do I configure CNMS to send email notifications?",
+        question="setup cnms email alerts",
         expect="ungrounded",
         keywords=[],
         category=6,
         category_name="Hallucination Resistance",
     ),
     TestQuestion(
-        question="What is the CNMS REST API endpoint for querying host status programmatically?",
+        question="cnms rest api endpoint for host status",
         expect="ungrounded",
         keywords=[],
         category=6,
         category_name="Hallucination Resistance",
     ),
     TestQuestion(
-        question="How do I update the Frequentis system firmware?",
+        question="frequentis firmware update steps",
+        expect="ungrounded",
+        keywords=[],
+        category=6,
+        category_name="Hallucination Resistance",
+    ),
+    # NEW — credential request (manuals don't store live passwords)
+    TestQuestion(
+        question="what is username password of cadas-ats admin",
+        expect="ungrounded",
+        keywords=[],
+        category=6,
+        category_name="Hallucination Resistance",
+    ),
+    # NEW — credential request
+    TestQuestion(
+        question="default login for cnms",
+        expect="ungrounded",
+        keywords=[],
+        category=6,
+        category_name="Hallucination Resistance",
+    ),
+    # NEW — credential request
+    TestQuestion(
+        question="aida ng root password",
+        expect="ungrounded",
+        keywords=[],
+        category=6,
+        category_name="Hallucination Resistance",
+    ),
+    # NEW — credential request
+    TestQuestion(
+        question="amhs router login credentials",
         expect="ungrounded",
         keywords=[],
         category=6,
@@ -358,7 +448,7 @@ TESTS: list[TestQuestion] = [
     # ── Category 7: CNMS & Frequentis & Network ───────────────────────────
     # Source: CNMS_Knowledge_Base — "Graphical Views / Maps"
     TestQuestion(
-        question="How do the graphical maps work in CNMS?",
+        question="how do cnms graphical maps work",
         expect="grounded",
         keywords=["map", "Top Level"],
         category=7,
@@ -366,7 +456,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CNMS_Knowledge_Base — "Event Console / SNMP Traps"
     TestQuestion(
-        question="What types of SNMP traps does CNMS handle?",
+        question="what snmp traps does cnms handle",
         expect="grounded",
         keywords=["trap", "SNMP", "Link"],
         category=7,
@@ -374,7 +464,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CNMS_Knowledge_Base — "Acknowledge Problem"
     TestQuestion(
-        question="How do I acknowledge a problem in CNMS?",
+        question="ack a problem in cnms",
         expect="grounded",
         keywords=["acknowledge"],
         category=7,
@@ -382,7 +472,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CNMS_Knowledge_Base — "Scheduled Downtime"
     TestQuestion(
-        question="How do I schedule a downtime in CNMS to suppress notifications?",
+        question="schedule downtime in cnms to mute alerts",
         expect="grounded",
         keywords=["downtime", "notification"],
         category=7,
@@ -390,7 +480,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: frequentis_system_diagnosis — "HP DL380p Gen8 LED Indicators"
     TestQuestion(
-        question="What do the LED indicators on the HP DL380p Gen8 server mean?",
+        question="hp dl380p gen8 led meanings",
         expect="grounded",
         keywords=["LED", "HP"],
         category=7,
@@ -398,7 +488,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: frequentis_system_diagnosis — "AIDA-NG Start/Stop Commands"
     TestQuestion(
-        question="How do I start and stop AIDA-NG subsystems from the command line?",
+        question="start/stop aida subsystems from cli",
         expect="grounded",
         keywords=["/home/oper/aida-ng", "start"],
         category=7,
@@ -406,7 +496,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: Kcmc-mtb-servers-ip — "CMC Server IPs"
     TestQuestion(
-        question="What is the IP address and hostname of the AIDA-NG server at the CMC site?",
+        question="aida server ip and hostname at cmc",
         expect="grounded",
         keywords=["172.31.11", "as1-ops"],
         category=7,
@@ -414,7 +504,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: Addresses_of_Workstations — "AFTN/AMHS Terminals"
     TestQuestion(
-        question="What are the hostnames and IP addresses of the AFTN/AMHS terminals?",
+        question="aftn/amhs terminal hostnames and ips",
         expect="grounded",
         keywords=["owp", "172.31.21"],
         category=7,
@@ -422,7 +512,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: How to Remotely Access the AMHS Router — "Telnet to Router"
     TestQuestion(
-        question="How do I remotely access the AMHS router?",
+        question="remote access amhs router",
         expect="grounded",
         keywords=["telnet", "10.48.161.1"],
         category=7,
@@ -430,7 +520,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: frequentis_system_diagnosis — "CMC-MBM LED States"
     TestQuestion(
-        question="What do the CMC-MBM LED indicators mean?",
+        question="cmc-mbm led meanings",
         expect="grounded",
         keywords=["LED", "CMC-MBM"],
         category=7,
@@ -440,7 +530,7 @@ TESTS: list[TestQuestion] = [
     # ── Category 9: CADAS-ATS Knowledge Base ────────────────────────────────
     # Source: CADAS-ATS_Knowledge_Base — "Terminal Application Types"
     TestQuestion(
-        question="What terminal application types does CADAS-ATS provide?",
+        question="ats terminal app types",
         expect="grounded",
         keywords=["Administration", "Center"],
         category=9,
@@ -448,7 +538,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS_Knowledge_Base — "Client/Server Architecture"
     TestQuestion(
-        question="What is the CADAS-ATS client/server architecture?",
+        question="ats client/server architecture",
         expect="grounded",
         keywords=["Terminal Server", "Message Handler", "cluster"],
         category=9,
@@ -456,7 +546,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS_Knowledge_Base — "Mailboxes"
     TestQuestion(
-        question="How do mailboxes work in CADAS-ATS?",
+        question="how do mailboxes work in ats",
         expect="grounded",
         keywords=["mailbox", "incoming"],
         category=9,
@@ -464,7 +554,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS_Knowledge_Base — "Alarm Configuration"
     TestQuestion(
-        question="How do I configure alarm notifications in CADAS-ATS?",
+        question="configure alarm notifications in ats",
         expect="grounded",
         keywords=["alarm", "User Preferences"],
         category=9,
@@ -472,7 +562,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS_Knowledge_Base — "AMHS User Agent"
     TestQuestion(
-        question="What AMHS capabilities does CADAS-ATS provide as a User Agent?",
+        question="ats amhs user agent capabilities",
         expect="grounded",
         keywords=["AMHS", "AFTN"],
         category=9,
@@ -480,7 +570,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: CADAS-ATS_Knowledge_Base — "Perspectives"
     TestQuestion(
-        question="What are perspectives in CADAS-ATS and how do I switch between them?",
+        question="what are ats perspectives and how to switch",
         expect="grounded",
         keywords=["perspective", "Ctrl"],
         category=9,
@@ -490,7 +580,7 @@ TESTS: list[TestQuestion] = [
     # ── Category 10: KW-DGCA System & Installation ────────────────────────
     # Source: KW_DGCA_AIM_AMHS_CustomerSystemIntroduction — "System Overview"
     TestQuestion(
-        question="What components make up the KW-DGCA AIM-AMHS system?",
+        question="kw-dgca aim-amhs components",
         expect="grounded",
         keywords=["AIDA-NG", "CADAS-ATS", "CNMS"],
         category=10,
@@ -498,7 +588,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: KW_DGCA_AIM_AMHS_CustomerSystemIntroduction — "Message Flow"
     TestQuestion(
-        question="How does the message flow work in the KW-DGCA AIM-AMHS system?",
+        question="kw-dgca message flow",
         expect="grounded",
         keywords=["AIDA-NG", "CADAS-ATS"],
         category=10,
@@ -506,7 +596,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: KW_DGCA_AIM_AMHS_CustomerSystemIntroduction — "Redundancy"
     TestQuestion(
-        question="What are the redundancy modes for each component in the KW-DGCA system?",
+        question="redundancy modes per component in kw-dgca",
         expect="grounded",
         keywords=["redundancy", "AIDA-NG"],
         category=10,
@@ -514,7 +604,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: KW_DGCA_AIM_AMHS_CustomerSystemIntroduction — "OPS vs CONT Systems"
     TestQuestion(
-        question="What is the difference between the OPS system at KCMC and the CONT system at nATC?",
+        question="ops at kcmc vs cont at natc, difference",
         expect="grounded",
         keywords=["OPS", "CONT"],
         category=10,
@@ -522,7 +612,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: KW_INDRA_AIM_AMHS_Installation — "Kickstart DVD Installation"
     TestQuestion(
-        question="How do I install the CCMS platform using the Kickstart DVD?",
+        question="install ccms via kickstart dvd",
         expect="grounded",
         keywords=["Kickstart", "DVD"],
         category=10,
@@ -530,7 +620,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: KW_INDRA_AIM_AMHS_Installation — "Scientific Linux Installation"
     TestQuestion(
-        question="What happens during the Scientific Linux installation from the Kickstart media?",
+        question="scientific linux install from kickstart, what happens",
         expect="grounded",
         keywords=["Scientific Linux", "GRUB"],
         category=10,
@@ -540,7 +630,7 @@ TESTS: list[TestQuestion] = [
     # ── Category 11: MHS System Diagnosis ──────────────────────────────────
     # Source: MHS_SystemDiagnosis — "Troubleshooting Approach"
     TestQuestion(
-        question="What is the first step before starting any MHS troubleshooting?",
+        question="first step before mhs troubleshooting",
         expect="grounded",
         keywords=["diagnosis", "subsystem"],
         category=11,
@@ -548,7 +638,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: MHS_SystemDiagnosis — "Log File Locations"
     TestQuestion(
-        question="Where are the CCMS and cluster log files located on the filesystem?",
+        question="ccms + cluster log file paths",
         expect="grounded",
         keywords=["/var/log/ccms", "cluster"],
         category=11,
@@ -556,7 +646,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: MHS_SystemDiagnosis — "AIDA-NG Log Investigation"
     TestQuestion(
-        question="How do I investigate AIDA-NG subsystem failures using log files?",
+        question="investigate aida subsystem failures via logs",
         expect="grounded",
         keywords=["aida-ng", "log"],
         category=11,
@@ -564,7 +654,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: MHS_SystemDiagnosis — "Server Replacement"
     TestQuestion(
-        question="What is the procedure to replace a defective server with a spare unit?",
+        question="replace defective server with spare, procedure",
         expect="grounded",
         keywords=["disconnect", "spare"],
         category=11,
@@ -572,7 +662,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Source: MHS_SystemDiagnosis — "Software Reinstallation"
     TestQuestion(
-        question="How do I perform a clean software reinstallation on a standby server?",
+        question="clean software reinstall on standby server",
         expect="grounded",
         keywords=["reinstall", "network cable"],
         category=11,
@@ -580,12 +670,12 @@ TESTS: list[TestQuestion] = [
     ),
 
     # ── Category 12: Paraphrased Questions ───────────────────────────────
-    # Same topics as earlier categories but worded differently by a user
+    # Same topics as earlier categories but worded as a frustrated tech mid-shift
     # Tests query rewrite (spec 042) and HyDE (spec 043) resilience
 
     # Original: "How do I reset the CADAS-ATS administrator password?"
     TestQuestion(
-        question="I forgot the admin password for ATS, how can I get back in?",
+        question="forgot ats admin pw, locked out",
         expect="grounded",
         keywords=["password"],
         category=12,
@@ -593,7 +683,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Original: "How do I backup the CADAS-ATS database?"
     TestQuestion(
-        question="What's the procedure to take a copy of the ATS database before maintenance?",
+        question="need to copy ats db before maint, how",
         expect="grounded",
         keywords=["backup", "database"],
         category=12,
@@ -601,7 +691,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Original: "How do I check disk usage on an AIDA-NG server?"
     TestQuestion(
-        question="The AIDA server is running slow, how do I check if the disk is full?",
+        question="aida slow, is the disk full?",
         expect="grounded",
         keywords=["df", "/var"],
         category=12,
@@ -609,7 +699,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Original: "How do I replace a defective SNL card in the Frequentis system?"
     TestQuestion(
-        question="One of the serial network boards is broken, how do I swap it out?",
+        question="serial network board broken, swap it",
         expect="grounded",
         keywords=["SNL"],
         category=12,
@@ -617,7 +707,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Original: "What are the possible host states in CNMS?"
     TestQuestion(
-        question="In the network monitoring system, what status can a host show?",
+        question="host statuses on the monitoring tool?",
         expect="grounded",
         keywords=["host", "CNMS"],
         category=12,
@@ -625,7 +715,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Original: "How do I remotely access the AMHS router?"
     TestQuestion(
-        question="I need to get into the messaging router from my desk, how?",
+        question="get into the messaging router from my desk",
         expect="grounded",
         keywords=["telnet"],
         category=12,
@@ -633,7 +723,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Original: "What is the IP address and hostname of the AIDA-NG server at the CMC site?"
     TestQuestion(
-        question="What's the address of the AIDA machine at the operations center?",
+        question="address of aida box at ops center",
         expect="grounded",
         keywords=["172.31"],
         category=12,
@@ -641,7 +731,7 @@ TESTS: list[TestQuestion] = [
     ),
     # Original: "Walk me through the full procedure to resolve a CADAS-ATS split-brain situation."
     TestQuestion(
-        question="Both ATS cluster nodes think they're the primary, what do I do?",
+        question="both ats nodes think they're primary, now what",
         expect="grounded",
         keywords=["split-brain"],
         category=12,
@@ -650,21 +740,21 @@ TESTS: list[TestQuestion] = [
 
     # ── Category 8: Ambiguous / Vague ──────────────────────────────────────
     TestQuestion(
-        question="How do I fix the system?",
+        question="how do i fix the system",
         expect="either",
         keywords=[],
         category=8,
         category_name="Ambiguous / Vague",
     ),
     TestQuestion(
-        question="What's the password?",
+        question="whats the pw",
         expect="either",
         keywords=[],
         category=8,
         category_name="Ambiguous / Vague",
     ),
     TestQuestion(
-        question="How do I restart the server?",
+        question="how to restart the server",
         expect="either",
         keywords=[],
         category=8,
