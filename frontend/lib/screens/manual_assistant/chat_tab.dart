@@ -246,7 +246,6 @@ class _ChatTabState extends State<ChatTab> with AutomaticKeepAliveClientMixin {
       });
 
       if (rating == 'negative' && mounted) {
-        if (!mounted) return;
         final result = await FeedbackReasonSheet.show(context);
         if (result != null) {
           try {
