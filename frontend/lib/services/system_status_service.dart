@@ -49,6 +49,7 @@ class SystemStatusService {
     required String notes,
     required String reportedBy,
     required String reportedByName,
+    String? assetId,
   }) async {
     final res = await http.post(
       Uri.parse('${AppConfig.baseUrl}/system-status/report'),
@@ -59,6 +60,7 @@ class SystemStatusService {
         'notes': notes,
         'reported_by': reportedBy,
         'reported_by_name': reportedByName,
+        if (assetId != null) 'asset_id': assetId,
       }),
     );
 
@@ -66,12 +68,16 @@ class SystemStatusService {
       throw Exception(
           'An unresolved issue already exists for this system on this date');
     }
+    final body = jsonDecode(res.body);
     if (res.statusCode != 200) {
+      final msg = body is Map ? body['detail'] ?? body['message'] ?? '$body' : '$body';
+      if (msg.toString().startsWith('Asset ') || msg.toString().startsWith('Unknown asset')) {
+        throw Exception(msg);
+      }
       throw Exception('Failed to report issue');
     }
 
-    final data = jsonDecode(res.body);
-    return SystemStatusReport.fromJson(data['report']);
+    return SystemStatusReport.fromJson(body['report']);
   }
 
   Future<void> resolveIssue({
@@ -157,5 +163,16 @@ class SystemStatusService {
     return (data['systems'] as List)
         .map((j) => SystemUptimeReport.fromJson(j))
         .toList();
+  }
+
+  Future<SystemAssetsResponse> fetchSystemAssets({required String systemId}) async {
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/system-status/systems/$systemId/assets'),
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to fetch system assets');
+    }
+    final data = jsonDecode(res.body);
+    return SystemAssetsResponse.fromJson(data);
   }
 }
