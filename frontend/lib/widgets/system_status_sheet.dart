@@ -10,8 +10,8 @@ class SystemStatusSheet extends StatefulWidget {
   final void Function(SystemStatusReport report) onEditIssue;
   final void Function(SystemStatusReport report) onResolveIssue;
   final void Function(SystemStatusReport report) onDeleteIssue;
-  final void Function(SystemStatusReport report) onReportAssetIssue;
-  final VoidCallback onChange;
+  final void Function(AssetStatusEntry asset) onReportAssetIssue;
+  final VoidCallback? onChange;
 
   const SystemStatusSheet({
     super.key,
@@ -22,7 +22,7 @@ class SystemStatusSheet extends StatefulWidget {
     required this.onResolveIssue,
     required this.onDeleteIssue,
     required this.onReportAssetIssue,
-    required this.onChange,
+    this.onChange,
   });
 
   @override
