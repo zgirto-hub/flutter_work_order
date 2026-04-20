@@ -108,6 +108,41 @@ async def get_models():
     return {"models": models, "default": get_default_model()}
 
 
+@router.get("/manuals/active-provider")
+async def get_active_provider():
+    """Report which AI provider is actually serving generation right now.
+
+    Used by test harness headers (detect_model in test_rag_quality.py) so the
+    suite label reflects reality rather than probing Ollama and guessing.
+    Read-only; no RAG pipeline cost; safe for unauth external probes.
+    """
+    from services.ai_providers import PROVIDERS
+    from services.ai_providers.resolver import get_active_provider_key
+
+    try:
+        key = await get_active_provider_key()
+        provider_cls = PROVIDERS.get(key)
+        display_name = provider_cls().display_name if provider_cls else key
+    except Exception:
+        key = "unknown"
+        display_name = "unknown"
+
+    # Best-effort embed model discovery. Embedder config lives in ollama_embedder
+    # as a module-level constant (OLLAMA_EMBED_MODEL) sourced from env.
+    embed_model = "unknown"
+    try:
+        from services.ollama_embedder import OLLAMA_EMBED_MODEL
+        embed_model = OLLAMA_EMBED_MODEL
+    except Exception:
+        pass
+
+    return {
+        "provider_key": key,
+        "display_name": display_name,
+        "embed_model": embed_model,
+    }
+
+
 @router.get("/manuals/settings")
 async def get_ai_settings():
     from services.ollama_generator import get_default_model

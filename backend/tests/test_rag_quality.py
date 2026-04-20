@@ -926,19 +926,44 @@ async def run_test(test: TestQuestion, base_url: str, verify: bool = False) -> T
 
 
 async def detect_model(base_url: str) -> dict:
-    """Detect which LLM model and provider the backend is using.
+    """Detect which LLM model and provider the backend is actually using.
 
-    Uses Ollama's /api/ps (currently-loaded models in VRAM) as the authoritative
-    source for `model`. /api/tags lists every DOWNLOADED model in arbitrary
-    order, which is not the same thing — picking the first entry there gave
-    wrong labels (e.g. reporting "deepseek-r1:7b" while Gemma was actually
-    serving). Falls back to /api/tags only when /api/ps is empty (no model
-    warm in VRAM at probe time).
+    Order of preference:
+      1. Ask the backend directly via GET /api/manuals/active-provider — this is
+         authoritative because it reads app_settings.ai_provider through the
+         same resolver the RAG pipeline uses. Supports every provider
+         (local, groq, gemini, mistral, and any future one).
+      2. Fall back to Ollama /api/ps (currently-loaded model in VRAM) —
+         meaningful only when the backend is routing to local Ollama.
+      3. Fall back to Ollama /api/tags (all downloaded models, picks first) —
+         clearly labelled as "not loaded" so the ambiguity is visible.
 
-    For the embed model we still use /api/tags because embedders are often
-    unloaded between requests and /api/ps may not show them.
+    The old implementation was Ollama-only, so when the backend routed to Groq
+    or any cloud provider, the header reported the wrong thing.
     """
     info = {"provider": "unknown", "model": "unknown", "embed_model": "unknown"}
+
+    # Step 1: ask the backend for the real active provider.
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=5.0) as client:
+            resp = await client.get(f"{base_url}/api/manuals/active-provider")
+            if resp.status_code == 200:
+                data = resp.json()
+                provider_key = data.get("provider_key")
+                display_name = data.get("display_name") or provider_key or "unknown"
+                embed_model = data.get("embed_model") or "unknown"
+                info["provider"] = display_name
+                info["embed_model"] = embed_model
+                # For cloud providers the display_name already contains the model
+                # (e.g. "Groq (Llama 3.3 70B)", "Gemini 2.5 Flash").
+                info["model"] = display_name
+                # If the active provider is local Ollama, try to refine with
+                # the actually-loaded VRAM model — more specific than the
+                # generic "Local (Ollama)" display name.
+                if provider_key != "local":
+                    return info
+    except Exception:
+        pass  # Fall through to Ollama probing below.
 
     # Ollama is reached at :11434 on the same host as the backend.
     # base_url like "https://host" or "https://host:port" -> strip existing port,
