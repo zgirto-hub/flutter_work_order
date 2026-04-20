@@ -175,30 +175,4 @@ class DocumentService {
       throw Exception('Bulk delete failed: ${resp.statusCode}');
   }
 
-  Future<Map<String, dynamic>> migrateAll(String userEmail) async {
-    final resp = await http.post(
-      Uri.parse('$_baseUrl/documents/migrate-all?user_email=$userEmail'),
-    );
-    if (resp.statusCode != 200)
-      throw Exception('Migration failed: ${resp.statusCode}');
-    return jsonDecode(resp.body);
-  }
-
-  Future<Map<String, dynamic>> getMigrationStatus(String userEmail) async {
-    final resp = await http.get(
-      Uri.parse('$_baseUrl/documents/migration-status?user_email=$userEmail'),
-    );
-    if (resp.statusCode != 200)
-      throw Exception('Migration status failed: ${resp.statusCode}');
-    return jsonDecode(resp.body);
-  }
-
-  Future<Map<String, dynamic>> migrateCleanup(String userEmail) async {
-    final resp = await http.delete(
-      Uri.parse('$_baseUrl/documents/migrate-cleanup?user_email=$userEmail'),
-    );
-    if (resp.statusCode != 200)
-      throw Exception('Cleanup failed: ${resp.statusCode}');
-    return jsonDecode(resp.body);
-  }
 }
