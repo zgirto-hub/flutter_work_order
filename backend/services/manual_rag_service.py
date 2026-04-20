@@ -1,20 +1,12 @@
 import asyncio
 import logging
-import os
 import re
-import uuid
 import time
-from datetime import datetime, timezone
 from uuid import UUID
-from typing import List, Optional, AsyncIterator
+from typing import Optional, AsyncIterator
 from db import supabase
-from services.manual_parser import parse, NoExtractableTextError
-from services.manual_chunker import chunk_paragraphs, Chunk
-from services.ollama_embedder import embed_many, embed_single, EmbedderTimeoutError
-from services.manual_storage_service import save, delete as delete_file
+from services.ollama_embedder import embed_single
 from services.system_registry import detect_system, get_manual_ids_for_system
-from services.document_preprocessor import preprocess_pages
-from services.contextual_prefix import apply_contextual_prefix
 import services.validated_qa_service as validated_qa_service
 from services.document_search_service import (
     search_document_chunks,
@@ -796,28 +788,11 @@ def _build_prompt(
 _SENT_RE = re.compile(r"(?<=[.!?؟])\s+")
 
 
-class NoContentAfterChunkingError(Exception):
-    pass
-
-
-class CorpusFullError(Exception):
-    def __init__(self, ceiling_mb: int):
-        self.ceiling_mb = ceiling_mb
-
-
 class EmbedderUnavailableError(Exception):
     pass
 
 
 class GeneratorUnavailableError(Exception):
-    pass
-
-
-class ManualNotFoundError(Exception):
-    pass
-
-
-class UploadFailedError(Exception):
     pass
 
 
@@ -876,140 +851,6 @@ def compute_highlight(
     if best_range and best_score >= jaccard_threshold:
         return best_range
     return (None, None)
-
-
-async def upload_manual(
-    title: str,
-    file_bytes: bytes,
-    file_name: str,
-    file_extension: str,
-    file_size_bytes: int,
-    uploaded_by: str,
-) -> dict:
-    # Step 1: Parse with manual_parser
-    paragraphs = parse(
-        file_bytes, file_extension
-    )  # raises NoExtractableTextError directly
-
-    # Step 1.5: Allocate manual_id (needed for activity logging)
-    manual_id = uuid.uuid4()
-
-    pages_for_preprocessing = [
-        (page_num, text) for page_num, text in paragraphs if page_num is not None
-    ]
-    if pages_for_preprocessing:
-        preprocessed_pages, raw_mapping = await preprocess_pages(
-            pages_for_preprocessing, document_title=title, document_id=str(manual_id)
-        )
-        preprocessed_dict = dict(preprocessed_pages)
-        processed_paragraphs = []
-        for page_num, text in paragraphs:
-            if page_num is not None and page_num in preprocessed_dict:
-                processed_paragraphs.append((page_num, preprocessed_dict[page_num]))
-            else:
-                processed_paragraphs.append((page_num, text))
-        paragraphs = processed_paragraphs
-    else:
-        raw_mapping = {}
-
-    # Step 2: Chunk with manual_chunker
-    chunks: List[Chunk] = chunk_paragraphs(paragraphs)
-    if not chunks:
-        raise NoContentAfterChunkingError("No content after chunking")
-
-    # Step 3: Embed via ollama_embedder
-    try:
-        texts = [
-            apply_contextual_prefix(content=chunk.content, doc_title=title)
-            for chunk in chunks
-        ]
-        embeddings = await embed_many(texts)
-        logger.info(
-            "Embedding %d chunks with contextual prefix for manual '%s'",
-            len(texts),
-            title,
-        )
-    except EmbedderTimeoutError as e:
-        raise EmbedderUnavailableError() from e
-
-    # Step 4: Use manual_id allocated in Step 1.5
-
-    # Step 5: Compute projected_bytes (research §10)
-    # Sum of len(chunk.content.encode("utf-8")) + len(chunks) * 3072 + 200 * len(chunks) + 500
-    projected_bytes = sum(len(chunk.content.encode("utf-8")) for chunk in chunks)
-    projected_bytes += len(chunks) * 3072
-    projected_bytes += 200 * len(chunks)
-    projected_bytes += 500
-
-    # Step 6: Pre-check corpus ceiling
-    ceiling_bytes = int(os.getenv("MANUAL_CORPUS_CEILING_MB", "400")) * 1024 * 1024
-    stats_response = (
-        supabase.table("manual_corpus_stats")
-        .select("total_bytes")
-        .eq("id", 1)
-        .execute()
-    )
-    current_bytes = stats_response.data[0]["total_bytes"] if stats_response.data else 0
-
-    if current_bytes + projected_bytes > ceiling_bytes:
-        ceiling_mb = int(os.getenv("MANUAL_CORPUS_CEILING_MB", "400"))
-        raise CorpusFullError(ceiling_mb)
-
-    # Step 6.5: Resolve user UUID from email (uploaded_by is an email per repo convention)
-    user_row = (
-        supabase.table("users").select("id").eq("email", uploaded_by).limit(1).execute()
-    )
-    user_uuid = user_row.data[0]["id"] if user_row.data else None
-
-    # Step 7: Save file to disk
-    try:
-        file_path = save(manual_id, file_bytes, file_extension)
-    except Exception as e:
-        raise UploadFailedError("Something went wrong while saving the manual.") from e
-
-    # Step 8: Atomic DB write via RPC (rollback on any error)
-    try:
-        chunk_payload = [
-            {
-                "chunk_index": i,
-                "source_page": chunks[i].source_page,
-                "content": chunks[i].content,
-                "embedding": embeddings[i],
-                "raw_content": raw_mapping.get(chunks[i].source_page)
-                if raw_mapping
-                else None,
-            }
-            for i in range(len(chunks))
-        ]
-        supabase.rpc(
-            "create_manual_with_chunks",
-            {
-                "p_id": str(manual_id),
-                "p_title": title,
-                "p_file_name": file_name,
-                "p_file_extension": file_extension,
-                "p_file_size_bytes": file_size_bytes,
-                "p_uploaded_by": user_uuid,
-                "p_chunks": chunk_payload,
-                "p_projected_bytes": projected_bytes,
-            },
-        ).execute()
-    except Exception as e:
-        try:
-            delete_file(manual_id, file_extension)
-        except Exception:
-            pass
-        raise UploadFailedError("database transaction failed") from e
-
-    return {
-        "manual_id": str(manual_id),
-        "title": title,
-        "file_name": file_name,
-        "file_extension": file_extension,
-        "file_size_bytes": file_size_bytes,
-        "chunk_count": len(chunks),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
 
 
 # Gemma 4 E2B on the Zorin server's 15GB RAM regularly needs ~12-15s for the
@@ -1242,17 +1083,6 @@ async def ask_stream(
     detected_system = detect_system(question)
     stream_meta["retrieval_info"]["detected_system"] = detected_system
     search_query: str = question
-
-    # ── Check corpus not empty ──
-    count_response = (
-        supabase.table("manual_corpus_stats")
-        .select("manual_count")
-        .eq("id", 1)
-        .execute()
-    )
-    if not count_response.data or count_response.data[0]["manual_count"] == 0:
-        yield _NOT_FOUND_MANUALS
-        return
 
     # ── Pre-rewrite validated-QA fast path (spec 067, 069) ──
     try:
@@ -1617,23 +1447,6 @@ async def ask(
     no_manuals_directive: str | None = None
     validated_context: str | None = None
     search_query: str = question  # rewritten query; default to raw question
-
-    # Check corpus is not empty
-    count_response = (
-        supabase.table("manual_corpus_stats")
-        .select("manual_count")
-        .eq("id", 1)
-        .execute()
-    )
-    if not count_response.data or count_response.data[0]["manual_count"] == 0:
-        return {
-            "answer": _NOT_FOUND_MANUALS,
-            "grounded": False,
-            "sources": [],
-            "session_summary": None,
-            "search_query": search_query,
-            "retrieval_info": retrieval_info,
-        }
 
     # Pre-rewrite validated-QA fast-path lookup (spec 067, spec 069).
     # Check for cached answer using the raw question BEFORE rewriting, so that
@@ -2218,24 +2031,3 @@ async def ask(
     }
 
 
-async def delete_manual(manual_id: UUID) -> dict:
-    from services.manual_storage_service import delete as delete_file
-
-    response = supabase.rpc(
-        "delete_manual_with_stats",
-        {"p_manual_id": str(manual_id)},
-    ).execute()
-
-    if not response.data:
-        raise ManualNotFoundError(f"Manual {manual_id} not found")
-
-    row = response.data[0]
-    file_extension = row["file_extension"]
-    title = row["title"]
-
-    try:
-        delete_file(manual_id, file_extension)
-    except Exception:
-        pass
-
-    return {"file_extension": file_extension, "title": title}
