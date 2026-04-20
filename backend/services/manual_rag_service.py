@@ -264,6 +264,111 @@ def _build_compound_verbatim_answer_filtered(
     return _build_compound_verbatim_answer(filtered)
 
 
+def _sub_query_for_entity(
+    original: str, entity: str, other_entities: set[str]
+) -> str:
+    """Collapse compound 'A and B' phrasing down to just the target entity.
+
+    For "what is the ip of server 1 and server 2" with entity="server 1"
+    and other_entities={"server 2"}, returns "what is the ip of server 1".
+    Handles both "A and B" and "B and A" orders.
+    """
+    result = original
+    for other in other_entities:
+        result = re.sub(
+            rf"\b{re.escape(entity)}\s+and\s+{re.escape(other)}\b",
+            entity, result, flags=re.IGNORECASE,
+        )
+        result = re.sub(
+            rf"\b{re.escape(other)}\s+and\s+{re.escape(entity)}\b",
+            entity, result, flags=re.IGNORECASE,
+        )
+    # Handle lingering "and other" fragments left behind by 3+ entity queries
+    for other in other_entities:
+        result = re.sub(
+            rf"\s+and\s+{re.escape(other)}\b",
+            "", result, flags=re.IGNORECASE,
+        )
+        result = re.sub(
+            rf"\b{re.escape(other)}\s+and\s+",
+            "", result, flags=re.IGNORECASE,
+        )
+    return " ".join(result.split())
+
+
+async def _try_compound_verbatim(
+    question: str, detected_system: str | None
+) -> tuple[str | None, list[dict], int]:
+    """Decompose a compound query into per-entity sub-queries and look
+    each up independently.
+
+    Compound phrasings like "A and B" poison embedding similarity so a
+    single pooled query can rank both individual rows below unrelated
+    rows that happen to mention either entity. Per-entity lookups avoid
+    the pool entirely.
+
+    Returns (answer_text, per_entity_matches, distinct_count) on success,
+    or (None, [], 0) when we found fewer than 2 entity-matched rows.
+    """
+    entities = _extract_compound_entities(question)
+    if len(entities) < 2:
+        return (None, [], 0)
+
+    # Import here so top-level module stays free of async dependency cycles
+    import services.validated_qa_service as _vqa
+
+    per_entity: list[dict] = []
+    seen_ids: set[str] = set()
+
+    for entity in entities:
+        others = entities - {entity}
+        sub_query = _sub_query_for_entity(question, entity, others)
+        try:
+            sub_res = await _vqa.check_validated_match(
+                sub_query, detected_system=detected_system, match_count=5
+            )
+        except Exception as e:
+            logger.warning("per-entity sub-lookup failed for %r: %s", entity, e)
+            continue
+        for m in sub_res.get("matches", []):
+            q_norm = " ".join((m.get("question_text") or "").lower().split())
+            if entity in q_norm and m["id"] not in seen_ids:
+                per_entity.append(m)
+                seen_ids.add(m["id"])
+                break
+
+    distinct = {
+        m.get("validated_answer") for m in per_entity if m.get("validated_answer")
+    }
+    if len(distinct) < 2:
+        return (None, [], 0)
+
+    return (_build_compound_verbatim_answer(per_entity), per_entity, len(distinct))
+
+
+async def _validated_match_for_verbatim(
+    search_query: str, detected_system: str | None
+) -> dict:
+    """Wrap check_validated_match with a per-entity decomposition for
+    compound queries. When the per-entity path yields at least 2 distinct
+    entity-matched rows, return those directly — they're guaranteed to
+    be on-topic. Otherwise fall back to the normal RPC.
+    """
+    import services.validated_qa_service as _vqa
+
+    if _is_compound_query(search_query):
+        ce_text, ce_matches, _ = await _try_compound_verbatim(
+            search_query, detected_system
+        )
+        if ce_text:
+            return {"matches": ce_matches}
+    return await _vqa.check_validated_match(
+        search_query,
+        detected_system=detected_system,
+        match_count=15 if _is_compound_query(search_query) else 5,
+    )
+
+
 def _resolve_verbatim_strategy(
     question: str, matches: list[dict]
 ) -> tuple[str | None, str | None, int]:
@@ -1151,10 +1256,8 @@ async def ask_stream(
 
     # ── Pre-rewrite validated-QA fast path (spec 067, 069) ──
     try:
-        pre_rewrite_match = await validated_qa_service.check_validated_match(
-            question,
-            detected_system=detected_system,
-            match_count=15 if _is_compound_query(question) else 5,
+        pre_rewrite_match = await _validated_match_for_verbatim(
+            question, detected_system
         )
         vqa_matches = pre_rewrite_match.get("matches", [])
         if vqa_matches:
@@ -1286,10 +1389,8 @@ async def ask_stream(
 
     # ── Post-rewrite validated-QA check (spec 048, 069) ──
     try:
-        match_result = await validated_qa_service.check_validated_match(
-            search_query,
-            detected_system=detected_system,
-            match_count=15 if _is_compound_query(question) else 5,
+        match_result = await _validated_match_for_verbatim(
+            search_query, detected_system
         )
         vqa_matches = match_result.get("matches", [])
         if vqa_matches:
@@ -1541,10 +1642,8 @@ async def ask(
 
     _vqa_pre_start = _time.monotonic()
     try:
-        pre_rewrite_match = await validated_qa_service.check_validated_match(
-            question,
-            detected_system=detected_system,
-            match_count=15 if _is_compound_query(question) else 5,
+        pre_rewrite_match = await _validated_match_for_verbatim(
+            question, detected_system
         )
         vqa_matches = pre_rewrite_match.get("matches", [])
 
@@ -1744,10 +1843,8 @@ async def ask(
 
     _vqa_start = _time.monotonic()
     try:
-        match_result = await validated_qa_service.check_validated_match(
-            search_query,
-            detected_system=detected_system,
-            match_count=15 if _is_compound_query(question) else 5,
+        match_result = await _validated_match_for_verbatim(
+            search_query, detected_system
         )
         vqa_matches = match_result.get("matches", [])
 
