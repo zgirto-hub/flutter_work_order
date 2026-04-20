@@ -15,6 +15,39 @@ REFLAG_MIN_TOTAL = 3
 _ALLOWED_SORTS = {"recent", "most_used", "most_problematic"}
 
 
+async def _derive_manual_ids(
+    question_text: str, rating_manual_id: Optional[str] = None
+) -> List[str]:
+    """Pick manual_ids for a validated_qa row being created.
+
+    Origin-of-truth order:
+      1. rating_manual_id (set when the rating came from a manual-scoped query)
+      2. detect_system(question_text) → get_manual_ids_for_system()
+      3. []  (untaggable generic question — filter will fall open for it)
+
+    Keeping `manual_ids` populated keeps the topic filter in
+    `check_validated_match` functional per-row. Observed prod bug: the
+    filter silently no-oped because every row was created with `[]`.
+    """
+    if rating_manual_id:
+        return [rating_manual_id]
+    # Delayed import to avoid circular dependency with manual_rag_service
+    from services.system_registry import detect_system, get_manual_ids_for_system
+
+    detected = detect_system(question_text or "")
+    if not detected:
+        return []
+    try:
+        ids = await get_manual_ids_for_system(detected, supabase)
+        return list(ids or [])
+    except Exception as e:
+        logger.warning(
+            "_derive_manual_ids: get_manual_ids_for_system failed for %r: %s",
+            detected, e,
+        )
+        return []
+
+
 class RatingNotFound(Exception):
     pass
 
@@ -298,8 +331,9 @@ async def review_answer(
         "fault_code": _extract_fault_code(question),
     }
 
-    if rating_row.get("manual_id"):
-        validated_row["manual_ids"] = [rating_row["manual_id"]]
+    validated_row["manual_ids"] = await _derive_manual_ids(
+        question, rating_manual_id=rating_row.get("manual_id")
+    )
 
     result = supabase.table("validated_qa").insert(validated_row).execute()
     validated_id = result.data[0]["id"]
@@ -542,7 +576,9 @@ async def create_verified_answer(
         "equipment_type": equipment_type,
         "fault_code": fault_code,
         "source_chunks": [],
-        "manual_ids": [],
+        "manual_ids": await _derive_manual_ids(
+            question_text, rating_manual_id=source_manual_id
+        ),
         "rating_id": synthetic_rating_id,
     }
     if source_manual_id:
@@ -907,7 +943,9 @@ async def review_answer_multi(
         new_status = "corrected"
 
     # Resolve shared fields
-    manual_ids = [rating_row["manual_id"]] if rating_row.get("manual_id") else []
+    manual_ids = await _derive_manual_ids(
+        rating_row["question_text"], rating_manual_id=rating_row.get("manual_id")
+    )
     source_chunks = rating_row.get("source_chunks", [])
     session_summary = rating_row.get("session_summary")
 

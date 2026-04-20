@@ -54,6 +54,13 @@ def detect_system(question: str) -> Optional[str]:
 
 
 async def get_manual_ids_for_system(system_name: str, supabase_client) -> list[str]:
+    """Return knowledge_documents IDs whose display_name or filename
+    contains any alias of `system_name`.
+
+    The legacy `manuals` table is empty in production; the live corpus
+    lives in `knowledge_documents`. The field name `manual_ids` is kept
+    as-is on the validated_qa side for compatibility.
+    """
     aliases = [
         alias for alias, canonical in SYSTEM_ALIASES.items() if canonical == system_name
     ]
@@ -62,24 +69,26 @@ async def get_manual_ids_for_system(system_name: str, supabase_client) -> list[s
 
     try:
         response = (
-            supabase_client.table("manuals").select("id, title, file_name").execute()
+            supabase_client.table("knowledge_documents")
+            .select("id, display_name, filename")
+            .execute()
         )
         manual_ids: list[str] = []
         seen_ids: set[str] = set()
 
         for row in response.data or []:
-            title = (row.get("title") or "").lower()
-            file_name = (row.get("file_name") or "").lower()
+            display_name = (row.get("display_name") or "").lower()
+            filename = (row.get("filename") or "").lower()
             if any(
-                alias.lower() in title or alias.lower() in file_name
+                alias.lower() in display_name or alias.lower() in filename
                 for alias in aliases
             ):
-                manual_id = str(row.get("id"))
-                if manual_id and manual_id not in seen_ids:
-                    seen_ids.add(manual_id)
-                    manual_ids.append(manual_id)
+                doc_id = str(row.get("id"))
+                if doc_id and doc_id not in seen_ids:
+                    seen_ids.add(doc_id)
+                    manual_ids.append(doc_id)
 
         return manual_ids
     except Exception as e:
-        logger.warning("[hybrid-retrieval] manual lookup failed: %s", e)
+        logger.warning("[hybrid-retrieval] knowledge_documents lookup failed: %s", e)
         return []
