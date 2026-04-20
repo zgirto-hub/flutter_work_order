@@ -354,16 +354,19 @@ async def review_answer(
 
 
 async def check_validated_match(
-    question_text: str, detected_system: Optional[str] = None
+    question_text: str,
+    detected_system: Optional[str] = None,
+    match_count: int = 5,
 ) -> dict:
     embedding = await embed_single(question_text)
     embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
 
-    # match_count=5 (was 3) gives compound queries enough recall to catch
-    # both named entities; single-query paths use only top-1 so the extra
-    # rows are harmless.
+    # Callers pass larger match_count for compound queries (~15) so both
+    # named entities survive the topic + entity filters. Single-query
+    # paths use only top-1 so the extra rows are harmless.
     rpc_resp = supabase.rpc(
-        "search_validated_qa", {"q_embedding": embedding_str, "match_count": 5}
+        "search_validated_qa",
+        {"q_embedding": embedding_str, "match_count": match_count},
     ).execute()
     if not rpc_resp.data:
         return {"matches": []}

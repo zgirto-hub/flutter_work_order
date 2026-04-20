@@ -1152,7 +1152,9 @@ async def ask_stream(
     # ── Pre-rewrite validated-QA fast path (spec 067, 069) ──
     try:
         pre_rewrite_match = await validated_qa_service.check_validated_match(
-            question, detected_system=detected_system
+            question,
+            detected_system=detected_system,
+            match_count=15 if _is_compound_query(question) else 5,
         )
         vqa_matches = pre_rewrite_match.get("matches", [])
         if vqa_matches:
@@ -1285,7 +1287,9 @@ async def ask_stream(
     # ── Post-rewrite validated-QA check (spec 048, 069) ──
     try:
         match_result = await validated_qa_service.check_validated_match(
-            search_query, detected_system=detected_system
+            search_query,
+            detected_system=detected_system,
+            match_count=15 if _is_compound_query(question) else 5,
         )
         vqa_matches = match_result.get("matches", [])
         if vqa_matches:
@@ -1538,7 +1542,9 @@ async def ask(
     _vqa_pre_start = _time.monotonic()
     try:
         pre_rewrite_match = await validated_qa_service.check_validated_match(
-            question, detected_system=detected_system
+            question,
+            detected_system=detected_system,
+            match_count=15 if _is_compound_query(question) else 5,
         )
         vqa_matches = pre_rewrite_match.get("matches", [])
 
@@ -1739,7 +1745,9 @@ async def ask(
     _vqa_start = _time.monotonic()
     try:
         match_result = await validated_qa_service.check_validated_match(
-            search_query, detected_system=detected_system
+            search_query,
+            detected_system=detected_system,
+            match_count=15 if _is_compound_query(question) else 5,
         )
         vqa_matches = match_result.get("matches", [])
 
