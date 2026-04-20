@@ -581,11 +581,10 @@ async def run_all(base_url: str, category_filter: int | None = None, verify: boo
     print(f"  Total time:   {total_elapsed:.1f}s")
     print(f"  {'='*64}")
 
-    # SC-005 regression gate
+    # SC-005 regression gate — announce NOW, exit AFTER JSON save below.
     if regression_count > 0:
         print(f"\n  SC-005 REGRESSION DETECTED — MERGE BLOCKED")
         print(f"  {regression_count} must-refuse question(s) returned grounded answers.")
-        sys.exit(2)
 
     if hallucinations:
         print(f"\n{'='*70}")
@@ -663,6 +662,11 @@ async def run_all(base_url: str, category_filter: int | None = None, verify: boo
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, ensure_ascii=False)
     print(f"\n  Full results saved to: {report_path}")
+
+    # SC-005 regression gate — exit AFTER JSON save so the evidence file is
+    # always written. Non-zero still signals MERGE BLOCKED to the shell.
+    if regression_count > 0:
+        sys.exit(2)
 
 
 # ── CLI ────────────────────────────────────────────────────────────────────────
