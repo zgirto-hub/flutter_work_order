@@ -133,6 +133,24 @@ def _should_return_verbatim(matches: list[dict]) -> bool:
     return (top1 - top2) >= VERBATIM_DOMINANCE_GAP
 
 
+# A verbatim answer is one `validated_qa` row. If the user asks for multiple
+# entities, one row can't cover the request — fall through to synthesis so
+# context_parts stitches both matches together.
+_COMPOUND_QUERY_RE = re.compile(
+    r"\b(?:both|list\s+all|all\s+\w+s?\s+and)\b"
+    r"|\b(?:server|system|device|node|site|unit)\s*\d+\b[^?]{0,60}"
+    r"\band\b[^?]{0,60}\b(?:server|system|device|node|site|unit)\s*\d+\b",
+    re.IGNORECASE,
+)
+
+
+def _is_compound_query(question: str | None) -> bool:
+    """Does this query ask about multiple distinct enumerated entities?"""
+    if not question:
+        return False
+    return bool(_COMPOUND_QUERY_RE.search(question))
+
+
 def _count_distinct_sources(matches: list[dict]) -> int:
     """Count distinct underlying curated answers (spec 068 variants share text)."""
     return len({m["validated_answer"] for m in matches}) if matches else 0
@@ -956,7 +974,10 @@ async def ask_stream(
             top2 = vqa_matches[1]["similarity"] if len(vqa_matches) > 1 else 0.0
             if top1 >= RAG_CONFIDENCE_THRESHOLD:
                 max_score = top1
-                is_verbatim = _should_return_verbatim(vqa_matches)
+                is_verbatim = (
+                    _should_return_verbatim(vqa_matches)
+                    and not _is_compound_query(question)
+                )
                 verification_mode = "verbatim" if is_verbatim else "synthesized"
                 verified_source_count = 1 if is_verbatim else _count_distinct_sources(vqa_matches)
                 _log_verified_served(user_email, question, verification_mode, top1, top2)
@@ -1087,7 +1108,10 @@ async def ask_stream(
             top2 = vqa_matches[1]["similarity"] if len(vqa_matches) > 1 else 0.0
             if top1 >= RAG_CONFIDENCE_THRESHOLD:
                 max_score = top1
-                is_verbatim = _should_return_verbatim(vqa_matches)
+                is_verbatim = (
+                    _should_return_verbatim(vqa_matches)
+                    and not _is_compound_query(question)
+                )
                 verification_mode = "verbatim" if is_verbatim else "synthesized"
                 verified_source_count = 1 if is_verbatim else _count_distinct_sources(vqa_matches)
                 _log_verified_served(user_email, search_query, verification_mode, top1, top2)
@@ -1345,7 +1369,10 @@ async def ask(
 
             if top1 >= RAG_CONFIDENCE_THRESHOLD:
                 max_score = top1
-                is_verbatim = _should_return_verbatim(vqa_matches)
+                is_verbatim = (
+                    _should_return_verbatim(vqa_matches)
+                    and not _is_compound_query(question)
+                )
                 verification_mode = "verbatim" if is_verbatim else "synthesized"
                 verified_source_count = 1 if is_verbatim else _count_distinct_sources(vqa_matches)
                 _log_verified_served(user_email, question, verification_mode, top1, top2)
@@ -1542,7 +1569,10 @@ async def ask(
 
             if top1 >= RAG_CONFIDENCE_THRESHOLD:
                 max_score = top1
-                is_verbatim = _should_return_verbatim(vqa_matches)
+                is_verbatim = (
+                    _should_return_verbatim(vqa_matches)
+                    and not _is_compound_query(question)
+                )
                 verification_mode = "verbatim" if is_verbatim else "synthesized"
                 verified_source_count = 1 if is_verbatim else _count_distinct_sources(vqa_matches)
                 _log_verified_served(user_email, search_query, verification_mode, top1, top2)
