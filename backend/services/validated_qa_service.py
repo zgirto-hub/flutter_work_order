@@ -359,8 +359,11 @@ async def check_validated_match(
     embedding = await embed_single(question_text)
     embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
 
+    # match_count=5 (was 3) gives compound queries enough recall to catch
+    # both named entities; single-query paths use only top-1 so the extra
+    # rows are harmless.
     rpc_resp = supabase.rpc(
-        "search_validated_qa", {"q_embedding": embedding_str, "match_count": 3}
+        "search_validated_qa", {"q_embedding": embedding_str, "match_count": 5}
     ).execute()
     if not rpc_resp.data:
         return {"matches": []}

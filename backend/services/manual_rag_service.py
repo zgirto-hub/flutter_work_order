@@ -201,6 +201,103 @@ def _build_compound_verbatim_answer(matches: list[dict]) -> str:
     return "\n\n".join(parts)
 
 
+# Same entity tokens that drive _is_compound_query. Capture each
+# enumerated entity ("server 1", "device 7") so we can verify a match
+# actually addresses at least one of them.
+_COMPOUND_ENTITY_RE = re.compile(
+    r"\b(server|system|device|node|site|unit)\s*\d+\b",
+    re.IGNORECASE,
+)
+
+
+def _extract_compound_entities(question: str | None) -> set[str]:
+    """Return the set of enumerated entities named in the query, normalized.
+
+    E.g. "ip of cadas ats server 1 and server 2" → {"server 1", "server 2"}.
+    """
+    if not question:
+        return set()
+    out = set()
+    for match in _COMPOUND_ENTITY_RE.finditer(question):
+        # Collapse internal whitespace and lowercase so "Server  1" and
+        # "server 1" collapse to the same token
+        raw = match.group(0)
+        normalized = " ".join(raw.lower().split())
+        out.add(normalized)
+    return out
+
+
+def _filter_matches_by_entities(
+    matches: list[dict], entities: set[str]
+) -> list[dict]:
+    """Keep only matches whose question_text mentions any of the given
+    entities. If entities is empty, passthrough — the filter is no-op.
+
+    Prevents a high-similarity but topically-irrelevant row (e.g. a
+    CADAS-ATS credentials row matching a CADAS-ATS IPs query) from
+    contaminating compound-verbatim output.
+    """
+    if not entities:
+        return matches
+    kept = []
+    for m in matches:
+        q = (m.get("question_text") or "").lower()
+        q_norm = " ".join(q.split())
+        if any(e in q_norm for e in entities):
+            kept.append(m)
+    return kept
+
+
+def _build_compound_verbatim_answer_filtered(
+    question: str, matches: list[dict]
+) -> str:
+    """Compound-verbatim with entity filter applied. Returns "" when the
+    entity filter leaves fewer than 2 distinct answers — caller should
+    fall back to single-row verbatim or synthesis rather than return a
+    partial/misleading answer.
+    """
+    entities = _extract_compound_entities(question)
+    filtered = _filter_matches_by_entities(matches, entities)
+    distinct = {m.get("validated_answer") for m in filtered if m.get("validated_answer")}
+    if len(distinct) < 2:
+        return ""
+    return _build_compound_verbatim_answer(filtered)
+
+
+def _resolve_verbatim_strategy(
+    question: str, matches: list[dict]
+) -> tuple[str | None, str | None, int]:
+    """Decide how (or whether) to short-circuit to a verbatim answer.
+
+    Returns (strategy, answer_text, source_count):
+      ("compound", text, N) — concatenate entity-matched curated answers
+      ("single", text, 1)   — single-row verbatim short-circuit
+      (None, None, 0)       — no verbatim; caller should synthesize via LLM
+
+    When the query is compound and the entity filter yields fewer than 2
+    distinct on-topic answers, we intentionally refuse single-verbatim —
+    a single answer cannot truthfully cover a multi-entity question.
+    """
+    if not matches:
+        return (None, None, 0)
+
+    is_compound = _is_compound_query(question)
+
+    if is_compound and _should_compound_verbatim(question, matches):
+        text = _build_compound_verbatim_answer_filtered(question, matches)
+        if text:
+            entities = _extract_compound_entities(question)
+            filtered = _filter_matches_by_entities(matches, entities)
+            return ("compound", text, _count_distinct_sources(filtered))
+        # Filter failed; compound single-verbatim is wrong too → synthesize
+        return (None, None, 0)
+
+    if not is_compound and _should_return_verbatim(matches):
+        return ("single", matches[0]["validated_answer"], 1)
+
+    return (None, None, 0)
+
+
 def _build_validated_qa_context(matches: list[dict]) -> str:
     """Format validated_qa matches as a labelled context block for the LLM.
 
@@ -1063,20 +1160,10 @@ async def ask_stream(
             top2 = vqa_matches[1]["similarity"] if len(vqa_matches) > 1 else 0.0
             if top1 >= _effective_rag_threshold(question):
                 max_score = top1
-                is_single_verbatim = (
-                    _should_return_verbatim(vqa_matches)
-                    and not _is_compound_query(question)
+                verbatim_strategy, verbatim_answer_text, verbatim_source_count = (
+                    _resolve_verbatim_strategy(question, vqa_matches)
                 )
-                is_compound_verbatim = _should_compound_verbatim(question, vqa_matches)
-                is_verbatim = is_single_verbatim or is_compound_verbatim
-                verbatim_answer_text = (
-                    _build_compound_verbatim_answer(vqa_matches)
-                    if is_compound_verbatim
-                    else (vqa_matches[0]["validated_answer"] if is_single_verbatim else None)
-                )
-                verbatim_source_count = (
-                    _count_distinct_sources(vqa_matches) if is_compound_verbatim else 1
-                )
+                is_verbatim = verbatim_strategy is not None
                 verification_mode = "verbatim" if is_verbatim else "synthesized"
                 verified_source_count = (
                     verbatim_source_count if is_verbatim else _count_distinct_sources(vqa_matches)
@@ -1206,20 +1293,10 @@ async def ask_stream(
             top2 = vqa_matches[1]["similarity"] if len(vqa_matches) > 1 else 0.0
             if top1 >= _effective_rag_threshold(question):
                 max_score = top1
-                is_single_verbatim = (
-                    _should_return_verbatim(vqa_matches)
-                    and not _is_compound_query(question)
+                verbatim_strategy, verbatim_answer_text, verbatim_source_count = (
+                    _resolve_verbatim_strategy(question, vqa_matches)
                 )
-                is_compound_verbatim = _should_compound_verbatim(question, vqa_matches)
-                is_verbatim = is_single_verbatim or is_compound_verbatim
-                verbatim_answer_text = (
-                    _build_compound_verbatim_answer(vqa_matches)
-                    if is_compound_verbatim
-                    else (vqa_matches[0]["validated_answer"] if is_single_verbatim else None)
-                )
-                verbatim_source_count = (
-                    _count_distinct_sources(vqa_matches) if is_compound_verbatim else 1
-                )
+                is_verbatim = verbatim_strategy is not None
                 verification_mode = "verbatim" if is_verbatim else "synthesized"
                 verified_source_count = (
                     verbatim_source_count if is_verbatim else _count_distinct_sources(vqa_matches)
@@ -1476,20 +1553,10 @@ async def ask(
 
             if top1 >= _effective_rag_threshold(question):
                 max_score = top1
-                is_single_verbatim = (
-                    _should_return_verbatim(vqa_matches)
-                    and not _is_compound_query(question)
+                verbatim_strategy, verbatim_answer_text, verbatim_source_count = (
+                    _resolve_verbatim_strategy(question, vqa_matches)
                 )
-                is_compound_verbatim = _should_compound_verbatim(question, vqa_matches)
-                is_verbatim = is_single_verbatim or is_compound_verbatim
-                verbatim_answer_text = (
-                    _build_compound_verbatim_answer(vqa_matches)
-                    if is_compound_verbatim
-                    else (vqa_matches[0]["validated_answer"] if is_single_verbatim else None)
-                )
-                verbatim_source_count = (
-                    _count_distinct_sources(vqa_matches) if is_compound_verbatim else 1
-                )
+                is_verbatim = verbatim_strategy is not None
                 verification_mode = "verbatim" if is_verbatim else "synthesized"
                 verified_source_count = (
                     verbatim_source_count if is_verbatim else _count_distinct_sources(vqa_matches)
@@ -1687,20 +1754,10 @@ async def ask(
 
             if top1 >= _effective_rag_threshold(question):
                 max_score = top1
-                is_single_verbatim = (
-                    _should_return_verbatim(vqa_matches)
-                    and not _is_compound_query(question)
+                verbatim_strategy, verbatim_answer_text, verbatim_source_count = (
+                    _resolve_verbatim_strategy(question, vqa_matches)
                 )
-                is_compound_verbatim = _should_compound_verbatim(question, vqa_matches)
-                is_verbatim = is_single_verbatim or is_compound_verbatim
-                verbatim_answer_text = (
-                    _build_compound_verbatim_answer(vqa_matches)
-                    if is_compound_verbatim
-                    else (vqa_matches[0]["validated_answer"] if is_single_verbatim else None)
-                )
-                verbatim_source_count = (
-                    _count_distinct_sources(vqa_matches) if is_compound_verbatim else 1
-                )
+                is_verbatim = verbatim_strategy is not None
                 verification_mode = "verbatim" if is_verbatim else "synthesized"
                 verified_source_count = (
                     verbatim_source_count if is_verbatim else _count_distinct_sources(vqa_matches)
