@@ -169,6 +169,25 @@ def _count_distinct_sources(matches: list[dict]) -> int:
     return len({m["validated_answer"] for m in matches}) if matches else 0
 
 
+def _build_validated_qa_context(matches: list[dict]) -> str:
+    """Format validated_qa matches as a labelled context block for the LLM.
+
+    Each source header includes the question the row was curated against,
+    so small models (Llama 4 Scout) can't treat Source 1 as canonical and
+    dismiss the rest as "not mentioned". The question_text label surfaces
+    the entity the source covers (e.g. "server 1") right in the header.
+    """
+    if not matches:
+        return ""
+    parts = []
+    for i, m in enumerate(matches):
+        q = (m.get("question_text") or "").strip()
+        parts.append(
+            f'[Source {i + 1} — answers: "{q}"]\n{m["validated_answer"]}'
+        )
+    return "\n\n".join(parts)
+
+
 def _log_verified_served(
     user_email: str,
     question: str,
@@ -1041,10 +1060,7 @@ async def ask_stream(
                         breakdown["generator_ms"] = 0
                     yield vqa_matches[0]["validated_answer"]
                     return
-                context_parts = [
-                    f"[Source {i + 1}]\n{m['validated_answer']}"
-                    for i, m in enumerate(vqa_matches)
-                ]
+                context_parts = [_build_validated_qa_context(vqa_matches)]
                 prompt = (
                     f"{VALIDATED_QA_SYSTEM_PROMPT}\n\n"
                     f"CONTEXT:\n{''.join(context_parts)}\n\n"
@@ -1175,10 +1191,7 @@ async def ask_stream(
                         breakdown["generator_ms"] = 0
                     yield vqa_matches[0]["validated_answer"]
                     return
-                context_parts = [
-                    f"[Source {i + 1}]\n{m['validated_answer']}"
-                    for i, m in enumerate(vqa_matches)
-                ]
+                context_parts = [_build_validated_qa_context(vqa_matches)]
                 prompt = (
                     f"{VALIDATED_QA_SYSTEM_PROMPT}\n\n"
                     f"CONTEXT:\n{''.join(context_parts)}\n\n"
@@ -1415,10 +1428,7 @@ async def ask(
                         latency_breakdown=breakdown,
                     )
                 # Build combined context from top 3 matches
-                context_parts = []
-                for i, m in enumerate(vqa_matches):
-                    context_parts.append(f"[Source {i + 1}]\n{m['validated_answer']}")
-                combined_context = "\n\n".join(context_parts)
+                combined_context = _build_validated_qa_context(vqa_matches)
 
                 # Build the strict prompt
                 prompt = (
@@ -1615,10 +1625,7 @@ async def ask(
                         latency_breakdown=breakdown,
                     )
                 # Build combined context from top 3 matches
-                context_parts = []
-                for i, m in enumerate(vqa_matches):
-                    context_parts.append(f"[Source {i + 1}]\n{m['validated_answer']}")
-                combined_context = "\n\n".join(context_parts)
+                combined_context = _build_validated_qa_context(vqa_matches)
 
                 # Build the strict prompt
                 prompt = (
