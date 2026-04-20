@@ -7,7 +7,14 @@ from services.ollama_generator import GeneratorModelError
 
 logger = logging.getLogger(__name__)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
-GROQ_MODEL = "llama-3.3-70b-versatile"
+# Switched from llama-3.3-70b-versatile to llama-4-scout-17b-16e-instruct:
+# - Free tier cap is 500K tokens/day (vs 100K/day on 70b) — 5x the daily
+#   budget, enough to absorb a full office's real usage without early
+#   fallback to local Ollama.
+# - 17B params still a meaningful step up from local gemma4:e2b (5.1B).
+# - Scout is the smaller/faster half of the Llama 4 family; latency on
+#   Groq infrastructure stays in the 1-2s range for generation.
+GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 
 class GroqProvider(AIProvider):
@@ -16,7 +23,7 @@ class GroqProvider(AIProvider):
 
     @property
     def display_name(self) -> str:
-        return "Groq (Llama 3.3 70B)"
+        return "Groq (Llama 4 Scout 17B)"
 
     def _scrub(self, msg: str) -> str:
         if self._api_key and self._api_key in msg:
