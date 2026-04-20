@@ -926,39 +926,79 @@ async def run_test(test: TestQuestion, base_url: str, verify: bool = False) -> T
 
 
 async def detect_model(base_url: str) -> dict:
-    """Detect which LLM model and provider the backend is using."""
+    """Detect which LLM model and provider the backend is using.
+
+    Uses Ollama's /api/ps (currently-loaded models in VRAM) as the authoritative
+    source for `model`. /api/tags lists every DOWNLOADED model in arbitrary
+    order, which is not the same thing — picking the first entry there gave
+    wrong labels (e.g. reporting "deepseek-r1:7b" while Gemma was actually
+    serving). Falls back to /api/tags only when /api/ps is empty (no model
+    warm in VRAM at probe time).
+
+    For the embed model we still use /api/tags because embedders are often
+    unloaded between requests and /api/ps may not show them.
+    """
     info = {"provider": "unknown", "model": "unknown", "embed_model": "unknown"}
 
-    # Try Ollama /api/tags to get loaded models
-    ollama_url = base_url.rsplit(":", 1)[0] + ":11434"  # same host, Ollama port
+    # Ollama is reached at :11434 on the same host as the backend.
+    # base_url like "https://host" or "https://host:port" -> strip existing port,
+    # substitute :11434. For HTTPS URLs we also downgrade scheme to HTTP because
+    # Ollama binds plain HTTP on localhost.
+    ollama_candidates = []
     try:
-        async with httpx.AsyncClient(verify=False, timeout=5.0) as client:
-            resp = await client.get(f"{ollama_url}/api/tags")
-            if resp.status_code == 200:
-                models = resp.json().get("models", [])
-                gen_models = [m["name"] for m in models if "embed" not in m["name"].lower()]
-                embed_models = [m["name"] for m in models if "embed" in m["name"].lower()]
-                if gen_models:
-                    info["model"] = gen_models[0]
-                    info["provider"] = "Ollama (local)"
-                if embed_models:
-                    info["embed_model"] = embed_models[0]
+        from urllib.parse import urlparse
+        parsed = urlparse(base_url)
+        if parsed.hostname:
+            ollama_candidates.append(f"http://{parsed.hostname}:11434")
     except Exception:
-        # Ollama not reachable on default port — try localhost
+        pass
+    # Always also try localhost — covers the "running the test on the same
+    # box as the backend" case.
+    ollama_candidates.append("http://localhost:11434")
+
+    async def _fetch_json(client, url):
         try:
-            async with httpx.AsyncClient(verify=False, timeout=5.0) as client:
-                resp = await client.get("http://localhost:11434/api/tags")
-                if resp.status_code == 200:
-                    models = resp.json().get("models", [])
-                    gen_models = [m["name"] for m in models if "embed" not in m["name"].lower()]
-                    embed_models = [m["name"] for m in models if "embed" in m["name"].lower()]
-                    if gen_models:
-                        info["model"] = gen_models[0]
-                        info["provider"] = "Ollama (local)"
-                    if embed_models:
-                        info["embed_model"] = embed_models[0]
+            resp = await client.get(url, timeout=5.0)
+            if resp.status_code == 200:
+                return resp.json()
         except Exception:
-            pass
+            return None
+        return None
+
+    async with httpx.AsyncClient(verify=False, timeout=5.0) as client:
+        ps_data = None
+        tags_data = None
+        for base in ollama_candidates:
+            if ps_data is None:
+                ps_data = await _fetch_json(client, f"{base}/api/ps")
+            if tags_data is None:
+                tags_data = await _fetch_json(client, f"{base}/api/tags")
+            if ps_data is not None and tags_data is not None:
+                break
+
+    # Prefer /api/ps — the model actually running right now.
+    if ps_data and ps_data.get("models"):
+        running = ps_data["models"]
+        running_gen = [m["name"] for m in running if "embed" not in m["name"].lower()]
+        running_embed = [m["name"] for m in running if "embed" in m["name"].lower()]
+        if running_gen:
+            info["model"] = running_gen[0]
+            info["provider"] = "Ollama (local)"
+        if running_embed:
+            info["embed_model"] = running_embed[0]
+
+    # Fill in gaps from /api/tags if /api/ps was empty or missed something.
+    if tags_data and tags_data.get("models"):
+        all_models = tags_data["models"]
+        if info["model"] == "unknown":
+            gen_models = [m["name"] for m in all_models if "embed" not in m["name"].lower()]
+            if gen_models:
+                info["model"] = gen_models[0] + "  (not loaded — first in /api/tags)"
+                info["provider"] = "Ollama (local)"
+        if info["embed_model"] == "unknown":
+            embed_models = [m["name"] for m in all_models if "embed" in m["name"].lower()]
+            if embed_models:
+                info["embed_model"] = embed_models[0]
 
     return info
 
