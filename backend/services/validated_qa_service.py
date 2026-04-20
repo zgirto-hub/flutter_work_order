@@ -331,42 +331,56 @@ async def check_validated_match(
     if not rpc_resp.data:
         return {"matches": []}
 
-    # Apply topic guard to the best match (lowest distance)
-    best_match = rpc_resp.data[0]
-    best_distance = best_match.get("distance", 1.0)
+    rows = list(rpc_resp.data)
 
-    if detected_system and best_distance <= 0.25:
+    # Per-row topic filter. Off-topic rows that happen to embed close to the
+    # query (e.g. a CADAS-IMS VNC row that mentions "server 1"/"server 2"
+    # literally when the query is about CADAS-ATS) contaminate the LLM context
+    # and cause entity-level refusals. Drop them individually rather than
+    # rejecting the whole result set when any row fails.
+    if detected_system and rows:
         try:
-            row_resp = (
-                supabase.table("validated_qa")
-                .select("manual_ids")
-                .eq("id", best_match["id"])
-                .single()
-                .execute()
-            )
-            row_manual_ids = (row_resp.data or {}).get("manual_ids") or []
-            if row_manual_ids:
-                from services.system_registry import get_manual_ids_for_system
+            from services.system_registry import get_manual_ids_for_system
 
-                system_manual_ids = await get_manual_ids_for_system(
-                    detected_system, supabase
-                )
-                if system_manual_ids and not (
-                    set(str(m) for m in row_manual_ids)
-                    & set(str(m) for m in system_manual_ids)
-                ):
-                    logger.info(
-                        "[validated-qa] topic mismatch: row manual_ids=%s, detected_system=%s — rejecting cache match",
-                        row_manual_ids,
-                        detected_system,
-                    )
-                    return {"matches": []}
+            system_manual_ids = await get_manual_ids_for_system(
+                detected_system, supabase
+            )
+            system_set = {str(m) for m in (system_manual_ids or [])}
+            if system_set:
+                kept: list[dict] = []
+                for row in rows:
+                    try:
+                        row_resp = (
+                            supabase.table("validated_qa")
+                            .select("manual_ids")
+                            .eq("id", row["id"])
+                            .single()
+                            .execute()
+                        )
+                        row_manual_ids = (row_resp.data or {}).get("manual_ids") or []
+                        if not row_manual_ids:
+                            # No manual linkage → can't judge topic, keep it
+                            kept.append(row)
+                            continue
+                        if {str(m) for m in row_manual_ids} & system_set:
+                            kept.append(row)
+                        else:
+                            logger.info(
+                                "[validated-qa] topic filter dropped row id=%s "
+                                "manual_ids=%s detected_system=%s",
+                                row["id"], row_manual_ids, detected_system,
+                            )
+                    except Exception as e:
+                        # Can't judge this row → keep it (old behavior on error)
+                        logger.warning("Per-row topic lookup failed for id=%s: %s", row.get("id"), e)
+                        kept.append(row)
+                rows = kept
         except Exception as e:
-            logger.warning("Topic guard lookup failed, allowing match: %s", e)
+            logger.warning("Topic filter setup failed, keeping all rows: %s", e)
 
     # Build matches with similarity scores
     matches = []
-    for match in rpc_resp.data:
+    for match in rows:
         similarity = round(1.0 - match.get("distance", 1.0), 2)
         matches.append(
             {
