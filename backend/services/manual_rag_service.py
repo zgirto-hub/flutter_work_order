@@ -752,6 +752,13 @@ async def upload_manual(
     }
 
 
+# Gemma 4 E2B on the Zorin server's 15GB RAM regularly needs ~12-15s for the
+# rewrite prompt; 10s was causing every follow-up to time out and fall back
+# to the raw original question. 25s gives enough headroom without making
+# the overall pipeline feel unresponsive.
+REWRITE_GENERATE_TIMEOUT_S = 25.0
+
+
 async def _rewrite_query(question: str, history: list[dict] | None, diagnostic: dict | None = None) -> str:
     # Spec 076: Intentionally hardcoded to Ollama — NOT routed through provider resolver
     """Rewrite a follow-up question into a self-contained search query using conversation context."""
@@ -787,7 +794,7 @@ FOLLOW-UP QUESTION: """
             + question
         )
 
-        result = await generate(rewrite_prompt, timeout=10.0)
+        result = await generate(rewrite_prompt, timeout=REWRITE_GENERATE_TIMEOUT_S)
         rewritten = result.strip().strip('"').strip("'").strip()
         if not rewritten:
             logger.warning("Query rewrite returned empty, using original query")
