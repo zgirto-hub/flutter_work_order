@@ -151,6 +151,19 @@ def _is_compound_query(question: str | None) -> bool:
     return bool(_COMPOUND_QUERY_RE.search(question))
 
 
+# Compound queries phrase multiple entities in one sentence ("A and B"),
+# which embeds further from any single curated row. Lower the entry gate
+# just enough to keep them on the verified-synthesis path instead of
+# falling through to manual chunks.
+_COMPOUND_RAG_THRESHOLD = 0.70
+
+
+def _effective_rag_threshold(question: str | None) -> float:
+    if _is_compound_query(question):
+        return _COMPOUND_RAG_THRESHOLD
+    return RAG_CONFIDENCE_THRESHOLD
+
+
 def _count_distinct_sources(matches: list[dict]) -> int:
     """Count distinct underlying curated answers (spec 068 variants share text)."""
     return len({m["validated_answer"] for m in matches}) if matches else 0
@@ -258,6 +271,13 @@ VALIDATED_QA_SYSTEM_PROMPT = (
     "the verified sources.\n"
     "- If a source mentions a topic but omits a specific value, say what the source "
     "says and flag the gap in one short sentence — do not append the refusal sentinel.\n\n"
+    "MULTI-ENTITY QUESTIONS:\n"
+    "- If the question names multiple distinct entities (e.g. \"server 1 and server 2\", "
+    "\"both A and B\", \"list all X\"), you MUST address EACH named entity using whichever "
+    "source covers it — different entities are typically in different sources.\n"
+    "- Before saying an entity is \"not mentioned\" or \"not in the sources\", scan ALL "
+    "provided sources for that entity. Do not declare missing after checking only Source 1.\n"
+    "- Format the answer so each entity has its own labelled section or bullet group.\n\n"
     "FORMAT:\n"
     "- Be concise and direct. Use bullet points for procedures.\n"
     '- Cite the source when answering (e.g. "According to source 1...").'
@@ -773,6 +793,10 @@ FOLLOW-UP QUESTION: """
             logger.warning("Query rewrite returned empty, using original query")
             _record_stage(diagnostic, "rewrite", {"ran": True, "output_query": question, "input_turns": len(history)})
             return question
+        logger.info(
+            "[rewrite] original=%r history_turns=%d rewritten=%r",
+            question, len(history), rewritten,
+        )
         _record_stage(diagnostic, "rewrite", {"ran": True, "output_query": rewritten, "input_turns": len(history)})
         return rewritten
     except Exception as e:
@@ -972,7 +996,7 @@ async def ask_stream(
         if vqa_matches:
             top1 = vqa_matches[0]["similarity"]
             top2 = vqa_matches[1]["similarity"] if len(vqa_matches) > 1 else 0.0
-            if top1 >= RAG_CONFIDENCE_THRESHOLD:
+            if top1 >= _effective_rag_threshold(question):
                 max_score = top1
                 is_verbatim = (
                     _should_return_verbatim(vqa_matches)
@@ -1106,7 +1130,7 @@ async def ask_stream(
         if vqa_matches:
             top1 = vqa_matches[0]["similarity"]
             top2 = vqa_matches[1]["similarity"] if len(vqa_matches) > 1 else 0.0
-            if top1 >= RAG_CONFIDENCE_THRESHOLD:
+            if top1 >= _effective_rag_threshold(question):
                 max_score = top1
                 is_verbatim = (
                     _should_return_verbatim(vqa_matches)
@@ -1367,7 +1391,7 @@ async def ask(
                 RAG_CONFIDENCE_THRESHOLD,
             )
 
-            if top1 >= RAG_CONFIDENCE_THRESHOLD:
+            if top1 >= _effective_rag_threshold(question):
                 max_score = top1
                 is_verbatim = (
                     _should_return_verbatim(vqa_matches)
@@ -1567,7 +1591,7 @@ async def ask(
                 RAG_CONFIDENCE_THRESHOLD,
             )
 
-            if top1 >= RAG_CONFIDENCE_THRESHOLD:
+            if top1 >= _effective_rag_threshold(question):
                 max_score = top1
                 is_verbatim = (
                     _should_return_verbatim(vqa_matches)
