@@ -169,6 +169,38 @@ def _count_distinct_sources(matches: list[dict]) -> int:
     return len({m["validated_answer"] for m in matches}) if matches else 0
 
 
+def _should_compound_verbatim(question: str | None, matches: list[dict]) -> bool:
+    """Fire the compound-verbatim path when the query names multiple entities
+    AND we have multiple distinct curated answers to concatenate.
+
+    Paraphrase variants (spec 068) share validated_answer text — treat those
+    as a single source, not grounds for compounding.
+    """
+    if not question or not matches:
+        return False
+    if not _is_compound_query(question):
+        return False
+    distinct = {m.get("validated_answer") for m in matches}
+    return len(distinct) >= 2
+
+
+def _build_compound_verbatim_answer(matches: list[dict]) -> str:
+    """Concatenate each distinct validated_answer with blank-line separators.
+
+    Deterministic, no LLM, preserves every answer verbatim. Used when the
+    query is compound and the LLM keeps refusing one entity despite seeing
+    both sources.
+    """
+    seen: set[str] = set()
+    parts: list[str] = []
+    for m in matches:
+        ans = m.get("validated_answer") or ""
+        if ans and ans not in seen:
+            seen.add(ans)
+            parts.append(ans)
+    return "\n\n".join(parts)
+
+
 def _build_validated_qa_context(matches: list[dict]) -> str:
     """Format validated_qa matches as a labelled context block for the LLM.
 
@@ -216,14 +248,21 @@ def _build_verbatim_payload(
     search_query: str,
     retrieval_info: dict | None,
     latency_breakdown: dict | None,
+    answer_text: str | None = None,
+    source_count: int = 1,
 ) -> dict:
-    """Build response dict for the verbatim path — NO LLM call."""
+    """Build response dict for the verbatim path — NO LLM call.
+
+    For compound-verbatim (multiple distinct rows concatenated deterministically),
+    pass `answer_text` and `source_count`; otherwise defaults to single-row
+    verbatim using matches[0].
+    """
     top1 = matches[0]["similarity"]
     confidence = "high" if top1 >= RAG_HIGH_CONFIDENCE else "medium"
     if latency_breakdown is not None:
         latency_breakdown["generator_ms"] = 0
     return {
-        "answer": matches[0]["validated_answer"],
+        "answer": answer_text if answer_text is not None else matches[0]["validated_answer"],
         "grounded": True,
         "sources": [
             {"id": m["id"], "question_text": m["question_text"], "score": m["similarity"]}
@@ -246,7 +285,7 @@ def _build_verbatim_payload(
             "similarity": top1,
         },
         "verification_mode": "verbatim",
-        "verified_source_count": 1,
+        "verified_source_count": source_count,
         "retrieval_info": retrieval_info,
         "provider_used": "verbatim",
         "fallback_used": False,
@@ -1024,12 +1063,24 @@ async def ask_stream(
             top2 = vqa_matches[1]["similarity"] if len(vqa_matches) > 1 else 0.0
             if top1 >= _effective_rag_threshold(question):
                 max_score = top1
-                is_verbatim = (
+                is_single_verbatim = (
                     _should_return_verbatim(vqa_matches)
                     and not _is_compound_query(question)
                 )
+                is_compound_verbatim = _should_compound_verbatim(question, vqa_matches)
+                is_verbatim = is_single_verbatim or is_compound_verbatim
+                verbatim_answer_text = (
+                    _build_compound_verbatim_answer(vqa_matches)
+                    if is_compound_verbatim
+                    else (vqa_matches[0]["validated_answer"] if is_single_verbatim else None)
+                )
+                verbatim_source_count = (
+                    _count_distinct_sources(vqa_matches) if is_compound_verbatim else 1
+                )
                 verification_mode = "verbatim" if is_verbatim else "synthesized"
-                verified_source_count = 1 if is_verbatim else _count_distinct_sources(vqa_matches)
+                verified_source_count = (
+                    verbatim_source_count if is_verbatim else _count_distinct_sources(vqa_matches)
+                )
                 _log_verified_served(user_email, question, verification_mode, top1, top2)
                 if is_verbatim:
                     stream_meta.update({
@@ -1051,14 +1102,14 @@ async def ask_stream(
                             "similarity": top1,
                         },
                         "verification_mode": "verbatim",
-                        "verified_source_count": 1,
+                        "verified_source_count": verbatim_source_count,
                         "provider_key": "verbatim",
                         "display_name": "Verbatim (no generation)",
                         "fallback_used": False,
                     })
                     if breakdown is not None:
                         breakdown["generator_ms"] = 0
-                    yield vqa_matches[0]["validated_answer"]
+                    yield verbatim_answer_text
                     return
                 context_parts = [_build_validated_qa_context(vqa_matches)]
                 prompt = (
@@ -1155,12 +1206,24 @@ async def ask_stream(
             top2 = vqa_matches[1]["similarity"] if len(vqa_matches) > 1 else 0.0
             if top1 >= _effective_rag_threshold(question):
                 max_score = top1
-                is_verbatim = (
+                is_single_verbatim = (
                     _should_return_verbatim(vqa_matches)
                     and not _is_compound_query(question)
                 )
+                is_compound_verbatim = _should_compound_verbatim(question, vqa_matches)
+                is_verbatim = is_single_verbatim or is_compound_verbatim
+                verbatim_answer_text = (
+                    _build_compound_verbatim_answer(vqa_matches)
+                    if is_compound_verbatim
+                    else (vqa_matches[0]["validated_answer"] if is_single_verbatim else None)
+                )
+                verbatim_source_count = (
+                    _count_distinct_sources(vqa_matches) if is_compound_verbatim else 1
+                )
                 verification_mode = "verbatim" if is_verbatim else "synthesized"
-                verified_source_count = 1 if is_verbatim else _count_distinct_sources(vqa_matches)
+                verified_source_count = (
+                    verbatim_source_count if is_verbatim else _count_distinct_sources(vqa_matches)
+                )
                 _log_verified_served(user_email, search_query, verification_mode, top1, top2)
                 if is_verbatim:
                     stream_meta.update({
@@ -1182,14 +1245,14 @@ async def ask_stream(
                             "similarity": top1,
                         },
                         "verification_mode": "verbatim",
-                        "verified_source_count": 1,
+                        "verified_source_count": verbatim_source_count,
                         "provider_key": "verbatim",
                         "display_name": "Verbatim (no generation)",
                         "fallback_used": False,
                     })
                     if breakdown is not None:
                         breakdown["generator_ms"] = 0
-                    yield vqa_matches[0]["validated_answer"]
+                    yield verbatim_answer_text
                     return
                 context_parts = [_build_validated_qa_context(vqa_matches)]
                 prompt = (
@@ -1413,12 +1476,24 @@ async def ask(
 
             if top1 >= _effective_rag_threshold(question):
                 max_score = top1
-                is_verbatim = (
+                is_single_verbatim = (
                     _should_return_verbatim(vqa_matches)
                     and not _is_compound_query(question)
                 )
+                is_compound_verbatim = _should_compound_verbatim(question, vqa_matches)
+                is_verbatim = is_single_verbatim or is_compound_verbatim
+                verbatim_answer_text = (
+                    _build_compound_verbatim_answer(vqa_matches)
+                    if is_compound_verbatim
+                    else (vqa_matches[0]["validated_answer"] if is_single_verbatim else None)
+                )
+                verbatim_source_count = (
+                    _count_distinct_sources(vqa_matches) if is_compound_verbatim else 1
+                )
                 verification_mode = "verbatim" if is_verbatim else "synthesized"
-                verified_source_count = 1 if is_verbatim else _count_distinct_sources(vqa_matches)
+                verified_source_count = (
+                    verbatim_source_count if is_verbatim else _count_distinct_sources(vqa_matches)
+                )
                 _log_verified_served(user_email, question, verification_mode, top1, top2)
                 if is_verbatim:
                     return _build_verbatim_payload(
@@ -1426,6 +1501,8 @@ async def ask(
                         search_query=search_query,
                         retrieval_info=retrieval_info,
                         latency_breakdown=breakdown,
+                        answer_text=verbatim_answer_text,
+                        source_count=verbatim_source_count,
                     )
                 # Build combined context from top 3 matches
                 combined_context = _build_validated_qa_context(vqa_matches)
@@ -1610,12 +1687,24 @@ async def ask(
 
             if top1 >= _effective_rag_threshold(question):
                 max_score = top1
-                is_verbatim = (
+                is_single_verbatim = (
                     _should_return_verbatim(vqa_matches)
                     and not _is_compound_query(question)
                 )
+                is_compound_verbatim = _should_compound_verbatim(question, vqa_matches)
+                is_verbatim = is_single_verbatim or is_compound_verbatim
+                verbatim_answer_text = (
+                    _build_compound_verbatim_answer(vqa_matches)
+                    if is_compound_verbatim
+                    else (vqa_matches[0]["validated_answer"] if is_single_verbatim else None)
+                )
+                verbatim_source_count = (
+                    _count_distinct_sources(vqa_matches) if is_compound_verbatim else 1
+                )
                 verification_mode = "verbatim" if is_verbatim else "synthesized"
-                verified_source_count = 1 if is_verbatim else _count_distinct_sources(vqa_matches)
+                verified_source_count = (
+                    verbatim_source_count if is_verbatim else _count_distinct_sources(vqa_matches)
+                )
                 _log_verified_served(user_email, search_query, verification_mode, top1, top2)
                 if is_verbatim:
                     return _build_verbatim_payload(
@@ -1623,6 +1712,8 @@ async def ask(
                         search_query=search_query,
                         retrieval_info=retrieval_info,
                         latency_breakdown=breakdown,
+                        answer_text=verbatim_answer_text,
+                        source_count=verbatim_source_count,
                     )
                 # Build combined context from top 3 matches
                 combined_context = _build_validated_qa_context(vqa_matches)
