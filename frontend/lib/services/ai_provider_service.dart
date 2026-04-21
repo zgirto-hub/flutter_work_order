@@ -109,4 +109,48 @@ class AiProviderService {
       throw Exception(data['detail'] ?? 'Failed to set smart preprocessing');
     }
   }
+
+  Future<bool> getAiWorkOrderEnabled(String userEmail) async {
+    try {
+      final res = await http.get(
+        Uri.parse(
+            '${AppConfig.baseUrl}/settings/ai-work-order?admin_email=${Uri.encodeComponent(userEmail)}'),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['enabled'] as bool;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> getAiWorkOrderEnabledForUser() async {
+    try {
+      final res = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/ai/autofill-work-order/status'),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['enabled'] as bool;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> setAiWorkOrderEnabled(bool enabled, String userEmail) async {
+    final res = await http.put(
+      Uri.parse(
+          '${AppConfig.baseUrl}/settings/ai-work-order?admin_email=${Uri.encodeComponent(userEmail)}'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'enabled': enabled}),
+    );
+    if (res.statusCode != 200) {
+      final data = jsonDecode(res.body);
+      throw Exception(data['detail'] ?? 'Failed to set AI Work Order setting');
+    }
+  }
 }

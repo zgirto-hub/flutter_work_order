@@ -148,4 +148,51 @@ class AiAssistService {
       return false;
     }
   }
+
+  Future<Map<String, dynamic>> autofillWorkOrder({
+    required String description,
+    String language = 'en',
+    List<String>? departments,
+    List<String>? types,
+    List<String>? statuses,
+  }) async {
+    final body = <String, dynamic>{
+      'description': description,
+      'language': language,
+    };
+    if (departments != null) body['departments'] = departments;
+    if (types != null) body['types'] = types;
+    if (statuses != null) body['statuses'] = statuses;
+
+    try {
+      final res = await http
+          .post(
+            Uri.parse('${AppConfig.baseUrl}/ai/autofill-work-order'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 125));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return Map<String, dynamic>.from(data);
+      } else if (res.statusCode == 403) {
+        throw Exception('AI Work Order feature is disabled');
+      } else if (res.statusCode == 429) {
+        final data = jsonDecode(res.body);
+        throw Exception(data['detail'] ?? 'Too many requests. Please try again later.');
+      } else if (res.statusCode == 422) {
+        final data = jsonDecode(res.body);
+        throw Exception(data['detail'] ?? 'Invalid request.');
+      } else if (res.statusCode == 503) {
+        throw Exception('AI service is currently unavailable. Please try again later.');
+      } else if (res.statusCode == 502) {
+        throw Exception('AI could not generate a work order draft. Please try again.');
+      } else {
+        throw Exception('Failed to autofill work order.');
+      }
+    } on TimeoutException {
+      throw Exception('Request timed out. Please try again.');
+    }
+  }
 }

@@ -24,10 +24,12 @@ import '../../models/work_order_signature.dart';
 import '../../services/signature_service.dart';
 import '../../services/report_service.dart';
 import '../../services/ai_assist_service.dart';
+import '../../services/ai_provider_service.dart';
 import '../../services/dictation_service.dart';
 import '../../services/asset_service.dart';
 import '../../widgets/dictation_button.dart';
 import '../../widgets/nl_input_card.dart';
+import '../../widgets/ai_overwrite_dialog.dart';
 import '../../widgets/pdf_preview_screen.dart';
 import '../../theme/app_theme.dart';
 import '../../config.dart';
@@ -149,10 +151,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   String _dictationLanguage = 'en';
   bool _speechAvailable = DictationService.webSpeechApiLikelyAvailable;
   final AiAssistService _aiAssistService = AiAssistService();
+  final AiProviderService _aiProviderService = AiProviderService();
 
   // NL create state
   final TextEditingController _nlInputController = TextEditingController();
   bool _isGenerating = false;
+  bool _aiWorkOrderEnabled = false;
   Set<String> _highlightedFields = {};
   final bool _nlCardExpanded = true;
 
@@ -247,6 +251,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     AssetService().fetchAssetNames().then((names) {
       if (mounted) setState(() => _assetNames = names);
     }).catchError((_) {});
+    if (widget.workOrder == null) {
+      _loadAiWorkOrderSetting();
+    }
     if (widget.workOrder != null) {
       jobNoController.text = widget.workOrder!.jobNo;
       clientController.text = widget.workOrder!.title;
@@ -361,6 +368,19 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         _loadEmployees();
       }
     } catch (_) {}
+  }
+
+  Future<void> _loadAiWorkOrderSetting() async {
+    try {
+      final enabled = await _aiProviderService.getAiWorkOrderEnabledForUser();
+      if (mounted) {
+        setState(() => _aiWorkOrderEnabled = enabled);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _aiWorkOrderEnabled = false);
+      }
+    }
   }
 
   Future<void> _loadUserRole() async {
@@ -657,11 +677,21 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   }
 
   Future<void> _generateFromNl() async {
-    if (_nlInputController.text.trim().length < 3) {
+    final text = _nlInputController.text.trim();
+    if (text.length < 20) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text("Please describe your work order in more detail.")),
+              content: Text("Description must be at least 20 characters.")),
+        );
+      }
+      return;
+    }
+    if (text.length > 500) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text("Description must be at most 500 characters.")),
         );
       }
       return;
@@ -674,66 +704,214 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       final types = _allowedTypes;
       final statuses = _allowedStatuses;
 
-      final response = await _aiAssistService.parseWorkOrder(
-        text: _nlInputController.text.trim(),
+      final response = await _aiAssistService.autofillWorkOrder(
+        description: text,
         language: _dictationLanguage,
         departments: departments,
         types: types,
         statuses: statuses,
       );
 
-      if (mounted) {
-        final highlighted = <String>{};
+      if (!mounted) return;
 
-        if (response['title'] != null) {
-          clientController.text = response['title'];
-          highlighted.add('title');
-        }
-        if (response['description'] != null) {
-          faultController.text = response['description'];
-          highlighted.add('fault_description');
-        }
-        if (response['location'] != null) {
-          locationController.text = response['location'];
-          highlighted.add('location');
-        }
-        if (response['type'] != null &&
-            _allowedTypes.contains(response['type'])) {
-          setState(() => selectedType = response['type']);
-          highlighted.add('type');
-        }
-        if (response['status'] != null &&
-            _allowedStatuses.contains(response['status'])) {
-          setState(() => selectedStatus = response['status']);
-          highlighted.add('status');
-        }
-        if (response['department'] != null) {
-          final dept = _departments
-              .where((d) => d.name == response['department'])
-              .firstOrNull;
-          if (dept != null) {
-            setState(() {
-              selectedDepartment = dept.name;
-              selectedDepartmentId = dept.id;
-            });
-            await _loadEmployees(departmentId: dept.id);
-            highlighted.add('department');
-          }
-        }
+      final highlighted = <String>{};
+      final conflicts = <OverwriteField>[];
 
-        setState(() {
-          _isGenerating = false;
-          _highlightedFields = highlighted;
-        });
-
-        _titleFocusNode.requestFocus();
-
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) {
-            setState(() => _highlightedFields = {});
-          }
-        });
+      final Map<String, String> proposedFields = {};
+      if (response['title'] != null) proposedFields['title'] = response['title'] as String;
+      if (response['description'] != null) proposedFields['description'] = response['description'] as String;
+      if (response['priority'] != null &&
+          _allowedStatuses.contains(response['priority'])) {
+        proposedFields['priority'] = response['priority'] as String;
       }
+      if (response['category'] != null) proposedFields['category'] = response['category'] as String;
+      if (response['asset_name'] != null) proposedFields['asset_name'] = response['asset_name'] as String;
+      if (response['fault_description'] != null) proposedFields['fault_description'] = response['fault_description'] as String;
+      if (response['action_taken'] != null && (response['action_taken'] as String).isNotEmpty) {
+        proposedFields['action_taken'] = response['action_taken'] as String;
+      }
+
+      for (final entry in proposedFields.entries) {
+        final fieldName = entry.key;
+        final proposedValue = entry.value;
+        String? currentValue;
+
+        switch (fieldName) {
+          case 'title':
+            currentValue = clientController.text;
+            if (currentValue.isEmpty) {
+              clientController.text = proposedValue;
+              highlighted.add('title');
+            } else if (currentValue != proposedValue) {
+              conflicts.add(OverwriteField(
+                fieldName: 'title',
+                fieldLabel: 'Title',
+                currentValue: currentValue,
+                proposedValue: proposedValue,
+              ));
+            }
+            break;
+          case 'description':
+            currentValue = faultController.text;
+            if (currentValue.isEmpty) {
+              faultController.text = proposedValue;
+              highlighted.add('fault_description');
+            } else if (currentValue != proposedValue) {
+              conflicts.add(OverwriteField(
+                fieldName: 'description',
+                fieldLabel: 'Fault Description',
+                currentValue: currentValue,
+                proposedValue: proposedValue,
+              ));
+            }
+            break;
+          case 'priority':
+            currentValue = selectedStatus;
+            if (currentValue == 'Pending' || currentValue.isEmpty) {
+              setState(() => selectedStatus = proposedValue);
+              highlighted.add('status');
+            } else if (currentValue != proposedValue) {
+              conflicts.add(OverwriteField(
+                fieldName: 'priority',
+                fieldLabel: 'Status',
+                currentValue: currentValue,
+                proposedValue: proposedValue,
+              ));
+            }
+            break;
+          case 'category':
+            final dept = _departments
+                .where((d) => d.name == proposedValue)
+                .firstOrNull;
+            if (dept != null) {
+              if (selectedDepartment == 'General' || selectedDepartment.isEmpty) {
+                setState(() {
+                  selectedDepartment = dept.name;
+                  selectedDepartmentId = dept.id;
+                });
+                await _loadEmployees(departmentId: dept.id);
+                highlighted.add('department');
+              } else if (selectedDepartment != proposedValue) {
+                conflicts.add(OverwriteField(
+                  fieldName: 'category',
+                  fieldLabel: 'Department',
+                  currentValue: selectedDepartment,
+                  proposedValue: proposedValue,
+                ));
+              }
+            }
+            break;
+          case 'asset_name':
+            currentValue = assetNameController.text;
+            if (currentValue.isEmpty) {
+              assetNameController.text = proposedValue;
+              highlighted.add('asset_name');
+            } else if (currentValue != proposedValue) {
+              conflicts.add(OverwriteField(
+                fieldName: 'asset_name',
+                fieldLabel: 'Asset Name',
+                currentValue: currentValue,
+                proposedValue: proposedValue,
+              ));
+            }
+            break;
+          case 'fault_description':
+            currentValue = faultController.text;
+            if (currentValue.isEmpty) {
+              faultController.text = proposedValue;
+              highlighted.add('fault_description');
+            } else if (currentValue != proposedValue) {
+              conflicts.add(OverwriteField(
+                fieldName: 'fault_description',
+                fieldLabel: 'Fault Description',
+                currentValue: currentValue,
+                proposedValue: proposedValue,
+              ));
+            }
+            break;
+          case 'action_taken':
+            currentValue = actionController.text;
+            if (currentValue.isEmpty) {
+              actionController.text = proposedValue;
+              highlighted.add('action_taken');
+            } else if (currentValue != proposedValue) {
+              conflicts.add(OverwriteField(
+                fieldName: 'action_taken',
+                fieldLabel: 'Action Taken',
+                currentValue: currentValue,
+                proposedValue: proposedValue,
+              ));
+            }
+            break;
+        }
+      }
+
+      if (conflicts.isNotEmpty && mounted) {
+        final selections = await showDialog<Map<String, bool>>(
+          context: context,
+          builder: (context) => AiOverwriteDialog(conflicts: conflicts),
+        );
+
+        if (selections != null && mounted) {
+          for (final conflict in conflicts) {
+            final useAi = selections[conflict.fieldName] ?? false;
+            if (useAi) {
+              switch (conflict.fieldName) {
+                case 'title':
+                  clientController.text = conflict.proposedValue;
+                  highlighted.add('title');
+                  break;
+                case 'description':
+                  faultController.text = conflict.proposedValue;
+                  highlighted.add('fault_description');
+                  break;
+                case 'priority':
+                  setState(() => selectedStatus = conflict.proposedValue);
+                  highlighted.add('status');
+                  break;
+                case 'category':
+                  final dept = _departments
+                      .where((d) => d.name == conflict.proposedValue)
+                      .firstOrNull;
+                  if (dept != null) {
+                    setState(() {
+                      selectedDepartment = dept.name;
+                      selectedDepartmentId = dept.id;
+                    });
+                    await _loadEmployees(departmentId: dept.id);
+                    highlighted.add('department');
+                  }
+                  break;
+                case 'asset_name':
+                  assetNameController.text = conflict.proposedValue;
+                  highlighted.add('asset_name');
+                  break;
+                case 'fault_description':
+                  faultController.text = conflict.proposedValue;
+                  highlighted.add('fault_description');
+                  break;
+                case 'action_taken':
+                  actionController.text = conflict.proposedValue;
+                  highlighted.add('action_taken');
+                  break;
+              }
+            }
+          }
+        }
+      }
+
+      setState(() {
+        _isGenerating = false;
+        _highlightedFields = highlighted;
+      });
+
+      _titleFocusNode.requestFocus();
+
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() => _highlightedFields = {});
+        }
+      });
     } catch (e) {
       if (mounted) {
         setState(() => _isGenerating = false);
@@ -1507,7 +1685,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (widget.workOrder == null)
+            if (widget.workOrder == null && _aiWorkOrderEnabled)
               NlInputCard(
                 controller: _nlInputController,
                 isGenerating: _isGenerating,

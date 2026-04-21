@@ -318,6 +318,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 _AiProviderSection(),
                 SizedBox(height: 12),
                 SmartPreprocessingSection(),
+                SizedBox(height: 8),
+                AiWorkOrderSection(),
                 SizedBox(height: 12),
                 SectionLabel(text: 'Administration'),
                 SurfaceCard(
@@ -1472,6 +1474,148 @@ class _SmartPreprocessingWidgetState extends State<_SmartPreprocessingWidget> {
                 const SizedBox(height: 2),
                 Text(
                   'When enabled, uploaded documents are enhanced with AI to improve search quality',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_saving)
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                  strokeWidth: 1.5, color: AppColors.textTertiary),
+            )
+          else
+            Switch(
+              value: _enabled,
+              onChanged: _toggle,
+              activeColor: AppColors.accent,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class AiWorkOrderSection extends StatelessWidget {
+  const AiWorkOrderSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return _AiWorkOrderWidget();
+  }
+}
+
+class _AiWorkOrderWidget extends StatefulWidget {
+  @override
+  State<_AiWorkOrderWidget> createState() => _AiWorkOrderWidgetState();
+}
+
+class _AiWorkOrderWidgetState extends State<_AiWorkOrderWidget> {
+  final _service = AiProviderService();
+  bool _loading = true;
+  bool _enabled = false;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user?.email == null) return;
+    try {
+      final enabled = await _service.getAiWorkOrderEnabled(user!.email!);
+      if (mounted) {
+        setState(() {
+          _enabled = enabled;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _toggle(bool value) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user?.email == null) return;
+    setState(() => _saving = true);
+    try {
+      await _service.setAiWorkOrderEnabled(value, user!.email!);
+      if (mounted) {
+        setState(() {
+          _enabled = value;
+          _saving = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update AI Work Order setting'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return SurfaceCard(
+        padding: const EdgeInsets.all(14),
+        child: Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+                strokeWidth: 1.5, color: AppColors.textTertiary),
+          ),
+        ),
+      );
+    }
+
+    return SurfaceCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.bgSurface2,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.auto_awesome,
+                size: 18, color: AppColors.textSecondary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AI Work Order',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Allow AI to auto-fill work order fields from a plain-text description',
                   style: TextStyle(
                     fontSize: 11,
                     color: AppColors.textSecondary,
