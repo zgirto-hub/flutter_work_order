@@ -1262,8 +1262,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
         type: selectedType,
       );
       if (!mounted) return;
-      if (descriptionController.text.trim().isEmpty) {
-        descriptionController.text = result;
+      // New work orders use the structured "Fault Description" field
+      // (faultController); legacy existing WOs use descriptionController.
+      final targetController =
+          widget.workOrder == null ? faultController : descriptionController;
+      if (targetController.text.trim().isEmpty) {
+        targetController.text = result;
       } else {
         showModalBottomSheet(
           context: context,
@@ -1299,7 +1303,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          descriptionController.text = result;
+                          targetController.text = result;
                           Navigator.pop(ctx);
                         },
                         style: ElevatedButton.styleFrom(
