@@ -55,7 +55,7 @@ supabase/
 
 ## RAG Pipeline
 
-- Manual-assistant retrieval can narrow cross-manual search to manuals matched by a detected system keyword; see `specs/062-hybrid-retrieval-filter/`.
+- Manual-assistant retrieval (spec 062) applied keyword-based narrowing across the legacy `manuals` table; that table was dropped in spec 090. The `/manuals/ask` RAG endpoint is retained and now operates entirely over `knowledge_documents`/`document_chunks`.
 
 ---
 
