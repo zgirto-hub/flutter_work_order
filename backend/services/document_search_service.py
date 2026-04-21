@@ -269,7 +269,10 @@ def build_direct_generation_prompt(
                 part += f"Section: {section_title}\n"
             if page:
                 part += f"Page: {page}\n"
-            part += f"\n{parent_content or content}"
+            if parent_content and len(parent_content) > len(content):
+                part += f"\n[Section context]\n{parent_content}"
+            else:
+                part += f"\n{content}"
             context_parts.append(part)
 
             sources.append(
