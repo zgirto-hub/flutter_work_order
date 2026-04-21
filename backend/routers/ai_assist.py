@@ -1,15 +1,21 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Optional, List
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
+from typing import Optional, List, Tuple
 import httpx
 import json
+import time
 from enum import Enum
 
+from db import supabase
 from services.ollama_generator import (
     generate,
     GeneratorTimeoutError,
     GeneratorModelError,
 )
+from services.ai_providers.resolver import generate as resolver_generate
+from utils.app_settings import get_setting
+from utils.activity import log_activity
+from services.rate_limiter import rate_limiter
 
 router = APIRouter()
 
@@ -284,6 +290,179 @@ async def parse_work_order(request: AiParseWorkOrderRequest):
     )
 
     return validated
+
+
+class AutofillWorkOrderRequest(BaseModel):
+    description: str = Field(..., min_length=1)
+    language: str = "en"
+    departments: List[str] = []
+    types: List[str] = []
+    statuses: List[str] = []
+
+
+def _build_autofill_prompt(
+    description: str,
+    language: str,
+    departments: List[str],
+    types: List[str],
+    statuses: List[str],
+    outcomes: List[str],
+) -> str:
+    prompt = (
+        "You are a work order drafting assistant.\n"
+        "Given the following user description, generate structured work order fields.\n"
+        "Return ONLY a JSON object with these keys: "
+        "title, description, priority, category, asset_name, fault_description, action_taken, outcome.\n"
+        "\n"
+        "Rules:\n"
+        "- title: short, professional work order title (max 100 chars)\n"
+        "- description: expanded professional description (2-4 sentences)\n"
+        "- priority: one of 'Low', 'Medium', 'High', 'Critical' (or null if unclear)\n"
+        "- category: must match one of the valid departments listed below (or null)\n"
+        "- asset_name: name of the equipment/asset mentioned (or null)\n"
+        "- fault_description: concise description of the fault/problem (or null)\n"
+        "- action_taken: suggested action (or empty string if unknown)\n"
+        "- outcome: suggested outcome (or empty string if unknown)\n"
+        "- For any field you cannot determine, set it to null or empty string\n"
+        "- Do NOT include any text outside the JSON object\n"
+    )
+
+    if departments:
+        prompt += f"\nValid departments (for category field): {', '.join(departments)}"
+    if types:
+        prompt += f"\nValid types: {', '.join(types)}"
+    if statuses:
+        prompt += f"\nValid statuses: {', '.join(statuses)}"
+    if outcomes:
+        prompt += f"\nValid outcomes: {', '.join(outcomes)}"
+
+    if language == "ar":
+        prompt += "\nIMPORTANT: All field values (title, description, etc.) MUST be in Arabic. Only the JSON keys remain in English."
+    else:
+        prompt += "\nRespond in English."
+
+    prompt += f"\nUser description: {description}"
+    return prompt
+
+
+def _validate_autofill_response(data: dict, departments: List[str], types: List[str]) -> dict:
+    result = {}
+    result["title"] = data.get("title")
+    result["description"] = data.get("description")
+    result["priority"] = data.get("priority")
+    result["asset_name"] = data.get("asset_name")
+    result["fault_description"] = data.get("fault_description")
+    result["action_taken"] = data.get("action_taken") or ""
+    result["outcome"] = data.get("outcome") or ""
+
+    category_val = data.get("category")
+    result["category"] = category_val if category_val in departments else None
+
+    type_val = data.get("type")
+    result["type"] = type_val if type_val in types else None
+
+    return result
+
+
+@router.post("/ai/autofill-work-order")
+async def autofill_work_order(
+    request: AutofillWorkOrderRequest,
+    user_email: str = Query(...),
+):
+    description = request.description.strip()
+    if len(description) < 20:
+        raise HTTPException(
+            status_code=422,
+            detail="Description must be at least 20 characters",
+        )
+    if len(description) > 500:
+        raise HTTPException(
+            status_code=422,
+            detail="Description must be at most 500 characters",
+        )
+
+    user_resp = (
+        supabase.table("users").select("user_type,email").eq("email", user_email).execute()
+    )
+    if not user_resp or not getattr(user_resp, 'data', None) or len(user_resp.data) == 0:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    enabled = await get_setting("ai_work_order_enabled")
+    if enabled != "true":
+        raise HTTPException(status_code=403, detail="AI Work Order feature is disabled")
+
+    allowed, retry_after = await rate_limiter.check(user_email)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many requests. Try again in {retry_after} seconds.",
+        )
+
+    outcomes = ["Resolved", "Pending Parts", "Escalated", "Monitoring"]
+
+    prompt = _build_autofill_prompt(
+        request.description,
+        request.language,
+        request.departments,
+        request.types,
+        request.statuses,
+        outcomes,
+    )
+
+    start_time = time.time()
+    provider_used = "local"
+
+    try:
+        response_text, provider_key, _, _, _ = await resolver_generate(
+            prompt,
+            user_email=user_email,
+        )
+        provider_used = provider_key
+    except Exception:
+        elapsed = time.time() - start_time
+        log_activity(
+            user_email,
+            category="ai",
+            action="autofill_work_order_failed",
+            target_id=None,
+            detail=f"provider=none elapsed={elapsed:.1f}s error=generation_failed",
+        )
+        raise HTTPException(status_code=502, detail="AI could not generate a work order draft. Please try again.")
+
+    elapsed = time.time() - start_time
+
+    try:
+        parsed = _extract_json(response_text)
+    except ValueError:
+        log_activity(
+            user_email,
+            category="ai",
+            action="autofill_work_order_failed",
+            target_id=None,
+            detail=f"provider={provider_used} elapsed={elapsed:.1f}s error=invalid_json",
+        )
+        raise HTTPException(status_code=502, detail="AI returned invalid response")
+
+    validated = _validate_autofill_response(
+        parsed, request.departments, request.types
+    )
+
+    log_activity(
+        user_email,
+        category="ai",
+        action="autofill_work_order",
+        target_id=None,
+        detail=f"provider={provider_used} elapsed={elapsed:.1f}s",
+    )
+
+    return validated
+
+
+@router.get("/ai/autofill-work-order/status")
+async def autofill_work_order_status():
+    enabled = await get_setting("ai_work_order_enabled")
+    from datetime import datetime, timezone
+    return {"enabled": enabled == "true"}
 
 
 @router.post("/ai/document-expert")

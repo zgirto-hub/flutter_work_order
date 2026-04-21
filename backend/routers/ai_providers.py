@@ -242,3 +242,61 @@ async def set_smart_preprocessing(
         enabled=request.enabled,
         updated_at=datetime.now(timezone.utc).isoformat(),
     )
+
+
+class AiWorkOrderResponse(BaseModel):
+    enabled: bool
+    updated_at: Optional[str] = None
+
+
+class SetAiWorkOrderRequest(BaseModel):
+    enabled: bool
+
+
+@router.get("/settings/ai-work-order", response_model=AiWorkOrderResponse)
+async def get_ai_work_order(admin_email: str = Query(...)):
+    user_resp = (
+        supabase.table("users").select("user_type").eq("email", admin_email).execute()
+    )
+    if not user_resp or not getattr(user_resp, 'data', None) or user_resp.data[0].get("user_type") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    value = await get_setting("ai_work_order_enabled")
+    return AiWorkOrderResponse(enabled=(value == "true"))
+
+
+@router.put("/settings/ai-work-order", response_model=AiWorkOrderResponse)
+async def set_ai_work_order(
+    request: SetAiWorkOrderRequest,
+    admin_email: str = Query(...),
+):
+    user_resp = (
+        supabase.table("users").select("user_type").eq("email", admin_email).execute()
+    )
+    if not user_resp or not getattr(user_resp, 'data', None) or user_resp.data[0].get("user_type") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    await set_setting(
+        "ai_work_order_enabled",
+        "true" if request.enabled else "false",
+        admin_email,
+    )
+
+    log_activity(
+        admin_email,
+        category="admin",
+        action="ai_work_order_toggled",
+        target_label=str(request.enabled),
+        detail=f"enabled={request.enabled}",
+    )
+
+    return AiWorkOrderResponse(
+        enabled=request.enabled,
+        updated_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+@router.get("/ai/autofill-work-order/status", response_model=AiWorkOrderResponse)
+async def get_ai_work_order_status():
+    value = await get_setting("ai_work_order_enabled")
+    return AiWorkOrderResponse(enabled=(value == "true"))
