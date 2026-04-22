@@ -95,7 +95,6 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.userRole == 'technician') _tab = _Tab.inspection;
     if (_isEditing) {
       _tab = _Tab.inspection;
       final e = widget.existing!;
@@ -602,17 +601,11 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                             ),
                             if (!_isEditing) ...[
                               const SizedBox(height: 1),
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 180),
-                                child: Text(
-                                  _tab == _Tab.workOrder
-                                      ? 'Work Order'
-                                      : 'Recurring Inspection',
-                                  key: ValueKey(_tab),
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textTertiary),
-                                ),
+                              Text(
+                                'Work Order',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textTertiary),
                               ),
                             ],
                           ],
@@ -676,18 +669,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                     ],
                   ),
 
-                  // Tabs — underline style matching WO screen (new only)
-                  if (!_isEditing) ...[
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        if (widget.userRole != 'technician')
-                          _tabUnderline('Work order', _Tab.workOrder),
-                        _tabUnderline('Inspection', _Tab.inspection),
-                      ],
-                    ),
-                  ] else
-                    const SizedBox(height: 12),
+                  const SizedBox(height: 12),
                 ],
               ),
             ),
@@ -762,33 +744,6 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
     );
   }
 
-  Widget _tabUnderline(String label, _Tab tab) {
-    final selected = _tab == tab;
-    return GestureDetector(
-      onTap: () => setState(() => _tab = tab),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.only(bottom: 10),
-        margin: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: selected ? AppColors.accent : Colors.transparent,
-              width: 2,
-            ),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected ? AppColors.accent : AppColors.textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
 
   // ── Work Order form ───────────────────────────────────────────────────────────
 
