@@ -71,6 +71,7 @@ class ScheduleService {
         'type': type,
         'assigned_fixer_ids': assignedFixerIds,
         'created_by': _userId,
+        'created_by_email': _email,
       }),
     );
 

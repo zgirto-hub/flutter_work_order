@@ -31,7 +31,10 @@ class CreateRecurringInspection(BaseModel):
     start_date: str  # YYYY-MM-DD
     end_date: Optional[str] = None
     assigned_fixer_ids: Optional[List[str]] = []
-    created_by: str
+    # created_by may be an auth UUID or a public.users.id — resolved server-side.
+    # created_by_email is the preferred source of truth (matches work_orders create).
+    created_by: Optional[str] = None
+    created_by_email: Optional[str] = None
 
 
 class UpdateRecurringInspection(BaseModel):
@@ -157,6 +160,31 @@ def _fetch_full(ri_id: str):
     return result.data[0] if result.data else None
 
 
+def _resolve_public_user_id(email: Optional[str], auth_or_user_id: Optional[str]) -> Optional[str]:
+    """Resolve a public.users.id from email (preferred) or auth_id/users.id fallback.
+
+    Frontend currently sends Supabase auth.users.id as `created_by`, which does NOT
+    match the recurring_inspections.created_by FK into public.users(id). Email is
+    the reliable key; auth_id is a last-resort fallback.
+    """
+    if email:
+        normalized = email.strip().lower()
+        if normalized:
+            res = supabase.table("users").select("id").eq("email", normalized).execute()
+            if res.data:
+                return res.data[0]["id"]
+    if auth_or_user_id:
+        # Try as public.users.id directly
+        res = supabase.table("users").select("id").eq("id", auth_or_user_id).execute()
+        if res.data:
+            return res.data[0]["id"]
+        # Try as auth_id
+        res = supabase.table("users").select("id").eq("auth_id", auth_or_user_id).execute()
+        if res.data:
+            return res.data[0]["id"]
+    return None
+
+
 def _get_technicians_by_department(department_id: str) -> List[str]:
     result = supabase.table("users").select("id").eq("department_id", department_id).eq("user_type", "technician").eq("is_active", True).execute()
     return [str(r.get("id")) for r in (result.data or []) if r.get("id")]
@@ -213,6 +241,13 @@ async def get_recurring_inspection(ri_id: str):
 async def create_recurring_inspection(body: CreateRecurringInspection):
     _validate_frequency(body.frequency)
 
+    resolved_created_by = _resolve_public_user_id(body.created_by_email, body.created_by)
+    if not resolved_created_by:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not resolve creator: provide a valid created_by_email or created_by matching a user.",
+        )
+
     interval = max(1, body.interval or 1)
     next_due = _compute_next_due(body.frequency, body.start_date, body.day_of_week, body.day_of_month, interval)
 
@@ -228,7 +263,7 @@ async def create_recurring_inspection(body: CreateRecurringInspection):
         "start_date": body.start_date,
         "end_date": body.end_date,
         "next_due_date": next_due,
-        "created_by": body.created_by,
+        "created_by": resolved_created_by,
     }
 
     result = supabase.table("recurring_inspections").insert(payload).execute()
