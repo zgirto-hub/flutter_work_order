@@ -193,12 +193,32 @@ class _CalendarScreenState extends State<CalendarScreen>
       if (!mounted) return;
       final created = result['created'] ?? 0;
       final skipped = result['skipped'] ?? 0;
+      final errors = (result['errors'] as List?) ?? const [];
+      final errorCount = result['error_count'] ?? errors.length;
+
+      String message;
+      if (created == 0 && errorCount == 0) {
+        message = 'Nothing to generate today';
+      } else {
+        final parts = <String>[];
+        if (created > 0) {
+          parts.add('$created work order${created == 1 ? '' : 's'} generated');
+        }
+        if (skipped > 0) parts.add('$skipped skipped');
+        if (errorCount > 0) {
+          final firstErr = errors.isNotEmpty ? (errors.first['error'] ?? '') : '';
+          parts.add('$errorCount failed${firstErr is String && firstErr.isNotEmpty ? ': $firstErr' : ''}');
+        }
+        message = parts.join(', ');
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(created == 0
-            ? 'Nothing to generate today'
-            : '$created work order${created == 1 ? '' : 's'} generated${skipped > 0 ? ', $skipped skipped' : ''}'),
+        content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: created == 0 ? AppColors.textTertiary : AppColors.closedText,
+        duration: Duration(seconds: errorCount > 0 ? 8 : 4),
+        backgroundColor: errorCount > 0
+            ? Colors.redAccent
+            : (created == 0 ? AppColors.textTertiary : AppColors.closedText),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ));
       if (created > 0) _loadInspections();

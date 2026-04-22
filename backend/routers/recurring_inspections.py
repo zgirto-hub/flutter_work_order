@@ -397,6 +397,7 @@ async def generate_due_inspections():
                 continue
 
             wo_id = wo_result.data[0]["id"]
+            generated.append({"recurring_inspection_id": ri_id, "work_order_id": wo_id})
 
             # Assign technicians
             fixer_ids = [a["fixer_id"] for a in (ri.get("recurring_inspection_assignees") or [])]
@@ -421,8 +422,6 @@ async def generate_due_inspections():
                 "next_due_date": new_next,
                 "updated_at": datetime.utcnow().isoformat(),
             }).eq("id", ri_id).execute()
-
-            generated.append({"recurring_inspection_id": ri_id, "work_order_id": wo_id})
         except Exception as e:
             logger.exception(
                 "generate_due_inspections: failed for ri_id=%s title=%r",
