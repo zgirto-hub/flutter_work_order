@@ -82,7 +82,7 @@ def _compute_next_due(frequency: str, start_date: str, day_of_week: Optional[int
     if frequency == "weekly":
         dow = day_of_week if day_of_week is not None else 0
         days_ahead = dow - today.weekday()
-        if days_ahead <= 0:
+        if days_ahead < 0:
             days_ahead += 7 * n
         return (today + timedelta(days=days_ahead)).isoformat()
 
