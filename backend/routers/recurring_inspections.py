@@ -271,10 +271,7 @@ async def create_recurring_inspection(body: CreateRecurringInspection):
         raise HTTPException(status_code=500, detail="Failed to create recurring inspection")
 
     ri_id = result.data[0]["id"]
-    fixer_ids = body.assigned_fixer_ids or []
-    if not fixer_ids:
-        fixer_ids = _get_technicians_by_department(body.department_id)
-    _sync_assignees(ri_id, fixer_ids)
+    _sync_assignees(ri_id, body.assigned_fixer_ids or [])
 
     return {"recurring_inspection": _fetch_full(ri_id)}
 
