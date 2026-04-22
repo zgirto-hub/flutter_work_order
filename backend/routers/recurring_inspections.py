@@ -381,7 +381,7 @@ async def generate_due_inspections():
 
         generated.append({"recurring_inspection_id": ri["id"], "work_order_id": wo_id})
 
-    return {"generated": generated, "count": len(generated), "skipped_today": skipped_today}
+    return {"generated": generated, "created": len(generated), "skipped": skipped_today}
 
 
 # --------------------

@@ -55,7 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text('AI & Automation Controls'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

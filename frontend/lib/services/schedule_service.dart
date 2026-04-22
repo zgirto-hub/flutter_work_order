@@ -135,13 +135,20 @@ class ScheduleService {
   }
 
   Future<Map<String, dynamic>> generateDue() async {
-    final res = await http.post(
-      Uri.parse('${AppConfig.baseUrl}/recurring-inspections/generate'),
-    );
-    if (res.statusCode != 200) {
-      throw Exception('Failed to generate inspections');
+    for (int attempt = 0; attempt < 2; attempt++) {
+      try {
+        final res = await http.post(
+          Uri.parse('${AppConfig.baseUrl}/recurring-inspections/generate'),
+        ).timeout(const Duration(seconds: 30));
+        if (res.statusCode != 200) {
+          throw Exception('Failed to generate inspections');
+        }
+        return jsonDecode(res.body);
+      } catch (e) {
+        if (attempt == 1) rethrow;
+      }
     }
-    return jsonDecode(res.body);
+    throw Exception('Failed to generate inspections');
   }
 
   Future<Map<String, dynamic>> fetchCalendar(String startDate, String endDate) async {
