@@ -31,6 +31,7 @@ class CreateRecurringInspection(BaseModel):
     start_date: str  # YYYY-MM-DD
     end_date: Optional[str] = None
     assigned_fixer_ids: Optional[List[str]] = []
+    type: Optional[str] = "Inspection"
     # created_by may be an auth UUID or a public.users.id — resolved server-side.
     # created_by_email is the preferred source of truth (matches work_orders create).
     created_by: Optional[str] = None
@@ -49,6 +50,7 @@ class UpdateRecurringInspection(BaseModel):
     start_date: str
     end_date: Optional[str] = None
     is_active: Optional[bool] = True
+    type: Optional[str] = "Inspection"
     assigned_fixer_ids: Optional[List[str]] = []
 
 
@@ -263,6 +265,7 @@ async def create_recurring_inspection(body: CreateRecurringInspection):
         "start_date": body.start_date,
         "end_date": body.end_date,
         "next_due_date": next_due,
+        "type": body.type or "Inspection",
         "created_by": resolved_created_by,
     }
 
@@ -300,6 +303,7 @@ async def update_recurring_inspection(ri_id: str, body: UpdateRecurringInspectio
         "end_date": body.end_date,
         "next_due_date": next_due,
         "is_active": body.is_active,
+        "type": body.type or "Inspection",
         "updated_at": datetime.utcnow().isoformat(),
     }
 
@@ -370,7 +374,7 @@ async def generate_due_inspections():
                 "description": ri.get("description", ""),
                 "location": ri.get("location", ""),
                 "department_id": ri["department_id"],
-                "type": "Inspection",
+                "type": ri.get("type") or "Inspection",
                 "status": "Pending",
                 "created_by": ri.get("created_by"),
             }

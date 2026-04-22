@@ -345,6 +345,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
           interval: _woInterval,
           startDate: _formatDate(_woDate),
           endDate: _woComputedEndDate,
+          type: _woType,
           assignedFixerIds: _woTechIds,
         );
       } else {
