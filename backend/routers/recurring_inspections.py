@@ -1,7 +1,11 @@
+import logging
+import traceback
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 from db import supabase
 from utils.activity import log_activity
@@ -304,84 +308,104 @@ async def generate_due_inspections():
     inspections = result.data or []
     generated = []
     skipped_today = 0
+    errors = []
 
     for ri in inspections:
-        # Check end_date
-        if ri.get("end_date") and ri["end_date"] < today:
-            supabase.table("recurring_inspections").update({"is_active": False}).eq("id", ri["id"]).execute()
-            continue
+        ri_id = ri.get("id")
+        try:
+            # Check end_date
+            if ri.get("end_date") and ri["end_date"] < today:
+                supabase.table("recurring_inspections").update({"is_active": False}).eq("id", ri_id).execute()
+                continue
 
-        # Generate job number
-        job_no = f"RI-{ri['id'][:8]}-{today.replace('-', '')}"
+            # Generate job number
+            job_no = f"RI-{ri_id[:8]}-{today.replace('-', '')}"
 
-        # Check if already generated today
-        existing_log = supabase.table("recurring_inspection_logs") \
-            .select("id") \
-            .eq("recurring_inspection_id", ri["id"]) \
-            .gte("generated_at", f"{today}T00:00:00") \
-            .execute()
-        if existing_log.data:
-            skipped_today += 1
-            continue
+            # Check if already generated today
+            existing_log = supabase.table("recurring_inspection_logs") \
+                .select("id") \
+                .eq("recurring_inspection_id", ri_id) \
+                .gte("generated_at", f"{today}T00:00:00") \
+                .execute()
+            if existing_log.data:
+                skipped_today += 1
+                continue
 
-        # Create work order
-        wo_payload = {
-            "job_no": job_no,
-            "title": ri["title"],
-            "description": ri.get("description", ""),
-            "location": ri.get("location", ""),
-            "department_id": ri["department_id"],
-            "type": "Inspection",
-            "status": "Pending",
-            "created_by": ri.get("created_by"),
-        }
+            # Create work order
+            wo_payload = {
+                "job_no": job_no,
+                "title": ri["title"],
+                "description": ri.get("description", ""),
+                "location": ri.get("location", ""),
+                "department_id": ri["department_id"],
+                "type": "Inspection",
+                "status": "Pending",
+                "created_by": ri.get("created_by"),
+            }
 
-        wo_result = supabase.table("work_orders").insert(wo_payload).execute()
+            wo_result = supabase.table("work_orders").insert(wo_payload).execute()
 
-        new_next = _advance_next_due(
-            ri["frequency"], ri["next_due_date"],
-            ri.get("day_of_week"), ri.get("day_of_month"),
-            ri.get("interval", 1) or 1,
-        )
+            new_next = _advance_next_due(
+                ri["frequency"], ri["next_due_date"],
+                ri.get("day_of_week"), ri.get("day_of_month"),
+                ri.get("interval", 1) or 1,
+            )
 
-        if not wo_result.data:
-            # WO already exists (job_no unique violation) — advance next_due_date to
-            # prevent this inspection from being picked up again on the next generate call.
+            if not wo_result.data:
+                # WO already exists (job_no unique violation) — advance next_due_date to
+                # prevent this inspection from being picked up again on the next generate call.
+                supabase.table("recurring_inspections").update({
+                    "next_due_date": new_next,
+                    "updated_at": datetime.utcnow().isoformat(),
+                }).eq("id", ri_id).execute()
+                continue
+
+            wo_id = wo_result.data[0]["id"]
+
+            # Assign technicians
+            fixer_ids = [a["fixer_id"] for a in (ri.get("recurring_inspection_assignees") or [])]
+            if not fixer_ids:
+                fixer_ids = _get_technicians_by_department(ri["department_id"])
+            if fixer_ids:
+                assignments = [
+                    {"work_order_id": wo_id, "technician_id": fid, "assigned_by": ri.get("created_by")}
+                    for fid in fixer_ids
+                ]
+                supabase.table("work_order_assignments").insert(assignments).execute()
+
+            # Log generation (generated_date enables DB-level unique constraint per day)
+            supabase.table("recurring_inspection_logs").insert({
+                "recurring_inspection_id": ri_id,
+                "work_order_id": wo_id,
+                "generated_date": today,
+            }).execute()
+
+            # Advance next_due_date
             supabase.table("recurring_inspections").update({
                 "next_due_date": new_next,
                 "updated_at": datetime.utcnow().isoformat(),
-            }).eq("id", ri["id"]).execute()
+            }).eq("id", ri_id).execute()
+
+            generated.append({"recurring_inspection_id": ri_id, "work_order_id": wo_id})
+        except Exception as e:
+            logger.exception(
+                "generate_due_inspections: failed for ri_id=%s title=%r",
+                ri_id, ri.get("title"),
+            )
+            errors.append({
+                "recurring_inspection_id": ri_id,
+                "title": ri.get("title"),
+                "error": f"{type(e).__name__}: {e}",
+            })
             continue
 
-        wo_id = wo_result.data[0]["id"]
-
-        # Assign technicians
-        fixer_ids = [a["fixer_id"] for a in (ri.get("recurring_inspection_assignees") or [])]
-        if not fixer_ids:
-            fixer_ids = _get_technicians_by_department(ri["department_id"])
-        if fixer_ids:
-            assignments = [
-                {"work_order_id": wo_id, "technician_id": fid, "assigned_by": ri.get("created_by")}
-                for fid in fixer_ids
-            ]
-            supabase.table("work_order_assignments").insert(assignments).execute()
-
-        # Log generation (generated_date enables DB-level unique constraint per day)
-        supabase.table("recurring_inspection_logs").insert({
-            "recurring_inspection_id": ri["id"],
-            "work_order_id": wo_id,
-            "generated_date": today,
-        }).execute()
-
-        # Advance next_due_date
-        supabase.table("recurring_inspections").update({
-            "next_due_date": new_next,
-            "updated_at": datetime.utcnow().isoformat(),
-        }).eq("id", ri["id"]).execute()
-
-        generated.append({"recurring_inspection_id": ri["id"], "work_order_id": wo_id})
-
-    return {"generated": generated, "created": len(generated), "skipped": skipped_today}
+    return {
+        "generated": generated,
+        "created": len(generated),
+        "skipped": skipped_today,
+        "errors": errors,
+        "error_count": len(errors),
+    }
 
 
 # --------------------
