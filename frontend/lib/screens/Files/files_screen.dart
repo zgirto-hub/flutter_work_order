@@ -630,7 +630,7 @@ class _FilesScreenState extends State<FilesScreen>
                       shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.vertical(
                               top: Radius.circular(16))),
-                      builder: (_) => const AddFileScreen(),
+                      builder: (_) => AddFileScreen(folderId: _selectedFolderId),
                     );
                     _refresh();
                   },

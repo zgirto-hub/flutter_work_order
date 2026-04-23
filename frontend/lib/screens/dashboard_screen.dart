@@ -13,7 +13,6 @@ import '../widgets/claude_widgets.dart';
 
 import '../services/user_service.dart';
 
-import 'system_status_screen.dart';
 import '../features/analytics/ai_insights_card.dart';
 import '../widgets/nl_input_card.dart';
 import '../widgets/ai_draft_bottom_sheet.dart';
@@ -627,18 +626,6 @@ class DashboardScreenState extends State<DashboardScreen>
                   // ── Quick actions ──────────────────────────
                   SectionLabel(text: 'Quick Actions'),
                   SizedBox(height: 8),
-                  _QuickAction(
-                    label: 'System Status',
-                    icon: Icons.monitor_heart_outlined,
-                    color: AppColors.accent,
-                    onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const SystemStatusScreen())),
-                    trailing: Icon(Icons.chevron_right_rounded,
-                        size: 16, color: AppColors.textTertiary),
-                  ),
-                  SizedBox(height: 10),
                   _QuickAction(
                     label: 'Check for update',
                     subtitle:
