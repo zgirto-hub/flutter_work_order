@@ -33,6 +33,7 @@ class UpdateIssueBody(BaseModel):
     notes: Optional[str] = None
     report_date: Optional[str] = None
     resolved_at: Optional[str] = None
+    resolved_notes: Optional[str] = None
 
 
 class ResolveIssueBody(BaseModel):
@@ -189,7 +190,7 @@ async def report_issue(body: ReportIssueBody):
 
     existing = (
         supabase.table("system_status_reports")
-        .select("id")
+        .select("id, asset_id")
         .eq("system_id", system_id)
         .eq("report_date", body.report_date)
         .is_("resolved_at", "null")
@@ -198,7 +199,7 @@ async def report_issue(body: ReportIssueBody):
     if body.asset_id:
         existing = [
             r for r in existing.data
-            if r.get("asset_id") == body.asset_id or r.get("asset_id") is None
+            if r.get("asset_id") == body.asset_id
         ]
     else:
         existing = [r for r in existing.data if r.get("asset_id") is None]
@@ -409,6 +410,13 @@ async def update_issue(report_id: str, body: UpdateIssueBody):
             )
 
         updates["resolved_at"] = f"{body.resolved_at}T23:59:59"
+    if body.resolved_notes is not None:
+        if old_report["resolved_at"] is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot edit resolve notes on an unresolved issue",
+            )
+        updates["resolved_notes"] = body.resolved_notes
 
     if not updates:
         return {"report": old_report}

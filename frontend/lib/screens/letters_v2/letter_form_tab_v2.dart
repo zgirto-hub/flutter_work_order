@@ -62,18 +62,18 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
   double _editorHeight = 500;
 
   // PDF styling options
-  double _refFontSize = 11;
-  bool _refBold = false;
-  bool _refUnderline = false;
-  double _recipientFontSize = 12;
-  bool _recipientBold = false;
-  bool _recipientUnderline = false;
-  double _subjectFontSize = 13;
-  bool _subjectBold = true;
-  bool _subjectUnderline = true;
-  double _dateFontSize = 11;
-  bool _dateBold = false;
-  bool _dateUnderline = false;
+  static const double _refFontSize = 17;
+  static const bool _refBold = true;
+  static const bool _refUnderline = false;
+  static const double _recipientFontSize = 17;
+  static const bool _recipientBold = true;
+  static const bool _recipientUnderline = false;
+  static const double _subjectFontSize = 17;
+  static const bool _subjectBold = true;
+  static const bool _subjectUnderline = false;
+  static const double _dateFontSize = 17;
+  static const bool _dateBold = true;
+  static const bool _dateUnderline = false;
   String? _editingLetterId;
   String? _initialBodyHtml;
 
@@ -128,19 +128,7 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
           _signatureBytes = base64Decode(b64);
         } catch (_) {}
       }
-      // Restore formatting state
-      _refFontSize = letter.refFontSize;
-      _refBold = letter.refBold;
-      _refUnderline = letter.refUnderline;
-      _dateFontSize = letter.tarikhFontSize;
-      _dateBold = letter.tarikhBold;
-      _dateUnderline = letter.tarikhUnderline;
-      _recipientFontSize = letter.recipientFontSize;
-      _recipientBold = letter.recipientBold;
-      _recipientUnderline = letter.recipientUnderline;
-      _subjectFontSize = letter.subjectFontSize;
-      _subjectBold = letter.subjectBold;
-      _subjectUnderline = letter.subjectUnderline;
+      // Formatting state is hardcoded (17pt bold) — ignore stored values.
     }
     _registerEditor();
     _listenForMessages();
@@ -700,14 +688,6 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               textAlign: TextAlign.right,
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
-            _buildStyleRow(
-              fontSize: _refFontSize,
-              bold: _refBold,
-              underline: _refUnderline,
-              onFontSizeChanged: (v) => setState(() => _refFontSize = v),
-              onBoldChanged: (v) => setState(() => _refBold = v),
-              onUnderlineChanged: (v) => setState(() => _refUnderline = v),
-            ),
             const SizedBox(height: 16),
 
             // ── Date ──
@@ -734,14 +714,6 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
                 ),
               ),
             ),
-            _buildStyleRow(
-              fontSize: _dateFontSize,
-              bold: _dateBold,
-              underline: _dateUnderline,
-              onFontSizeChanged: (v) => setState(() => _dateFontSize = v),
-              onBoldChanged: (v) => setState(() => _dateBold = v),
-              onUnderlineChanged: (v) => setState(() => _dateUnderline = v),
-            ),
             const SizedBox(height: 16),
 
             // ── Recipient (السيد) ──
@@ -751,15 +723,6 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               decoration:
                   InputDecoration(labelText: 'Recipient name and title'),
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-            ),
-            _buildStyleRow(
-              fontSize: _recipientFontSize,
-              bold: _recipientBold,
-              underline: _recipientUnderline,
-              onFontSizeChanged: (v) => setState(() => _recipientFontSize = v),
-              onBoldChanged: (v) => setState(() => _recipientBold = v),
-              onUnderlineChanged: (v) =>
-                  setState(() => _recipientUnderline = v),
             ),
             Padding(
               padding: const EdgeInsets.only(top: 4, right: 8),
@@ -777,14 +740,6 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
               maxLines: 3,
               minLines: 2,
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-            ),
-            _buildStyleRow(
-              fontSize: _subjectFontSize,
-              bold: _subjectBold,
-              onFontSizeChanged: (v) => setState(() => _subjectFontSize = v),
-              onBoldChanged: (v) => setState(() => _subjectBold = v),
-              underline: _subjectUnderline,
-              onUnderlineChanged: (v) => setState(() => _subjectUnderline = v),
             ),
             const SizedBox(height: 16),
 
@@ -1202,108 +1157,6 @@ class _LetterFormTabV2State extends State<LetterFormTabV2> {
 
   InputDecoration _inputDecor(String hint) {
     return InputDecoration(hintText: hint);
-  }
-
-  Widget _buildStyleRow({
-    required double fontSize,
-    required bool bold,
-    required ValueChanged<double> onFontSizeChanged,
-    required ValueChanged<bool> onBoldChanged,
-    bool? underline,
-    ValueChanged<bool>? onUnderlineChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Row(
-        children: [
-          Text('PDF font size:',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-          const SizedBox(width: 8),
-          InkWell(
-            onTap: () {
-              final next = (fontSize - 1).clamp(6, 40).toDouble();
-              onFontSizeChanged(next);
-            },
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: AppColors.bgSurface2,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: AppColors.border2),
-              ),
-              child: const Icon(Icons.remove, size: 16),
-            ),
-          ),
-          Container(
-            width: 40,
-            alignment: Alignment.center,
-            child: Text('${fontSize.toInt()}pt',
-                style:
-                    const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-          ),
-          InkWell(
-            onTap: () {
-              final next = (fontSize + 1).clamp(6, 40).toDouble();
-              onFontSizeChanged(next);
-            },
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: AppColors.bgSurface2,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: AppColors.border2),
-              ),
-              child: const Icon(Icons.add, size: 16),
-            ),
-          ),
-          const SizedBox(width: 16),
-          InkWell(
-            onTap: () => onBoldChanged(!bold),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: bold ? const Color(0xFFCC0000) : Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                'B',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: bold ? Colors.white : Colors.black54,
-                ),
-              ),
-            ),
-          ),
-          if (underline != null && onUnderlineChanged != null) ...[
-            const SizedBox(width: 8),
-            InkWell(
-              onTap: () => onUnderlineChanged(!underline),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: underline
-                      ? const Color(0xFFCC0000)
-                      : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'U',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    decoration: TextDecoration.underline,
-                    color: underline ? Colors.white : Colors.black54,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
   }
 
   /// HTML for the embedded rich text editor iframe.

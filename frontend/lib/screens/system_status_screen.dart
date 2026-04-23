@@ -13,8 +13,7 @@ class SystemStatusScreen extends StatefulWidget {
   State<SystemStatusScreen> createState() => _SystemStatusScreenState();
 }
 
-class _SystemStatusScreenState extends State<SystemStatusScreen>
-    with WidgetsBindingObserver {
+class _SystemStatusScreenState extends State<SystemStatusScreen> {
   final _service = SystemStatusService();
   bool _loading = true;
   List<SystemStatus> _systems = [];
@@ -32,21 +31,7 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _load();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && !_loading) {
-      _load();
-    }
   }
 
   Future<void> _load() async {
@@ -682,6 +667,8 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
 
   void _showEditIssueSheet(SystemStatusReport report) {
     final notesController = TextEditingController(text: report.notes);
+    final resolvedNotesController =
+        TextEditingController(text: report.resolvedNotes);
     DateTime selectedDate =
         DateTime.tryParse(report.reportDate) ?? DateTime.now();
     DateTime? selectedResolveDate =
@@ -852,6 +839,39 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                   ),
                 ),
                 const SizedBox(height: 16),
+                Text(
+                  'Resolve Description',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: resolvedNotesController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Describe how the issue was resolved...',
+                    hintStyle: TextStyle(color: AppColors.textTertiary),
+                    filled: true,
+                    fillColor: AppColors.bgSurface2,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: AppColors.border2),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: AppColors.border2),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.accent),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                  style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 16),
               ],
 
               // Save button
@@ -870,6 +890,9 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
                         notes: notesController.text.trim(),
                         reportDate: dateStr,
                         resolvedAt: resolveDateStr,
+                        resolvedNotes: report.isResolved
+                            ? resolvedNotesController.text.trim()
+                            : null,
                       );
                       if (!mounted) return;
                       Navigator.pop(ctx);

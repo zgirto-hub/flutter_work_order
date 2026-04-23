@@ -106,11 +106,13 @@ class SystemStatusService {
     String? notes,
     String? reportDate,
     String? resolvedAt,
+    String? resolvedNotes,
   }) async {
     final body = <String, dynamic>{};
     if (notes != null) body['notes'] = notes;
     if (reportDate != null) body['report_date'] = reportDate;
     if (resolvedAt != null) body['resolved_at'] = resolvedAt;
+    if (resolvedNotes != null) body['resolved_notes'] = resolvedNotes;
 
     final res = await http.put(
       Uri.parse('${AppConfig.baseUrl}/system-status/$reportId'),
