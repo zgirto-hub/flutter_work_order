@@ -12,6 +12,8 @@ class FileModel {
   final int? fileSize;
   final String? role; // 'owner' | 'editor' | 'viewer' | null
   final DateTime? expirationDate;
+  final String? departmentId;
+  final String? departmentName;
 
   FileModel({
     required this.id,
@@ -27,6 +29,8 @@ class FileModel {
     this.fileSize,
     this.role,
     this.expirationDate,
+    this.departmentId,
+    this.departmentName,
   });
 
   factory FileModel.fromJson(Map<String, dynamic> json) {
@@ -45,6 +49,8 @@ class FileModel {
       expirationDate: json['expiration_date'] != null
           ? DateTime.tryParse(json['expiration_date'])
           : null,
+      departmentId: json['department_id']?.toString(),
+      departmentName: json['department_name'] as String?,
     );
   }
 
@@ -64,6 +70,8 @@ class FileModel {
     String? role,
     DateTime? expirationDate,
     bool clearExpiration = false,
+    String? departmentId,
+    String? departmentName,
   }) {
     return FileModel(
       id: id,
@@ -79,6 +87,8 @@ class FileModel {
       fileSize: fileSize,
       role: role ?? this.role,
       expirationDate: clearExpiration ? null : (expirationDate ?? this.expirationDate),
+      departmentId: departmentId ?? this.departmentId,
+      departmentName: departmentName ?? this.departmentName,
     );
   }
 }

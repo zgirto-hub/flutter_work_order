@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/department.dart';
 import '../config.dart';
 
@@ -143,5 +144,26 @@ class DepartmentService {
 
     final data = jsonDecode(res.body);
     return data['work_order_count'] ?? 0;
+  }
+
+  /// Fetch current user's departments and global viewer status
+  Future<({List<Department> departments, bool isGlobalViewer})> fetchMyDepartments() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    final email = user?.email ?? '';
+
+    final uri = Uri.parse('${AppConfig.baseUrl}/departments/mine?user_email=${Uri.encodeComponent(email)}');
+    final res = await http.get(uri);
+
+    if (res.statusCode != 200) {
+      throw Exception('Failed to fetch my departments');
+    }
+
+    final data = jsonDecode(res.body);
+    final depts = (data['departments'] as List)
+        .map((j) => Department.fromJson(j as Map<String, dynamic>))
+        .toList();
+    final isGlobalViewer = data['is_global_viewer'] as bool? ?? false;
+
+    return (departments: depts, isGlobalViewer: isGlobalViewer);
   }
 }

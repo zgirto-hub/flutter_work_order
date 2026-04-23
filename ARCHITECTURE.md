@@ -35,7 +35,7 @@ A full-stack work order management system with file management, built with:
 
 | Table | Purpose |
 |-------|---------|
-| `files` | Uploaded files with metadata, parsed text, folder assignment |
+| `files` | Uploaded files with metadata, parsed text, folder assignment, department scope |
 | `file_folders` | Hierarchical folder structure (self-referencing `parent_id`) |
 | `resource_permissions` | Role-based sharing for files and folders (viewer/editor) |
 
@@ -64,6 +64,7 @@ recurring_inspections.department_id → departments.id
 recurring_inspection_assignees.recurring_inspection_id → recurring_inspections.id
 recurring_inspection_assignees.fixer_id → users.id
 files.folder_id → file_folders.id              (file in folder)
+files.department_id → departments.id            (department scope, nullable = global)
 file_folders.parent_id → file_folders.id       (folder hierarchy)
 resource_permissions.resource_id → files.id or file_folders.id
 ```
@@ -144,6 +145,7 @@ Files and folders use a separate role-based permission system via `resource_perm
 |--------|------|-------------|
 | GET | `/api/departments` | List active departments |
 | GET | `/api/departments/all` | List all department names |
+| GET | `/api/departments/mine?user_email=` | Get caller's departments + is_global_viewer flag |
 | GET | `/api/departments/{id}` | Get department by ID |
 | POST | `/api/departments` | Create department |
 | PATCH | `/api/departments/{id}` | Update department |
@@ -164,12 +166,16 @@ Files and folders use a separate role-based permission system via `resource_perm
 ### Files
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/upload` | Upload file with auto text extraction |
+| GET | `/api/files/list?user_email=` | List files visible to the caller (department-scoped) |
+| GET | `/api/files/{file_id}?user_email=` | Get single file if visible (403 if not) |
+| POST | `/api/upload` | Upload file with auto text extraction; optional `department_id` form field |
 | DELETE | `/api/delete/{file_id}` | Delete file |
 | POST | `/api/share-file` | Share file (form: file_id, owner_email, share_with, role) |
 | GET | `/api/file-shares/{file_id}` | List shares on a file |
 | DELETE | `/api/remove-share` | Revoke a file share |
 | GET | `/api/file-uploaders` | List all distinct file uploaders |
+| PATCH | `/api/files/{file_id}/expiration` | Set/clear expiration date |
+| PATCH | `/api/files/{file_id}/department` | Change file's department (admin only) |
 | GET | `/api/files/{file_id}/my-role?user_email=` | Get user's effective role on file |
 
 ### Folders
@@ -328,6 +334,16 @@ Navigating between folders uses an animated horizontal slide transition powered 
 - For files in folders, permission walks up the folder chain
 - Role priority: viewer(1) < editor(2) < owner(3)
 - Owner is determined by `uploaded_by` (files) or `created_by` (folders)
+
+### Department-Scoped File Visibility
+- `files.department_id` (nullable UUID FK → `departments.id`, ON DELETE SET NULL) controls visibility scope
+- NULL = global (visible to all authenticated users)
+- Set = visible to admin/supervisor/superintendent and members of that department
+- Per-user shares via `resource_permissions` override department scope (FR-016)
+- `backend/utils/file_visibility.py` exports `is_global_viewer(user)` and `get_user_department_ids(user_id)`
+- Frontend file listing uses `GET /api/files/list?user_email=` (server-side enforcement replaces direct Supabase query)
+- Admins can assign/reassign department via `PATCH /api/files/{file_id}/department`
+- Upload accepts optional `department_id` form field
 
 ---
 
@@ -520,7 +536,8 @@ RLS is enabled on `work_orders` as defense-in-depth:
 ### Frontend (`frontend/lib/`)
 ```
 models/            Data classes (WorkOrder, AppUser, TechnicianAssignment, FileModel,
-                   FolderModel, ActivityLogEntry, WorkOrderReport, RecurringInspection)
+                    FolderModel, ActivityLogEntry, WorkOrderReport, RecurringInspection,
+                    Department)
 services/          API clients
   WorkOrderService, UserService, FileService, FolderService,
   ActivityLogService, RecurringInspectionService,
@@ -577,6 +594,7 @@ utils/
   notifications.py         OneSignal HTTP helpers
   activity.py              Activity audit logging (fire-and-forget)
   permissions.py           File/folder permission engine (role inheritance)
+  file_visibility.py       Department-scoped visibility helpers (is_global_viewer, get_user_department_ids)
   text_extraction.py       Text extraction from PDF, DOCX, TXT, images (OCR)
 migrations/        SQL migration scripts (legacy, use supabase/migrations/ instead)
 ```

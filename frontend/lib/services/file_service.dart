@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/file_model.dart';
 import '../config.dart';
@@ -6,59 +7,43 @@ import 'package:http/http.dart' as http;
 class FileService {
   final SupabaseClient _client = Supabase.instance.client;
 
+  String get _baseUrl => AppConfig.baseUrl;
+
   Future<List<FileModel>> fetchFiles() async {
     final user = _client.auth.currentUser;
-    final email = user?.email ?? "";
+    final email = user?.email ?? '';
 
-    // Fetch shared file IDs + roles from resource_permissions
-    final sharedPerms = await _client
-        .from('resource_permissions')
-        .select('resource_id, role, user_email')
-        .eq('resource_type', 'file');
+    final uri = Uri.parse('$_baseUrl/files/list?user_email=${Uri.encodeComponent(email)}');
+    final response = await http.get(uri);
 
-    final myPerms = (sharedPerms as List)
-        .where((row) => row['user_email'] == email)
-        .toList();
-
-    final sharedIds = myPerms
-        .map((row) => row['resource_id'].toString())
-        .toList();
-
-    String filter;
-    if (sharedIds.isEmpty) {
-      filter = 'is_private.eq.false,uploaded_by.eq.$email';
-    } else {
-      filter =
-          'is_private.eq.false,uploaded_by.eq.$email,id.in.(${sharedIds.join(',')})';
+    if (response.statusCode != 200) {
+      throw Exception('Failed to fetch files: ${response.statusCode}');
     }
 
-    final response = await _client
-        .from('files')
-        .select()
-        .or(filter)
-        .order('created_at', ascending: false);
-
-    final docs = (response as List)
+    final data = jsonDecode(response.body);
+    final files = (data['files'] as List)
         .map((doc) => FileModel.fromJson(doc))
         .toList();
 
-    // Build a role map from resource_permissions
-    final roleMap = <String, String>{};
-    for (final perm in myPerms) {
-      roleMap[perm['resource_id'].toString()] = perm['role'] as String;
+    return files;
+  }
+
+  Future<FileModel> fetchFileById(String id) async {
+    final user = _client.auth.currentUser;
+    final email = user?.email ?? '';
+
+    final uri = Uri.parse('$_baseUrl/files/$id?user_email=${Uri.encodeComponent(email)}');
+    final response = await http.get(uri);
+
+    if (response.statusCode == 403) {
+      throw Exception('Access denied');
+    }
+    if (response.statusCode != 200) {
+      throw Exception('Failed to fetch file: ${response.statusCode}');
     }
 
-    // Assign roles and isShared
-    final result = docs.map((doc) {
-      if (doc.uploadedBy == email) {
-        return doc.copyWith(role: 'owner');
-      } else if (roleMap.containsKey(doc.id)) {
-        return doc.copyWith(isShared: true, role: roleMap[doc.id]);
-      }
-      return doc;
-    }).toList();
-
-    return result;
+    final data = jsonDecode(response.body);
+    return FileModel.fromJson(data['file']);
   }
 
   Future<void> insertFile({
@@ -151,6 +136,22 @@ class FileService {
     await _client.from('files').update({
       'expiration_date': date?.toIso8601String(),
     }).eq('id', id);
+  }
+
+  Future<void> updateFileDepartment(String fileId, String? departmentId) async {
+    final user = _client.auth.currentUser;
+    final email = user?.email ?? '';
+
+    final uri = Uri.parse('$_baseUrl/files/$fileId/department?user_email=${Uri.encodeComponent(email)}');
+    final response = await http.patch(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'department_id': departmentId}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update department: ${response.statusCode}');
+    }
   }
 
   Future<List<FileModel>> filterByType(String type) async {

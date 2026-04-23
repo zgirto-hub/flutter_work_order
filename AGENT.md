@@ -164,6 +164,7 @@ files (
   uploaded_by TEXT,            -- user email
   file_size BIGINT,
   folder_id UUID FK -> file_folders(id),
+  department_id UUID FK -> departments(id) ON DELETE SET NULL,  -- nullable = global
   file_type TEXT,              -- file type/category field
   created_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ
@@ -323,6 +324,22 @@ Files and folders use a separate permission model via `resource_permissions`:
 - Permissions inherit through folder hierarchy (walks up parent chain via `backend/utils/permissions.py`).
 - Role priority: viewer(1) < editor(2) < owner(3).
 - `resource_type` value in `resource_permissions` is `'file'` (renamed from `'document'`).
+
+### Department-Scoped File Visibility
+
+- `files.department_id` (nullable UUID FK → `departments.id`, ON DELETE SET NULL) controls visibility scope
+- NULL = global (visible to all authenticated users)
+- Set = visible to admin/supervisor/superintendent and members of that department
+- Per-user shares via `resource_permissions` override department scope (FR-016)
+- `backend/utils/file_visibility.py` exports `is_global_viewer(user)` and `get_user_department_ids(user_id)`
+- Frontend file listing uses `GET /api/files/list?user_email=` (server-side enforcement replaces direct Supabase query)
+- Admins can assign/reassign department via `PATCH /api/files/{file_id}/department`
+- Upload accepts optional `department_id` form field
+- Key endpoints:
+  - `GET /api/files/list?user_email=` — scoped list (replaces direct Supabase query in frontend)
+  - `GET /api/files/{file_id}?user_email=` — single file with 403 for hidden files
+  - `PATCH /api/files/{file_id}/department?user_email=` — admin-only department edit
+  - `GET /api/departments/mine?user_email=` — returns `{departments, is_global_viewer}`
 
 ---
 
@@ -612,19 +629,20 @@ Admin is excluded from the approval chain:
 - `backend/routers/departments.py` — department CRUD, technician/WO counts
 - `backend/routers/technician_departments.py` — technician-department mapping CRUD
 - `backend/routers/notifications.py` — notification/watcher/preference APIs
-- `backend/routers/files.py` — file upload, delete, sharing, role check
+- `backend/routers/files.py` — file upload, delete, sharing, role check, department-scoped list/get, department edit
 - `backend/routers/folders.py` — folder CRUD, move operations
 - `backend/utils/notification_service.py` — recipient resolution + dispatch orchestration
 - `backend/utils/notifications.py` — OneSignal HTTP helpers
 - `backend/utils/activity.py` — activity audit logging
 - `backend/utils/permissions.py` — file/folder permission engine with inheritance
+- `backend/utils/file_visibility.py` — department-scoped visibility helpers (is_global_viewer, get_user_department_ids)
 - `backend/utils/text_extraction.py` — text extraction (PDF, DOCX, TXT, OCR for images)
 
 ### Frontend
 - `frontend/lib/models/user.dart` — AppUser model (UserType: admin, technician, reporter)
 - `frontend/lib/models/work_order.dart` — WorkOrder model with TechnicianAssignment list
 - `frontend/lib/models/technician_assignment.dart` — TechnicianAssignment model
-- `frontend/lib/models/file_model.dart` — FileModel with FileCapabilities (role-based)
+- `frontend/lib/models/file_model.dart` — FileModel with FileCapabilities (role-based) + departmentId/departmentName
 - `frontend/lib/models/folder_model.dart` — FolderModel (hierarchical)
 - `frontend/lib/models/activity_log_entry.dart` — ActivityLogEntry with category/action
 - `frontend/lib/models/workorder_report.dart` — WorkOrderReport for PDF generation

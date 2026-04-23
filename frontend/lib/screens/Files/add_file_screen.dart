@@ -3,6 +3,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import '../../config.dart';
+import '../../models/department.dart';
+import '../../services/department_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 
@@ -23,6 +25,10 @@ class _AddFileScreenState extends State<AddFileScreen> {
   bool _isLoading = false;
   DateTime? _expirationDate;
 
+  List<Department> _departments = [];
+  String? _selectedDepartmentId;
+  bool _loadingDepts = true;
+
   // Single file mode
   PlatformFile? _selectedFile;
 
@@ -39,6 +45,26 @@ class _AddFileScreenState extends State<AddFileScreen> {
     _titleController.dispose();
     _typeController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDepartments();
+  }
+
+  Future<void> _loadDepartments() async {
+    try {
+      final depts = await DepartmentService().fetchDepartments(isActive: true);
+      if (mounted) {
+        setState(() {
+          _departments = depts;
+          _loadingDepts = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingDepts = false);
+    }
   }
 
   // ── Helpers ──────────────────────────────────────────────
@@ -135,6 +161,7 @@ class _AddFileScreenState extends State<AddFileScreen> {
       request.fields['is_private'] = isPrivate ? '1' : '0';
       request.fields['uploaded_by'] = _userEmail;
       if (widget.folderId != null) request.fields['folder_id'] = widget.folderId!;
+      if (_selectedDepartmentId != null) request.fields['department_id'] = _selectedDepartmentId!;
       if (_expirationDate != null) {
         final d = _expirationDate!;
         request.fields['expiration_date'] =
@@ -208,6 +235,7 @@ class _AddFileScreenState extends State<AddFileScreen> {
         request.fields['is_private'] = isPrivate ? '1' : '0';
         request.fields['uploaded_by'] = _userEmail;
         if (widget.folderId != null) request.fields['folder_id'] = widget.folderId!;
+        if (_selectedDepartmentId != null) request.fields['department_id'] = _selectedDepartmentId!;
         if (_expirationDate != null) {
           final d = _expirationDate!;
           request.fields['expiration_date'] =
@@ -323,6 +351,38 @@ class _AddFileScreenState extends State<AddFileScreen> {
                   onChanged: (v) => setState(() => isPrivate = v),
                 ),
               ),
+
+              SizedBox(height: 14),
+
+              // ── Department picker (optional) ──────────────────
+              _Label('Department (optional)'),
+              SizedBox(height: 6),
+              _loadingDepts
+                  ? const SizedBox(
+                      height: 48,
+                      child: Center(child: SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )),
+                    )
+                  : DropdownButtonFormField<String?>(
+                      value: _selectedDepartmentId,
+                      decoration: InputDecoration(
+                        hintText: 'None (global)',
+                        prefixIcon: Icon(Icons.business_outlined, size: 16),
+                      ),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('None (global)'),
+                        ),
+                        ..._departments.map((d) => DropdownMenuItem<String?>(
+                          value: d.id,
+                          child: Text(d.name, overflow: TextOverflow.ellipsis),
+                        )),
+                      ],
+                      onChanged: (v) => setState(() => _selectedDepartmentId = v),
+                    ),
 
               SizedBox(height: 14),
 

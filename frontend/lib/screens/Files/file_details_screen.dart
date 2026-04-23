@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../models/file_model.dart';
+import '../../models/department.dart';
+import '../../services/department_service.dart';
 import 'file_viewer_screen.dart';
 import '../../config.dart';
 import '../../services/download_helper.dart';
@@ -36,12 +38,28 @@ class _FileDetailsScreenState extends State<FileDetailsScreen> {
   // Full share records with role info for display
   List<Map<String, String>> _shares = [];
   List<String> users = [];
+  String _userRole = '';
 
   @override
   void initState() {
     super.initState();
     loadSharedUsers();
     loadUsers();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final email = Supabase.instance.client.auth.currentUser?.email;
+    if (email == null) return;
+    try {
+      final res = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/user-role?email=${Uri.encodeComponent(email)}'),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (mounted) setState(() => _userRole = (data['user_type'] ?? '').toString());
+      }
+    } catch (_) {}
   }
 
   void showShareDialog() {
@@ -406,6 +424,14 @@ class _FileDetailsScreenState extends State<FileDetailsScreen> {
                 label: Text("Share with user"),
               ),
 
+            // ── Change department (admin only) ──────────────────
+            if (_userRole == 'admin')
+              ElevatedButton.icon(
+                onPressed: () => _showChangeDepartmentDialog(context, widget.document),
+                icon: Icon(Icons.business_outlined),
+                label: Text("Change department"),
+              ),
+
             SizedBox(height: 16),
             Text(
               "File Content",
@@ -425,6 +451,85 @@ class _FileDetailsScreenState extends State<FileDetailsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showChangeDepartmentDialog(BuildContext context, FileModel doc) {
+    String? selectedDeptId = doc.departmentId;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColors.bgSurface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text('Change department',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FutureBuilder<List<Department>>(
+                    future: DepartmentService().fetchDepartments(isActive: true),
+                    builder: (_, snap) {
+                      if (!snap.hasData) {
+                        return const SizedBox(height: 48, child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+                      }
+                      final depts = snap.data!;
+                      return DropdownButtonFormField<String?>(
+                        value: selectedDeptId,
+                        decoration: InputDecoration(
+                          hintText: 'None (global)',
+                          prefixIcon: Icon(Icons.business_outlined, size: 16),
+                        ),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('None (global)'),
+                          ),
+                          ...depts.map((d) => DropdownMenuItem<String?>(
+                            value: d.id,
+                            child: Text(d.name, overflow: TextOverflow.ellipsis),
+                          )),
+                        ],
+                        onChanged: (v) => setDialogState(() => selectedDeptId = v),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    try {
+                      await FileService().updateFileDepartment(doc.id, selectedDeptId);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Department updated'), behavior: SnackBarBehavior.floating),
+                        );
+                        Navigator.pop(context, true);
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed: $e'), behavior: SnackBarBehavior.floating),
+                        );
+                      }
+                    }
+                  },
+                  child: Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

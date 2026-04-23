@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional, List
 from db import supabase
+from utils.file_visibility import is_global_viewer
 
 router = APIRouter()
 
@@ -73,6 +74,47 @@ async def list_departments_with_counts(is_active: Optional[bool] = Query(None)):
 async def list_all_departments():
     """Get all departments"""
     return {"departments": _get_all_department_names()}
+
+
+@router.get("/departments/mine")
+async def get_my_departments(user_email: str = Query(...)):
+    """Return the caller's departments and is_global_viewer flag (FR-011, FR-012)."""
+    if not user_email:
+        raise HTTPException(status_code=400, detail="user_email is required")
+
+    result = supabase.table("users") \
+        .select("id, email, user_type, is_supervisor, is_superintendent") \
+        .eq("email", user_email) \
+        .single() \
+        .execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user = result.data
+
+    if is_global_viewer(user):
+        return {"departments": [], "is_global_viewer": True}
+
+    td = supabase.table("technician_departments") \
+        .select("department_id") \
+        .eq("technician_id", user["id"]) \
+        .execute()
+
+    dept_ids = [row["department_id"] for row in (td.data or [])]
+
+    if not dept_ids:
+        return {"departments": [], "is_global_viewer": False}
+
+    depts = supabase.table("departments") \
+        .select("id, name") \
+        .in_("id", dept_ids) \
+        .execute()
+
+    return {
+        "departments": depts.data or [],
+        "is_global_viewer": False,
+    }
 
 
 @router.get("/departments/{department_id}")

@@ -10,6 +10,8 @@ import '../../models/file_model.dart';
 import '../../models/folder_model.dart';
 import '../../services/file_service.dart';
 import '../../services/folder_service.dart';
+import '../../services/department_service.dart';
+import '../../models/department.dart';
 import '../../theme/app_theme.dart';
 import '../../config.dart';
 import '../../widgets/claude_widgets.dart';
@@ -60,6 +62,8 @@ class _FilesScreenState extends State<FilesScreen>
   bool _navigatingForward = true;
   String _userRole = '';
   double _sidebarWidth = 116.0;
+  bool _isGlobalViewer = true;
+  List<Department> _myDepartments = [];
 
   String get _currentEmail =>
       Supabase.instance.client.auth.currentUser?.email ?? '';
@@ -83,6 +87,7 @@ class _FilesScreenState extends State<FilesScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadUserRole();
+    _loadMyDepartments();
     if (_fileCache != null && _folderCache != null) {
       _allFiles = _fileCache!;
       _allFolders = _folderCache!;
@@ -103,6 +108,18 @@ class _FilesScreenState extends State<FilesScreen>
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (mounted) setState(() => _userRole = (data['user_type'] ?? 'admin').toString());
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadMyDepartments() async {
+    try {
+      final result = await DepartmentService().fetchMyDepartments();
+      if (mounted) {
+        setState(() {
+          _myDepartments = result.departments;
+          _isGlobalViewer = result.isGlobalViewer;
+        });
       }
     } catch (_) {}
   }
@@ -1442,6 +1459,19 @@ class _FilesScreenState extends State<FilesScreen>
               ),
             ],
           ),
+          // ── Department scope label (FR-012) ───────────────────
+          if (!_isGlobalViewer && _myDepartments.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Showing files for ${_myDepartments.map((d) => d.name).join(', ')}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textTertiary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
           if (!_isDeleting) ...[
             SizedBox(height: 10),
             ClaudeSearchBar(
@@ -2018,6 +2048,11 @@ class _FileCard extends StatelessWidget {
                       if (doc.isShared && role == 'owner')
                         _Pill(
                             label: 'shared',
+                            bg: AppColors.inProgressBg,
+                            fg: AppColors.inProgressText),
+                      if (doc.departmentName != null && doc.departmentName!.isNotEmpty)
+                        _Pill(
+                            label: doc.departmentName!,
                             bg: AppColors.inProgressBg,
                             fg: AppColors.inProgressText),
                       if (doc.fileSize != null)
