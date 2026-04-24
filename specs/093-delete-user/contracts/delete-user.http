@@ -1,0 +1,102 @@
+### Delete User — contract for 093-delete-user
+### Endpoint: DELETE /users/{user_id}?admin_email=<admin_email>
+### Auth: admin-only (via admin_email query param, same pattern as existing /users endpoints)
+
+###############################################################################
+# Happy path — admin deletes a non-self, non-last-admin user.
+# Returns 200 with {"message": "User deleted successfully"}.
+# Side effects:
+#   - Supabase Auth identity removed (if user had auth_id).
+#   - public.users row removed.
+#   - user_activity_log row inserted:
+#       performed_by = <admin_email>
+#       category     = "admin"
+#       action       = "user_deleted"
+#       target_label = <deleted_user.email>
+#       detail       = "Deleted user <email> (id: <uuid>)"
+###############################################################################
+DELETE {{baseUrl}}/users/{{targetUserId}}?admin_email={{adminEmail}}
+
+### Expected response
+# HTTP/1.1 200 OK
+# {
+#   "message": "User deleted successfully"
+# }
+
+
+###############################################################################
+# Error — caller is not an admin (or is deactivated).
+###############################################################################
+DELETE {{baseUrl}}/users/{{targetUserId}}?admin_email={{nonAdminEmail}}
+
+### Expected response
+# HTTP/1.1 403 Forbidden
+# { "detail": "Admin access required" }
+
+
+###############################################################################
+# Error — self-delete attempt (admin_email matches target user's email).
+###############################################################################
+DELETE {{baseUrl}}/users/{{selfUserId}}?admin_email={{selfAdminEmail}}
+
+### Expected response
+# HTTP/1.1 400 Bad Request
+# { "detail": "Cannot delete your own account" }
+
+
+###############################################################################
+# Error — last-admin protection (target is the only remaining active admin).
+###############################################################################
+DELETE {{baseUrl}}/users/{{lastAdminId}}?admin_email={{differentAdminEmail}}
+
+### Expected response (when this deletion would leave zero active admins)
+# HTTP/1.1 400 Bad Request
+# { "detail": "Cannot delete the last active admin" }
+
+
+###############################################################################
+# Error — target user does not exist (already deleted, bad UUID).
+###############################################################################
+DELETE {{baseUrl}}/users/{{nonExistentUserId}}?admin_email={{adminEmail}}
+
+### Expected response
+# HTTP/1.1 404 Not Found
+# { "detail": "User not found" }
+
+
+###############################################################################
+# Error — Supabase Auth delete fails (network, permission, etc).
+# DB row is NOT deleted; activity log is NOT written.
+###############################################################################
+DELETE {{baseUrl}}/users/{{userIdWithAuthFailure}}?admin_email={{adminEmail}}
+
+### Expected response
+# HTTP/1.1 400 Bad Request
+# { "detail": "Failed to delete user from auth: <underlying error>" }
+
+
+###############################################################################
+# Happy path — target user has NO auth_id (legacy / partial row).
+# Auth delete is skipped; DB row is deleted; activity log is written.
+###############################################################################
+DELETE {{baseUrl}}/users/{{orphanUserId}}?admin_email={{adminEmail}}
+
+### Expected response
+# HTTP/1.1 200 OK
+# { "message": "User deleted successfully" }
+
+
+###############################################################################
+# Variables (expected to be set in the IDE/CLI running this .http file)
+#   baseUrl                  = https://zorin.taila92fe8.ts.net   (or local)
+#   adminEmail               = salah@admin.com
+#   nonAdminEmail            = <a reporter or technician email>
+#   targetUserId             = <uuid of a non-admin user to delete>
+#   selfUserId               = <uuid matching selfAdminEmail's row>
+#   selfAdminEmail           = same as the acting admin's email
+#   lastAdminId              = <uuid of the only remaining active admin>
+#   differentAdminEmail      = <email of another active admin>
+#   nonExistentUserId        = 00000000-0000-0000-0000-000000000000
+#   userIdWithAuthFailure    = <uuid whose auth_id cannot be deleted>
+#   orphanUserId             = <uuid of a user with auth_id = NULL>
+###############################################################################
