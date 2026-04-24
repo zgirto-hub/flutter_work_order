@@ -78,12 +78,12 @@ async def list_all_departments():
 
 @router.get("/departments/mine")
 async def get_my_departments(user_email: str = Query(...)):
-    """Return the caller's departments and is_global_viewer flag (FR-011, FR-012)."""
+    """Return the caller's departments, is_global_viewer flag, is_admin, and primary_department_id."""
     if not user_email:
         raise HTTPException(status_code=400, detail="user_email is required")
 
     result = supabase.table("users") \
-        .select("id, email, user_type, is_supervisor, is_superintendent") \
+        .select("id, email, user_type, is_supervisor, is_superintendent, department_id") \
         .eq("email", user_email) \
         .single() \
         .execute()
@@ -92,20 +92,22 @@ async def get_my_departments(user_email: str = Query(...)):
         raise HTTPException(status_code=404, detail="User not found")
 
     user = result.data
+    is_admin = user.get("user_type") == "admin"
+    primary_department_id = user.get("department_id")
 
     if is_global_viewer(user):
-        return {"departments": [], "is_global_viewer": True}
+        return {
+            "departments": [],
+            "is_global_viewer": True,
+            "is_admin": is_admin,
+            "primary_department_id": primary_department_id,
+        }
 
     # Union of users.department_id (primary) and technician_departments (multi-dept)
     dept_ids: set[str] = set()
 
-    u_row = supabase.table("users") \
-        .select("department_id") \
-        .eq("id", user["id"]) \
-        .single() \
-        .execute()
-    if u_row.data and u_row.data.get("department_id"):
-        dept_ids.add(u_row.data["department_id"])
+    if primary_department_id:
+        dept_ids.add(primary_department_id)
 
     td = supabase.table("technician_departments") \
         .select("department_id") \
@@ -118,7 +120,12 @@ async def get_my_departments(user_email: str = Query(...)):
     dept_ids = list(dept_ids)
 
     if not dept_ids:
-        return {"departments": [], "is_global_viewer": False}
+        return {
+            "departments": [],
+            "is_global_viewer": False,
+            "is_admin": is_admin,
+            "primary_department_id": primary_department_id,
+        }
 
     depts = supabase.table("departments") \
         .select("id, name") \
@@ -128,6 +135,8 @@ async def get_my_departments(user_email: str = Query(...)):
     return {
         "departments": depts.data or [],
         "is_global_viewer": False,
+        "is_admin": is_admin,
+        "primary_department_id": primary_department_id,
     }
 
 

@@ -28,6 +28,8 @@ class _AddFileScreenState extends State<AddFileScreen> {
   List<Department> _departments = [];
   String? _selectedDepartmentId;
   bool _loadingDepts = true;
+  bool _isAdmin = false;
+  String? _primaryDepartmentId;
 
   // Single file mode
   PlatformFile? _selectedFile;
@@ -55,9 +57,15 @@ class _AddFileScreenState extends State<AddFileScreen> {
 
   Future<void> _loadDepartments() async {
     try {
-      final depts = await DepartmentService().fetchDepartments(isActive: true);
+      final mine = await DepartmentService().fetchMyDepartments();
       if (mounted) {
+        List<Department> depts = [];
+        if (mine.isAdmin) {
+          depts = await DepartmentService().fetchDepartments(isActive: true);
+        }
         setState(() {
+          _isAdmin = mine.isAdmin;
+          _primaryDepartmentId = mine.primaryDepartmentId;
           _departments = depts;
           _loadingDepts = false;
         });
@@ -161,7 +169,7 @@ class _AddFileScreenState extends State<AddFileScreen> {
       request.fields['is_private'] = isPrivate ? '1' : '0';
       request.fields['uploaded_by'] = _userEmail;
       if (widget.folderId != null) request.fields['folder_id'] = widget.folderId!;
-      if (_selectedDepartmentId != null) request.fields['department_id'] = _selectedDepartmentId!;
+      if (_isAdmin && _selectedDepartmentId != null) request.fields['department_id'] = _selectedDepartmentId!;
       if (_expirationDate != null) {
         final d = _expirationDate!;
         request.fields['expiration_date'] =
@@ -235,7 +243,7 @@ class _AddFileScreenState extends State<AddFileScreen> {
         request.fields['is_private'] = isPrivate ? '1' : '0';
         request.fields['uploaded_by'] = _userEmail;
         if (widget.folderId != null) request.fields['folder_id'] = widget.folderId!;
-        if (_selectedDepartmentId != null) request.fields['department_id'] = _selectedDepartmentId!;
+        if (_isAdmin && _selectedDepartmentId != null) request.fields['department_id'] = _selectedDepartmentId!;
         if (_expirationDate != null) {
           final d = _expirationDate!;
           request.fields['expiration_date'] =
@@ -354,37 +362,38 @@ class _AddFileScreenState extends State<AddFileScreen> {
 
               SizedBox(height: 14),
 
-              // ── Department picker (optional) ──────────────────
-              _Label('Department (optional)'),
-              SizedBox(height: 6),
-              _loadingDepts
-                  ? const SizedBox(
-                      height: 48,
-                      child: Center(child: SizedBox(
-                        width: 16, height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )),
-                    )
-                  : DropdownButtonFormField<String?>(
-                      value: _selectedDepartmentId,
-                      decoration: InputDecoration(
-                        hintText: 'None (global)',
-                        prefixIcon: Icon(Icons.business_outlined, size: 16),
-                      ),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('None (global)'),
-                        ),
-                        ..._departments.map((d) => DropdownMenuItem<String?>(
-                          value: d.id,
-                          child: Text(d.name, overflow: TextOverflow.ellipsis),
+              // ── Department picker (admin only) ──────────────────
+              if (_isAdmin) ...[
+                _Label('Department (optional)'),
+                SizedBox(height: 6),
+                _loadingDepts
+                    ? const SizedBox(
+                        height: 48,
+                        child: Center(child: SizedBox(
+                          width: 16, height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )),
-                      ],
-                      onChanged: (v) => setState(() => _selectedDepartmentId = v),
-                    ),
-
-              SizedBox(height: 14),
+                      )
+                    : DropdownButtonFormField<String?>(
+                        value: _selectedDepartmentId,
+                        decoration: InputDecoration(
+                          hintText: 'None (global)',
+                          prefixIcon: Icon(Icons.business_outlined, size: 16),
+                        ),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('None (global)'),
+                          ),
+                          ..._departments.map((d) => DropdownMenuItem<String?>(
+                            value: d.id,
+                            child: Text(d.name, overflow: TextOverflow.ellipsis),
+                          )),
+                        ],
+                        onChanged: (v) => setState(() => _selectedDepartmentId = v),
+                      ),
+                SizedBox(height: 14),
+              ],
 
               // ── Expiration date ───────────────────────────
               _Label('Expiration date (optional)'),
@@ -607,7 +616,25 @@ class _AddFileScreenState extends State<AddFileScreen> {
               SizedBox(height: 20),
 
               // ── Upload buttons ───────────────────────────
-              if (!_isMultiMode) ...[
+              if (!_loadingDepts && !_isAdmin && _primaryDepartmentId == null) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface2,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.border, width: 0.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Upload unavailable', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textTertiary)),
+                      SizedBox(height: 4),
+                      Text('Contact your admin to assign a department before uploading files.', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                    ],
+                  ),
+                ),
+              ] else if (!_isMultiMode) ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(

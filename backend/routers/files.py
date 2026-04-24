@@ -190,6 +190,26 @@ async def upload_file(
     public_url = f"/files/{filename}"
     parsed_text = extract_text(file_path, extension)
 
+    user = get_user_by_email(uploaded_by)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    is_admin = user.get("user_type") == "admin"
+
+    if is_admin:
+        if department_id and department_id.strip():
+            dept_check = supabase.table("departments").select("id").eq("id", department_id).single().execute()
+            if not dept_check.data:
+                raise HTTPException(status_code=400, detail="Invalid department_id")
+            resolved_department_id = department_id
+        else:
+            resolved_department_id = None
+    else:
+        primary_dept = user.get("department_id")
+        if not primary_dept:
+            raise HTTPException(status_code=400, detail="User has no department assigned; contact your administrator.")
+        resolved_department_id = primary_dept
+
     record = {
         "title": title,
         "file_type": file_type,
@@ -206,18 +226,14 @@ async def upload_file(
         record["folder_id"] = folder_id
     if expiration_date:
         record["expiration_date"] = expiration_date
-
-    if department_id and department_id.strip():
-        dept_check = supabase.table("departments").select("id").eq("id", department_id).single().execute()
-        if not dept_check.data:
-            raise HTTPException(status_code=400, detail="Invalid department_id")
-        record["department_id"] = department_id
+    if resolved_department_id:
+        record["department_id"] = resolved_department_id
 
     supabase.table("files").insert(record).execute()
 
     detail = file_type
-    if department_id and department_id.strip():
-        detail = f"{file_type} · dept={department_id}"
+    if resolved_department_id:
+        detail = f"{file_type} · dept={resolved_department_id}"
 
     log_activity(uploaded_by, "file", "uploaded",
         target_label=title, target_id=file_id, detail=detail)

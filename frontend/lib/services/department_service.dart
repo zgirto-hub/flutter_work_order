@@ -146,8 +146,8 @@ class DepartmentService {
     return data['work_order_count'] ?? 0;
   }
 
-  /// Fetch current user's departments and global viewer status
-  Future<({List<Department> departments, bool isGlobalViewer})> fetchMyDepartments() async {
+  /// Fetch current user's departments, global viewer status, admin flag, and primary department.
+  Future<({List<Department> departments, bool isGlobalViewer, bool isAdmin, String? primaryDepartmentId})> fetchMyDepartments() async {
     final user = Supabase.instance.client.auth.currentUser;
     final email = user?.email ?? '';
 
@@ -163,7 +163,9 @@ class DepartmentService {
         .map((j) => Department.fromJson(j as Map<String, dynamic>))
         .toList();
     final isGlobalViewer = data['is_global_viewer'] as bool? ?? false;
+    final isAdmin = data['is_admin'] as bool? ?? false;
+    final primaryDepartmentId = data['primary_department_id'] as String?;
 
-    return (departments: depts, isGlobalViewer: isGlobalViewer);
+    return (departments: depts, isGlobalViewer: isGlobalViewer, isAdmin: isAdmin, primaryDepartmentId: primaryDepartmentId);
   }
 }
