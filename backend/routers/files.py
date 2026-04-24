@@ -56,6 +56,9 @@ async def list_files(user_email: str = Query(...)):
 
     # Global viewers see everything (FR-002)
     if is_global_viewer(user):
+        for f in files:
+            if f.get("uploaded_by") == user_email:
+                f["role"] = "owner"
         return {"files": files}
 
     # --- Scoped viewer ---
@@ -131,6 +134,8 @@ async def get_file(file_id: str, user_email: str = Query(...)):
 
     # Global viewers bypass all checks (FR-002)
     if is_global_viewer(user):
+        if f.get("uploaded_by") == user_email:
+            f["role"] = "owner"
         return {"file": f}
 
     # --- Scoped viewer ---
