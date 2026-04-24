@@ -96,12 +96,26 @@ async def get_my_departments(user_email: str = Query(...)):
     if is_global_viewer(user):
         return {"departments": [], "is_global_viewer": True}
 
+    # Union of users.department_id (primary) and technician_departments (multi-dept)
+    dept_ids: set[str] = set()
+
+    u_row = supabase.table("users") \
+        .select("department_id") \
+        .eq("id", user["id"]) \
+        .single() \
+        .execute()
+    if u_row.data and u_row.data.get("department_id"):
+        dept_ids.add(u_row.data["department_id"])
+
     td = supabase.table("technician_departments") \
         .select("department_id") \
         .eq("technician_id", user["id"]) \
         .execute()
+    for row in (td.data or []):
+        if row.get("department_id"):
+            dept_ids.add(row["department_id"])
 
-    dept_ids = [row["department_id"] for row in (td.data or [])]
+    dept_ids = list(dept_ids)
 
     if not dept_ids:
         return {"departments": [], "is_global_viewer": False}
