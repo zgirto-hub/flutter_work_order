@@ -625,7 +625,6 @@ class _FilesScreenState extends State<FilesScreen>
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 _SpeedDialItem(
-                  icon: Icons.create_new_folder_outlined,
                   label: 'New Folder',
                   color: fabColor,
                   onTap: () {
@@ -635,7 +634,6 @@ class _FilesScreenState extends State<FilesScreen>
                 ),
                 SizedBox(height: 10),
                 _SpeedDialItem(
-                  icon: Icons.upload_file_outlined,
                   label: 'Add File',
                   color: fabColor,
                   onTap: () async {
@@ -2161,25 +2159,25 @@ class _StatCard extends StatelessWidget {
 // ── Speed Dial Item ───────────────────────────────────────────────────────────
 
 class _SpeedDialItem extends StatelessWidget {
-  final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
 
   const _SpeedDialItem(
-      {required this.icon,
-      required this.label,
+      {required this.label,
       required this.color,
       required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(9),
+        child: Container(
           padding: const EdgeInsets.symmetric(
-              horizontal: 12, vertical: 7),
+              horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(9),
@@ -2196,15 +2194,7 @@ class _SpeedDialItem extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                   color: Colors.white)),
         ),
-        SizedBox(width: 10),
-        FloatingActionButton.small(
-          heroTag: label,
-          onPressed: onTap,
-          backgroundColor: color,
-          elevation: 4,
-          child: Icon(icon, size: 20, color: Colors.white),
-        ),
-      ],
+      ),
     );
   }
 }
