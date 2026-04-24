@@ -126,6 +126,16 @@ class UserService {
     }
   }
 
+  Future<void> deleteUser(String userId) async {
+    final res = await http.delete(
+      Uri.parse(
+          '${AppConfig.baseUrl}/users/$userId?admin_email=${Uri.encodeComponent(_email)}'),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(_errorDetail(res, 'Failed to delete user'));
+    }
+  }
+
   Future<void> deactivateUser(String userId) async {
     final res = await http.patch(
       Uri.parse(

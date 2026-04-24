@@ -1,6 +1,6 @@
 ﻿# flutter_work_order Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-23
+Auto-generated from all feature plans. Last updated: 2026-04-24
 
 ## Active Technologies
 - Dart 3.x / Flutter 3.x + `pdf` ^3.10.7 (existing), `printing` ^5.12.0 (existing), `htmltopdfwidgets` (NEW) (002-use-html-css)
@@ -115,6 +115,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-23
 - Supabase (PostgreSQL + pgvector). Existing `validated_qa` table (spec 083) read-only for few-shot sourcing. Existing `rag_diagnostic_log` table (spec 088) read-only for SC-007 verification. **No schema changes, no migrations.** (089-generator-prompt-tuning)
 - Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend, existing); `http`, `supabase_flutter`, Flutter Material (frontend, existing). **No new dependencies.** (092-dept-file-visibility)
 - Supabase (PostgreSQL) — existing `files`, `file_folders`, `departments`, `technician_departments`, `users`, `resource_permissions` tables. One migration adds `files.department_id UUID NULL REFERENCES departments(id) ON DELETE SET NULL` plus an index. `file_folders` is NOT modified (folder scope dropped per clarification). (092-dept-file-visibility)
+- Dart 3.x / Flutter 3.x (frontend); Python 3.10 (backend) + FastAPI, Supabase Python client (backend, existing); `http`, `supabase_flutter`, Flutter Material (frontend, existing). **No new dependencies.** (093-delete-user)
+- Supabase (PostgreSQL) — existing `users`, `user_activity_log` tables. No schema changes, no migrations. Supabase Auth (`auth.users`) via admin client. (093-delete-user)
 
 - Dart 3.x / Flutter 3.x + Flutter Material, fl_chart, supabase_flutter, app_theme (001-status-cards-redesign)
 - Python 3 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client, httpx (backend); http, Flutter Material (frontend) (021-ai-analytics-insights)
@@ -137,9 +139,9 @@ tests/
 Dart 3.x / Flutter 3.x: Follow standard conventions
 
 ## Recent Changes
+- 093-delete-user: Added Dart 3.x / Flutter 3.x (frontend); Python 3.10 (backend) + FastAPI, Supabase Python client (backend, existing); `http`, `supabase_flutter`, Flutter Material (frontend, existing). **No new dependencies.**
 - 092-dept-file-visibility: Added Python 3.10 (backend), Dart 3.x / Flutter 3.x (frontend) + FastAPI, Supabase Python client (backend, existing); `http`, `supabase_flutter`, Flutter Material (frontend, existing). **No new dependencies.**
 - 090-delete-legacy-manuals: Deleted legacy `manuals`, `manual_chunks`, `manual_corpus_stats` tables and their RPC functions from Supabase. Removed `backend/services/manual_storage_service.py`, `manual_chunker.py`, `scripts/backfill_validated_qa_manual_ids.py`. Trimmed upload/delete paths from `manual_rag_service.py` and `manuals.py`. Removed Manuals UI tab, chunk editor screens, and migration helpers from frontend. `/manuals/ask` route and `manual_parser.py` are **retained** (live document pipeline). **No new dependencies.**
-- 089-generator-prompt-tuning: Added Python 3.10 (backend only — no Flutter/Dart changes this spec) + FastAPI (existing), Supabase Python client (existing), `services.ai_providers.resolver` (spec 063, existing), `services.manual_rag_service.DOCUMENT_QA_SYSTEM_PROMPT` (existing, target of edit), `services.ollama_generator` (existing). **No new dependencies.**
 
 
 <!-- MANUAL ADDITIONS START -->

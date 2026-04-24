@@ -301,6 +301,7 @@ resource_permissions.resource_id -> files.id or file_folders.id
 | View WOs | Own only | Own dept only | All |
 | Update/Close WO | No | Yes | Yes |
 | Delete WO | No | No | Yes |
+| Delete user | No | No | Yes |
 | Create accounts | No | No | Yes |
 | Manage departments | No | No | Yes |
 | Comment on WO | Yes | Yes | Yes |
@@ -414,7 +415,7 @@ Current migrations include:
 ## Key Patterns & Conventions
 
 ### User Roles
-Three roles: `reporter`, `technician`, `admin`. Stored as `user_type` in the `users` table. No self-registration — admins create all accounts via `POST /api/users?admin_email=`.
+Three roles: `reporter`, `technician`, `admin`. Stored as `user_type` in the `users` table. No self-registration — admins create all accounts via `POST /api/users?admin_email=`. Admins can permanently delete users via `DELETE /api/users/{user_id}?admin_email=` (self-delete and last-active-admin guards enforced server-side).
 
 Admins are included alongside technicians in technician-assignment dropdowns (`fetchTechnicians()` returns both `technician` and `admin` user types).
 
@@ -625,7 +626,7 @@ Admin is excluded from the approval chain:
 ### Backend
 - `backend/main.py` — router registration
 - `backend/routers/work_orders.py` — WO CRUD, comments, attachments, notification dispatch
-- `backend/routers/users.py` — user management (admin-only), role checks, activity log
+- `backend/routers/users.py` — user management (admin-only), role checks, activity log; DELETE /users/{user_id} with self-delete + last-admin guards
 - `backend/routers/departments.py` — department CRUD, technician/WO counts
 - `backend/routers/technician_departments.py` — technician-department mapping CRUD
 - `backend/routers/notifications.py` — notification/watcher/preference APIs

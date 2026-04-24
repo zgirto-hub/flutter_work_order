@@ -708,7 +708,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         user.departments.isNotEmpty ? user.departments.first : null;
     List<String>? selectedScreens = user.allowedScreens;
     bool loading = false;
+    bool deactivating = false;
     bool deleting = false;
+    final isSelf = user.email.toLowerCase() ==
+        Supabase.instance.client.auth.currentUser?.email?.toLowerCase();
 
     // T013: Initialize approval role state from user
     int? initialApprovalLevel = user.approvalLevel;
@@ -1039,9 +1042,68 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ),
           ),
           actions: [
+            if (!isSelf)
+              TextButton.icon(
+                onPressed: (loading || deactivating || deleting)
+                    ? null
+                    : () async {
+                        final confirm = await showDialog<bool>(
+                          context: ctx,
+                          builder: (_) => AlertDialog(
+                            backgroundColor: AppColors.bgSurface,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                            title: Text('Delete User?'),
+                            content: Text(
+                                'This will permanently delete ${user.fullName ?? user.email} and cannot be undone.'),
+                            actions: [
+                              TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: Text('Cancel')),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.dangerText,
+                                    foregroundColor: Colors.white),
+                                child: Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          setDlg(() => deleting = true);
+                          try {
+                            await _userService.deleteUser(user.id);
+                            if (mounted) Navigator.pop(ctx);
+                            await _loadData();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                  content: Text('User deleted successfully'),
+                                  backgroundColor: AppColors.dangerText));
+                            }
+                          } catch (e) {
+                            setDlg(() => deleting = false);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                  content: Text('Error: $e'),
+                                  backgroundColor: AppColors.dangerText));
+                            }
+                          }
+                        }
+                      },
+                icon: Icon(Icons.delete_outline, size: 16),
+                label: deleting
+                    ? SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 1.5, color: AppColors.dangerText))
+                    : Text('Delete User',
+                        style: TextStyle(color: AppColors.dangerText)),
+              ),
             if (user.isActive)
               TextButton(
-                onPressed: loading
+                onPressed: (loading || deactivating || deleting)
                     ? null
                     : () async {
                         final confirm = await showDialog<bool>(
@@ -1065,17 +1127,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           ),
                         );
                         if (confirm == true) {
-                          setDlg(() => deleting = true);
-                          try {
-                            await _userService.deactivateUser(user.id);
-                            if (mounted) Navigator.pop(ctx);
-                            _loadData();
-                          } catch (e) {
-                            setDlg(() => deleting = false);
-                          }
+setDlg(() => deactivating = true);
+                        try {
+                          await _userService.deactivateUser(user.id);
+                          if (mounted) Navigator.pop(ctx);
+                          _loadData();
+                        } catch (e) {
+                          setDlg(() => deactivating = false);
+                        }
                         }
                       },
-                child: deleting
+                child: deactivating
                     ? SizedBox(
                         width: 14,
                         height: 14,
@@ -1085,7 +1147,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               )
             else
               TextButton(
-                onPressed: loading
+                onPressed: (loading || deactivating || deleting)
                     ? null
                     : () async {
                         setDlg(() => loading = true);
@@ -1101,17 +1163,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     style: TextStyle(color: AppColors.closedText)),
               ),
             TextButton(
-              onPressed: loading
+              onPressed: (loading || deactivating || deleting)
                   ? null
                   : () => _showResetPasswordDialog(context, user),
               child: Text('Reset Password',
                   style: TextStyle(color: AppColors.pendingText)),
             ),
             TextButton(
-                onPressed: loading ? null : () => Navigator.pop(ctx, false),
+                onPressed: (loading || deactivating || deleting) ? null : () => Navigator.pop(ctx, false),
                 child: Text('Cancel')),
             ElevatedButton(
-              onPressed: loading
+              onPressed: (loading || deactivating || deleting)
                   ? null
                   : () async {
                       setDlg(() => loading = true);

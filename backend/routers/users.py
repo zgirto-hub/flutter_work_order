@@ -419,6 +419,57 @@ async def change_user_role(
     return {"user": result.data[0] if result.data else None}
 
 
+@router.delete("/users/{user_id}")
+async def delete_user(user_id: str, admin_email: str = Query(...)):
+    """Permanently delete a user (admin only)"""
+    _require_admin(admin_email)
+
+    user = _get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user["email"] == admin_email:
+        raise HTTPException(
+            status_code=400, detail="Cannot delete your own account"
+        )
+
+    if user.get("user_type") == "admin":
+        resp = (
+            supabase.table("users")
+            .select("id", count="exact")
+            .eq("user_type", "admin")
+            .eq("is_active", True)
+            .execute()
+        )
+        active_admin_count = resp.count or 0
+        if active_admin_count <= 1:
+            raise HTTPException(
+                status_code=400, detail="Cannot delete the last active admin"
+            )
+
+    auth_id = user.get("auth_id")
+    if auth_id:
+        try:
+            supabase.auth.admin.delete_user(auth_id)
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to delete user authentication record",
+            )
+
+    supabase.table("users").delete().eq("id", user_id).execute()
+
+    log_activity(
+        admin_email,
+        "admin",
+        "user_deleted",
+        target_label=user["email"],
+        detail=f"Deleted user {user['email']} (id: {user_id})",
+    )
+
+    return {"message": "User deleted successfully"}
+
+
 @router.patch("/users/{user_id}/deactivate")
 async def deactivate_user(user_id: str, admin_email: str = Query(...)):
     """Deactivate user (admin only)"""
