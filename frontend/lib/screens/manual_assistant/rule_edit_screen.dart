@@ -160,7 +160,7 @@ class _RuleEditScreenState extends State<RuleEditScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _severity,
+              initialValue: _severity,
               decoration: const InputDecoration(
                 labelText: 'Severity',
                 border: OutlineInputBorder(),
@@ -176,7 +176,7 @@ class _RuleEditScreenState extends State<RuleEditScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _detectionType,
+              initialValue: _detectionType,
               decoration: const InputDecoration(
                 labelText: 'Detection Type',
                 border: OutlineInputBorder(),
@@ -228,7 +228,7 @@ class _RuleEditScreenState extends State<RuleEditScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String?>(
-              value: _targetField,
+              initialValue: _targetField,
               decoration: const InputDecoration(
                 labelText: 'Target Field',
                 border: OutlineInputBorder(),

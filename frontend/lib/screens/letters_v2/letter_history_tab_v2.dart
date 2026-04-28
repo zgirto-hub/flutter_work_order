@@ -34,11 +34,12 @@ class _LetterHistoryTabV2State extends State<LetterHistoryTabV2> {
         _loadError = null;
       });
       final letters = await LetterService().fetchAllV2();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _letters = letters;
           _isLoading = false;
         });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {

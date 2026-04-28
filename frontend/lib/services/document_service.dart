@@ -35,8 +35,9 @@ class DocumentService {
     final resp = await http.get(
       Uri.parse('$_baseUrl/documents/?user_email=$userEmail'),
     );
-    if (resp.statusCode != 200)
+    if (resp.statusCode != 200) {
       throw Exception('List failed: ${resp.statusCode}');
+    }
     return List<Map<String, dynamic>>.from(jsonDecode(resp.body));
   }
 
@@ -45,8 +46,9 @@ class DocumentService {
     final resp = await http.get(
       Uri.parse('$_baseUrl/documents/$documentId/status?user_email=$userEmail'),
     );
-    if (resp.statusCode != 200)
+    if (resp.statusCode != 200) {
       throw Exception('Status failed: ${resp.statusCode}');
+    }
     return jsonDecode(resp.body);
   }
 
@@ -54,8 +56,9 @@ class DocumentService {
     final resp = await http.delete(
       Uri.parse('$_baseUrl/documents/$documentId?user_email=$userEmail'),
     );
-    if (resp.statusCode != 200)
+    if (resp.statusCode != 200) {
       throw Exception('Delete failed: ${resp.statusCode}');
+    }
   }
 
   Future<Map<String, dynamic>> reindexDocument(
@@ -64,8 +67,9 @@ class DocumentService {
       Uri.parse(
           '$_baseUrl/documents/$documentId/reindex?user_email=$userEmail'),
     );
-    if (resp.statusCode != 200)
+    if (resp.statusCode != 200) {
       throw Exception('Reindex failed: ${resp.statusCode}');
+    }
     return jsonDecode(resp.body);
   }
 
@@ -75,8 +79,9 @@ class DocumentService {
       Uri.parse(
           '$_baseUrl/documents/$documentId/chunks?user_email=$userEmail&page=$page&page_size=$pageSize'),
     );
-    if (resp.statusCode != 200)
+    if (resp.statusCode != 200) {
       throw Exception('List chunks failed: ${resp.statusCode}');
+    }
     return jsonDecode(resp.body);
   }
 
@@ -86,8 +91,9 @@ class DocumentService {
       Uri.parse(
           '$_baseUrl/documents/$documentId/chunks/$chunkId?user_email=$userEmail'),
     );
-    if (resp.statusCode != 200)
+    if (resp.statusCode != 200) {
       throw Exception('Get chunk failed: ${resp.statusCode}');
+    }
     return jsonDecode(resp.body);
   }
 
@@ -98,8 +104,9 @@ class DocumentService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'content': content, 'user_email': userEmail}),
     );
-    if (resp.statusCode != 200)
+    if (resp.statusCode != 200) {
       throw Exception('Update chunk failed: ${resp.statusCode}');
+    }
     return jsonDecode(resp.body);
   }
 
@@ -117,8 +124,9 @@ class DocumentService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(body),
     );
-    if (resp.statusCode != 200)
+    if (resp.statusCode != 200) {
       throw Exception('Add chunk failed: ${resp.statusCode}');
+    }
     return jsonDecode(resp.body);
   }
 
@@ -128,8 +136,9 @@ class DocumentService {
       Uri.parse(
           '$_baseUrl/documents/$documentId/chunks/$chunkId?user_email=$userEmail'),
     );
-    if (resp.statusCode != 200)
+    if (resp.statusCode != 200) {
       throw Exception('Delete chunk failed: ${resp.statusCode}');
+    }
   }
 
   Future<List<Map<String, dynamic>>> splitChunk(String documentId,
@@ -138,8 +147,9 @@ class DocumentService {
       Uri.parse(
           '$_baseUrl/documents/$documentId/chunks/$chunkId/split?split_position=$splitPosition&user_email=$userEmail'),
     );
-    if (resp.statusCode != 200)
+    if (resp.statusCode != 200) {
       throw Exception('Split chunk failed: ${resp.statusCode}');
+    }
     final data = jsonDecode(resp.body);
     return List<Map<String, dynamic>>.from(data['chunks'] ?? []);
   }
@@ -150,8 +160,9 @@ class DocumentService {
       Uri.parse(
           '$_baseUrl/documents/$documentId/chunks/$chunkId/merge?user_email=$userEmail'),
     );
-    if (resp.statusCode != 200)
+    if (resp.statusCode != 200) {
       throw Exception('Merge chunk failed: ${resp.statusCode}');
+    }
     return jsonDecode(resp.body);
   }
 
@@ -160,8 +171,9 @@ class DocumentService {
       Uri.parse(
           '$_baseUrl/documents/$documentId/chunks/re-embed?user_email=$userEmail'),
     );
-    if (resp.statusCode != 200)
+    if (resp.statusCode != 200) {
       throw Exception('Re-embed failed: ${resp.statusCode}');
+    }
   }
 
   Future<void> bulkDeleteChunks(
@@ -171,8 +183,9 @@ class DocumentService {
       Uri.parse(
           '$_baseUrl/documents/$documentId/chunks/bulk-delete?chunk_ids=${Uri.encodeComponent(encoded)}&user_email=$userEmail'),
     );
-    if (resp.statusCode != 200)
+    if (resp.statusCode != 200) {
       throw Exception('Bulk delete failed: ${resp.statusCode}');
+    }
   }
 
 }

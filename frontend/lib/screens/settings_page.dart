@@ -1493,7 +1493,7 @@ class _SmartPreprocessingWidgetState extends State<_SmartPreprocessingWidget> {
             Switch(
               value: _enabled,
               onChanged: _toggle,
-              activeColor: AppColors.accent,
+              activeThumbColor: AppColors.accent,
             ),
         ],
       ),
@@ -1635,7 +1635,7 @@ class _AiWorkOrderWidgetState extends State<_AiWorkOrderWidget> {
             Switch(
               value: _enabled,
               onChanged: _toggle,
-              activeColor: AppColors.accent,
+              activeThumbColor: AppColors.accent,
             ),
         ],
       ),

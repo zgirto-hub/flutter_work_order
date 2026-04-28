@@ -386,7 +386,9 @@ class _VerifiedAnswersTabState extends State<VerifiedAnswersTab>
           ElevatedButton(
             onPressed: () async {
               if (questionCtrl.text.trim().isEmpty ||
-                  answerCtrl.text.trim().isEmpty) return;
+                  answerCtrl.text.trim().isEmpty) {
+                return;
+              }
               Navigator.pop(context);
               await _saveNewEntry(
                   questionCtrl.text.trim(), answerCtrl.text.trim());

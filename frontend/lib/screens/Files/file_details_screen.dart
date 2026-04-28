@@ -478,7 +478,7 @@ class _FileDetailsScreenState extends State<FileDetailsScreen> {
                       }
                       final depts = snap.data!;
                       return DropdownButtonFormField<String?>(
-                        value: selectedDeptId,
+                        initialValue: selectedDeptId,
                         decoration: InputDecoration(
                           hintText: 'None (global)',
                           prefixIcon: Icon(Icons.business_outlined, size: 16),

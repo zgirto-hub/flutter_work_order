@@ -275,7 +275,7 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: nextRole,
+                    initialValue: nextRole,
                     decoration: const InputDecoration(
                       labelText: 'Change Role',
                       border: OutlineInputBorder(),
@@ -290,7 +290,7 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
                   if (system.hasContingency) ...[
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: nextSite,
+                      initialValue: nextSite,
                       decoration: const InputDecoration(
                         labelText: 'Change Site',
                         border: OutlineInputBorder(),
@@ -456,7 +456,7 @@ class _SystemDetailScreenState extends State<SystemDetailScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: type,
+                      initialValue: type,
                       decoration: const InputDecoration(
                         labelText: 'Type',
                         border: OutlineInputBorder(),

@@ -74,8 +74,8 @@ class _FeedbackReasonSheetState extends State<FeedbackReasonSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final screenHeight = MediaQuery.of(context).size.height;
-    const _textSecondary = Color(0xFF717171);
-    const _border2 = Color(0xFFE0E0E0);
+    const textSecondary = Color(0xFF717171);
+    const border2 = Color(0xFFE0E0E0);
 
     return Container(
       constraints: BoxConstraints(maxHeight: screenHeight * 0.9),
@@ -98,7 +98,7 @@ class _FeedbackReasonSheetState extends State<FeedbackReasonSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: _border2,
+              color: border2,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -123,11 +123,11 @@ class _FeedbackReasonSheetState extends State<FeedbackReasonSheet> {
                       selectedColor: reason.color.withValues(alpha: 0.3),
                       backgroundColor: theme.colorScheme.surface,
                       labelStyle: TextStyle(
-                        color: isSelected ? reason.color : _textSecondary,
+                        color: isSelected ? reason.color : textSecondary,
                       ),
                       side: isSelected
                           ? BorderSide(color: reason.color, width: 1.5)
-                          : const BorderSide(color: _border2),
+                          : const BorderSide(color: border2),
                       onSelected: (selected) {
                         setState(() {
                           _selectedReason = selected ? reason : null;
@@ -145,7 +145,7 @@ class _FeedbackReasonSheetState extends State<FeedbackReasonSheet> {
                     border: const OutlineInputBorder(),
                     counterText: '${_commentController.text.length}/2000',
                     counterStyle: TextStyle(
-                      color: _counterRed ? Colors.red : _textSecondary,
+                      color: _counterRed ? Colors.red : textSecondary,
                       fontSize: 12,
                     ),
                   ),

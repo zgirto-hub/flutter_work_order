@@ -171,7 +171,7 @@ class _AddAssetToSystemSheetState extends State<AddAssetToSystemSheet> {
     }
 
     return DropdownButtonFormField<String>(
-      value: _selectedAssetId,
+      initialValue: _selectedAssetId,
       decoration: const InputDecoration(
         labelText: 'Existing Asset',
         border: OutlineInputBorder(),
@@ -200,7 +200,7 @@ class _AddAssetToSystemSheetState extends State<AddAssetToSystemSheet> {
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
-          value: _selectedType,
+          initialValue: _selectedType,
           decoration: const InputDecoration(
             labelText: 'Type *',
             border: OutlineInputBorder(),

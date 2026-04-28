@@ -375,7 +375,7 @@ class _AddFileScreenState extends State<AddFileScreen> {
                         )),
                       )
                     : DropdownButtonFormField<String?>(
-                        value: _selectedDepartmentId,
+                        initialValue: _selectedDepartmentId,
                         decoration: InputDecoration(
                           hintText: 'None (global)',
                           prefixIcon: Icon(Icons.business_outlined, size: 16),

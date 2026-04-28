@@ -30,7 +30,7 @@ class _DocumentChunkEditorState extends State<DocumentChunkEditor> {
   int _total = 0;
   bool _loading = true;
   String? _error;
-  Set<String> _selectedIds = {};
+  final Set<String> _selectedIds = {};
   bool _selectionMode = false;
 
   @override

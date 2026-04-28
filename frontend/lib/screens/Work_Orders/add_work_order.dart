@@ -2161,7 +2161,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               SizedBox(height: 16),
               // Outcome dropdown
               DropdownButtonFormField<String>(
-                value: selectedOutcome,
+                initialValue: selectedOutcome,
                 items: _allowedOutcomes
                     .map((o) => DropdownMenuItem(value: o, child: Text(o)))
                     .toList(),
